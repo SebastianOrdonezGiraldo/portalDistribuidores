@@ -1,0 +1,282 @@
+{
+  "info": {
+    "_postman_id": "d4c9af5b-6f0e-463d-a6b7-portal-distribuidores",
+    "name": "Portal Distribuidores - Import Corporal Medical SAS",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000" },
+    { "key": "csrf_token", "value": "" },
+    { "key": "admin_email", "value": "admin@importcorporal.test" },
+    { "key": "admin_password", "value": "Password123!" },
+    { "key": "dist_email", "value": "dist@importcorporal.test" },
+    { "key": "dist_password", "value": "Password123!" },
+    { "key": "product_id", "value": "1" },
+    { "key": "order_id", "value": "1" },
+    { "key": "product_document_id", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "01 - Get Login (CSRF)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text();",
+                  "const meta = body.match(/name=\"csrf-token\" content=\"([^\"]+)\"/);",
+                  "const input = body.match(/name=\"_token\" value=\"([^\"]+)\"/);",
+                  "const token = (meta && meta[1]) || (input && input[1]);",
+                  "if (token) { pm.collectionVariables.set('csrf_token', token); }",
+                  "pm.test('csrf_token capturado', function () { pm.expect(pm.collectionVariables.get('csrf_token')).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/login"
+          }
+        },
+        {
+          "name": "02 - Login Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "_token", "value": "{{csrf_token}}", "type": "text" },
+                { "key": "email", "value": "{{admin_email}}", "type": "text" },
+                { "key": "password", "value": "{{admin_password}}", "type": "text" }
+              ]
+            },
+            "url": "{{base_url}}/login"
+          }
+        },
+        {
+          "name": "03 - Login Distribuidor",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "_token", "value": "{{csrf_token}}", "type": "text" },
+                { "key": "email", "value": "{{dist_email}}", "type": "text" },
+                { "key": "password", "value": "{{dist_password}}", "type": "text" }
+              ]
+            },
+            "url": "{{base_url}}/login"
+          }
+        },
+        {
+          "name": "04 - Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "_token", "value": "{{csrf_token}}", "type": "text" }
+              ]
+            },
+            "url": "{{base_url}}/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Distribuidor",
+      "item": [
+        {
+          "name": "01 - Catalogo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text();",
+                  "const meta = body.match(/name=\"csrf-token\" content=\"([^\"]+)\"/);",
+                  "if (meta && meta[1]) pm.collectionVariables.set('csrf_token', meta[1]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/catalog"
+          }
+        },
+        {
+          "name": "02 - Ver Carrito",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text();",
+                  "const meta = body.match(/name=\"csrf-token\" content=\"([^\"]+)\"/);",
+                  "if (meta && meta[1]) pm.collectionVariables.set('csrf_token', meta[1]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/cart"
+          }
+        },
+        {
+          "name": "03 - Agregar al Carrito",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "_token", "value": "{{csrf_token}}", "type": "text" },
+                { "key": "product_id", "value": "{{product_id}}", "type": "text" },
+                { "key": "qty", "value": "1", "type": "text" },
+                { "key": "unit_label", "value": "unidad", "type": "text" }
+              ]
+            },
+            "url": "{{base_url}}/cart"
+          }
+        },
+        {
+          "name": "04 - Checkout (CSRF)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text();",
+                  "const meta = body.match(/name=\"csrf-token\" content=\"([^\"]+)\"/);",
+                  "if (meta && meta[1]) pm.collectionVariables.set('csrf_token', meta[1]);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/checkout"
+          }
+        },
+        {
+          "name": "05 - Crear Orden (CTC)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "_token", "value": "{{csrf_token}}", "type": "text" },
+                { "key": "company_name", "value": "Distribuidor Demo SAS", "type": "text" },
+                { "key": "company_nit", "value": "900123456-7", "type": "text" },
+                { "key": "contact_email", "value": "compras@distribuidor-demo.com", "type": "text" },
+                { "key": "contact_name", "value": "Maria Perez", "type": "text" },
+                { "key": "company_address", "value": "Calle 123 # 45-67", "type": "text" },
+                { "key": "city", "value": "Bogota", "type": "text" },
+                { "key": "notes", "value": "Pedido creado desde Postman", "type": "text" }
+              ]
+            },
+            "url": "{{base_url}}/orders"
+          }
+        },
+        {
+          "name": "06 - Ver Orden",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/orders/{{order_id}}"
+          }
+        },
+        {
+          "name": "07 - Descargar Ficha Tecnica",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/documents/tech-sheet/{{product_document_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "01 - Dashboard",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/admin"
+          }
+        },
+        {
+          "name": "02 - Ordenes",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/admin/orders"
+          }
+        },
+        {
+          "name": "03 - Detalle Orden",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/admin/orders/{{order_id}}"
+          }
+        },
+        {
+          "name": "04 - PDF Orden",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/admin/orders/{{order_id}}/pdf"
+          }
+        },
+        {
+          "name": "05 - Productos",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/admin/products"
+          }
+        },
+        {
+          "name": "06 - Categorias",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/admin/categories"
+          }
+        },
+        {
+          "name": "07 - Distribuidores",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/admin/distributors"
+          }
+        },
+        {
+          "name": "08 - Usuarios",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/admin/users"
+          }
+        }
+      ]
+    }
+  ]
+}

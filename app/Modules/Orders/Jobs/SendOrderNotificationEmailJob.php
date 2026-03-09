@@ -1,0 +1,119 @@
+<?php
+
+namespace App\Modules\Orders\Jobs;
+
+use App\Modules\Orders\Mail\OrderCreatedCustomerQuotationMail;
+use App\Modules\Orders\Mail\OrderCreatedNotificationMail;
+use App\Modules\Orders\Models\Order;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+use RuntimeException;
+
+class SendOrderNotificationEmailJob implements ShouldQueue
+{
+    use Dispatchable;
+    use InteractsWithQueue;
+    use Queueable;
+    use SerializesModels;
+
+    public int $tries = 5;
+
+    /**
+     * @return list<int>
+     */
+    public function backoff(): array
+    {
+        return [30, 120, 300, 600];
+    }
+
+    public function __construct(public readonly int $orderId)
+    {
+    }
+
+    public function handle(): void
+    {
+        $order = Order::query()->with(['items', 'distributor', 'user'])->find($this->orderId);
+
+        if (! $order) {
+            return;
+        }
+
+        if (! $order->pdf_path || ! Storage::disk('public')->exists($order->pdf_path)) {
+            GenerateOrderPdfJob::dispatch($order->id);
+            $this->release(20);
+
+            return;
+        }
+
+        $pdfAbsolutePath = Storage::disk('public')->path($order->pdf_path);
+
+        try {
+            $this->sendInternalNotification($order, $pdfAbsolutePath);
+            $this->sendCustomerQuotation($order, $pdfAbsolutePath);
+        } catch (\Throwable $exception) {
+            Log::error('order.email.failed', [
+                'order_id' => $order->id,
+                'oc_number' => $order->oc_number,
+                'error' => $exception->getMessage(),
+            ]);
+
+            throw new RuntimeException($exception->getMessage(), previous: $exception);
+        }
+
+        Log::info('order.email.processed', [
+            'order_id' => $order->id,
+            'oc_number' => $order->oc_number,
+        ]);
+    }
+
+    private function sendInternalNotification(Order $order, string $pdfAbsolutePath): void
+    {
+        $recipient = trim((string) config('mail.order_notification_to'));
+
+        if ($recipient === '') {
+            Log::warning('order.email.internal.skipped.no_recipient', [
+                'order_id' => $order->id,
+                'oc_number' => $order->oc_number,
+            ]);
+
+            return;
+        }
+
+        Mail::to($recipient)->send(new OrderCreatedNotificationMail($order, $pdfAbsolutePath));
+
+        Log::info('order.email.internal.sent', [
+            'order_id' => $order->id,
+            'oc_number' => $order->oc_number,
+            'recipient' => $recipient,
+        ]);
+    }
+
+    private function sendCustomerQuotation(Order $order, string $pdfAbsolutePath): void
+    {
+        $customerRecipient = trim((string) ($order->contact_email ?? ''));
+
+        if (! filter_var($customerRecipient, FILTER_VALIDATE_EMAIL)) {
+            Log::warning('order.email.customer.skipped.invalid_recipient', [
+                'order_id' => $order->id,
+                'oc_number' => $order->oc_number,
+                'contact_email' => $order->contact_email,
+            ]);
+
+            return;
+        }
+
+        Mail::to($customerRecipient)->send(new OrderCreatedCustomerQuotationMail($order, $pdfAbsolutePath));
+
+        Log::info('order.email.customer.sent', [
+            'order_id' => $order->id,
+            'oc_number' => $order->oc_number,
+            'recipient' => $customerRecipient,
+        ]);
+    }
+}
