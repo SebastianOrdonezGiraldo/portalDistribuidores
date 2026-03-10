@@ -12,6 +12,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -21,16 +22,31 @@ class OrderAdminController extends Controller
     {
         $this->authorize('viewAny', Order::class);
 
+        $statusOptions = array_map(fn (OrderStatus $status) => $status->value, OrderStatus::cases());
+        $sortOptions = ['newest', 'oldest', 'amount_desc', 'amount_asc'];
+        $perPageOptions = [20, 50, 100];
+
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:120'],
-            'status' => ['nullable', 'string', 'max:40'],
+            'status' => ['nullable', 'string', Rule::in($statusOptions)],
             'distributor_id' => ['nullable', 'integer', 'exists:distributors,id'],
             'date_from' => ['nullable', 'date'],
-            'date_to' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'sort' => ['nullable', 'string', Rule::in($sortOptions)],
+            'per_page' => ['nullable', 'integer', Rule::in($perPageOptions)],
         ]);
 
-        $orders = Order::query()
-            ->with('distributor', 'user')
+        $filters = array_merge([
+            'q' => null,
+            'status' => null,
+            'distributor_id' => null,
+            'date_from' => null,
+            'date_to' => null,
+            'sort' => 'newest',
+            'per_page' => 20,
+        ], $filters);
+
+        $filteredQuery = Order::query()
             ->when(! empty($filters['q']), function ($query) use ($filters) {
                 $term = trim((string) $filters['q']);
 
@@ -45,16 +61,50 @@ class OrderAdminController extends Controller
             ->when(! empty($filters['status']), fn ($query) => $query->where('status', $filters['status']))
             ->when(! empty($filters['distributor_id']), fn ($query) => $query->where('distributor_id', $filters['distributor_id']))
             ->when(! empty($filters['date_from']), fn ($query) => $query->whereDate('created_at', '>=', $filters['date_from']))
-            ->when(! empty($filters['date_to']), fn ($query) => $query->whereDate('created_at', '<=', $filters['date_to']))
-            ->latest()
-            ->paginate(20)
+            ->when(! empty($filters['date_to']), fn ($query) => $query->whereDate('created_at', '<=', $filters['date_to']));
+
+        $orders = (clone $filteredQuery)
+            ->with('distributor', 'user')
+            ->when($filters['sort'] === 'newest', fn ($query) => $query->latest())
+            ->when($filters['sort'] === 'oldest', fn ($query) => $query->oldest())
+            ->when($filters['sort'] === 'amount_desc', fn ($query) => $query->orderByDesc('total_amount')->orderByDesc('created_at'))
+            ->when($filters['sort'] === 'amount_asc', fn ($query) => $query->orderBy('total_amount')->orderByDesc('created_at'))
+            ->paginate((int) $filters['per_page'])
             ->withQueryString();
+
+        $statusCounts = (clone $filteredQuery)
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $statusSummary = collect(OrderStatus::cases())
+            ->mapWithKeys(fn (OrderStatus $status) => [$status->value => (int) ($statusCounts[$status->value] ?? 0)]);
+
+        $metrics = [
+            'total_orders' => (clone $filteredQuery)->count(),
+            'total_amount' => (float) (clone $filteredQuery)->sum('total_amount'),
+            'pending_pdf' => (clone $filteredQuery)->whereNull('pdf_path')->count(),
+            'sending' => (int) ($statusSummary[OrderStatus::Sending->value] ?? 0),
+        ];
+
+        $activeFiltersCount = collect([
+            $filters['q'],
+            $filters['status'],
+            $filters['distributor_id'],
+            $filters['date_from'],
+            $filters['date_to'],
+        ])->filter(fn ($value) => filled($value))->count();
 
         return view('admin.orders.index', [
             'orders' => $orders,
             'filters' => $filters,
-            'statusOptions' => array_map(fn (OrderStatus $status) => $status->value, OrderStatus::cases()),
+            'statusOptions' => $statusOptions,
+            'sortOptions' => $sortOptions,
+            'perPageOptions' => $perPageOptions,
             'distributors' => Distributor::query()->orderBy('name')->get(['id', 'name']),
+            'statusSummary' => $statusSummary,
+            'metrics' => $metrics,
+            'activeFiltersCount' => $activeFiltersCount,
         ]);
     }
 
@@ -62,8 +112,25 @@ class OrderAdminController extends Controller
     {
         $this->authorize('view', $order);
 
+        $order->load('items', 'distributor', 'user');
+
+        $items = $order->items;
+
+        $totals = [
+            'items_count' => $items->count(),
+            'units_total' => (float) $items->sum('qty'),
+            'subtotals_total' => (float) $items->sum('subtotal'),
+            'average_unit_price' => $items->isNotEmpty()
+                ? (float) $items->avg('price_each')
+                : 0.0,
+        ];
+
+        $hasFinancialGap = abs($totals['subtotals_total'] - (float) $order->total_amount) > 0.01;
+
         return view('admin.orders.show', [
-            'order' => $order->load('items', 'distributor', 'user'),
+            'order' => $order,
+            'totals' => $totals,
+            'hasFinancialGap' => $hasFinancialGap,
         ]);
     }
 

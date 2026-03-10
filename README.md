@@ -33,12 +33,17 @@ Aplicación Laravel (Modular Monolith) para **Import Corporal Medical SAS**, enf
    - `DB_DATABASE=portal_distribuidores`
    - `DB_USERNAME=postgres`
    - `DB_PASSWORD=...`
-5. `php artisan migrate --seed`
-6. `php artisan storage:link`
-7. `npm install && npm run build`
-8. `php artisan serve`
-9. Correr worker de colas:
+5. `php artisan migrate`
+6. (Opcional, solo ambiente demo) `SEED_DEMO_DATA=true php artisan db:seed`
+7. `php artisan storage:link`
+8. `npm install && npm run build`
+9. `php artisan serve`
+10. Correr worker de colas:
    - `php artisan queue:work`
+
+Arranque rápido en Windows (abre servidor + worker en ventanas separadas):
+- `powershell -ExecutionPolicy Bypass -File .\start.ps1`
+- Opcional con migraciones pendientes: `powershell -ExecutionPolicy Bypass -File .\start.ps1 -RunMigrations`
 
 ## Credenciales seed
 - Admin:
@@ -47,6 +52,9 @@ Aplicación Laravel (Modular Monolith) para **Import Corporal Medical SAS**, enf
 - Distribuidor demo:
   - `dist@importcorporal.test`
   - `Password123!`
+
+Por defecto, `php artisan db:seed` solo crea usuarios de acceso.
+El catálogo/categorías demo se siembra únicamente cuando `SEED_DEMO_DATA=true`.
 
 ## PDF de cotización
 La URL del PDF se publica por `storage:link` en:

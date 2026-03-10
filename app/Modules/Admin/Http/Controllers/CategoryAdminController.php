@@ -11,17 +11,62 @@ use App\Modules\Categories\Models\Category;
 use App\Modules\Categories\Queries\CategoryTreeQuery;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class CategoryAdminController extends Controller
 {
-    public function index(CategoryTreeQuery $treeQuery): View
+    public function index(Request $request, CategoryTreeQuery $treeQuery): View
     {
         $this->authorize('viewAny', Category::class);
 
+        $statusOptions = ['active', 'inactive'];
+        $withProductsOptions = ['yes', 'no'];
+        $sortOptions = ['tree', 'name_asc', 'name_desc', 'updated_desc', 'updated_asc'];
+
+        $filters = $request->validate([
+            'q' => ['nullable', 'string', 'max:120'],
+            'status' => ['nullable', 'string', Rule::in($statusOptions)],
+            'with_products' => ['nullable', 'string', Rule::in($withProductsOptions)],
+            'sort' => ['nullable', 'string', Rule::in($sortOptions)],
+        ]);
+
+        $filters = array_merge([
+            'q' => null,
+            'status' => null,
+            'with_products' => null,
+            'sort' => 'tree',
+        ], $filters);
+
+        $categories = $treeQuery->execute(activeOnly: false, filters: $filters);
+        $flattenedCategories = $this->flattenTree($categories);
+        $allCategoriesQuery = Category::query();
+
+        $metrics = [
+            'total_categories' => (clone $allCategoriesQuery)->count(),
+            'active_categories' => (clone $allCategoriesQuery)->where('is_active', true)->count(),
+            'with_products' => (clone $allCategoriesQuery)->has('products')->count(),
+            'synonyms' => (int) Category::query()->withCount('synonyms')->get()->sum('synonyms_count'),
+            'filtered_total' => $flattenedCategories->count(),
+        ];
+
+        $activeFiltersCount = collect([
+            $filters['q'],
+            $filters['status'],
+            $filters['with_products'],
+            $filters['sort'] !== 'tree' ? $filters['sort'] : null,
+        ])->filter(fn ($value) => filled($value))->count();
+
         return view('admin.categories.index', [
-            'categories' => $treeQuery->execute(activeOnly: false),
+            'categories' => $categories,
+            'metrics' => $metrics,
+            'filters' => $filters,
+            'statusOptions' => $statusOptions,
+            'withProductsOptions' => $withProductsOptions,
+            'sortOptions' => $sortOptions,
+            'activeFiltersCount' => $activeFiltersCount,
         ]);
     }
 
@@ -42,7 +87,7 @@ class CategoryAdminController extends Controller
         $category = $action->execute($request->payload());
         $this->syncSynonyms($category, $request->input('synonyms'));
 
-        return redirect()->route('admin.categories.index')->with('status', 'Categoría creada.');
+        return $this->redirectAfterSave($request, $category, true);
     }
 
     public function edit(Category $category): View
@@ -59,10 +104,20 @@ class CategoryAdminController extends Controller
     public function update(UpdateCategoryRequest $request, Category $category, UpdateCategoryAction $action): RedirectResponse
     {
         $this->authorize('update', $category);
-        $action->execute($category, collect($request->validated())->except('synonyms')->all());
+
+        $payload = collect($request->validated())->except('synonyms')->all();
+        $parentId = $payload['parent_id'] ?? null;
+
+        if ($parentId && $this->isDescendantOf(categoryId: $category->id, candidateParentId: (int) $parentId)) {
+            return back()
+                ->withErrors(['parent_id' => 'No se puede asignar una subcategoría como padre.'])
+                ->withInput();
+        }
+
+        $action->execute($category, $payload);
         $this->syncSynonyms($category, $request->input('synonyms'));
 
-        return redirect()->route('admin.categories.index')->with('status', 'Categoría actualizada.');
+        return $this->redirectAfterSave($request, $category, false);
     }
 
     public function destroy(Category $category): RedirectResponse
@@ -75,6 +130,14 @@ class CategoryAdminController extends Controller
             $label = $productsCount === 1 ? 'producto asociado' : 'productos asociados';
 
             return back()->with('error', "No se puede eliminar la categoría porque tiene {$productsCount} {$label}. Reasigna esos productos a otra categoría primero.");
+        }
+
+        $childrenCount = $category->children()->count();
+
+        if ($childrenCount > 0) {
+            $label = $childrenCount === 1 ? 'subcategoría' : 'subcategorías';
+
+            return back()->with('error', "No se puede eliminar la categoría porque tiene {$childrenCount} {$label}. Reorganiza el árbol primero.");
         }
 
         try {
@@ -92,6 +155,20 @@ class CategoryAdminController extends Controller
         return redirect()->route('admin.categories.index')->with('status', 'Categoría eliminada.');
     }
 
+    public function setStatus(Request $request, Category $category): RedirectResponse
+    {
+        $this->authorize('update', $category);
+
+        $payload = $request->validate([
+            'is_active' => ['required', 'boolean'],
+        ]);
+
+        $isActive = (bool) $payload['is_active'];
+        $category->update(['is_active' => $isActive]);
+
+        return back()->with('status', $isActive ? 'Categoría activada.' : 'Categoría desactivada.');
+    }
+
     private function syncSynonyms(Category $category, ?string $csvTerms): void
     {
         $terms = collect(explode(',', (string) $csvTerms))
@@ -105,5 +182,51 @@ class CategoryAdminController extends Controller
         foreach ($terms as $term) {
             $category->synonyms()->create(['term' => $term]);
         }
+    }
+
+    private function isDescendantOf(int $categoryId, int $candidateParentId): bool
+    {
+        $visited = [];
+        $currentId = $candidateParentId;
+
+        while ($currentId) {
+            if ($currentId === $categoryId) {
+                return true;
+            }
+
+            if (in_array($currentId, $visited, true)) {
+                return true;
+            }
+
+            $visited[] = $currentId;
+            $currentId = (int) (Category::query()->whereKey($currentId)->value('parent_id') ?? 0);
+        }
+
+        return false;
+    }
+
+    private function redirectAfterSave(Request $request, Category $category, bool $created): RedirectResponse
+    {
+        $status = $created ? 'Categoría creada.' : 'Categoría actualizada.';
+        $afterSave = (string) $request->input('after_save', 'index');
+
+        if ($afterSave === 'stay') {
+            return redirect()->route('admin.categories.edit', $category)->with('status', $status);
+        }
+
+        if ($afterSave === 'new') {
+            return redirect()->route('admin.categories.create')->with('status', $status.' Puedes crear otra.');
+        }
+
+        return redirect()->route('admin.categories.index')->with('status', $status);
+    }
+
+    private function flattenTree($categories)
+    {
+        return collect($categories)->flatMap(function (Category $category) {
+            $children = $this->flattenTree($category->children ?? collect());
+
+            return collect([$category])->concat($children);
+        });
     }
 }

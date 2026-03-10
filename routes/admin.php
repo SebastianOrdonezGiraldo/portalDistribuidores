@@ -14,8 +14,15 @@ Route::middleware(['auth', 'verified', 'role:admin'])
     ->group(function () {
         Route::get('/', DashboardController::class)->name('dashboard');
 
+        Route::patch('categories/{category}/status', [CategoryAdminController::class, 'setStatus'])->name('categories.status');
         Route::resource('categories', CategoryAdminController::class)->except('show');
+        Route::get('products/check-sku', [ProductAdminController::class, 'checkSku'])->name('products.check-sku');
+        Route::patch('products/{product}/status', [ProductAdminController::class, 'setStatus'])->name('products.status');
+        Route::delete('products/{product}/photos/{photo}', [ProductAdminController::class, 'destroyPhoto'])->name('products.photos.destroy');
+        Route::delete('products/{product}/documents/{document}', [ProductAdminController::class, 'destroyDocument'])->name('products.documents.destroy');
+        Route::delete('products/{product}/videos/{video}', [ProductAdminController::class, 'destroyVideo'])->name('products.videos.destroy');
         Route::resource('products', ProductAdminController::class)->except('show');
+        Route::patch('distributors/{distributor}/status', [DistributorAdminController::class, 'setStatus'])->name('distributors.status');
         Route::resource('distributors', DistributorAdminController::class)->except('show');
         Route::resource('users', UserAdminController::class)->except('show');
 

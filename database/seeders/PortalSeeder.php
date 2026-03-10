@@ -2,13 +2,9 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Categories\Models\Category;
-use App\Modules\Shared\Enums\UserRole;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -16,39 +12,8 @@ class PortalSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->seedDistributorsAndUsers();
         $categories = $this->seedCategories();
         $this->seedProducts($categories);
-    }
-
-    private function seedDistributorsAndUsers(): void
-    {
-        $demoDistributor = Distributor::firstOrCreate(
-            ['name' => 'Distribuidor Demo'],
-            ['status' => 'active'],
-        );
-
-        User::updateOrCreate(
-            ['email' => 'admin@importcorporal.test'],
-            [
-                'name' => 'Admin Import Corporal',
-                'password' => Hash::make('Password123!'),
-                'role' => UserRole::Admin,
-                'distributor_id' => null,
-                'email_verified_at' => now(),
-            ],
-        );
-
-        User::updateOrCreate(
-            ['email' => 'dist@importcorporal.test'],
-            [
-                'name' => 'Usuario Distribuidor Demo',
-                'password' => Hash::make('Password123!'),
-                'role' => UserRole::Distributor,
-                'distributor_id' => $demoDistributor->id,
-                'email_verified_at' => now(),
-            ],
-        );
     }
 
     /**
@@ -169,4 +134,3 @@ SVG;
         return "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj\n4 0 obj<</Length 93>>stream\nBT\n/F1 18 Tf\n50 780 Td\n(Ficha Tecnica {$safe}) Tj\n0 -30 Td\n/F1 12 Tf\n(Import Corporal Medical SAS) Tj\nET\nendstream\nendobj\n5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\nxref\n0 6\n0000000000 65535 f \n0000000010 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000244 00000 n \n0000000388 00000 n \ntrailer<</Root 1 0 R/Size 6>>\nstartxref\n462\n%%EOF";
     }
 }
-

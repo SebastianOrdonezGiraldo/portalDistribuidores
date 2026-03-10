@@ -1,6 +1,18 @@
 <x-app-layout>
     <x-slot name="header">
         <x-ui.page-header title="Dashboard Operativo" subtitle="Visión consolidada de pedidos, catálogo y alertas para la operación B2B diaria.">
+            <x-slot name="meta">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="stat-pill">Periodo: {{ $monthRangeLabel }}</span>
+                    <span class="stat-pill">Pedidos del mes: {{ number_format($currentMonthOrders) }}</span>
+                    <span class="stat-pill">
+                        Última orden: {{ $latestOrderAt?->diffForHumans() ?? 'Sin registros' }}
+                    </span>
+                    <span class="stat-pill">
+                        Catálogo: {{ $latestCatalogUpdateAt?->diffForHumans() ?? 'Sin cambios recientes' }}
+                    </span>
+                </div>
+            </x-slot>
             <x-slot name="actions">
                 <a href="{{ route('admin.orders.index') }}" class="btn btn-secondary">Ver pedidos</a>
                 <a href="{{ route('admin.products.create') }}" class="btn btn-primary">Nuevo producto</a>
@@ -10,8 +22,38 @@
 
     <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         @foreach($kpis as $kpi)
-            <x-ui.kpi-card :label="$kpi['label']" :value="$kpi['value']" :hint="$kpi['hint']" :href="$kpi['href']" />
+            <x-ui.kpi-card
+                :label="$kpi['label']"
+                :value="$kpi['value']"
+                :trend="$kpi['trend'] ?? null"
+                :hint="$kpi['hint']"
+                :href="$kpi['href']"
+            />
         @endforeach
+    </section>
+
+    <section class="mt-4">
+        <x-ui.card class="p-5">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h2 class="card-title">Panorama Operativo</h2>
+                    <p class="mt-1 text-xs text-slate-500">Indicadores de base para gestión administrativa y comercial.</p>
+                </div>
+                <a href="{{ route('admin.dashboard') }}" class="btn btn-ghost !px-2 !py-1 text-xs">Actualizar vista</a>
+            </div>
+
+            <div class="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                @foreach($operationalSummary as $item)
+                    <a href="{{ $item['href'] }}" class="stat-chip">
+                        <div>
+                            <p class="stat-chip-label">{{ $item['label'] }}</p>
+                            <p class="stat-chip-hint">{{ $item['hint'] }}</p>
+                        </div>
+                        <p class="stat-chip-value">{{ $item['value'] }}</p>
+                    </a>
+                @endforeach
+            </div>
+        </x-ui.card>
     </section>
 
     <section class="mt-5 grid gap-4 xl:grid-cols-[1.8fr_1fr]">
@@ -24,7 +66,7 @@
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="text-xs text-slate-500">Seleccionados: <strong data-bulk-count>0</strong></span>
-                        <x-ui.button type="button" variant="secondary" size="sm" data-bulk-copy>Copiar CTC</x-ui.button>
+                        <x-ui.button type="button" variant="secondary" size="sm" data-bulk-copy disabled>Copiar CTC</x-ui.button>
                     </div>
                 </x-slot>
 
@@ -55,7 +97,10 @@
                                         </td>
                                         <td><x-ui.status-badge :status="$order->status" /></td>
                                         <td class="font-medium">${{ number_format((float) $order->total_amount, 0, ',', '.') }}</td>
-                                        <td>{{ $order->created_at?->format('d/m/Y H:i') }}</td>
+                                        <td>
+                                            <p>{{ $order->created_at?->format('d/m/Y H:i') }}</p>
+                                            <p class="text-[11px] text-slate-500">{{ $order->created_at?->diffForHumans() }}</p>
+                                        </td>
                                         <td class="text-right">
                                             <a href="{{ route('admin.orders.show', $order) }}" class="btn btn-ghost !px-2 !py-1 text-xs">Ver</a>
                                         </td>
@@ -81,27 +126,21 @@
         <div class="space-y-4">
             <x-ui.card class="p-5">
                 <h2 class="card-title">Estado de Pedidos</h2>
-                <div class="mt-4 space-y-2">
-                    <div class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                        <x-ui.status-badge status="draft" />
-                        <span class="text-sm font-semibold text-slate-900">{{ $orderStatusTotals['draft'] ?? 0 }}</span>
-                    </div>
-                    <div class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                        <x-ui.status-badge status="submitted" />
-                        <span class="text-sm font-semibold text-slate-900">{{ $orderStatusTotals['submitted'] ?? 0 }}</span>
-                    </div>
-                    <div class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                        <x-ui.status-badge status="sending" />
-                        <span class="text-sm font-semibold text-slate-900">{{ $orderStatusTotals['sending'] ?? 0 }}</span>
-                    </div>
-                    <div class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                        <x-ui.status-badge status="sent" />
-                        <span class="text-sm font-semibold text-slate-900">{{ $orderStatusTotals['sent'] ?? 0 }}</span>
-                    </div>
-                    <div class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                        <x-ui.status-badge status="failed" />
-                        <span class="text-sm font-semibold text-slate-900">{{ $orderStatusTotals['failed'] ?? 0 }}</span>
-                    </div>
+                <div class="mt-4 space-y-3">
+                    @foreach($statusDistribution as $item)
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                            <div class="flex items-center justify-between">
+                                <x-ui.status-badge :status="$item['status']" />
+                                <p class="text-sm font-semibold text-slate-900">
+                                    {{ $item['count'] }}
+                                    <span class="ml-1 text-xs font-medium text-slate-500">({{ $item['percentage'] }}%)</span>
+                                </p>
+                            </div>
+                            <div class="status-meter mt-2">
+                                <div class="status-meter-fill {{ $item['bar_class'] }}" style="width: {{ $item['fill'] }}%;"></div>
+                            </div>
+                        </div>
+                    @endforeach
                 </div>
             </x-ui.card>
 

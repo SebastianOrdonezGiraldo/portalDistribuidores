@@ -3,6 +3,17 @@
 @php
     $container = 'card p-4';
     $linkClass = $href ? 'transition hover:-translate-y-0.5 hover:border-slate-300' : '';
+    $trendClass = 'text-xs text-slate-500';
+
+    if (is_string($trend)) {
+        $trimmedTrend = ltrim($trend);
+
+        if (str_starts_with($trimmedTrend, '+')) {
+            $trendClass = 'text-xs font-medium text-emerald-700';
+        } elseif (str_starts_with($trimmedTrend, '-')) {
+            $trendClass = 'text-xs font-medium text-rose-700';
+        }
+    }
 @endphp
 
 @if($href)
@@ -10,7 +21,7 @@
         <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $label }}</p>
         <p class="mt-2 text-2xl font-semibold text-slate-900">{{ $value }}</p>
         @if($trend)
-            <p class="mt-1 text-xs text-slate-500">{{ $trend }}</p>
+            <p class="mt-1 {{ $trendClass }}">{{ $trend }}</p>
         @endif
         @if($hint)
             <p class="mt-1 text-xs text-slate-500">{{ $hint }}</p>
@@ -21,7 +32,7 @@
         <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $label }}</p>
         <p class="mt-2 text-2xl font-semibold text-slate-900">{{ $value }}</p>
         @if($trend)
-            <p class="mt-1 text-xs text-slate-500">{{ $trend }}</p>
+            <p class="mt-1 {{ $trendClass }}">{{ $trend }}</p>
         @endif
         @if($hint)
             <p class="mt-1 text-xs text-slate-500">{{ $hint }}</p>

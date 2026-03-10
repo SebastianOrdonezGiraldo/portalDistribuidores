@@ -82,7 +82,7 @@
         <section class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22.5rem]">
             <div class="space-y-6">
                 <article class="card overflow-hidden">
-                    <div class="grid md:grid-cols-[0.85fr_1fr]">
+                    <div class="grid md:grid-cols-[0.85fr_1fr]">A
                         <div class="border-b border-slate-200 bg-slate-100 md:border-b-0 md:border-r">
                             <div class="relative aspect-[16/10]">
                                 @if($mainPhoto)

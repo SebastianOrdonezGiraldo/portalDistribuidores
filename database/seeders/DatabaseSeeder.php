@@ -15,7 +15,13 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            PortalSeeder::class,
+            AccessUsersSeeder::class,
         ]);
+
+        if ((bool) env('SEED_DEMO_DATA', false)) {
+            $this->call([
+                PortalSeeder::class,
+            ]);
+        }
     }
 }
