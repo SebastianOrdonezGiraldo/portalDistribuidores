@@ -11,11 +11,11 @@ class UseRequestHostForUrls
 {
     public function handle(Request $request, Closure $next): Response
     {
-        // En producción Railway termina SSL en el proxy,
-        // la petición interna llega como http, pero el usuario
-        // navega por https. Forzamos https si APP_URL lo usa.
+        // In production Railway terminates SSL at the proxy level.
+        // The internal request arrives as http://, but the user browses via https://.
+        // We derive the correct scheme from APP_URL so generated URLs use https://.
         $appUrl = config('app.url');
-        $scheme = str_starts_with($appUrl, 'https') ? 'https' : $request->getScheme();
+        $scheme = str_starts_with((string) $appUrl, 'https') ? 'https' : $request->getScheme();
 
         URL::forceRootUrl($scheme . '://' . $request->getHost());
 
