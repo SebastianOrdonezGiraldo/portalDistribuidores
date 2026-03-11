@@ -4,9 +4,11 @@ namespace App\Modules\Orders\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Catalog\Models\Product;
+use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Orders\Http\Requests\AddToCartRequest;
 use App\Modules\Orders\Http\Requests\UpdateCartRequest;
 use App\Modules\Orders\Services\Cart\CartService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -20,19 +22,58 @@ class CartController extends Controller
         ]);
     }
 
-    public function store(AddToCartRequest $request, CartService $cartService): RedirectResponse
+    public function store(AddToCartRequest $request, CartService $cartService): JsonResponse|RedirectResponse
     {
         $product = Product::query()->findOrFail($request->integer('product_id'));
 
         if (! $product->is_active) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'El producto no está disponible.',
+                ], 422);
+            }
+
             return back()->withErrors('El producto no está disponible.');
+        }
+
+        $variant = null;
+        $activeVariants = $product->variants()
+            ->where('is_active', true)
+            ->with('attributeValue')
+            ->get();
+
+        if ($activeVariants->isNotEmpty()) {
+            $variant = $activeVariants->firstWhere('id', $request->integer('variant_id'));
+
+            if (! $variant instanceof ProductVariant) {
+                $message = 'Debes seleccionar una variante válida.';
+
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'ok' => false,
+                        'message' => $message,
+                    ], 422);
+                }
+
+                return back()->withErrors($message);
+            }
         }
 
         $cartService->add(
             $product,
             $request->integer('qty', 1),
-            $request->string('unit_label')->toString() ?: 'unidad',
+            $request->string('unit_label')->toString() ?: 'unidades',
+            $variant,
         );
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok' => true,
+                'message' => 'Producto agregado al carrito.',
+                'cart_count' => $cartService->count(),
+            ]);
+        }
 
         return back()->with('status', 'Producto agregado al carrito.');
     }
@@ -44,10 +85,10 @@ class CartController extends Controller
         return back()->with('status', 'Carrito actualizado.');
     }
 
-    public function destroy(Product $product, CartService $cartService): RedirectResponse
+    public function destroy(string $lineKey, CartService $cartService): RedirectResponse
     {
-        $cartService->remove($product->id);
+        $cartService->remove($lineKey);
 
-        return back()->with('status', 'Producto eliminado del carrito.');
+        return back()->with('status', 'Línea eliminada del carrito.');
     }
 }

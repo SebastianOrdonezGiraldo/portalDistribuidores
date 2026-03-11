@@ -97,7 +97,12 @@
                 @endphp
                 <tr>
                     <td>{{ $item->sku_snapshot }}</td>
-                    <td>{{ $item->product_name_snapshot }}</td>
+                    <td>
+                        {{ $item->product_name_snapshot }}
+                        @if($item->variant_value_snapshot)
+                            ({{ $item->variant_attribute_snapshot ?? 'Variante' }}: {{ $item->variant_value_snapshot }})
+                        @endif
+                    </td>
                     <td class="num">{{ (int) $item->qty }}</td>
                     <td class="num">${{ number_format($valorUnit, 2, '.', ',') }}</td>
                     <td class="num">${{ number_format($valorIva, 2, '.', ',') }}</td>

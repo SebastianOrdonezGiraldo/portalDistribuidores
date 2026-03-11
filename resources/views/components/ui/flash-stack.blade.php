@@ -1,8 +1,15 @@
 @php
     $messages = [];
+    $statusText = (string) session('status', '');
+    $isCartSuccess = str_contains(strtolower($statusText), 'agregado al carrito');
 
     if (session('status')) {
-        $messages[] = ['variant' => 'success', 'title' => 'Operacion completada', 'text' => session('status')];
+        $messages[] = [
+            'variant' => 'success',
+            'title' => 'Operacion completada',
+            'text' => session('status'),
+            'cart_success' => $isCartSuccess,
+        ];
     }
 
     if (session('warning')) {
@@ -23,7 +30,13 @@
 @if(count($messages) > 0)
     <div class="pointer-events-none fixed right-4 top-4 z-[80] w-[min(92vw,28rem)] space-y-2">
         @foreach($messages as $message)
-            <x-ui.alert :variant="$message['variant']" data-toast data-toast-timeout="5000" class="pointer-events-auto">
+            <x-ui.alert
+                :variant="$message['variant']"
+                data-toast
+                data-toast-timeout="5000"
+                data-cart-success="{{ !empty($message['cart_success']) ? 'true' : 'false' }}"
+                class="pointer-events-auto"
+            >
                 <div class="flex items-start justify-between gap-3">
                     <div>
                         <p class="font-semibold">{{ $message['title'] }}</p>

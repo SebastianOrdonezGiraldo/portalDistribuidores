@@ -82,7 +82,14 @@
                             @foreach($order->items as $item)
                                 <tr>
                                     <td class="font-medium text-slate-900">{{ $item->sku_snapshot }}</td>
-                                    <td>{{ $item->product_name_snapshot }}</td>
+                                    <td>
+                                        <p>{{ $item->product_name_snapshot }}</p>
+                                        @if($item->variant_value_snapshot)
+                                            <p class="text-xs text-slate-500">
+                                                {{ $item->variant_attribute_snapshot ?? 'Variante' }}: {{ $item->variant_value_snapshot }}
+                                            </p>
+                                        @endif
+                                    </td>
                                     <td>{{ (int) $item->qty }} {{ $item->unit_label }}</td>
                                     <td>${{ number_format((float) $item->price_each, 0, ',', '.') }}</td>
                                     <td class="font-semibold text-slate-900">${{ number_format((float) $item->subtotal, 0, ',', '.') }}</td>

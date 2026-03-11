@@ -5,7 +5,7 @@ namespace App\Modules\Orders\DTOs;
 final readonly class CreateOrderData
 {
     /**
-     * @param array<int, array{product_id:int,qty:int,unit_label:string}> $items
+     * @param array<int, array{product_id:int,variant_id:int|null,qty:int,unit_label:string}> $items
      */
     public function __construct(
         public string $contactName,

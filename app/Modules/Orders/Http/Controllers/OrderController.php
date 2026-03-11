@@ -28,6 +28,7 @@ class OrderController extends Controller
     ): RedirectResponse {
         $items = $cartService->items()->map(fn (array $line) => [
             'product_id' => $line['product']->id,
+            'variant_id' => $line['variant']?->id,
             'qty' => $line['qty'],
             'unit_label' => $line['unit_label'],
         ])->all();

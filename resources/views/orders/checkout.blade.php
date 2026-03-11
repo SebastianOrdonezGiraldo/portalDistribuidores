@@ -24,7 +24,7 @@
                     <x-input-error :messages="$errors->get('company_nit')" />
                 </div>
                 <div>
-                    <label class="form-label" for="contact_name">Nombre de contacto *</label>
+                    <label class="form-label" for="contact_name">Numero de contacto *</label>
                     <x-ui.input id="contact_name" name="contact_name" :value="old('contact_name', auth()->user()?->name)" required />
                     <x-input-error :messages="$errors->get('contact_name')" />
                 </div>
@@ -58,7 +58,10 @@
                 @foreach($items as $item)
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
                         <p class="font-medium text-slate-900">{{ $item['product']->name }}</p>
-                        <p class="text-xs text-slate-500">{{ (int) $item['qty'] }} {{ $item['unit_label'] }} x ${{ number_format((float) $item['product']->price, 0, ',', '.') }}</p>
+                        @if($item['variant_label'])
+                            <p class="text-xs text-slate-500">{{ $item['variant_label'] }}</p>
+                        @endif
+                        <p class="text-xs text-slate-500">{{ (int) $item['qty'] }} {{ $item['unit_label'] }} x ${{ number_format((float) $item['unit_price'], 0, ',', '.') }}</p>
                         <p class="mt-1 font-semibold text-slate-900">Subtotal: ${{ number_format((float) $item['subtotal'], 0, ',', '.') }}</p>
                     </div>
                 @endforeach

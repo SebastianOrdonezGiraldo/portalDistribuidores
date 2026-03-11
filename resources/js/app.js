@@ -60,6 +60,60 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    const cartSuccessToast = document.querySelector('[data-toast][data-cart-success="true"]');
+    const animateCartBadges = () => {
+        document.querySelectorAll('[data-cart-badge]').forEach((badge) => {
+            badge.classList.remove('animate-cart-bump', 'animate-cart-glow');
+            void badge.offsetWidth;
+            badge.classList.add('animate-cart-bump', 'animate-cart-glow');
+
+            window.setTimeout(() => {
+                badge.classList.remove('animate-cart-bump', 'animate-cart-glow');
+            }, 750);
+        });
+    };
+
+    const showInlineToast = (message, variant = 'success') => {
+        let container = document.querySelector('[data-inline-toast-stack]');
+
+        if (!container) {
+            container = document.createElement('div');
+            container.dataset.inlineToastStack = 'true';
+            container.className = 'pointer-events-none fixed right-4 top-4 z-[85] w-[min(92vw,22rem)] space-y-2';
+            document.body.append(container);
+        }
+
+        const palette = {
+            success: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+            error: 'border-red-200 bg-red-50 text-red-900',
+            info: 'border-sky-200 bg-sky-50 text-sky-900',
+        };
+
+        const toast = document.createElement('div');
+        toast.className = `pointer-events-auto toast ${palette[variant] || palette.info} inline-toast-enter`;
+        toast.innerHTML = `
+            <div class="flex items-start justify-between gap-3">
+                <p class="text-sm font-semibold">${message}</p>
+                <button type="button" class="btn btn-ghost !h-7 !px-2 !py-0 text-xs" data-inline-toast-close>Cerrar</button>
+            </div>
+        `;
+
+        container.append(toast);
+
+        const close = () => {
+            toast.classList.remove('inline-toast-enter');
+            toast.classList.add('inline-toast-leave');
+            window.setTimeout(() => toast.remove(), 220);
+        };
+
+        toast.querySelector('[data-inline-toast-close]')?.addEventListener('click', close);
+        window.setTimeout(close, 2400);
+    };
+
+    if (cartSuccessToast) {
+        animateCartBadges();
+    }
+
     document.addEventListener('click', (event) => {
         document.querySelectorAll('details[data-action-menu][open]').forEach((details) => {
             if (!details.contains(event.target)) {
@@ -118,6 +172,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('form[data-loading-form]').forEach((form) => {
         form.addEventListener('submit', () => {
+            if (form.dataset.ajaxCart === 'true') {
+                return;
+            }
+
             form.querySelectorAll('[data-loading-label]').forEach((button) => {
                 if (button.disabled) {
                     return;
@@ -127,6 +185,64 @@ document.addEventListener('DOMContentLoaded', () => {
                 button.textContent = button.dataset.loadingLabel || 'Procesando...';
                 button.disabled = true;
             });
+        });
+    });
+
+    document.querySelectorAll('form[action*="/cart"]').forEach((form) => {
+        const hasProductInput = !!form.querySelector('input[name="product_id"]');
+        const submitButton = form.querySelector('button[type="submit"]');
+
+        if (!hasProductInput || !submitButton) {
+            return;
+        }
+
+        form.dataset.ajaxCart = 'true';
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            if (submitButton.disabled) {
+                return;
+            }
+
+            submitButton.classList.add('cart-submit-feedback');
+            submitButton.disabled = true;
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: new FormData(form),
+                    credentials: 'same-origin',
+                });
+
+                const payload = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    throw new Error(payload.message || 'No se pudo agregar al carrito.');
+                }
+
+                const count = Number(payload.cart_count || 0);
+                document.querySelectorAll('[data-cart-badge]').forEach((badge) => {
+                    badge.textContent = String(count);
+                    badge.classList.remove('border-slate-200', 'bg-slate-100', 'text-slate-700');
+                    badge.classList.add('border-brand-primary/30', 'bg-brand-primary/10', 'text-[#15565c]');
+                });
+
+                animateCartBadges();
+                showInlineToast(payload.message || 'Producto agregado al carrito.', 'success');
+            } catch (error) {
+                showInlineToast(error.message || 'No se pudo agregar al carrito.', 'error');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.classList.remove('cart-submit-feedback');
+            }
         });
     });
 
@@ -223,9 +339,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const priceOutputs = productForm.querySelectorAll('[data-live-price-output], [data-live-price-output-sidebar]');
         const stockOutputs = productForm.querySelectorAll('[data-live-stock-output], [data-live-stock-output-sidebar]');
         const previewNameInput = productForm.querySelector('[data-preview-name]');
+        const previewBrandInput = productForm.querySelector('[data-preview-brand]');
         const previewCategoryInput = productForm.querySelector('[data-preview-category]');
         const previewDescriptionInput = productForm.querySelector('[data-preview-description]');
         const previewNameOutput = productForm.querySelector('[data-preview-name-output]');
+        const previewBrandOutput = productForm.querySelector('[data-preview-brand-output]');
         const previewCategoryOutput = productForm.querySelector('[data-preview-category-output]');
         const previewDescriptionOutput = productForm.querySelector('[data-preview-description-output]');
 
@@ -233,6 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentPrice = priceInput?.value ?? '';
             const currentStock = stockInput?.value ?? '';
             const currentName = previewNameInput?.value?.trim() || 'Nombre del producto';
+            const currentBrand = previewBrandInput?.value?.trim() || 'Sin marca';
             const categoryOption = previewCategoryInput?.selectedOptions?.[0];
             const currentCategory = categoryOption?.textContent?.trim() || 'Sin categoría seleccionada';
             const currentDescription = previewDescriptionInput?.value?.trim() || 'Sin descripción comercial';
@@ -249,6 +368,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 previewNameOutput.textContent = currentName;
             }
 
+            if (previewBrandOutput) {
+                previewBrandOutput.textContent = currentBrand;
+            }
+
             if (previewCategoryOutput) {
                 previewCategoryOutput.textContent = currentCategory;
             }
@@ -258,7 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        [priceInput, stockInput, previewNameInput, previewCategoryInput, previewDescriptionInput]
+        [priceInput, stockInput, previewNameInput, previewBrandInput, previewCategoryInput, previewDescriptionInput]
             .filter(Boolean)
             .forEach((field) => {
                 field.addEventListener('input', refreshProductPreview);
@@ -266,6 +389,84 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
         refreshProductPreview();
+
+        const variantToggle = productForm.querySelector('input[name="has_variants"][value="1"]');
+        const variantSection = productForm.querySelector('[data-variant-section]');
+        const variantRowsContainer = productForm.querySelector('[data-variant-rows]');
+        const variantTemplate = productForm.querySelector('[data-variant-template]');
+        const addVariantRowButton = productForm.querySelector('[data-variant-add-row]');
+
+        let variantIndex = 0;
+        if (variantRowsContainer) {
+            variantRowsContainer.querySelectorAll('input[name^="variants["]').forEach((input) => {
+                const match = input.name.match(/^variants\[(\d+)\]/);
+                if (!match) {
+                    return;
+                }
+
+                const current = Number(match[1]);
+                if (Number.isFinite(current)) {
+                    variantIndex = Math.max(variantIndex, current + 1);
+                }
+            });
+        }
+
+        const appendVariantRow = () => {
+            if (!variantRowsContainer || !variantTemplate) {
+                return;
+            }
+
+            const rawHtml = (variantTemplate.innerHTML || '').trim();
+            if (!rawHtml) {
+                return;
+            }
+
+            const rowHtml = rawHtml.replaceAll('__INDEX__', String(variantIndex));
+            variantIndex += 1;
+            variantRowsContainer.insertAdjacentHTML('beforeend', rowHtml);
+        };
+
+        const refreshVariantSection = () => {
+            const enabled = variantToggle instanceof HTMLInputElement ? variantToggle.checked : false;
+
+            if (variantSection) {
+                variantSection.classList.toggle('hidden', !enabled);
+            }
+
+            if (enabled && variantRowsContainer && variantRowsContainer.querySelectorAll('[data-variant-row]').length === 0) {
+                appendVariantRow();
+            }
+        };
+
+        addVariantRowButton?.addEventListener('click', () => {
+            appendVariantRow();
+        });
+
+        variantRowsContainer?.addEventListener('click', (event) => {
+            const removeButton = event.target.closest('[data-variant-remove-row]');
+
+            if (!removeButton) {
+                return;
+            }
+
+            const row = removeButton.closest('[data-variant-row]');
+            if (!row) {
+                return;
+            }
+
+            const rows = variantRowsContainer.querySelectorAll('[data-variant-row]');
+            if (rows.length <= 1) {
+                row.querySelectorAll('input').forEach((input) => {
+                    input.value = '';
+                });
+                return;
+            }
+
+            row.remove();
+        });
+
+        variantToggle?.addEventListener('change', refreshVariantSection);
+        refreshVariantSection();
 
         const skuInput = productForm.querySelector('[data-sku-input]');
         const skuFeedback = productForm.querySelector('[data-sku-feedback]');

@@ -8,19 +8,25 @@ use App\Modules\Catalog\Actions\AttachTechSheetAction;
 use App\Modules\Catalog\Actions\CreateProductAction;
 use App\Modules\Catalog\Actions\UpdateProductAction;
 use App\Modules\Catalog\Actions\UploadProductPhotoAction;
+use App\Modules\Catalog\Http\Requests\ImportProductsRequest;
 use App\Modules\Catalog\Http\Requests\StoreProductRequest;
 use App\Modules\Catalog\Http\Requests\UpdateProductRequest;
+use App\Modules\Catalog\Models\ProductAttribute;
 use App\Modules\Catalog\Models\ProductDocument;
 use App\Modules\Catalog\Models\ProductPhoto;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVideo;
+use App\Modules\Catalog\Services\ProductBulkImportService;
+use App\Modules\Catalog\Services\ProductVariantSyncService;
 use App\Modules\Categories\Models\Category;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProductAdminController extends Controller
 {
@@ -61,6 +67,7 @@ class ProductAdminController extends Controller
                 $query->where(function ($subQuery) use ($term) {
                     $subQuery
                         ->where('name', 'like', "%{$term}%")
+                        ->orWhere('brand', 'like', "%{$term}%")
                         ->orWhere('sku', 'like', "%{$term}%")
                         ->orWhere('description', 'like', "%{$term}%");
                 });
@@ -121,6 +128,52 @@ class ProductAdminController extends Controller
         ]);
     }
 
+    public function downloadImportTemplate(): StreamedResponse
+    {
+        $this->authorize('create', Product::class);
+
+        return response()->streamDownload(function (): void {
+            $output = fopen('php://output', 'wb');
+
+            if (! is_resource($output)) {
+                return;
+            }
+
+            // BOM UTF-8 to improve Excel compatibility in Windows.
+            fwrite($output, "\xEF\xBB\xBF");
+            fputcsv($output, ['action', 'sku', 'name', 'brand', 'description', 'category_id', 'price', 'stock', 'is_active'], ';');
+            fclose($output);
+        }, 'plantilla_import_productos.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    public function import(
+        ImportProductsRequest $request,
+        ProductBulkImportService $bulkImportService,
+    ): RedirectResponse {
+        $this->authorize('create', Product::class);
+
+        $report = $bulkImportService->importFromCsv(
+            $request->file('file')->getRealPath(),
+            (string) $request->input('default_action', 'upsert'),
+        );
+
+        $message = sprintf(
+            'Importación finalizada. Filas: %d, creados: %d, actualizados: %d, omitidos: %d, errores: %d.',
+            (int) $report['total_rows'],
+            (int) $report['created'],
+            (int) $report['updated'],
+            (int) $report['skipped'],
+            count($report['errors']),
+        );
+
+        return redirect()
+            ->route('admin.products.index')
+            ->with('status', $message)
+            ->with('importReport', $report);
+    }
+
     public function create(): View
     {
         $this->authorize('create', Product::class);
@@ -128,19 +181,30 @@ class ProductAdminController extends Controller
         return view('admin.products.form', [
             'product' => new Product(),
             'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(),
+            'variantAttributes' => ProductAttribute::query()->with('values')->orderBy('name')->get(),
         ]);
     }
 
     public function store(
         StoreProductRequest $request,
         CreateProductAction $createAction,
+        ProductVariantSyncService $variantSyncService,
         UploadProductPhotoAction $uploadPhotoAction,
         AttachTechSheetAction $attachTechSheetAction,
         AddVideoAction $addVideoAction,
     ): RedirectResponse {
         $this->authorize('create', Product::class);
 
-        $product = $createAction->execute($request->safe()->except(['photo', 'tech_sheet', 'video_url']));
+        $productPayload = $this->extractProductPayload($request);
+        $validatedPayload = $request->validated();
+
+        $product = DB::transaction(function () use ($createAction, $variantSyncService, $productPayload, $validatedPayload) {
+            $createdProduct = $createAction->execute($productPayload);
+            $variantSyncService->sync($createdProduct, $validatedPayload);
+
+            return $createdProduct->refresh();
+        });
+
         $this->attachMedia($request, $product, $uploadPhotoAction, $attachTechSheetAction, $addVideoAction);
 
         return $this->redirectAfterSave($request, $product, true);
@@ -151,8 +215,9 @@ class ProductAdminController extends Controller
         $this->authorize('update', $product);
 
         return view('admin.products.form', [
-            'product' => $product->load('photos', 'videos', 'documents', 'category'),
+            'product' => $product->load('photos', 'videos', 'documents', 'category', 'variantAttribute', 'variants.attributeValue'),
             'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(),
+            'variantAttributes' => ProductAttribute::query()->with('values')->orderBy('name')->get(),
         ]);
     }
 
@@ -160,13 +225,23 @@ class ProductAdminController extends Controller
         UpdateProductRequest $request,
         Product $product,
         UpdateProductAction $updateAction,
+        ProductVariantSyncService $variantSyncService,
         UploadProductPhotoAction $uploadPhotoAction,
         AttachTechSheetAction $attachTechSheetAction,
         AddVideoAction $addVideoAction,
     ): RedirectResponse {
         $this->authorize('update', $product);
 
-        $updateAction->execute($product, $request->safe()->except(['photo', 'tech_sheet', 'video_url']));
+        $productPayload = $this->extractProductPayload($request);
+        $validatedPayload = $request->validated();
+
+        $product = DB::transaction(function () use ($updateAction, $variantSyncService, $product, $productPayload, $validatedPayload) {
+            $updatedProduct = $updateAction->execute($product, $productPayload);
+            $variantSyncService->sync($updatedProduct, $validatedPayload);
+
+            return $updatedProduct->refresh();
+        });
+
         $this->attachMedia($request, $product, $uploadPhotoAction, $attachTechSheetAction, $addVideoAction);
 
         return $this->redirectAfterSave($request, $product, false);
@@ -309,5 +384,42 @@ class ProductAdminController extends Controller
         }
 
         return redirect()->route('admin.products.edit', $product)->with('status', $status);
+    }
+
+    private function extractProductPayload(StoreProductRequest|UpdateProductRequest $request): array
+    {
+        $payload = $request->safe()->except([
+            'photo',
+            'tech_sheet',
+            'video_url',
+            'has_variants',
+            'variant_attribute_id',
+            'new_variant_attribute_name',
+            'variants',
+        ]);
+
+        if ($request->boolean('has_variants')) {
+            $payload['price'] = $this->resolveVariantBootstrapPrice((array) $request->input('variants', []));
+            $payload['stock'] = null;
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     */
+    private function resolveVariantBootstrapPrice(array $rows): float
+    {
+        $prices = collect($rows)
+            ->map(fn (mixed $row) => data_get($row, 'price'))
+            ->filter(fn ($value) => is_numeric($value))
+            ->map(fn ($value) => round((float) $value, 2));
+
+        if ($prices->isEmpty()) {
+            return 0.0;
+        }
+
+        return (float) max(0, $prices->min());
     }
 }

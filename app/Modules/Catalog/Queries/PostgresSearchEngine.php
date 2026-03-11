@@ -7,6 +7,7 @@ use App\Modules\Categories\Queries\CategoryDescendantsQuery;
 use App\Modules\Shared\Contracts\SearchEngineInterface;
 use App\Modules\Shared\Support\TextNormalizer;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator as Paginator;
 use Illuminate\Support\Collection;
 
@@ -19,20 +20,18 @@ class PostgresSearchEngine implements SearchEngineInterface
 
     public function search(ProductSearchQuery $query): LengthAwarePaginator
     {
-        $products = Product::query()
-            ->with(['category.synonyms', 'primaryPhoto'])
-            ->where('is_active', true)
-            ->when($query->categoryId !== null, function ($builder) use ($query) {
-                if ($query->includeChildren) {
-                    $categoryIds = $this->categoryDescendantsQuery->execute($query->categoryId);
-                    $builder->whereIn('category_id', $categoryIds);
+        $normalizedTerm = $query->normalizedTerm();
 
-                    return;
-                }
+        if ($normalizedTerm === '') {
+            return $this
+                ->baseQuery($query, withSynonyms: false)
+                ->orderBy('name')
+                ->orderBy('id')
+                ->paginate($query->perPage, ['*'], 'page', $query->page)
+                ->withQueryString();
+        }
 
-                $builder->where('category_id', $query->categoryId);
-            })
-            ->get();
+        $products = $this->baseQuery($query, withSynonyms: true)->get();
 
         $ranked = $this->rank($products, $query);
 
@@ -49,6 +48,27 @@ class PostgresSearchEngine implements SearchEngineInterface
         );
     }
 
+    private function baseQuery(ProductSearchQuery $query, bool $withSynonyms): Builder
+    {
+        $with = $withSynonyms ? ['category.synonyms', 'primaryPhoto'] : ['category', 'primaryPhoto'];
+        $with[] = 'variantAttribute';
+        $with[] = 'variants.attributeValue';
+
+        return Product::query()
+            ->with($with)
+            ->where('is_active', true)
+            ->when($query->categoryId !== null, function (Builder $builder) use ($query) {
+                if ($query->includeChildren) {
+                    $categoryIds = $this->categoryDescendantsQuery->execute($query->categoryId);
+                    $builder->whereIn('category_id', $categoryIds);
+
+                    return;
+                }
+
+                $builder->where('category_id', $query->categoryId);
+            });
+    }
+
     private function rank(Collection $products, ProductSearchQuery $query): Collection
     {
         $term = $query->normalizedTerm();
@@ -58,6 +78,7 @@ class PostgresSearchEngine implements SearchEngineInterface
         return $products
             ->map(function (Product $product) use ($term, $tokens, $requiresStrongMatch) {
                 $name = TextNormalizer::normalize($product->name);
+                $brand = TextNormalizer::normalize($product->brand);
                 $category = TextNormalizer::normalize($product->category?->name);
                 $synonyms = TextNormalizer::normalize(
                     $product->category?->synonyms?->pluck('term')->implode(' ') ?? ''
@@ -67,7 +88,7 @@ class PostgresSearchEngine implements SearchEngineInterface
                 if ($term === '') {
                     $score = 1;
                 } else {
-                    $score = $this->scoreMatch($name, $category, $synonyms, $description, $term, $tokens, $requiresStrongMatch);
+                    $score = $this->scoreMatch($name, $brand, $category, $synonyms, $description, $term, $tokens, $requiresStrongMatch);
                 }
 
                 return [
@@ -89,6 +110,7 @@ class PostgresSearchEngine implements SearchEngineInterface
      */
     private function scoreMatch(
         string $name,
+        string $brand,
         string $category,
         string $synonyms,
         string $description,
@@ -97,25 +119,29 @@ class PostgresSearchEngine implements SearchEngineInterface
         bool $requiresStrongMatch,
     ): int {
         $strongName = $this->containsAllTokens($name, $tokens);
+        $strongBrand = $this->containsAllTokens($brand, $tokens);
         $strongCategory = $this->containsAllTokens($category, $tokens);
 
-        if ($requiresStrongMatch && ! ($strongName || $strongCategory)) {
+        if ($requiresStrongMatch && ! ($strongName || $strongBrand || $strongCategory)) {
             return 0;
         }
 
         $token = $tokens[0] ?? $term;
         $nameMatch = str_contains($name, $token) || str_contains($name, $term);
+        $brandMatch = str_contains($brand, $token) || str_contains($brand, $term);
         $categoryMatch = str_contains($category, $token) || str_contains($category, $term);
         $synonymsMatch = str_contains($synonyms, $token) || str_contains($synonyms, $term);
         $descriptionMatch = str_contains($description, $token) || str_contains($description, $term);
 
-        if (! ($nameMatch || $categoryMatch || $synonymsMatch || $descriptionMatch)) {
+        if (! ($nameMatch || $brandMatch || $categoryMatch || $synonymsMatch || $descriptionMatch)) {
             return 0;
         }
 
         $score = 0;
         $score += str_contains($name, $term) ? 500 : 0;
         $score += $strongName ? 380 : 0;
+        $score += str_contains($brand, $term) ? 340 : 0;
+        $score += $strongBrand ? 280 : 0;
         $score += str_contains($category, $term) ? 260 : 0;
         $score += $strongCategory ? 200 : 0;
         $score += str_contains($synonyms, $term) ? 120 : 0;
@@ -143,4 +169,3 @@ class PostgresSearchEngine implements SearchEngineInterface
         return true;
     }
 }
-

@@ -5,12 +5,12 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Categories\Models\Category;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class AdminProductEditorTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     public function test_admin_can_check_sku_availability(): void
     {
@@ -42,6 +42,7 @@ class AdminProductEditorTest extends TestCase
 
         $basePayload = [
             'name' => 'Producto Redirect',
+            'brand' => 'Marca Redirect',
             'sku' => 'SKU-REDIRECT-001',
             'description' => 'Edicion de prueba',
             'category_id' => $category->id,
@@ -54,6 +55,11 @@ class AdminProductEditorTest extends TestCase
             ->withSession(['_token' => 'test-token'])
             ->put('/admin/products/'.$product->id, array_merge($basePayload, ['after_save' => 'save', '_token' => 'test-token']))
             ->assertRedirect('/admin/products/'.$product->id.'/edit');
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'brand' => 'Marca Redirect',
+        ]);
 
         $this->actingAs($admin)
             ->withSession(['_token' => 'test-token'])

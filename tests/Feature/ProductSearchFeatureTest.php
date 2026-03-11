@@ -56,5 +56,46 @@ class ProductSearchFeatureTest extends TestCase
         $response->assertSee('Guante Nitrilo Premium');
         $response->assertDontSee('Caja Básica');
     }
-}
+    public function test_search_can_match_product_brand(): void
+    {
+        $distributor = Distributor::create(['name' => 'Dist 2', 'status' => 'active']);
+        $user = User::factory()->create([
+            'role' => UserRole::Distributor,
+            'distributor_id' => $distributor->id,
+            'email_verified_at' => now(),
+        ]);
 
+        $category = Category::create([
+            'name' => 'Diagnóstico',
+            'slug' => 'diagnostico',
+            'is_active' => true,
+            'sort_order' => 2,
+        ]);
+
+        Product::create([
+            'name' => 'Termómetro Digital',
+            'brand' => 'Omron',
+            'sku' => 'BRAND-001',
+            'description' => 'Medición de temperatura',
+            'category_id' => $category->id,
+            'price' => 1200,
+            'is_active' => true,
+        ]);
+
+        Product::create([
+            'name' => 'Tensiómetro Manual',
+            'brand' => 'Generica',
+            'sku' => 'BRAND-002',
+            'description' => 'Presión arterial',
+            'category_id' => $category->id,
+            'price' => 900,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('catalog.index', ['term' => 'omron']));
+
+        $response->assertOk();
+        $response->assertSee('Termómetro Digital');
+        $response->assertDontSee('Tensiómetro Manual');
+    }
+}

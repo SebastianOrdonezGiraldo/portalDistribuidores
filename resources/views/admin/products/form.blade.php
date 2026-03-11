@@ -6,6 +6,21 @@
         $selectedCategoryId = old('category_id', $product->category_id);
         $selectedCategory = $categories->firstWhere('id', (int) $selectedCategoryId);
         $initialCategoryName = $selectedCategory?->name ?? $product->category?->name ?? 'Sin categoría seleccionada';
+        $existingVariantRows = $isEdit
+            ? $product->variants->map(fn ($variant) => [
+                'value' => $variant->attributeValue?->value,
+                'price' => $variant->price,
+                'stock' => $variant->stock,
+            ])->values()->all()
+            : [];
+        $variantRows = old('variants', $existingVariantRows);
+        $variantRows = is_array($variantRows) ? array_values($variantRows) : [];
+        $hasVariantsChecked = filter_var(old('has_variants', $isEdit && $product->variants->isNotEmpty()), FILTER_VALIDATE_BOOLEAN);
+        if ($hasVariantsChecked && $variantRows === []) {
+            $variantRows[] = ['value' => '', 'price' => '', 'stock' => ''];
+        }
+        $selectedVariantAttributeId = old('variant_attribute_id', $product->variant_attribute_id);
+        $newVariantAttributeName = old('new_variant_attribute_name');
     @endphp
 
     <x-slot name="header">
@@ -52,6 +67,12 @@
                         <x-input-error :messages="$errors->get('name')" />
                     </div>
                     <div>
+                        <label class="form-label" for="brand">Marca</label>
+                        <x-ui.input id="brand" name="brand" :value="old('brand', $product->brand)" placeholder="Ej. 3M, BD, Omron" data-preview-brand />
+                        <p class="form-help">Nombre comercial o fabricante del producto.</p>
+                        <x-input-error :messages="$errors->get('brand')" />
+                    </div>
+                    <div>
                         <label class="form-label" for="sku">SKU *</label>
                         <x-ui.input id="sku" name="sku" :value="old('sku', $product->sku)" required data-sku-input />
                         <p class="form-help" data-sku-feedback>Escribe un SKU único para evitar conflictos en catálogo y pedidos.</p>
@@ -86,6 +107,146 @@
                         <x-input-error :messages="$errors->get('stock')" />
                     </div>
                 </div>
+            </x-ui.card>
+
+            <x-ui.card class="p-5" id="variantes-producto">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <h2 class="card-title">Variantes del producto</h2>
+                        <p class="form-help">Solo se permite 1 atributo por producto (por ejemplo: Color).</p>
+                    </div>
+                    <div class="min-w-44">
+                        <input type="hidden" name="has_variants" value="0">
+                        <x-ui.checkbox
+                            name="has_variants"
+                            value="1"
+                            :checked="$hasVariantsChecked"
+                            label="Este producto tiene variantes"
+                            data-has-variants-toggle
+                        />
+                    </div>
+                </div>
+
+                <div class="mt-4 space-y-4 {{ $hasVariantsChecked ? '' : 'hidden' }}" data-variant-section>
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label class="form-label" for="variant_attribute_id">Atributo global existente</label>
+                            <x-ui.select id="variant_attribute_id" name="variant_attribute_id" data-variant-attribute-select>
+                                <option value="">Seleccionar atributo</option>
+                                @foreach($variantAttributes as $attribute)
+                                    <option value="{{ $attribute->id }}" @selected((string) $selectedVariantAttributeId === (string) $attribute->id)>
+                                        {{ $attribute->name }}
+                                    </option>
+                                @endforeach
+                            </x-ui.select>
+                            <p class="form-help">Elige un atributo ya creado o define uno nuevo abajo.</p>
+                            <x-input-error :messages="$errors->get('variant_attribute_id')" />
+                        </div>
+
+                        <div>
+                            <label class="form-label" for="new_variant_attribute_name">Nuevo atributo global</label>
+                            <x-ui.input
+                                id="new_variant_attribute_name"
+                                name="new_variant_attribute_name"
+                                :value="$newVariantAttributeName"
+                                placeholder="Ej. Color, Talla, Peso"
+                            />
+                            <p class="form-help">Si no existe, se crea globalmente para futuros productos.</p>
+                            <x-input-error :messages="$errors->get('new_variant_attribute_name')" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <p class="text-sm font-semibold text-slate-700">Valores de variante (precio y stock por valor)</p>
+                            <button type="button" class="btn btn-secondary" data-variant-add-row>Agregar valor</button>
+                        </div>
+
+                        <div class="mt-3 space-y-2" data-variant-rows>
+                            @foreach($variantRows as $index => $row)
+                                <div class="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-[1.4fr_1fr_1fr_auto]" data-variant-row>
+                                    <div>
+                                        <label class="form-label md:hidden" for="variant-value-{{ $index }}">Valor</label>
+                                        <x-ui.input
+                                            id="variant-value-{{ $index }}"
+                                            name="variants[{{ $index }}][value]"
+                                            :value="data_get($row, 'value')"
+                                            placeholder="Ej. Rojo, Azul, 15.4 cm"
+                                        />
+                                        <x-input-error :messages="$errors->get('variants.'.$index.'.value')" />
+                                    </div>
+                                    <div>
+                                        <label class="form-label md:hidden" for="variant-price-{{ $index }}">Precio</label>
+                                        <x-ui.input
+                                            id="variant-price-{{ $index }}"
+                                            name="variants[{{ $index }}][price]"
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            :value="data_get($row, 'price')"
+                                            placeholder="0.00"
+                                        />
+                                        <x-input-error :messages="$errors->get('variants.'.$index.'.price')" />
+                                    </div>
+                                    <div>
+                                        <label class="form-label md:hidden" for="variant-stock-{{ $index }}">Stock</label>
+                                        <x-ui.input
+                                            id="variant-stock-{{ $index }}"
+                                            name="variants[{{ $index }}][stock]"
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            :value="data_get($row, 'stock')"
+                                            placeholder="Opcional"
+                                        />
+                                        <x-input-error :messages="$errors->get('variants.'.$index.'.stock')" />
+                                    </div>
+                                    <div class="flex items-end justify-end">
+                                        <button type="button" class="btn btn-ghost !px-2 text-xs text-red-700 hover:bg-red-50" data-variant-remove-row>Quitar</button>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <x-input-error :messages="$errors->get('variants')" />
+                    </div>
+                </div>
+
+                <template data-variant-template>
+                    <div class="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-[1.4fr_1fr_1fr_auto]" data-variant-row>
+                        <div>
+                            <input
+                                type="text"
+                                name="variants[__INDEX__][value]"
+                                placeholder="Ej. Rojo, Azul, 15.4 cm"
+                                class="block w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+                            >
+                        </div>
+                        <div>
+                            <input
+                                type="number"
+                                name="variants[__INDEX__][price]"
+                                min="0"
+                                step="0.01"
+                                placeholder="0.00"
+                                class="block w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+                            >
+                        </div>
+                        <div>
+                            <input
+                                type="number"
+                                name="variants[__INDEX__][stock]"
+                                min="0"
+                                step="0.01"
+                                placeholder="Opcional"
+                                class="block w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+                            >
+                        </div>
+                        <div class="flex items-end justify-end">
+                            <button type="button" class="btn btn-ghost !px-2 text-xs text-red-700 hover:bg-red-50" data-variant-remove-row>Quitar</button>
+                        </div>
+                    </div>
+                </template>
             </x-ui.card>
 
             <x-ui.card class="p-5" id="contenido-comercial">
@@ -227,6 +388,8 @@
                 <div class="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <p class="text-xs uppercase tracking-wide text-slate-500">Nombre</p>
                     <p class="mt-1 text-sm font-semibold text-slate-900" data-preview-name-output>{{ old('name', $product->name) ?: 'Nombre del producto' }}</p>
+                    <p class="mt-2 text-xs uppercase tracking-wide text-slate-500">Marca</p>
+                    <p class="mt-1 text-sm text-slate-700" data-preview-brand-output>{{ old('brand', $product->brand) ?: 'Sin marca' }}</p>
                     <p class="mt-2 text-xs uppercase tracking-wide text-slate-500">Categoría</p>
                     <p class="mt-1 text-sm text-slate-700" data-preview-category-output>{{ $initialCategoryName }}</p>
                     <p class="mt-2 text-xs uppercase tracking-wide text-slate-500">Descripción</p>

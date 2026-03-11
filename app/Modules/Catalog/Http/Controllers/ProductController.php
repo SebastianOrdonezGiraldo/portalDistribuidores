@@ -19,7 +19,7 @@ class ProductController extends Controller
         CategoryBreadcrumbsQuery $breadcrumbsQuery,
         TechSheetDownloadService $downloadService,
     ): View {
-        $product->loadMissing('category.synonyms', 'photos', 'primaryPhoto', 'videos', 'documents');
+        $product->loadMissing('category.synonyms', 'photos', 'primaryPhoto', 'videos', 'documents', 'variantAttribute', 'variants.attributeValue.attribute');
 
         if (! $product->is_active) {
             abort(404);
@@ -190,7 +190,7 @@ class ProductController extends Controller
             ->where('is_active', true)
             ->where('category_id', $product->category_id)
             ->whereKeyNot($product->id)
-            ->with(['category', 'primaryPhoto'])
+            ->with(['category', 'primaryPhoto', 'variantAttribute', 'variants.attributeValue'])
             ->latest('id')
             ->limit(8)
             ->get();
@@ -206,7 +206,7 @@ class ProductController extends Controller
         $query = Product::query()
             ->where('is_active', true)
             ->whereNotIn('id', $excludeIds)
-            ->with(['category', 'primaryPhoto'])
+            ->with(['category', 'primaryPhoto', 'variantAttribute', 'variants.attributeValue'])
             ->latest('id')
             ->limit(8);
 

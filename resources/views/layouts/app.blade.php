@@ -66,7 +66,7 @@
                     <x-ui.sidebar-link :href="route('cart.index')" :active="request()->routeIs('cart.*')">
                         Carrito
                         @if(($navCartCount ?? 0) > 0)
-                            <x-ui.badge variant="brand" class="ml-auto">{{ $navCartCount }}</x-ui.badge>
+                            <x-ui.badge variant="brand" class="ml-auto" data-cart-badge>{{ $navCartCount }}</x-ui.badge>
                         @endif
                     </x-ui.sidebar-link>
                     <x-ui.sidebar-link :href="route('checkout.show')" :active="request()->routeIs('checkout.*')">Nuevo Pedido</x-ui.sidebar-link>
@@ -113,8 +113,7 @@
                             @endif
                         </p>
                     @else
-                        <p class="truncate text-sm font-semibold text-slate-900">Compra como invitado</p>
-                        <p class="truncate text-xs text-slate-500">Agrega productos al carrito y confirma tu pedido sin login.</p>
+
                     @endif
                 </div>
 
@@ -153,9 +152,9 @@
                     <a href="{{ route('cart.index') }}" class="btn btn-secondary">
                         Carrito
                         @if(($navCartCount ?? 0) > 0)
-                            <x-ui.badge variant="brand" class="ml-1">{{ $navCartCount }}</x-ui.badge>
+                            <x-ui.badge variant="brand" class="ml-1" data-cart-badge>{{ $navCartCount }}</x-ui.badge>
                         @else
-                            <x-ui.badge variant="neutral" class="ml-1">0</x-ui.badge>
+                            <x-ui.badge variant="neutral" class="ml-1" data-cart-badge>0</x-ui.badge>
                         @endif
                     </a>
                     <a href="{{ route('login') }}" class="btn btn-primary">Iniciar sesión</a>

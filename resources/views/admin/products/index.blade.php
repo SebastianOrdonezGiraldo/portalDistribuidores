@@ -11,10 +11,54 @@
                 </div>
             </x-slot>
             <x-slot name="actions">
-                <a href="{{ route('admin.products.create') }}" class="btn btn-primary">Nuevo producto</a>
+                <div class="flex flex-wrap items-center gap-2">
+                    <a href="{{ route('admin.products.import.template') }}" class="btn btn-secondary">Descargar plantilla CSV</a>
+                    <form action="{{ route('admin.products.import') }}" method="POST" enctype="multipart/form-data" class="flex flex-wrap items-center gap-2">
+                        @csrf
+                        <input type="hidden" name="default_action" value="upsert">
+                        <input
+                            type="file"
+                            name="file"
+                            accept=".csv,text/csv,application/vnd.ms-excel"
+                            required
+                            class="block w-48 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+                        >
+                        <button type="submit" class="btn btn-secondary">Importar CSV</button>
+                    </form>
+                    <a href="{{ route('admin.products.create') }}" class="btn btn-primary">Nuevo producto</a>
+                </div>
             </x-slot>
         </x-ui.page-header>
     </x-slot>
+
+    @if(session('importReport'))
+        @php
+            $importReport = session('importReport');
+        @endphp
+        <x-ui.card class="mb-4 border border-slate-200 bg-slate-50/70 p-4">
+            <p class="text-sm font-semibold text-slate-900">
+                Resumen de importación:
+                {{ (int) ($importReport['created'] ?? 0) }} creados,
+                {{ (int) ($importReport['updated'] ?? 0) }} actualizados,
+                {{ (int) ($importReport['skipped'] ?? 0) }} omitidos,
+                {{ count($importReport['errors'] ?? []) }} errores.
+            </p>
+
+            @if(!empty($importReport['errors']))
+                <div class="mt-3 rounded-xl border border-red-200 bg-red-50 p-3">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-red-700">Primeros errores detectados</p>
+                    <ul class="mt-2 space-y-1 text-xs text-red-700">
+                        @foreach(array_slice($importReport['errors'], 0, 8) as $error)
+                            <li>
+                                Fila {{ $error['row'] ?? '-' }}{{ !empty($error['sku']) ? ' (SKU '.$error['sku'].')' : '' }}:
+                                {{ $error['message'] ?? 'Error de validación' }}
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+        </x-ui.card>
+    @endif
 
     <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <x-ui.kpi-card
@@ -76,7 +120,7 @@
     <x-ui.filter-bar method="GET" action="{{ route('admin.products.index') }}" class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-8">
         <div class="xl:col-span-2">
             <label class="form-label" for="products-q">Buscar</label>
-            <x-ui.input id="products-q" name="q" :value="$filters['q']" placeholder="Producto, SKU o descripción" />
+            <x-ui.input id="products-q" name="q" :value="$filters['q']" placeholder="Producto, marca, SKU o descripción" />
         </div>
 
         <div>
@@ -197,6 +241,9 @@
                                     </div>
                                     <div>
                                         <p class="font-medium text-slate-900">{{ $product->name }}</p>
+                                        @if($product->brand)
+                                            <p class="text-xs text-slate-500">Marca: {{ $product->brand }}</p>
+                                        @endif
                                         <p class="text-xs text-slate-500">{{ \Illuminate\Support\Str::limit((string) $product->description, 42) }}</p>
                                     </div>
                                 </div>

@@ -4,6 +4,7 @@ namespace App\Modules\Orders\Actions;
 
 use App\Models\User;
 use App\Modules\Catalog\Models\Product;
+use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Orders\DTOs\CreateOrderData;
 use App\Modules\Orders\Events\OrderPlaced;
 use App\Modules\Orders\Models\Order;
@@ -17,13 +18,31 @@ class CreateOrderAction
     public function execute(?User $user, CreateOrderData $data): Order
     {
         $productIds = collect($data->items)->pluck('product_id')->map(fn ($id) => (int) $id)->unique()->all();
-        $products = Product::query()->whereIn('id', $productIds)->where('is_active', true)->get()->keyBy('id');
+        $variantIds = collect($data->items)
+            ->pluck('variant_id')
+            ->filter(fn ($id) => $id !== null)
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->all();
+
+        $products = Product::query()
+            ->whereIn('id', $productIds)
+            ->where('is_active', true)
+            ->withCount(['variants as active_variants_count' => fn ($query) => $query->where('is_active', true)])
+            ->get()
+            ->keyBy('id');
+        $variants = ProductVariant::query()
+            ->whereIn('id', $variantIds)
+            ->where('is_active', true)
+            ->with('attributeValue.attribute')
+            ->get()
+            ->keyBy('id');
 
         if ($products->isEmpty()) {
             throw new DomainException('No hay productos válidos en el pedido.');
         }
 
-        $order = DB::transaction(function () use ($user, $data, $products) {
+        $order = DB::transaction(function () use ($user, $data, $products, $variants) {
             $order = Order::create([
                 'distributor_id' => $user?->distributor_id,
                 'user_id' => $user?->id,
@@ -49,17 +68,36 @@ class CreateOrderAction
                     continue;
                 }
 
-                $qty = max(1, (int) $item['qty']);
+                $variantId = isset($item['variant_id']) ? (int) $item['variant_id'] : null;
+                $variant = null;
                 $priceEach = (float) $product->price;
+
+                if ($variantId > 0) {
+                    $variant = $variants->get($variantId);
+
+                    if (! $variant || (int) $variant->product_id !== (int) $product->id) {
+                        continue;
+                    }
+
+                    $priceEach = (float) $variant->price;
+                } elseif ((int) ($product->active_variants_count ?? 0) > 0) {
+                    // Prevent creating a line without a chosen variant when product requires one.
+                    continue;
+                }
+
+                $qty = max(1, (int) $item['qty']);
                 $subtotal = $qty * $priceEach;
                 $total += $subtotal;
 
                 $order->items()->create([
                     'product_id' => $product->id,
+                    'product_variant_id' => $variant?->id,
                     'product_name_snapshot' => $product->name,
                     'sku_snapshot' => $product->sku,
+                    'variant_attribute_snapshot' => $variant?->attributeValue?->attribute?->name,
+                    'variant_value_snapshot' => $variant?->attributeValue?->value,
                     'qty' => $qty,
-                    'unit_label' => $item['unit_label'] ?? 'unidad',
+                    'unit_label' => $item['unit_label'] ?? 'unidades',
                     'price_each' => $priceEach,
                     'subtotal' => $subtotal,
                 ]);

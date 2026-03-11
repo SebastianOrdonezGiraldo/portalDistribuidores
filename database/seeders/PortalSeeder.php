@@ -81,6 +81,7 @@ class PortalSeeder extends Seeder
                 ['sku' => $sku],
                 [
                     'name' => $name,
+                    'brand' => 'Import Corporal Medical',
                     'description' => $description,
                     'category_id' => $categories[$categoryKey]->id,
                     'price' => $price,

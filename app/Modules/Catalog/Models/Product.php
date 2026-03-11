@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Collection;
 
 class Product extends Model
 {
@@ -16,9 +17,11 @@ class Product extends Model
 
     protected $fillable = [
         'name',
+        'brand',
         'sku',
         'description',
         'category_id',
+        'variant_attribute_id',
         'price',
         'stock',
         'is_active',
@@ -36,6 +39,16 @@ class Product extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function variantAttribute(): BelongsTo
+    {
+        return $this->belongsTo(ProductAttribute::class, 'variant_attribute_id');
+    }
+
+    public function variants(): HasMany
+    {
+        return $this->hasMany(ProductVariant::class)->orderBy('sort_order')->orderBy('id');
     }
 
     public function photos(): HasMany
@@ -61,5 +74,32 @@ class Product extends Model
     public function orderItems(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function hasConfigurableVariants(): bool
+    {
+        if ($this->relationLoaded('variants')) {
+            return $this->variants->where('is_active', true)->isNotEmpty();
+        }
+
+        return $this->variants()->where('is_active', true)->exists();
+    }
+
+    /**
+     * @return Collection<int, ProductVariant>
+     */
+    public function activeVariantsCollection(): Collection
+    {
+        if ($this->relationLoaded('variants')) {
+            /** @var Collection<int, ProductVariant> $variants */
+            $variants = $this->variants->where('is_active', true)->values();
+
+            return $variants;
+        }
+
+        /** @var Collection<int, ProductVariant> $variants */
+        $variants = $this->variants()->where('is_active', true)->get();
+
+        return $variants;
     }
 }

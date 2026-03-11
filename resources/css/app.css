@@ -217,6 +217,77 @@
 }
 
 @layer utilities {
+    @keyframes cart-bump {
+        0% {
+            transform: scale(1);
+        }
+        28% {
+            transform: scale(1.2);
+        }
+        55% {
+            transform: scale(0.92);
+        }
+        100% {
+            transform: scale(1);
+        }
+    }
+
+    @keyframes cart-glow {
+        0% {
+            box-shadow: 0 0 0 0 rgba(54, 177, 187, 0);
+        }
+        45% {
+            box-shadow: 0 0 0 8px rgba(54, 177, 187, 0.22);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(54, 177, 187, 0);
+        }
+    }
+
+    .animate-cart-bump {
+        animation: cart-bump 420ms cubic-bezier(.2, .8, .2, 1);
+    }
+
+    .animate-cart-glow {
+        animation: cart-glow 620ms ease-out;
+    }
+
+    .cart-submit-feedback {
+        transform: scale(0.98);
+        opacity: 0.92;
+        transition: transform 120ms ease, opacity 120ms ease;
+    }
+
+    .inline-toast-enter {
+        animation: inline-toast-enter 180ms ease-out;
+    }
+
+    .inline-toast-leave {
+        animation: inline-toast-leave 200ms ease-in forwards;
+    }
+
+    @keyframes inline-toast-enter {
+        from {
+            opacity: 0;
+            transform: translateY(-8px) scale(0.98);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    @keyframes inline-toast-leave {
+        from {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        to {
+            opacity: 0;
+            transform: translateY(-6px) scale(0.98);
+        }
+    }
+
     .text-balance {
         text-wrap: balance;
     }

@@ -17,6 +17,8 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::patch('categories/{category}/status', [CategoryAdminController::class, 'setStatus'])->name('categories.status');
         Route::resource('categories', CategoryAdminController::class)->except('show');
         Route::get('products/check-sku', [ProductAdminController::class, 'checkSku'])->name('products.check-sku');
+        Route::get('products/import/template', [ProductAdminController::class, 'downloadImportTemplate'])->name('products.import.template');
+        Route::post('products/import', [ProductAdminController::class, 'import'])->name('products.import');
         Route::patch('products/{product}/status', [ProductAdminController::class, 'setStatus'])->name('products.status');
         Route::delete('products/{product}/photos/{photo}', [ProductAdminController::class, 'destroyPhoto'])->name('products.photos.destroy');
         Route::delete('products/{product}/documents/{document}', [ProductAdminController::class, 'destroyDocument'])->name('products.documents.destroy');
