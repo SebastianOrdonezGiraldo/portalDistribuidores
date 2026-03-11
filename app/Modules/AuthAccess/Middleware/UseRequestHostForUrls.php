@@ -11,9 +11,13 @@ class UseRequestHostForUrls
 {
     public function handle(Request $request, Closure $next): Response
     {
-        // Keep generated URLs on the same host where the user is browsing
-        // (localhost/ngrok) to avoid session split across domains.
-        URL::forceRootUrl($request->getSchemeAndHttpHost());
+        // En producción Railway termina SSL en el proxy,
+        // la petición interna llega como http, pero el usuario
+        // navega por https. Forzamos https si APP_URL lo usa.
+        $appUrl = config('app.url');
+        $scheme = str_starts_with($appUrl, 'https') ? 'https' : $request->getScheme();
+
+        URL::forceRootUrl($scheme . '://' . $request->getHost());
 
         return $next($request);
     }
