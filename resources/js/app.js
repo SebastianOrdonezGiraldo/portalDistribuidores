@@ -171,10 +171,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.querySelectorAll('form[data-loading-form]').forEach((form) => {
-        form.addEventListener('submit', () => {
+        form.addEventListener('submit', (event) => {
             if (form.dataset.ajaxCart === 'true') {
                 return;
             }
+
+            if (form.dataset.formSubmitting === 'true') {
+                event.preventDefault();
+                return;
+            }
+
+            form.dataset.formSubmitting = 'true';
 
             form.querySelectorAll('[data-loading-label]').forEach((button) => {
                 if (button.disabled) {
