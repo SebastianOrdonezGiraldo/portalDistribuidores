@@ -48,7 +48,7 @@
                                 <div class="flex min-w-0 items-center gap-3">
                                     <div class="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white">
                                         @if($product->primaryPhoto)
-                                            <img src="{{ asset('storage/'.$product->primaryPhoto->path) }}" alt="{{ $product->name }}" class="h-full w-full object-cover">
+                                            <img src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($product->primaryPhoto->path) }}" alt="{{ $product->name }}" class="h-full w-full object-cover">
                                         @else
                                             <div class="flex h-full items-center justify-center text-xs text-slate-400">Sin foto</div>
                                         @endif

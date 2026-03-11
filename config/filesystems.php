@@ -1,5 +1,10 @@
 <?php
 
+$publicDiskDriver = env('PUBLIC_DISK_DRIVER');
+$hasS3Bucket = trim((string) env('AWS_BUCKET', '')) !== '';
+$useS3ForPublicDisk = $publicDiskDriver === 's3'
+    || ($publicDiskDriver !== 'local' && env('APP_ENV') === 'production' && $hasS3Bucket);
+
 return [
 
     /*
@@ -38,7 +43,7 @@ return [
             'report' => false,
         ],
 
-        'public' => env('APP_ENV') === 'production'
+        'public' => $useS3ForPublicDisk
             ? [
                 'driver'                  => 's3',
                 'key'                     => env('AWS_ACCESS_KEY_ID'),
@@ -75,6 +80,8 @@ return [
         ],
 
     ],
+
+    'public_media_signed_url_ttl' => (int) env('PUBLIC_MEDIA_SIGNED_URL_TTL', 20),
 
     /*
     |--------------------------------------------------------------------------

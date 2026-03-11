@@ -300,7 +300,7 @@
                                             <button type="submit" class="text-xs font-semibold text-red-700 hover:text-red-800">Eliminar</button>
                                         </form>
                                     </div>
-                                    <img src="{{ asset('storage/'.$photo->path) }}" alt="Foto {{ $loop->iteration }}" class="mt-2 h-28 w-full rounded-xl border border-slate-200 object-cover">
+                                    <img src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($photo->path) }}" alt="Foto {{ $loop->iteration }}" class="mt-2 h-28 w-full rounded-xl border border-slate-200 object-cover">
                                 </div>
                             @endforeach
                         </div>
@@ -313,7 +313,7 @@
                         <div class="mt-3 space-y-2">
                             @foreach($product->documents as $document)
                                 <div class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                                    <a href="{{ asset('storage/'.$document->path) }}" target="_blank" rel="noopener" class="font-medium text-slate-900 hover:underline">{{ $document->filename }}</a>
+                                    <a href="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($document->path) }}" target="_blank" rel="noopener" class="font-medium text-slate-900 hover:underline">{{ $document->filename }}</a>
                                     <form method="POST" action="{{ route('admin.products.documents.destroy', [$product, $document]) }}" data-confirm="¿Eliminar este documento del producto?">
                                         @csrf
                                         @method('DELETE')

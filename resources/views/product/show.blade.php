@@ -115,7 +115,7 @@
                             @if($mainPhoto)
                                 <img
                                     data-product-main-image
-                                    src="{{ asset('storage/'.$mainPhoto->path) }}"
+                                    src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($mainPhoto->path) }}"
                                     alt="{{ $product->name }}"
                                     loading="eager"
                                     decoding="async"
@@ -142,12 +142,12 @@
                                         <button
                                             type="button"
                                             data-product-thumb
-                                            data-src="{{ asset('storage/'.$photo->path) }}"
+                                            data-src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($photo->path) }}"
                                             data-alt="{{ $product->name }}"
                                             class="group overflow-hidden rounded-xl border {{ $loop->first ? 'border-brand-primary ring-2 ring-brand-primary/25' : 'border-slate-200 hover:border-slate-300' }} focus-ring"
                                             aria-label="Ver imagen {{ $loop->iteration }}"
                                         >
-                                            <img src="{{ asset('storage/'.$photo->path) }}" alt="{{ $product->name }}" class="h-14 w-full bg-slate-50 p-1 object-contain transition duration-300 group-hover:scale-105">
+                                            <img src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($photo->path) }}" alt="{{ $product->name }}" class="h-14 w-full bg-slate-50 p-1 object-contain transition duration-300 group-hover:scale-105">
                                         </button>
                                     @endforeach
                                 </div>

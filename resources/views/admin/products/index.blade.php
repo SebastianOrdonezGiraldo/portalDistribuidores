@@ -234,7 +234,7 @@
                                 <div class="flex items-center gap-3">
                                     <div class="h-10 w-10 overflow-hidden rounded-lg bg-slate-100">
                                         @if($product->primaryPhoto)
-                                            <img src="{{ asset('storage/'.$product->primaryPhoto->path) }}" alt="{{ $product->name }}" class="h-full w-full object-cover">
+                                            <img src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($product->primaryPhoto->path) }}" alt="{{ $product->name }}" class="h-full w-full object-cover">
                                         @else
                                             <div class="flex h-full items-center justify-center text-xs text-slate-400">Sin</div>
                                         @endif

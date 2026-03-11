@@ -18,7 +18,7 @@
 
         @if($product->primaryPhoto)
             <img
-                src="{{ asset('storage/'.$product->primaryPhoto->path) }}"
+                src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($product->primaryPhoto->path) }}"
                 alt="{{ $product->name }}"
                 loading="lazy"
                 decoding="async"

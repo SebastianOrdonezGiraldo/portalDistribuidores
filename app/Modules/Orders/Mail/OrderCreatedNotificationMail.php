@@ -16,7 +16,7 @@ class OrderCreatedNotificationMail extends Mailable
 
     public function __construct(
         public readonly Order $order,
-        public readonly string $pdfAbsolutePath,
+        public readonly string $pdfContents,
     ) {
     }
 
@@ -40,8 +40,10 @@ class OrderCreatedNotificationMail extends Mailable
     public function attachments(): array
     {
         return [
-            \Illuminate\Mail\Mailables\Attachment::fromPath($this->pdfAbsolutePath)
-                ->as($this->order->oc_number.'.pdf')
+            \Illuminate\Mail\Mailables\Attachment::fromData(
+                fn () => $this->pdfContents,
+                $this->order->oc_number.'.pdf',
+            )
                 ->withMime('application/pdf'),
         ];
     }

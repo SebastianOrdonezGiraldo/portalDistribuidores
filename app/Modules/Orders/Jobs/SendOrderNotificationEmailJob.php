@@ -51,11 +51,11 @@ class SendOrderNotificationEmailJob implements ShouldQueue
             return;
         }
 
-        $pdfAbsolutePath = Storage::disk('public')->path($order->pdf_path);
+        $pdfContents = (string) Storage::disk('public')->get($order->pdf_path);
 
         try {
-            $this->sendInternalNotification($order, $pdfAbsolutePath);
-            $this->sendCustomerQuotation($order, $pdfAbsolutePath);
+            $this->sendInternalNotification($order, $pdfContents);
+            $this->sendCustomerQuotation($order, $pdfContents);
         } catch (\Throwable $exception) {
             Log::error('order.email.failed', [
                 'order_id' => $order->id,
@@ -72,7 +72,7 @@ class SendOrderNotificationEmailJob implements ShouldQueue
         ]);
     }
 
-    private function sendInternalNotification(Order $order, string $pdfAbsolutePath): void
+    private function sendInternalNotification(Order $order, string $pdfContents): void
     {
         $recipient = trim((string) config('mail.order_notification_to'));
 
@@ -85,7 +85,7 @@ class SendOrderNotificationEmailJob implements ShouldQueue
             return;
         }
 
-        Mail::to($recipient)->send(new OrderCreatedNotificationMail($order, $pdfAbsolutePath));
+        Mail::to($recipient)->send(new OrderCreatedNotificationMail($order, $pdfContents));
 
         Log::info('order.email.internal.sent', [
             'order_id' => $order->id,
@@ -94,7 +94,7 @@ class SendOrderNotificationEmailJob implements ShouldQueue
         ]);
     }
 
-    private function sendCustomerQuotation(Order $order, string $pdfAbsolutePath): void
+    private function sendCustomerQuotation(Order $order, string $pdfContents): void
     {
         $customerRecipient = trim((string) ($order->contact_email ?? ''));
 
@@ -108,7 +108,7 @@ class SendOrderNotificationEmailJob implements ShouldQueue
             return;
         }
 
-        Mail::to($customerRecipient)->send(new OrderCreatedCustomerQuotationMail($order, $pdfAbsolutePath));
+        Mail::to($customerRecipient)->send(new OrderCreatedCustomerQuotationMail($order, $pdfContents));
 
         Log::info('order.email.customer.sent', [
             'order_id' => $order->id,
