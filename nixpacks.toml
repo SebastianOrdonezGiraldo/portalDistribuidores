@@ -1,32 +1,32 @@
 [phases.setup]
 nixPkgs = [
-  "php83",
-  "php83Packages.composer",
-  "php83Extensions.pgsql",
-  "php83Extensions.mbstring",
-  "php83Extensions.xml",
-  "php83Extensions.curl",
-  "php83Extensions.zip",
-  "php83Extensions.gd",
-  "php83Extensions.intl",
-  "php83Extensions.bcmath",
-  "php83Extensions.tokenizer",
-  "php83Extensions.ctype",
-  "php83Extensions.fileinfo",
-  "php83Extensions.dom",
-  "nodejs_20",
-  "nodePackages.npm"
+    "php84",
+    "php84Packages.composer",
+    "php84Extensions.pgsql",
+    "php84Extensions.mbstring",
+    "php84Extensions.xml",
+    "php84Extensions.curl",
+    "php84Extensions.zip",
+    "php84Extensions.gd",
+    "php84Extensions.intl",
+    "php84Extensions.bcmath",
+    "php84Extensions.tokenizer",
+    "php84Extensions.ctype",
+    "php84Extensions.fileinfo",
+    "php84Extensions.dom",
+    "nodejs_20",
+    "nodePackages.npm"
 ]
 
 [phases.install]
 cmds = [
-  "composer install --no-dev --optimize-autoloader --no-interaction",
-  "npm ci"
+    "composer install --no-dev --optimize-autoloader --no-interaction",
+    "npm ci"
 ]
 
 [phases.build]
 cmds = [
-  "npm run build"
+    "npm run build"
 ]
 
 [start]
