@@ -402,6 +402,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const variantRowsContainer = productForm.querySelector('[data-variant-rows]');
         const variantTemplate = productForm.querySelector('[data-variant-template]');
         const addVariantRowButton = productForm.querySelector('[data-variant-add-row]');
+        const setVariantRequiredRules = (enabled) => {
+            if (priceInput instanceof HTMLInputElement) {
+                priceInput.required = !enabled;
+            }
+
+            if (!variantRowsContainer) {
+                return;
+            }
+
+            variantRowsContainer
+                .querySelectorAll('input[name$="[value]"], input[name$="[price]"]')
+                .forEach((input) => {
+                    if (input instanceof HTMLInputElement) {
+                        input.required = enabled;
+                    }
+                });
+        };
 
         let variantIndex = 0;
         if (variantRowsContainer) {
@@ -431,6 +448,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const rowHtml = rawHtml.replaceAll('__INDEX__', String(variantIndex));
             variantIndex += 1;
             variantRowsContainer.insertAdjacentHTML('beforeend', rowHtml);
+
+            const variantsEnabled = variantToggle instanceof HTMLInputElement ? variantToggle.checked : false;
+            setVariantRequiredRules(variantsEnabled);
         };
 
         const refreshVariantSection = () => {
@@ -443,6 +463,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (enabled && variantRowsContainer && variantRowsContainer.querySelectorAll('[data-variant-row]').length === 0) {
                 appendVariantRow();
             }
+
+            setVariantRequiredRules(enabled);
         };
 
         addVariantRowButton?.addEventListener('click', () => {
