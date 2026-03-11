@@ -18,15 +18,13 @@ use App\Modules\Orders\Policies\OrderPolicy;
 use App\Modules\Orders\Services\Cart\CartService;
 use App\Modules\Shared\Contracts\SearchEngineInterface;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use App\Modules\Catalog\Models\ProductDocument;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         $this->app->bind(SearchEngineInterface::class, function () {
@@ -38,11 +36,13 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
+        // Forzar HTTPS en producción (Railway usa proxy SSL)
+        if (config('app.env') === 'production') {
+            URL::forceScheme('https');
+        }
+
         Gate::policy(Product::class, ProductPolicy::class);
         Gate::policy(Category::class, CategoryPolicy::class);
         Gate::policy(Order::class, OrderPolicy::class);
@@ -52,7 +52,6 @@ class AppServiceProvider extends ServiceProvider
 
         View::composer('layouts.app', function ($view): void {
             $count = app(CartService::class)->count();
-
             $view->with('navCartCount', $count);
         });
     }
