@@ -149,6 +149,45 @@
         @apply transition hover:bg-slate-50;
     }
 
+    .product-row-actions {
+        @apply inline-flex items-center gap-2;
+    }
+
+    .product-row-action-icon {
+        @apply focus-ring inline-flex h-9 w-9 items-center justify-center rounded-xl border border-transparent text-slate-700 transition hover:bg-slate-100 hover:text-slate-900;
+    }
+
+    .product-row-action-icon.is-disabled {
+        @apply cursor-not-allowed text-slate-300 hover:bg-transparent hover:text-slate-300;
+    }
+
+    .product-status-switch {
+        @apply focus-ring inline-flex h-6 w-11 items-center rounded-full border px-0.5 transition;
+    }
+
+    .product-status-switch.is-on {
+        border-color: rgb(134 239 172);
+        background-color: rgb(220 252 231);
+    }
+
+    .product-status-switch.is-off {
+        @apply border-slate-300 bg-slate-100;
+    }
+
+    .product-status-switch-thumb {
+        @apply h-4 w-4 rounded-full bg-white shadow-sm transition;
+    }
+
+    .product-status-switch.is-on .product-status-switch-thumb {
+        transform: translateX(18px);
+        background-color: rgb(16 185 129);
+    }
+
+    .product-status-switch.is-off .product-status-switch-thumb {
+        transform: translateX(0);
+        background-color: rgb(100 116 139);
+    }
+
     .empty-state {
         @apply rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-soft;
     }

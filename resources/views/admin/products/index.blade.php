@@ -224,7 +224,7 @@
                         <th>Categoría</th>
                         <th>Precio</th>
                         <th>Disponibilidad</th>
-                        <th class="text-right">Acciones</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -253,23 +253,61 @@
                             <td>
                                 <x-ui.status-badge :status="$product->is_active ? 'active' : 'inactive'" :label="$product->is_active ? 'Disponible' : 'Inactivo'" />
                             </td>
-                            <td class="text-right">
-                                <x-ui.action-menu>
-                                    <a href="{{ route('admin.products.edit', $product) }}" class="block rounded-lg px-3 py-2 hover:bg-slate-50">Editar</a>
-                                    <form action="{{ route('admin.products.status', $product) }}" method="POST" data-confirm="{{ $product->is_active ? '¿Desactivar '.$product->name.'?' : '¿Activar '.$product->name.'?' }}">
+                            <td>
+                                <div class="product-row-actions">
+                                    <a
+                                        href="{{ route('admin.products.edit', $product) }}"
+                                        class="product-row-action-icon"
+                                        title="Editar producto"
+                                        aria-label="Editar {{ $product->name }}"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M12 20h9"></path>
+                                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+                                        </svg>
+                                    </a>
+
+                                    @if($product->is_active)
+                                        <a
+                                            href="{{ route('products.show', $product) }}"
+                                            target="_blank"
+                                            rel="noopener"
+                                            class="product-row-action-icon"
+                                            title="Ver como distribuidor"
+                                            aria-label="Ver {{ $product->name }}"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"></path>
+                                                <circle cx="12" cy="12" r="3"></circle>
+                                            </svg>
+                                        </a>
+                                    @else
+                                        <span
+                                            class="product-row-action-icon is-disabled"
+                                            title="Activa el producto para previsualizarlo"
+                                            aria-hidden="true"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"></path>
+                                                <circle cx="12" cy="12" r="3"></circle>
+                                            </svg>
+                                        </span>
+                                    @endif
+
+                                    <form action="{{ route('admin.products.status', $product) }}" method="POST">
                                         @csrf
                                         @method('PATCH')
                                         <input type="hidden" name="is_active" value="{{ $product->is_active ? 0 : 1 }}">
-                                        <button type="submit" class="block w-full rounded-lg px-3 py-2 text-left hover:bg-slate-50">
-                                            {{ $product->is_active ? 'Desactivar' : 'Activar' }}
+                                        <button
+                                            type="submit"
+                                            class="product-status-switch {{ $product->is_active ? 'is-on' : 'is-off' }}"
+                                            title="{{ $product->is_active ? 'Desactivar producto' : 'Activar producto' }}"
+                                            aria-label="{{ $product->is_active ? 'Desactivar '.$product->name : 'Activar '.$product->name }}"
+                                        >
+                                            <span class="product-status-switch-thumb"></span>
                                         </button>
                                     </form>
-                                    <form action="{{ route('admin.products.destroy', $product) }}" method="POST" data-confirm="¿Eliminar {{ $product->name }}? Esta acción no se puede deshacer.">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="block w-full rounded-lg px-3 py-2 text-left text-red-700 hover:bg-red-50">Eliminar</button>
-                                    </form>
-                                </x-ui.action-menu>
+                                </div>
                             </td>
                         </tr>
                     @endforeach
