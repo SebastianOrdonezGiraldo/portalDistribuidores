@@ -63,7 +63,7 @@ class CreateOrderFeatureTest extends TestCase
         ]);
 
         $order = Order::query()->firstOrFail();
-        $response->assertRedirect(route('orders.submitted', ['order' => $order, 'download_pdf' => 1]));
+        $response->assertRedirect(route('orders.submitted', ['order' => $order]));
         $this->assertDatabaseCount('orders', 1);
         $this->assertDatabaseCount('order_items', 1);
         $this->assertDatabaseHas('orders', [

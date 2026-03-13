@@ -9,6 +9,7 @@ use App\Modules\Orders\Http\Requests\StoreOrderRequest;
 use App\Modules\Orders\Jobs\SendOrderNotificationEmailJob;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\Cart\CartService;
+use App\Modules\Orders\Services\OrderPdfGenerator;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -48,24 +49,24 @@ class OrderController extends Controller
         $this->rememberGuestOrder($order);
         $cartService->clear();
 
-        $orderId = (int) $order->id;
-        $ocNumber = (string) $order->oc_number;
+        try {
+            SendOrderNotificationEmailJob::dispatch($order->id);
 
-        app()->terminating(function () use ($orderId, $ocNumber): void {
-            try {
-                SendOrderNotificationEmailJob::dispatchSync($orderId);
-            } catch (\Throwable $exception) {
-                Log::error('order.email.after_response_sync_dispatch.failed', [
-                    'order_id' => $orderId,
-                    'oc_number' => $ocNumber,
-                    'error' => $exception->getMessage(),
-                ]);
-            }
-        });
+            Log::info('order.email.queued', [
+                'order_id' => $order->id,
+                'oc_number' => $order->oc_number,
+            ]);
+        } catch (\Throwable $exception) {
+            Log::error('order.email.dispatch.failed', [
+                'order_id' => $order->id,
+                'oc_number' => $order->oc_number,
+                'error' => $exception->getMessage(),
+            ]);
+        }
 
         return redirect()
-            ->route('orders.submitted', ['order' => $order, 'download_pdf' => 1])
-            ->with('status', 'Orden creada correctamente. Descargando cotización en PDF.');
+            ->route('orders.submitted', ['order' => $order])
+            ->with('status', 'Orden creada correctamente. Estamos procesando la cotización.');
     }
 
     public function submitted(Order $order): View

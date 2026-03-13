@@ -134,7 +134,7 @@ class ProductVariantsFlowTest extends TestCase
         ]);
 
         $order = Order::query()->firstOrFail();
-        $response->assertRedirect(route('orders.submitted', ['order' => $order, 'download_pdf' => 1]));
+        $response->assertRedirect(route('orders.submitted', ['order' => $order]));
 
         $this->assertDatabaseHas('order_items', [
             'product_id' => $product->id,

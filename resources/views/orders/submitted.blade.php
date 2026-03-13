@@ -19,7 +19,7 @@
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Solicitud recibida</p>
                 <h1 class="mt-2 text-2xl font-semibold text-emerald-900">¡Solicitud enviada con éxito!</h1>
                 <p class="mt-2 text-sm text-emerald-800">
-                    Su solicitud de cotización ha sido recibida. Se te descargara un PDF con los detalles de la cotización.
+                    Su solicitud de cotización ha sido recibida. Estamos generando el PDF y te llegará también por correo.
                 </p>
             </div>
 
@@ -41,19 +41,4 @@
             </div>
         </x-ui.card>
     </section>
-
-    @if(request()->boolean('download_pdf'))
-        <script>
-            document.addEventListener('DOMContentLoaded', () => {
-                const downloadFrame = document.createElement('iframe');
-                downloadFrame.style.display = 'none';
-                downloadFrame.src = @json(route('orders.pdf', $order));
-                document.body.appendChild(downloadFrame);
-
-                const cleanUrl = new URL(window.location.href);
-                cleanUrl.searchParams.delete('download_pdf');
-                window.history.replaceState({}, '', cleanUrl.toString());
-            });
-        </script>
-    @endif
 </x-app-layout>
