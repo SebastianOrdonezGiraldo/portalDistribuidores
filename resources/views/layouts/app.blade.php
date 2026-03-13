@@ -175,6 +175,8 @@
 
             {{ $slot }}
         </main>
+
+        @include('layouts.partials.footer')
     </div>
 </div>
 

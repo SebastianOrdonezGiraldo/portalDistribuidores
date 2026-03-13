@@ -52,7 +52,19 @@ class AppServiceProvider extends ServiceProvider
 
         View::composer('layouts.app', function ($view): void {
             $count = app(CartService::class)->count();
-            $view->with('navCartCount', $count);
+            $footerTopCategories = Category::query()
+                ->where('is_active', true)
+                ->withCount('products')
+                ->orderByDesc('products_count')
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->limit(4)
+                ->get(['id', 'name']);
+
+            $view->with([
+                'navCartCount' => $count,
+                'footerTopCategories' => $footerTopCategories,
+            ]);
         });
     }
 }
