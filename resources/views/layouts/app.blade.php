@@ -176,7 +176,9 @@
             {{ $slot }}
         </main>
 
-        @include('layouts.partials.footer')
+        @if (view()->exists('layouts.partials.footer'))
+            @include('layouts.partials.footer')
+        @endif
     </div>
 </div>
 
