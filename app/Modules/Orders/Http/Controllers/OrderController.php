@@ -9,7 +9,6 @@ use App\Modules\Orders\Http\Requests\StoreOrderRequest;
 use App\Modules\Orders\Jobs\SendOrderNotificationEmailJob;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\Cart\CartService;
-use App\Modules\Orders\Services\OrderPdfGenerator;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -26,7 +25,6 @@ class OrderController extends Controller
         StoreOrderRequest $request,
         CartService $cartService,
         CreateOrderAction $createOrderAction,
-        OrderPdfGenerator $pdfGenerator,
     ): RedirectResponse {
         $items = $cartService->items()->map(fn (array $line) => [
             'product_id' => $line['product']->id,
@@ -50,16 +48,10 @@ class OrderController extends Controller
         $this->rememberGuestOrder($order);
         $cartService->clear();
 
-        $pdfPath = $pdfGenerator->generate($order);
-
-        if ($order->pdf_path !== $pdfPath) {
-            $order->update(['pdf_path' => $pdfPath]);
-        }
-
         try {
-            SendOrderNotificationEmailJob::dispatchSync($order->id);
+            SendOrderNotificationEmailJob::dispatchAfterResponse($order->id);
         } catch (\Throwable $exception) {
-            Log::error('order.email.sync_dispatch.failed', [
+            Log::error('order.email.after_response_dispatch.failed', [
                 'order_id' => $order->id,
                 'oc_number' => $order->oc_number,
                 'error' => $exception->getMessage(),

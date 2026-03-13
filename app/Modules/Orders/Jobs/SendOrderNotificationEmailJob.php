@@ -5,6 +5,7 @@ namespace App\Modules\Orders\Jobs;
 use App\Modules\Orders\Mail\OrderCreatedCustomerQuotationMail;
 use App\Modules\Orders\Mail\OrderCreatedNotificationMail;
 use App\Modules\Orders\Models\Order;
+use App\Modules\Orders\Services\OrderPdfGenerator;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -45,8 +46,21 @@ class SendOrderNotificationEmailJob implements ShouldQueue
         }
 
         if (! $order->pdf_path || ! Storage::disk('public')->exists($order->pdf_path)) {
-            GenerateOrderPdfJob::dispatch($order->id);
-            $this->release(20);
+            $generator = app(OrderPdfGenerator::class);
+            $path = $generator->generate($order);
+
+            if ($order->pdf_path !== $path) {
+                $order->update(['pdf_path' => $path]);
+                $order = $order->fresh(['items', 'distributor', 'user']) ?? $order;
+            }
+        }
+
+        if (! $order->pdf_path || ! Storage::disk('public')->exists($order->pdf_path)) {
+            Log::error('order.email.skipped.pdf_missing', [
+                'order_id' => $order->id,
+                'oc_number' => $order->oc_number,
+                'pdf_path' => $order->pdf_path,
+            ]);
 
             return;
         }
