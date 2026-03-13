@@ -115,6 +115,6 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
-    'order_notification_to' => env('ORDER_NOTIFICATION_EMAIL'),
+    'order_notification_to' => env('ORDER_NOTIFICATION_EMAIL_TO', env('ORDER_NOTIFICATION_EMAIL')),
 
 ];
