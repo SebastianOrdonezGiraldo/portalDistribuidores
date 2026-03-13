@@ -55,8 +55,16 @@ class OrderController extends Controller
         }
 
         return redirect()
-            ->route('orders.show', ['order' => $order, 'download_pdf' => 1, 'open_whatsapp' => 1])
+            ->route('orders.submitted', ['order' => $order, 'download_pdf' => 1])
             ->with('status', 'Orden creada correctamente. Descargando cotización en PDF.');
+    }
+
+    public function submitted(Order $order): View
+    {
+        abort_unless($this->canAccessOrder($order), 403);
+        $order->loadMissing('items');
+
+        return view('orders.submitted', ['order' => $order]);
     }
 
     public function show(Order $order): View

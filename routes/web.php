@@ -41,6 +41,7 @@ Route::delete('/cart/{lineKey}', [CartController::class, 'destroy'])->name('cart
 
 Route::get('/checkout', CheckoutController::class)->name('checkout.show');
 Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
+Route::get('/orders/{order}/submitted', [OrderController::class, 'submitted'])->name('orders.submitted');
 Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
 Route::get('/orders/{order}/pdf', [OrderController::class, 'downloadPdf'])->name('orders.pdf');
 

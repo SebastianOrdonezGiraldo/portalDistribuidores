@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Categories\Models\Category;
+use App\Modules\Orders\Models\Order;
 use App\Modules\Shared\Enums\UserRole;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -58,7 +59,8 @@ class CreateOrderFeatureTest extends TestCase
             'notes' => 'nota',
         ]);
 
-        $response->assertRedirect();
+        $order = Order::query()->firstOrFail();
+        $response->assertRedirect(route('orders.submitted', ['order' => $order, 'download_pdf' => 1]));
         $this->assertDatabaseCount('orders', 1);
         $this->assertDatabaseCount('order_items', 1);
         $this->assertDatabaseHas('orders', [

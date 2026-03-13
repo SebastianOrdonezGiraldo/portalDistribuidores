@@ -8,6 +8,7 @@ use App\Modules\Catalog\Models\ProductAttribute;
 use App\Modules\Catalog\Models\ProductAttributeValue;
 use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Categories\Models\Category;
+use App\Modules\Orders\Models\Order;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -127,7 +128,8 @@ class ProductVariantsFlowTest extends TestCase
             'notes' => 'Pedido con variante',
         ]);
 
-        $response->assertRedirect();
+        $order = Order::query()->firstOrFail();
+        $response->assertRedirect(route('orders.submitted', ['order' => $order, 'download_pdf' => 1]));
 
         $this->assertDatabaseHas('order_items', [
             'product_id' => $product->id,
@@ -140,4 +142,3 @@ class ProductVariantsFlowTest extends TestCase
         ]);
     }
 }
-
