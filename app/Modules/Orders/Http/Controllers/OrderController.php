@@ -48,15 +48,20 @@ class OrderController extends Controller
         $this->rememberGuestOrder($order);
         $cartService->clear();
 
-        try {
-            SendOrderNotificationEmailJob::dispatchAfterResponse($order->id);
-        } catch (\Throwable $exception) {
-            Log::error('order.email.after_response_dispatch.failed', [
-                'order_id' => $order->id,
-                'oc_number' => $order->oc_number,
-                'error' => $exception->getMessage(),
-            ]);
-        }
+        $orderId = (int) $order->id;
+        $ocNumber = (string) $order->oc_number;
+
+        app()->terminating(function () use ($orderId, $ocNumber): void {
+            try {
+                SendOrderNotificationEmailJob::dispatchSync($orderId);
+            } catch (\Throwable $exception) {
+                Log::error('order.email.after_response_sync_dispatch.failed', [
+                    'order_id' => $orderId,
+                    'oc_number' => $ocNumber,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        });
 
         return redirect()
             ->route('orders.submitted', ['order' => $order, 'download_pdf' => 1])
