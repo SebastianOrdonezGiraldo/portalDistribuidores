@@ -6,6 +6,18 @@ $legacyMailScheme = match ($legacyMailEncryption) {
     'tls' => 'tls',
     default => null,
 };
+$rawAppUrl = (string) env('APP_URL', 'https://pedidos.importcorporalmedical.com');
+$appHost = parse_url($rawAppUrl, PHP_URL_HOST);
+
+if (! is_string($appHost) || $appHost === '') {
+    $appHost = parse_url('https://'.ltrim($rawAppUrl, '/'), PHP_URL_HOST);
+}
+
+if (! is_string($appHost) || $appHost === '') {
+    $appHost = 'localhost';
+}
+
+$defaultEhloDomain = (string) env('MAIL_EHLO_DOMAIN', $appHost);
 
 return [
 
@@ -53,7 +65,7 @@ return [
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
             'timeout' => null,
-            'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'https://pedidos.importcorporalmedical.com'), PHP_URL_HOST)),
+            'local_domain' => $defaultEhloDomain,
         ],
 
         'ses' => [
