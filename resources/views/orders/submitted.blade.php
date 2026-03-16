@@ -38,7 +38,33 @@
                         Hablar con un asesor
                     </a>
                 </div>
+
+                <p class="text-xs text-slate-500">
+                    Si la descarga del PDF no inicia automáticamente,
+                    <a href="{{ route('orders.pdf', $order) }}" class="font-semibold text-brand-primary hover:underline">descárgalo aquí</a>.
+                </p>
             </div>
         </x-ui.card>
     </section>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const storageKey = 'order_pdf_autodownloaded_{{ $order->id }}';
+
+            try {
+                if (window.sessionStorage.getItem(storageKey)) {
+                    return;
+                }
+
+                window.sessionStorage.setItem(storageKey, '1');
+            } catch (error) {
+                // Continue with download even if sessionStorage is unavailable.
+            }
+
+            const downloadFrame = document.createElement('iframe');
+            downloadFrame.style.display = 'none';
+            downloadFrame.src = @json(route('orders.pdf', $order));
+            document.body.appendChild(downloadFrame);
+        });
+    </script>
 </x-app-layout>
