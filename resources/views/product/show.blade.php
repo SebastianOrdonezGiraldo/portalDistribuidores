@@ -176,13 +176,30 @@
                             </div>
                             <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                 <p class="text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-500">SKU / Codigo</p>
-                                <p class="mt-1.5 text-base font-semibold text-slate-900">{{ $product->sku }}</p>
+                                <div class="mt-1.5 flex items-center justify-between gap-2">
+                                    <p class="truncate text-base font-semibold text-slate-900">{{ $product->sku }}</p>
+                                    <button
+                                        type="button"
+                                        data-copy-sku
+                                        data-value="{{ $product->sku }}"
+                                        title="Copiar SKU"
+                                        class="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-500 transition hover:border-slate-400 hover:text-slate-700 focus-ring"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
-                        <p class="mt-4 text-sm leading-6 text-slate-600">
-                            {{ $availability['helper'] }}
-                        </p>
+                        @if(! blank($product->description))
+                            <p class="mt-4 line-clamp-3 text-sm leading-6 text-slate-600">{{ $product->description }}</p>
+                            <a href="#descripcion" data-scroll-link class="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-brand-primary hover:underline focus-ring rounded">
+                                Leer descripcion completa
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"></path></svg>
+                            </a>
+                        @else
+                            <p class="mt-4 text-sm leading-6 text-slate-600">{{ $availability['helper'] }}</p>
+                        @endif
                     </div>
                 </div>
             </article>
@@ -196,13 +213,19 @@
                     </div>
 
                     <div class="space-y-4 p-5">
-                        <div class="space-y-2 rounded-2xl border border-slate-200 bg-slate-50/90 p-4 text-sm">
-                            <div class="flex items-center justify-between gap-3">
-                                <span class="text-slate-500">Disponibilidad</span>
+                        <div class="divide-y divide-slate-200 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/90 text-sm">
+                            <div class="flex items-center justify-between gap-3 px-4 py-3">
+                                <span class="flex items-center gap-2 text-slate-500">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                    Disponibilidad
+                                </span>
                                 <x-ui.badge :variant="$availability['badge']" class="!normal-case !tracking-normal">{{ $availability['label'] }}</x-ui.badge>
                             </div>
-                            <div class="flex items-center justify-between gap-3">
-                                <span class="text-slate-500">Stock</span>
+                            <div class="flex items-center justify-between gap-3 px-4 py-3">
+                                <span class="flex items-center gap-2 text-slate-500">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+                                    Stock
+                                </span>
                                 <span class="font-semibold text-slate-900" data-variant-stock-target data-default-value="{{ $stockLabel }}">{{ $stockLabel }}</span>
                             </div>
                         </div>
@@ -296,10 +319,15 @@
         </section>
 
         <nav class="overflow-x-auto rounded-2xl border border-slate-200 bg-white px-3 py-2">
-            <ul class="flex min-w-max items-center gap-2">
+            <ul class="flex min-w-max items-center gap-1" data-section-nav>
                 @foreach($sections as $section)
                     <li>
-                        <a href="#{{ $section['id'] }}" data-scroll-link class="inline-flex rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus-ring">
+                        <a
+                            href="#{{ $section['id'] }}"
+                            data-scroll-link
+                            data-nav-link="{{ $section['id'] }}"
+                            class="inline-flex rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus-ring"
+                        >
                             {{ $section['label'] }}
                         </a>
                     </li>
@@ -349,8 +377,9 @@
 
                     <div class="mt-3">
                         @if($techSheet)
-                            <a href="{{ route('documents.tech-sheet.download', $techSheet) }}" class="btn btn-secondary">
-                                Descargar PDF
+                            <a href="{{ route('documents.tech-sheet.download', $techSheet) }}" class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 focus-ring">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                Descargar ficha tecnica (PDF)
                             </a>
                         @else
                             <x-ui.badge variant="neutral" class="!normal-case !tracking-normal">No disponible</x-ui.badge>
@@ -639,6 +668,64 @@
                     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 });
             });
+
+            // Active section nav via IntersectionObserver
+            const navLinks = Array.from(document.querySelectorAll('[data-nav-link]'));
+            const sectionIds = navLinks.map((link) => link.dataset.navLink).filter(Boolean);
+
+            const setActiveNav = (id) => {
+                navLinks.forEach((link) => {
+                    const isActive = link.dataset.navLink === id;
+                    link.classList.toggle('bg-slate-100', isActive);
+                    link.classList.toggle('text-slate-900', isActive);
+                    link.classList.toggle('text-slate-600', !isActive);
+                });
+            };
+
+            if (sectionIds.length > 0 && 'IntersectionObserver' in window) {
+                const observer = new IntersectionObserver(
+                    (entries) => {
+                        entries.forEach((entry) => {
+                            if (entry.isIntersecting) {
+                                setActiveNav(entry.target.id);
+                            }
+                        });
+                    },
+                    { rootMargin: '-20% 0px -70% 0px', threshold: 0 }
+                );
+
+                sectionIds.forEach((id) => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        observer.observe(el);
+                    }
+                });
+            }
+
+            // Copy SKU to clipboard
+            const copySkuBtn = document.querySelector('[data-copy-sku]');
+
+            if (copySkuBtn) {
+                const iconCopy = `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+                const iconCheck = `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
+                copySkuBtn.addEventListener('click', async () => {
+                    const value = copySkuBtn.dataset.value || '';
+
+                    try {
+                        await navigator.clipboard.writeText(value);
+                        copySkuBtn.innerHTML = iconCheck;
+                        copySkuBtn.classList.add('border-emerald-300', 'bg-emerald-50');
+
+                        setTimeout(() => {
+                            copySkuBtn.innerHTML = iconCopy;
+                            copySkuBtn.classList.remove('border-emerald-300', 'bg-emerald-50');
+                        }, 1800);
+                    } catch {
+                        // clipboard not available, silently fail
+                    }
+                });
+            }
         });
     </script>
 </x-app-layout>
