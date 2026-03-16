@@ -89,26 +89,102 @@ document.addEventListener('DOMContentLoaded', () => {
             info: 'border-sky-200 bg-sky-50 text-sky-900',
         };
 
+        const icons = {
+            success: `<svg class="h-4 w-4 mt-0.5 shrink-0 text-emerald-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
+            error: `<svg class="h-4 w-4 mt-0.5 shrink-0 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+            info: `<svg class="h-4 w-4 mt-0.5 shrink-0 text-sky-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+        };
+
         const toast = document.createElement('div');
-        toast.className = `pointer-events-auto toast ${palette[variant] || palette.info} inline-toast-enter`;
+        toast.className = `pointer-events-auto toast ${palette[variant] || palette.info} animate-toast-in`;
         toast.innerHTML = `
             <div class="flex items-start justify-between gap-3">
-                <p class="text-sm font-semibold">${message}</p>
-                <button type="button" class="btn btn-ghost !h-7 !px-2 !py-0 text-xs" data-inline-toast-close>Cerrar</button>
+                <div class="flex items-start gap-2">
+                    ${icons[variant] || icons.info}
+                    <p class="text-sm font-semibold">${message}</p>
+                </div>
+                <button type="button" class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded opacity-60 transition hover:opacity-100" data-inline-toast-close aria-label="Cerrar">
+                    <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
             </div>
         `;
 
         container.append(toast);
 
         const close = () => {
-            toast.classList.remove('inline-toast-enter');
+            toast.classList.remove('animate-toast-in');
             toast.classList.add('inline-toast-leave');
             window.setTimeout(() => toast.remove(), 220);
         };
 
         toast.querySelector('[data-inline-toast-close]')?.addEventListener('click', close);
-        window.setTimeout(close, 2400);
+        window.setTimeout(close, 2800);
     };
+
+    // Cart animation helpers
+    const getCartBadgeTarget = () => {
+        const badges = Array.from(document.querySelectorAll('[data-cart-badge]'));
+        const visible = badges.find((badge) => {
+            const rect = badge.getBoundingClientRect();
+            return rect.width > 0 && rect.top >= 0 && rect.top <= window.innerHeight;
+        });
+        return visible || badges[0] || null;
+    };
+
+    const flyParticle = (fromEl, toEl) => {
+        if (!fromEl || !toEl) {
+            return;
+        }
+
+        const from = fromEl.getBoundingClientRect();
+        const to = toEl.getBoundingClientRect();
+
+        const particle = document.createElement('span');
+        particle.setAttribute('aria-hidden', 'true');
+        Object.assign(particle.style, {
+            position: 'fixed',
+            zIndex: '9999',
+            width: '10px',
+            height: '10px',
+            borderRadius: '50%',
+            background: 'rgb(54 177 187)',
+            boxShadow: '0 0 8px 2px rgba(54,177,187,0.5)',
+            pointerEvents: 'none',
+            left: `${from.left + from.width / 2 - 5}px`,
+            top: `${from.top + from.height / 2 - 5}px`,
+            opacity: '1',
+            transform: 'scale(1)',
+            transition: [
+                'left 460ms cubic-bezier(0.4, 0, 0.2, 1)',
+                'top 460ms cubic-bezier(0.4, 0, 0.2, 1)',
+                'opacity 180ms ease 280ms',
+                'transform 180ms ease 280ms',
+            ].join(', '),
+            willChange: 'left, top',
+        });
+
+        document.body.append(particle);
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                particle.style.left = `${to.left + to.width / 2 - 5}px`;
+                particle.style.top = `${to.top + to.height / 2 - 5}px`;
+                particle.style.opacity = '0';
+                particle.style.transform = 'scale(0.3)';
+            });
+        });
+
+        window.setTimeout(() => particle.remove(), 520);
+    };
+
+    const makeSpinnerSvg = (extraClass = '') =>
+        `<svg class="h-4 w-4 btn-spinning${extraClass ? ' ' + extraClass : ''}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.568 3 7.212l3-2.921z"></path></svg>`;
+
+    const makeCheckSvg = () =>
+        `<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
+    const makeCrossSvg = () =>
+        `<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
 
     if (cartSuccessToast) {
         animateCartBadges();
@@ -205,6 +281,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
         form.dataset.ajaxCart = 'true';
 
+        const isIconButton = submitButton.textContent.trim() === '';
+        const originalHtml = submitButton.innerHTML;
+        const loadingLabel = submitButton.dataset.loadingLabel || 'Agregando...';
+
+        const setLoading = () => {
+            submitButton.disabled = true;
+            submitButton.style.transition = 'background-color 150ms ease, border-color 150ms ease';
+            if (isIconButton) {
+                submitButton.innerHTML = makeSpinnerSvg();
+            } else {
+                submitButton.innerHTML = `${makeSpinnerSvg('shrink-0')} ${loadingLabel}`;
+            }
+        };
+
+        const setSuccess = () => {
+            if (isIconButton) {
+                submitButton.innerHTML = makeCheckSvg();
+            } else {
+                submitButton.innerHTML = `${makeCheckSvg()} Agregado`;
+            }
+            submitButton.classList.add('!bg-emerald-500', '!border-emerald-500');
+        };
+
+        const setError = () => {
+            if (isIconButton) {
+                submitButton.innerHTML = makeCrossSvg();
+            } else {
+                submitButton.innerHTML = `${makeCrossSvg()} Error`;
+            }
+            submitButton.classList.add('!bg-red-500', '!border-red-500');
+        };
+
+        const resetButton = () => {
+            submitButton.innerHTML = originalHtml;
+            submitButton.classList.remove(
+                '!bg-emerald-500', '!border-emerald-500',
+                '!bg-red-500', '!border-red-500',
+            );
+            submitButton.disabled = false;
+        };
+
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
 
@@ -212,8 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            submitButton.classList.add('cart-submit-feedback');
-            submitButton.disabled = true;
+            setLoading();
 
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
@@ -235,6 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error(payload.message || 'No se pudo agregar al carrito.');
                 }
 
+                // Update badge count and color
                 const count = Number(payload.cart_count || 0);
                 document.querySelectorAll('[data-cart-badge]').forEach((badge) => {
                     badge.textContent = String(count);
@@ -242,13 +359,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     badge.classList.add('border-brand-primary/30', 'bg-brand-primary/10', 'text-[#15565c]');
                 });
 
-                animateCartBadges();
-                showInlineToast(payload.message || 'Producto agregado al carrito.', 'success');
+                // Show success state on button
+                setSuccess();
+
+                // Launch particle from button toward cart badge
+                const badgeTarget = getCartBadgeTarget();
+                window.setTimeout(() => flyParticle(submitButton, badgeTarget), 80);
+
+                // Animate badge when particle lands
+                window.setTimeout(() => animateCartBadges(), 450);
+
+                showInlineToast(payload.message || '¡Producto agregado al pedido!', 'success');
+
+                // Reset button after success display
+                window.setTimeout(resetButton, 1300);
+
             } catch (error) {
+                setError();
+                window.setTimeout(resetButton, 1200);
                 showInlineToast(error.message || 'No se pudo agregar al carrito.', 'error');
-            } finally {
-                submitButton.disabled = false;
-                submitButton.classList.remove('cart-submit-feedback');
             }
         });
     });

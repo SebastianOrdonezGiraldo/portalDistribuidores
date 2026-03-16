@@ -357,6 +357,14 @@
         animation: toast-slide-in 220ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
     }
 
+    @keyframes btn-spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .btn-spinning {
+        animation: btn-spin 650ms linear infinite;
+    }
+
     .text-balance {
         text-wrap: balance;
     }
