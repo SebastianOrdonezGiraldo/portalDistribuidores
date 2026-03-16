@@ -44,45 +44,85 @@
 
         <div class="flex-1 overflow-y-auto px-4 py-4">
             @if($isAdmin)
-                <p class="px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Operación</p>
-                <div class="mt-2 space-y-1">
-                    <x-ui.sidebar-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">Dashboard</x-ui.sidebar-link>
-                    <x-ui.sidebar-link :href="route('admin.orders.index')" :active="request()->routeIs('admin.orders.*')">Pedidos</x-ui.sidebar-link>
-                    <x-ui.sidebar-link :href="route('admin.products.index')" :active="request()->routeIs('admin.products.*')">Productos</x-ui.sidebar-link>
-                    <x-ui.sidebar-link :href="route('admin.categories.index')" :active="request()->routeIs('admin.categories.*')">Categorías</x-ui.sidebar-link>
+                <p class="sidebar-section-label">Operación</p>
+                <div class="mt-2 space-y-0.5">
+                    <x-ui.sidebar-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+                        Dashboard
+                    </x-ui.sidebar-link>
+                    <x-ui.sidebar-link :href="route('admin.orders.index')" :active="request()->routeIs('admin.orders.*')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+                        Pedidos
+                    </x-ui.sidebar-link>
+                    <x-ui.sidebar-link :href="route('admin.products.index')" :active="request()->routeIs('admin.products.*')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                        Productos
+                    </x-ui.sidebar-link>
+                    <x-ui.sidebar-link :href="route('admin.categories.index')" :active="request()->routeIs('admin.categories.*')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                        Categorías
+                    </x-ui.sidebar-link>
                 </div>
 
-                <p class="mt-5 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Gestión</p>
-                <div class="mt-2 space-y-1">
-                    <x-ui.sidebar-link :href="route('admin.distributors.index')" :active="request()->routeIs('admin.distributors.*')">Distribuidores</x-ui.sidebar-link>
-                    <x-ui.sidebar-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">Usuarios</x-ui.sidebar-link>
+                <p class="sidebar-section-label mt-5">Gestión</p>
+                <div class="mt-2 space-y-0.5">
+                    <x-ui.sidebar-link :href="route('admin.distributors.index')" :active="request()->routeIs('admin.distributors.*')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        Distribuidores
+                    </x-ui.sidebar-link>
+                    <x-ui.sidebar-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        Usuarios
+                    </x-ui.sidebar-link>
                 </div>
             @endif
 
             @if($isDistributor)
-                <p class="px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Comercial</p>
-                <div class="mt-2 space-y-1">
-                    <x-ui.sidebar-link :href="route('catalog.index')" :active="request()->routeIs('catalog.*', 'products.show')">Catálogo</x-ui.sidebar-link>
+                <p class="sidebar-section-label">Comercial</p>
+                <div class="mt-2 space-y-0.5">
+                    <x-ui.sidebar-link :href="route('catalog.index')" :active="request()->routeIs('catalog.*', 'products.show')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                        Catálogo
+                    </x-ui.sidebar-link>
                     <x-ui.sidebar-link :href="route('cart.index')" :active="request()->routeIs('cart.*')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                         Carrito
                         @if(($navCartCount ?? 0) > 0)
                             <x-ui.badge variant="brand" class="ml-auto" data-cart-badge>{{ $navCartCount }}</x-ui.badge>
                         @endif
                     </x-ui.sidebar-link>
-                    <x-ui.sidebar-link :href="route('checkout.show')" :active="request()->routeIs('checkout.*')">Nuevo Pedido</x-ui.sidebar-link>
+                    <x-ui.sidebar-link :href="route('checkout.show')" :active="request()->routeIs('checkout.*')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                        Nuevo Pedido
+                    </x-ui.sidebar-link>
                 </div>
             @endif
 
-            <p class="mt-5 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Cuenta</p>
-            <div class="mt-2 space-y-1">
-                <x-ui.sidebar-link :href="route('profile.edit')" :active="request()->routeIs('profile.*')">Mi Perfil</x-ui.sidebar-link>
+            <p class="sidebar-section-label mt-5">Cuenta</p>
+            <div class="mt-2 space-y-0.5">
+                <x-ui.sidebar-link :href="route('profile.edit')" :active="request()->routeIs('profile.*')">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    Mi Perfil
+                </x-ui.sidebar-link>
             </div>
         </div>
 
         <div class="border-t border-slate-200 px-4 py-4">
+            <div class="mb-3 flex items-center gap-3 px-1">
+                <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-brand-primary/15 text-sm font-semibold text-[#0f6268]">
+                    {{ strtoupper(substr($user->name, 0, 1)) }}
+                </span>
+                <div class="min-w-0">
+                    <p class="truncate text-sm font-semibold text-slate-900">{{ $user->name }}</p>
+                    <p class="truncate text-xs text-slate-500">{{ $isDistributor ? ($user->distributor?->name ?? 'Distribuidor') : 'Administrador' }}</p>
+                </div>
+            </div>
             <form action="{{ route('logout') }}" method="POST">
                 @csrf
-                <x-ui.button type="submit" variant="secondary" class="w-full justify-center">Cerrar sesión</x-ui.button>
+                <button type="submit" class="btn btn-ghost w-full justify-center text-slate-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    Cerrar sesión
+                </button>
             </form>
         </div>
         </aside>
@@ -121,14 +161,14 @@
                     @if($isAdmin)
                         <form method="GET" action="{{ route('admin.orders.index') }}" class="relative max-w-xl">
                             <label class="sr-only" for="top-search-admin">Buscar pedido</label>
-                            <input id="top-search-admin" type="text" name="q" value="{{ request('q') }}" placeholder="Buscar CTC, cliente o contacto" class="form-input py-2 pl-3 pr-10">
-                            <button type="submit" class="absolute right-1 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs text-slate-500 hover:bg-slate-100">Buscar</button>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                            <input id="top-search-admin" type="text" name="q" value="{{ request('q') }}" placeholder="Buscar CTC, cliente o contacto" class="form-input py-2 pl-9 pr-4">
                         </form>
                     @else
                         <form method="GET" action="{{ route('catalog.index') }}" class="relative max-w-xl">
                             <label class="sr-only" for="top-search-catalog">Buscar producto</label>
-                            <input id="top-search-catalog" type="text" name="term" value="{{ request('term') }}" placeholder="Buscar producto o categoría" class="form-input py-2 pl-3 pr-10">
-                            <button type="submit" class="absolute right-1 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs text-slate-500 hover:bg-slate-100">Buscar</button>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                            <input id="top-search-catalog" type="text" name="term" value="{{ request('term') }}" placeholder="Buscar producto o categoría" class="form-input py-2 pl-9 pr-4">
                         </form>
                     @endif
                 </div>
