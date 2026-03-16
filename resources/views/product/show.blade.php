@@ -76,7 +76,6 @@
             ['label' => 'SKU', 'value' => $product->sku],
             ['label' => 'Marca', 'value' => $brand],
             ['label' => 'Categoria', 'value' => $categoryName],
-            ['label' => 'Ultima actualizacion', 'value' => $product->updated_at?->format('d/m/Y H:i') ?: 'Sin registro'],
         ];
 
         $sections = [
@@ -171,32 +170,13 @@
                         <h1 class="mt-4 text-3xl font-semibold leading-tight text-slate-950 text-balance">{{ $product->name }}</h1>
 
                         <div class="mt-6 grid gap-3 sm:grid-cols-2">
-                            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                 <p class="text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-500">Marca</p>
-                                <p class="mt-1 text-base font-semibold text-slate-900">{{ $brand }}</p>
+                                <p class="mt-1.5 text-base font-semibold text-slate-900">{{ $brand }}</p>
                             </div>
-                            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                 <p class="text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-500">SKU / Codigo</p>
-                                <p class="mt-1 text-base font-semibold text-slate-900">{{ $product->sku }}</p>
-                            </div>
-                            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                                <p class="text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-500">Unidad de venta</p>
-                                <p class="mt-1 text-base font-semibold text-slate-900">{{ ucfirst($unitLabelLower) }}</p>
-                            </div>
-                            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                                <p class="text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-500">Presentacion</p>
-                                <p class="mt-1 text-base font-semibold text-slate-900">{{ $presentation }}</p>
-                            </div>
-                        </div>
-
-                        <div class="mt-4 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2">
-                            <div>
-                                <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Empaque</p>
-                                <p class="mt-1 text-sm font-semibold text-slate-700">{{ $packaging }}</p>
-                            </div>
-                            <div>
-                                <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Despacho estimado</p>
-                                <p class="mt-1 text-sm font-semibold text-slate-700">{{ $leadTimeLabel }}</p>
+                                <p class="mt-1.5 text-base font-semibold text-slate-900">{{ $product->sku }}</p>
                             </div>
                         </div>
 
@@ -226,21 +206,6 @@
                                 <span class="font-semibold text-slate-900" data-variant-stock-target data-default-value="{{ $stockLabel }}">{{ $stockLabel }}</span>
                             </div>
                         </div>
-
-                        <div class="grid grid-cols-2 gap-2">
-                            <div class="rounded-xl border border-slate-200 bg-white p-3">
-                                <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Pedido minimo</p>
-                                <p class="mt-1 text-sm font-semibold text-slate-900">{{ $stepValue }} {{ $unitLabelLower }}</p>
-                            </div>
-                            <div class="rounded-xl border border-slate-200 bg-white p-3">
-                                <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Entrega</p>
-                                <p class="mt-1 text-sm font-semibold text-slate-900">{{ $leadTimeLabel }}</p>
-                            </div>
-                        </div>
-
-                        <p class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                            {{ $etaLabel }}
-                        </p>
 
                         @if($promoLabel)
                             <p class="rounded-xl border border-brand-primary/30 bg-brand-primary/10 px-3 py-2 text-sm font-medium text-[#15565c]">
