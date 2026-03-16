@@ -24,7 +24,7 @@ class TechSheetDownloadController extends Controller
         $user = $request->user();
         $now = CarbonImmutable::now();
 
-        if ($user->isDistributor()) {
+        if ($user?->isDistributor()) {
             $distributor = $user->distributor;
 
             if (! $distributor) {
@@ -43,4 +43,3 @@ class TechSheetDownloadController extends Controller
         return Storage::disk('public')->download($productDocument->path, $productDocument->filename);
     }
 }
-
