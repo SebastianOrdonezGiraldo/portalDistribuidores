@@ -41,6 +41,16 @@ Aplicación Laravel (Modular Monolith) para **Import Corporal Medical SAS**, enf
 10. Correr worker de colas:
    - `php artisan queue:work`
 
+## Correo en Railway
+- Definir variables SMTP reales en Railway (`MAIL_MAILER=smtp`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`).
+- Definir destinatario interno (`ORDER_NOTIFICATION_EMAIL_TO`).
+- El despacho de correo puede configurarse con `ORDER_NOTIFICATION_EMAIL_DISPATCH`:
+  - `sync` (recomendado para evitar dependencia del worker al enviar cotizaciones)
+  - `queue`
+  - `after_response`
+- Diagnóstico SMTP rápido:
+  - `php artisan mail:diagnose --to=tu-correo@dominio.com`
+
 Arranque rápido en Windows (abre servidor + worker en ventanas separadas):
 - `powershell -ExecutionPolicy Bypass -File .\start.ps1`
 - Opcional con migraciones pendientes: `powershell -ExecutionPolicy Bypass -File .\start.ps1 -RunMigrations`

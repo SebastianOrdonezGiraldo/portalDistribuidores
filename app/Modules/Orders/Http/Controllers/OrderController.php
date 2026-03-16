@@ -49,18 +49,27 @@ class OrderController extends Controller
         $this->rememberGuestOrder($order);
         $cartService->clear();
 
-        try {
-            SendOrderNotificationEmailJob::dispatch($order->id);
+        $dispatchMode = strtolower(trim((string) config('mail.order_notification_dispatch', 'sync')));
 
-            Log::info('order.email.queued', [
+        try {
+            match ($dispatchMode) {
+                'queue' => SendOrderNotificationEmailJob::dispatch($order->id),
+                'after_response' => SendOrderNotificationEmailJob::dispatchAfterResponse($order->id),
+                default => SendOrderNotificationEmailJob::dispatchSync($order->id),
+            };
+
+            Log::info('order.email.dispatched', [
                 'order_id' => $order->id,
                 'oc_number' => $order->oc_number,
+                'dispatch_mode' => in_array($dispatchMode, ['queue', 'after_response'], true) ? $dispatchMode : 'sync',
+                'queue_connection' => config('queue.default'),
             ]);
         } catch (\Throwable $exception) {
             Log::error('order.email.dispatch.failed', [
                 'order_id' => $order->id,
                 'oc_number' => $order->oc_number,
                 'error' => $exception->getMessage(),
+                'dispatch_mode' => in_array($dispatchMode, ['queue', 'after_response'], true) ? $dispatchMode : 'sync',
             ]);
         }
 

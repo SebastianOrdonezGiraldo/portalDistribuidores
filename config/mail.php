@@ -135,5 +135,6 @@ return [
     ],
 
     'order_notification_to' => env('ORDER_NOTIFICATION_EMAIL_TO', env('ORDER_NOTIFICATION_EMAIL')),
+    'order_notification_dispatch' => env('ORDER_NOTIFICATION_EMAIL_DISPATCH', 'sync'),
 
 ];
