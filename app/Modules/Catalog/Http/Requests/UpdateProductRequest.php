@@ -72,7 +72,8 @@ class UpdateProductRequest extends FormRequest
             ],
             'stock' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
             'is_active' => ['nullable', 'boolean'],
-            'photo' => ['nullable', 'image', 'max:3072'],
+            'photos' => ['nullable', 'array', 'max:10'],
+            'photos.*' => ['image', 'max:3072'],
             'video_url' => ['nullable', 'url', 'max:255'],
             'tech_sheet' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
         ];

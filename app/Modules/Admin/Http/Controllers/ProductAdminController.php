@@ -353,8 +353,11 @@ class ProductAdminController extends Controller
         AttachTechSheetAction $attachTechSheetAction,
         AddVideoAction $addVideoAction,
     ): void {
-        if ($request->hasFile('photo')) {
-            $uploadPhotoAction->execute($product, $request->file('photo'));
+        if ($request->hasFile('photos')) {
+            $existingSortOrder = $product->photos()->max('sort_order') ?? -1;
+            foreach ($request->file('photos') as $index => $photo) {
+                $uploadPhotoAction->execute($product, $photo, $existingSortOrder + $index + 1);
+            }
         }
 
         if ($request->filled('video_url')) {
