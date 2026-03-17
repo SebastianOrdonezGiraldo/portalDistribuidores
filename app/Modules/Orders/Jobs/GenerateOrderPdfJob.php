@@ -5,6 +5,7 @@ namespace App\Modules\Orders\Jobs;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\OrderPdfGenerator;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -12,7 +13,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
-class GenerateOrderPdfJob implements ShouldQueue
+class GenerateOrderPdfJob implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable;
     use InteractsWithQueue;
@@ -20,6 +21,17 @@ class GenerateOrderPdfJob implements ShouldQueue
     use SerializesModels;
 
     public int $tries = 3;
+
+    /**
+     * Tiempo máximo (segundos) que se mantiene el lock de unicidad.
+     * Pasado este tiempo, el job puede despacharse de nuevo aunque no haya terminado.
+     */
+    public int $uniqueFor = 300;
+
+    public function uniqueId(): string
+    {
+        return (string) $this->orderId;
+    }
 
     public function __construct(public readonly int $orderId)
     {

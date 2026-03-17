@@ -6,14 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Modules\Orders\Actions\CreateOrderAction;
 use App\Modules\Orders\DTOs\CreateOrderData;
 use App\Modules\Orders\Http\Requests\StoreOrderRequest;
-use App\Modules\Orders\Jobs\SendOrderNotificationEmailJob;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\Cart\CartService;
 use App\Modules\Orders\Services\OrderPdfGenerator;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -49,29 +47,8 @@ class OrderController extends Controller
         $this->rememberGuestOrder($order);
         $cartService->clear();
 
-        $dispatchMode = strtolower(trim((string) config('mail.order_notification_dispatch', 'sync')));
-
-        try {
-            match ($dispatchMode) {
-                'queue' => SendOrderNotificationEmailJob::dispatch($order->id),
-                'after_response' => SendOrderNotificationEmailJob::dispatchAfterResponse($order->id),
-                default => SendOrderNotificationEmailJob::dispatchSync($order->id),
-            };
-
-            Log::info('order.email.dispatched', [
-                'order_id' => $order->id,
-                'oc_number' => $order->oc_number,
-                'dispatch_mode' => in_array($dispatchMode, ['queue', 'after_response'], true) ? $dispatchMode : 'sync',
-                'queue_connection' => config('queue.default'),
-            ]);
-        } catch (\Throwable $exception) {
-            Log::error('order.email.dispatch.failed', [
-                'order_id' => $order->id,
-                'oc_number' => $order->oc_number,
-                'error' => $exception->getMessage(),
-                'dispatch_mode' => in_array($dispatchMode, ['queue', 'after_response'], true) ? $dispatchMode : 'sync',
-            ]);
-        }
+        // El PDF y el email de notificación se gestionan vía el evento OrderPlaced
+        // que dispara CreateOrderAction. Ver GenerateOrderPdfListener.
 
         return redirect()
             ->route('orders.submitted', ['order' => $order])
