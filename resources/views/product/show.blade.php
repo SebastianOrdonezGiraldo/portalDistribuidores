@@ -191,7 +191,7 @@
             </div>
 
             {{-- Columna info + compra (scrollable en desktop si el contenido es largo) --}}
-            <div class="flex flex-col divide-y divide-slate-100 lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto lg:overscroll-contain">
+            <div class="flex flex-col divide-y divide-slate-100">
 
                 {{-- Bloque: información del producto --}}
                 <div class="p-6 sm:p-7">
