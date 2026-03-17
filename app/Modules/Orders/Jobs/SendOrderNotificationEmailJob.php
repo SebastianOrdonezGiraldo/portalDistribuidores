@@ -104,8 +104,29 @@ class SendOrderNotificationEmailJob implements ShouldQueue
         Log::info('order.email.internal.sent', [
             'order_id' => $order->id,
             'oc_number' => $order->oc_number,
-            'recipient' => $recipient,
+            'recipient' => $this->maskEmail($recipient),
         ]);
+    }
+
+    /**
+     * Anonimiza un email para logs: "juan.perez@empresa.com" → "ju***@emp***.com"
+     * Cumple con Ley 1581 de Habeas Data: no expone datos personales en logs de infraestructura.
+     */
+    private function maskEmail(string $email): string
+    {
+        if (! str_contains($email, '@')) {
+            return '***';
+        }
+
+        [$local, $domain] = explode('@', $email, 2);
+
+        $maskedLocal  = substr($local, 0, min(2, strlen($local))) . '***';
+
+        $domainParts  = explode('.', $domain, 2);
+        $maskedDomain = substr($domainParts[0], 0, min(3, strlen($domainParts[0]))) . '***'
+            . (isset($domainParts[1]) ? '.' . $domainParts[1] : '');
+
+        return $maskedLocal . '@' . $maskedDomain;
     }
 
     private function sendCustomerQuotation(Order $order, string $pdfContents): void
@@ -116,7 +137,7 @@ class SendOrderNotificationEmailJob implements ShouldQueue
             Log::warning('order.email.customer.skipped.invalid_recipient', [
                 'order_id' => $order->id,
                 'oc_number' => $order->oc_number,
-                'contact_email' => $order->contact_email,
+                'contact_email' => $this->maskEmail((string) $order->contact_email),
             ]);
 
             return;
@@ -127,7 +148,7 @@ class SendOrderNotificationEmailJob implements ShouldQueue
         Log::info('order.email.customer.sent', [
             'order_id' => $order->id,
             'oc_number' => $order->oc_number,
-            'recipient' => $customerRecipient,
+            'recipient' => $this->maskEmail($customerRecipient),
         ]);
     }
 }

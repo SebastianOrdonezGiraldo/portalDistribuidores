@@ -98,7 +98,7 @@ class ProductAdminController extends Controller
 
         $metrics = [
             'total_products' => (clone $filteredQuery)->count(),
-            'active_products' => (clone $filteredQuery)->where('is_active', true)->count(),
+            'active_products' => (clone $filteredQuery)->active()->count(),
             'inactive_products' => (clone $filteredQuery)->where('is_active', false)->count(),
             'with_photo' => (clone $filteredQuery)->whereHas('photos')->count(),
             'without_stock' => (clone $filteredQuery)->where(function ($query) {
@@ -122,7 +122,7 @@ class ProductAdminController extends Controller
             'stockOptions' => $stockOptions,
             'sortOptions' => $sortOptions,
             'perPageOptions' => $perPageOptions,
-            'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'categories' => Category::active()->orderBy('name')->get(['id', 'name']),
             'metrics' => $metrics,
             'activeFiltersCount' => $activeFiltersCount,
         ]);
@@ -180,7 +180,7 @@ class ProductAdminController extends Controller
 
         return view('admin.products.form', [
             'product' => new Product(),
-            'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(),
+            'categories' => Category::active()->orderBy('name')->get(),
             'variantAttributes' => ProductAttribute::query()->with('values')->orderBy('name')->get(),
         ]);
     }
@@ -216,7 +216,7 @@ class ProductAdminController extends Controller
 
         return view('admin.products.form', [
             'product' => $product->load('photos', 'videos', 'documents', 'category', 'variantAttribute', 'variants.attributeValue'),
-            'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(),
+            'categories' => Category::active()->orderBy('name')->get(),
             'variantAttributes' => ProductAttribute::query()->with('values')->orderBy('name')->get(),
         ]);
     }

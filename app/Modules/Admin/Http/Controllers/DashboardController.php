@@ -78,7 +78,7 @@ class DashboardController extends Controller
             ],
             [
                 'label' => 'Catálogo Activo',
-                'value' => number_format((int) Product::query()->where('is_active', true)->count()),
+                'value' => number_format((int) Product::active()->count()),
                 'hint' => 'Productos visibles al distribuidor',
                 'href' => route('admin.products.index'),
             ],

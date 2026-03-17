@@ -25,15 +25,13 @@ class CreateOrderAction
             ->unique()
             ->all();
 
-        $products = Product::query()
+        $products = Product::active()
             ->whereIn('id', $productIds)
-            ->where('is_active', true)
-            ->withCount(['variants as active_variants_count' => fn ($query) => $query->where('is_active', true)])
+            ->withCount(['variants as active_variants_count' => fn ($query) => $query->active()])
             ->get()
             ->keyBy('id');
-        $variants = ProductVariant::query()
+        $variants = ProductVariant::active()
             ->whereIn('id', $variantIds)
-            ->where('is_active', true)
             ->with('attributeValue.attribute')
             ->get()
             ->keyBy('id');

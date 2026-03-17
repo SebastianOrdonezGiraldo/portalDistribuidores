@@ -119,20 +119,18 @@ class CartService
             return $this->resolvedItems;
         }
 
-        $products = Product::query()
+        $products = Product::active()
             ->whereIn('id', $ids)
-            ->where('is_active', true)
             ->with([
                 'primaryPhoto',
                 'variants' => fn ($query) => $query
-                    ->where('is_active', true)
+                    ->active()
                     ->with('attributeValue.attribute'),
             ])
             ->get()
             ->keyBy('id');
-        $variants = ProductVariant::query()
+        $variants = ProductVariant::active()
             ->whereIn('id', $variantIds)
-            ->where('is_active', true)
             ->with('attributeValue.attribute')
             ->get()
             ->keyBy('id');

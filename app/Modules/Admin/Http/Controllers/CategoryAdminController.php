@@ -8,16 +8,22 @@ use App\Modules\Categories\Actions\UpdateCategoryAction;
 use App\Modules\Categories\Http\Requests\StoreCategoryRequest;
 use App\Modules\Categories\Http\Requests\UpdateCategoryRequest;
 use App\Modules\Categories\Models\Category;
+use App\Modules\Categories\Queries\CategoryDescendantsQuery;
 use App\Modules\Categories\Queries\CategoryTreeQuery;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class CategoryAdminController extends Controller
 {
+    public function __construct(
+        private readonly CategoryDescendantsQuery $categoryDescendantsQuery,
+    ) {}
+
     public function index(Request $request, CategoryTreeQuery $treeQuery): View
     {
         $this->authorize('viewAny', Category::class);
@@ -46,9 +52,9 @@ class CategoryAdminController extends Controller
 
         $metrics = [
             'total_categories' => (clone $allCategoriesQuery)->count(),
-            'active_categories' => (clone $allCategoriesQuery)->where('is_active', true)->count(),
+            'active_categories' => (clone $allCategoriesQuery)->active()->count(),
             'with_products' => (clone $allCategoriesQuery)->has('products')->count(),
-            'synonyms' => (int) Category::query()->withCount('synonyms')->get()->sum('synonyms_count'),
+            'synonyms' => (int) DB::table('category_synonyms')->count(),
             'filtered_total' => $flattenedCategories->count(),
         ];
 
@@ -186,23 +192,11 @@ class CategoryAdminController extends Controller
 
     private function isDescendantOf(int $categoryId, int $candidateParentId): bool
     {
-        $visited = [];
-        $currentId = $candidateParentId;
+        // Una sola query: carga toda la jerarquía y busca en memoria.
+        // Reemplaza el bucle original que hacía 1 query por nivel de profundidad.
+        $descendants = $this->categoryDescendantsQuery->execute($categoryId);
 
-        while ($currentId) {
-            if ($currentId === $categoryId) {
-                return true;
-            }
-
-            if (in_array($currentId, $visited, true)) {
-                return true;
-            }
-
-            $visited[] = $currentId;
-            $currentId = (int) (Category::query()->whereKey($currentId)->value('parent_id') ?? 0);
-        }
-
-        return false;
+        return in_array($candidateParentId, $descendants, true);
     }
 
     private function redirectAfterSave(Request $request, Category $category, bool $created): RedirectResponse

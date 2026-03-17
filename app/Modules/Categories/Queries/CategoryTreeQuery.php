@@ -12,7 +12,7 @@ class CategoryTreeQuery
         $categories = Category::query()
             ->with('synonyms')
             ->withCount(['products', 'synonyms'])
-            ->when($activeOnly, fn ($query) => $query->where('is_active', true))
+            ->when($activeOnly, fn ($query) => $query->active())
             ->when(! empty($filters['q']), function ($query) use ($filters) {
                 $term = trim((string) $filters['q']);
 
@@ -25,7 +25,7 @@ class CategoryTreeQuery
             })
             ->when(! empty($filters['status']), function ($query) use ($filters) {
                 if ($filters['status'] === 'active') {
-                    $query->where('is_active', true);
+                    $query->active();
                 } elseif ($filters['status'] === 'inactive') {
                     $query->where('is_active', false);
                 }
