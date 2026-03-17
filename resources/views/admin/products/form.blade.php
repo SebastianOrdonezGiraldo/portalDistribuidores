@@ -43,6 +43,7 @@
         </x-ui.page-header>
     </x-slot>
 
+    <div class="grid gap-4 xl:grid-cols-[1.8fr_1fr]">
     <form method="POST"
           enctype="multipart/form-data"
           action="{{ $isEdit ? route('admin.products.update', $product) : route('admin.products.store') }}"
@@ -51,7 +52,7 @@
           data-product-form
           data-sku-check-url="{{ route('admin.products.check-sku') }}"
           data-sku-ignore="{{ $isEdit ? $product->id : '' }}"
-          class="grid gap-4 xl:grid-cols-[1.8fr_1fr]">
+          class="contents">
         @csrf
         @if($isEdit)
             @method('PUT')
@@ -295,18 +296,10 @@
                                         <p class="text-xs font-semibold text-slate-700">
                                             Foto {{ $loop->iteration }} {{ $photo->is_primary ? '(Principal)' : '' }}
                                         </p>
-                                        <button
-                                            type="submit"
-                                            formaction="{{ route('admin.products.photos.destroy', [$product, $photo]) }}"
-                                            formmethod="POST"
-                                            name="_method"
-                                            value="DELETE"
-                                            formnovalidate
-                                            onclick="return confirm('¿Eliminar esta foto del producto?');"
-                                            class="text-xs font-semibold text-red-700 hover:text-red-800"
-                                        >
-                                            Eliminar
-                                        </button>
+                                        <x-ui.delete-media-button
+                                            :action="route('admin.products.photos.destroy', [$product, $photo])"
+                                            confirm="¿Eliminar esta foto del producto?"
+                                        />
                                     </div>
                                     <img src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($photo->path) }}" alt="Foto {{ $loop->iteration }}" class="mt-2 h-28 w-full rounded-xl border border-slate-200 object-cover">
                                 </div>
@@ -322,18 +315,10 @@
                             @foreach($product->documents as $document)
                                 <div class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
                                     <a href="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($document->path) }}" target="_blank" rel="noopener" class="font-medium text-slate-900 hover:underline">{{ $document->filename }}</a>
-                                    <button
-                                        type="submit"
-                                        formaction="{{ route('admin.products.documents.destroy', [$product, $document]) }}"
-                                        formmethod="POST"
-                                        name="_method"
-                                        value="DELETE"
-                                        formnovalidate
-                                        onclick="return confirm('¿Eliminar este documento del producto?');"
-                                        class="text-xs font-semibold text-red-700 hover:text-red-800"
-                                    >
-                                        Eliminar
-                                    </button>
+                                    <x-ui.delete-media-button
+                                        :action="route('admin.products.documents.destroy', [$product, $document])"
+                                        confirm="¿Eliminar este documento del producto?"
+                                    />
                                 </div>
                             @endforeach
                         </div>
@@ -347,18 +332,10 @@
                             @foreach($product->videos as $video)
                                 <div class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
                                     <a href="{{ $video->url }}" target="_blank" rel="noopener" class="font-medium text-slate-900 hover:underline">{{ \Illuminate\Support\Str::limit($video->url, 60) }}</a>
-                                    <button
-                                        type="submit"
-                                        formaction="{{ route('admin.products.videos.destroy', [$product, $video]) }}"
-                                        formmethod="POST"
-                                        name="_method"
-                                        value="DELETE"
-                                        formnovalidate
-                                        onclick="return confirm('¿Eliminar este video del producto?');"
-                                        class="text-xs font-semibold text-red-700 hover:text-red-800"
-                                    >
-                                        Eliminar
-                                    </button>
+                                    <x-ui.delete-media-button
+                                        :action="route('admin.products.videos.destroy', [$product, $video])"
+                                        confirm="¿Eliminar este video del producto?"
+                                    />
                                 </div>
                             @endforeach
                         </div>
@@ -381,7 +358,7 @@
         </div>
     </form>
 
-    <aside class="space-y-4 xl:sticky xl:top-24 xl:self-start">
+    <aside class="space-y-4 xl:sticky xl:top-24 xl:self-start" id="product-form-sidebar">
             <x-ui.card class="p-5">
                 <h2 class="card-title">Estado actual</h2>
                 <div class="mt-3 space-y-2 text-sm">
@@ -420,4 +397,5 @@
                 </div>
             </x-ui.card>
     </aside>
+    </div>
 </x-app-layout>

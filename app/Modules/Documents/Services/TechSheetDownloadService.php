@@ -9,8 +9,6 @@ use Carbon\CarbonImmutable;
 
 class TechSheetDownloadService
 {
-    private const MONTHLY_LIMIT = 3;
-
     public function canDownload(Distributor $distributor, ProductDocument $document, CarbonImmutable $now): bool
     {
         return $this->remainingDownloads($distributor, $document, $now) > 0;
@@ -27,7 +25,12 @@ class TechSheetDownloadService
             ])
             ->count();
 
-        return max(0, self::MONTHLY_LIMIT - $count);
+        return max(0, $this->monthlyLimit() - $count);
+    }
+
+    private function monthlyLimit(): int
+    {
+        return (int) config('documents.tech_sheet_monthly_limit', 3);
     }
 
     public function registerDownload(Distributor $distributor, ProductDocument $document, CarbonImmutable $now): DocumentDownload

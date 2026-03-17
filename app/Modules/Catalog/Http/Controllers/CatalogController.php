@@ -4,7 +4,7 @@ namespace App\Modules\Catalog\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Catalog\Http\Requests\ProductSearchRequest;
-use App\Modules\Catalog\Queries\ProductSearchQuery;
+use App\Modules\Shared\ValueObjects\ProductSearchQuery;
 use App\Modules\Categories\Queries\CategoryTreeQuery;
 use App\Modules\Shared\Contracts\SearchEngineInterface;
 use Illuminate\View\View;

@@ -152,8 +152,6 @@
                                 Equipo administrativo
                             @endif
                         </p>
-                    @else
-
                     @endif
                 </div>
 

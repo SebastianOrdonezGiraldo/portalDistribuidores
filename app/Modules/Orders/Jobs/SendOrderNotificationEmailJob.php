@@ -14,7 +14,6 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
-use RuntimeException;
 
 class SendOrderNotificationEmailJob implements ShouldQueue
 {
@@ -33,11 +32,9 @@ class SendOrderNotificationEmailJob implements ShouldQueue
         return [30, 120, 300, 600];
     }
 
-    public function __construct(public readonly int $orderId)
-    {
-    }
+    public function __construct(public readonly int $orderId) {}
 
-    public function handle(): void
+    public function handle(OrderPdfGenerator $pdfGenerator): void
     {
         $order = Order::query()->with(['items', 'distributor', 'user'])->find($this->orderId);
 
@@ -46,8 +43,7 @@ class SendOrderNotificationEmailJob implements ShouldQueue
         }
 
         if (! $order->pdf_path || ! Storage::disk('public')->exists($order->pdf_path)) {
-            $generator = app(OrderPdfGenerator::class);
-            $path = $generator->generate($order);
+            $path = $pdfGenerator->generate($order);
 
             if ($order->pdf_path !== $path) {
                 $order->update(['pdf_path' => $path]);
@@ -67,17 +63,33 @@ class SendOrderNotificationEmailJob implements ShouldQueue
 
         $pdfContents = (string) Storage::disk('public')->get($order->pdf_path);
 
+        // Send both emails independently so that a failure in one does not prevent the other.
+        $internalFailed = null;
         try {
             $this->sendInternalNotification($order, $pdfContents);
-            $this->sendCustomerQuotation($order, $pdfContents);
         } catch (\Throwable $exception) {
-            Log::error('order.email.failed', [
+            $internalFailed = $exception;
+            Log::error('order.email.internal.failed', [
                 'order_id' => $order->id,
                 'oc_number' => $order->oc_number,
-                'error' => $exception->getMessage(),
+                'error'     => $exception->getMessage(),
+            ]);
+        }
+
+        try {
+            $this->sendCustomerQuotation($order, $pdfContents);
+        } catch (\Throwable $exception) {
+            Log::error('order.email.customer.failed', [
+                'order_id' => $order->id,
+                'oc_number' => $order->oc_number,
+                'error'     => $exception->getMessage(),
             ]);
 
-            throw new RuntimeException($exception->getMessage(), previous: $exception);
+            throw $exception;
+        }
+
+        if ($internalFailed !== null) {
+            throw $internalFailed;
         }
 
         Log::info('order.email.processed', [

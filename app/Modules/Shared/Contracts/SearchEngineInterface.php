@@ -2,7 +2,7 @@
 
 namespace App\Modules\Shared\Contracts;
 
-use App\Modules\Catalog\Queries\ProductSearchQuery;
+use App\Modules\Shared\ValueObjects\ProductSearchQuery;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface SearchEngineInterface

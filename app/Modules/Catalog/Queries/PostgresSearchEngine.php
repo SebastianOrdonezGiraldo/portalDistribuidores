@@ -6,6 +6,7 @@ use App\Modules\Catalog\Models\Product;
 use App\Modules\Categories\Queries\CategoryDescendantsQuery;
 use App\Modules\Shared\Contracts\SearchEngineInterface;
 use App\Modules\Shared\Support\TextNormalizer;
+use App\Modules\Shared\ValueObjects\ProductSearchQuery;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator as Paginator;
@@ -14,6 +15,17 @@ use Illuminate\Support\Facades\DB;
 
 class PostgresSearchEngine implements SearchEngineInterface
 {
+    private const SCORE_NAME_EXACT      = 500;
+    private const SCORE_NAME_STRONG     = 380;
+    private const SCORE_BRAND_EXACT     = 340;
+    private const SCORE_BRAND_STRONG    = 280;
+    private const SCORE_CATEGORY_EXACT  = 260;
+    private const SCORE_CATEGORY_STRONG = 200;
+    private const SCORE_SYNONYM_EXACT   = 120;
+    private const SCORE_SYNONYM_TOKEN   = 80;
+    private const SCORE_DESCRIPTION     = 20;
+    private const STRONG_MATCH_MIN_TOKENS = 2;
+
     public function __construct(
         private readonly CategoryDescendantsQuery $categoryDescendantsQuery,
     ) {}
@@ -61,12 +73,15 @@ class PostgresSearchEngine implements SearchEngineInterface
         $offset = ($query->page - 1) * $query->perPage;
         $items  = $ranked->slice($offset, $query->perPage)->values();
 
+        $paginationPath  = $query->paginationUrl  !== '' ? $query->paginationUrl  : request()->url();
+        $paginationQuery = $query->paginationQuery !== '' ? $query->paginationQuery : request()->query();
+
         return new Paginator(
             $items,
             $total,
             $query->perPage,
             $query->page,
-            ['path' => request()->url(), 'query' => request()->query()],
+            ['path' => $paginationPath, 'query' => $paginationQuery],
         );
     }
 
@@ -90,7 +105,7 @@ class PostgresSearchEngine implements SearchEngineInterface
     {
         $term    = $query->normalizedTerm();
         $tokens  = $query->tokens();
-        $requiresStrongMatch = count($tokens) >= 2;
+        $requiresStrongMatch = count($tokens) >= self::STRONG_MATCH_MIN_TOKENS;
 
         return $products
             ->map(function (Product $product) use ($term, $tokens, $requiresStrongMatch) {
@@ -150,15 +165,15 @@ class PostgresSearchEngine implements SearchEngineInterface
         }
 
         $score  = 0;
-        $score += str_contains($name, $term)     ? 500 : 0;
-        $score += $strongName                    ? 380 : 0;
-        $score += str_contains($brand, $term)    ? 340 : 0;
-        $score += $strongBrand                   ? 280 : 0;
-        $score += str_contains($category, $term) ? 260 : 0;
-        $score += $strongCategory                ? 200 : 0;
-        $score += str_contains($synonyms, $term) ? 120 : 0;
-        $score += $synonymsMatch                 ? 80  : 0;
-        $score += $descriptionMatch              ? 20  : 0;
+        $score += str_contains($name, $term)     ? self::SCORE_NAME_EXACT      : 0;
+        $score += $strongName                    ? self::SCORE_NAME_STRONG     : 0;
+        $score += str_contains($brand, $term)    ? self::SCORE_BRAND_EXACT     : 0;
+        $score += $strongBrand                   ? self::SCORE_BRAND_STRONG    : 0;
+        $score += str_contains($category, $term) ? self::SCORE_CATEGORY_EXACT  : 0;
+        $score += $strongCategory                ? self::SCORE_CATEGORY_STRONG : 0;
+        $score += str_contains($synonyms, $term) ? self::SCORE_SYNONYM_EXACT   : 0;
+        $score += $synonymsMatch                 ? self::SCORE_SYNONYM_TOKEN   : 0;
+        $score += $descriptionMatch              ? self::SCORE_DESCRIPTION     : 0;
 
         return $score;
     }

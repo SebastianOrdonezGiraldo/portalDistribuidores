@@ -129,11 +129,8 @@ class CartService
             ])
             ->get()
             ->keyBy('id');
-        $variants = ProductVariant::active()
-            ->whereIn('id', $variantIds)
-            ->with('attributeValue.attribute')
-            ->get()
-            ->keyBy('id');
+
+        $variants = $products->flatMap->variants->keyBy('id');
 
         $this->resolvedItems = collect($raw)
             ->map(function (array $item, string $lineKey) use ($products, $variants) {

@@ -1,100 +1,5 @@
 <x-app-layout>
-    @php
-        $mainPhoto = $product->primaryPhoto ?? $product->photos->first();
-        $galleryPhotos = $product->photos->take(10);
-
-        $commercial = $commercialSnapshot ?? [];
-        $availability = $commercial['availability'] ?? [
-            'key' => 'check',
-            'label' => 'Disponibilidad a confirmar',
-            'badge' => 'warning',
-            'helper' => 'Consulta disponibilidad en tiempo real.',
-        ];
-
-        $categoryName = $product->category?->name ?? 'Sin categoría';
-        $brand = $commercial['brand'] ?? 'Marca no especificada';
-        $unitLabel = $commercial['unit'] ?? 'unidad';
-        $unitLabelLower = \Illuminate\Support\Str::lower($unitLabel);
-        $packaging = $commercial['packaging'] ?? null;
-        $presentation = $commercial['presentation'] ?? null;
-        $leadTimeLabel = $commercial['leadTimeLabel'] ?? null;
-        $etaLabel = $commercial['etaLabel'] ?? null;
-        $minMultiple = max(1, (int) ceil((float) ($commercial['minMultiple'] ?? 1)));
-        $stepValue = (string) $minMultiple;
-        $defaultQty = $stepValue;
-        $activeVariants = $product->activeVariantsCollection();
-        $hasVariants = $activeVariants->isNotEmpty();
-        $variantAttributeName = $product->variantAttribute?->name ?? 'Variante';
-        $minVariantPrice = $hasVariants ? (float) ($activeVariants->min('price') ?? 0) : null;
-        $maxVariantPrice = $hasVariants ? (float) ($activeVariants->max('price') ?? 0) : null;
-        $price = $hasVariants ? (float) ($minVariantPrice ?? 0) : (float) $product->price;
-        $isRangePrice = $hasVariants && $maxVariantPrice !== null && $maxVariantPrice > $price;
-        $formattedPrice = $isRangePrice
-            ? '$'.number_format($price, 0, ',', '.').' – $'.number_format((float) $maxVariantPrice, 0, ',', '.')
-            : '$'.number_format($price, 0, ',', '.');
-        $stock = $hasVariants ? null : ($commercial['stock'] ?? null);
-        $canBuy = $hasVariants
-            ? $activeVariants->isNotEmpty()
-            : ! in_array($availability['key'], ['out', 'inactive'], true);
-        $discountPercent = $commercial['discountPercent'] ?? null;
-        $promoLabel = $commercial['promoLabel'] ?? null;
-        $isLowStock = ! $hasVariants && in_array($availability['key'], ['low', 'out'], true);
-        $formatQty = static function (float|int $value): string {
-            return rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
-        };
-
-        if ($hasVariants) {
-            $availability = [
-                'key' => 'variant',
-                'label' => 'Requiere selección',
-                'badge' => 'brand',
-                'helper' => 'Selecciona '.\Illuminate\Support\Str::lower($variantAttributeName).' para definir precio y disponibilidad.',
-            ];
-        }
-
-        $stockLabel = $hasVariants
-            ? 'Selecciona '.\Illuminate\Support\Str::lower($variantAttributeName)
-            : (is_null($stock)
-                ? 'A confirmar'
-                : $formatQty($stock).' '.$unitLabelLower);
-
-        $documents = $product->documents;
-        $relatedProducts = $relatedProducts ?? collect();
-        $alternativeProducts = $alternativeProducts ?? collect();
-        $productVideo = $product->videos->first();
-        $secondaryDocuments = $documents->filter(
-            fn ($document) => $document->type !== 'tech_sheet'
-                && (! $techSheet || $document->id !== $techSheet->id)
-        );
-
-        $documentTypeLabels = [
-            'tech_sheet' => 'Ficha técnica',
-            'catalog' => 'Catálogo',
-            'certificate' => 'Certificado',
-            'manual' => 'Manual',
-        ];
-
-        $specRows = [
-            ['label' => 'SKU', 'value' => $product->sku],
-            ['label' => 'Marca', 'value' => $brand],
-            ['label' => 'Categoría', 'value' => $categoryName],
-        ];
-
-        if ($packaging) {
-            $specRows[] = ['label' => 'Empaque', 'value' => $packaging];
-        }
-        if ($presentation) {
-            $specRows[] = ['label' => 'Presentación', 'value' => $presentation];
-        }
-
-        $sections = [
-            ['id' => 'descripcion', 'label' => 'Descripción'],
-            ['id' => 'especificaciones', 'label' => 'Especificaciones'],
-            ['id' => 'documentos', 'label' => 'Documentos'],
-            ['id' => 'relacionados', 'label' => 'Relacionados'],
-            ['id' => 'alternativas', 'label' => 'Alternativas'],
-        ];
-    @endphp
+    @php $defaultQty = $stepValue; @endphp
 
     {{-- ──────────────────────────────────────────────────────────────
          Header: breadcrumb + acceso rápido al carrito
@@ -739,57 +644,21 @@
         {{-- ──────────────────────────────────────────────────────────────
              Sección: Productos relacionados
         ────────────────────────────────────────────────────────────────── --}}
-        <section id="relacionados" class="scroll-mt-32">
-            <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
-                <div>
-                    <h2 class="text-lg font-bold text-slate-950">Productos relacionados</h2>
-                    <p class="mt-0.5 text-sm text-slate-500">De la misma categoría · Ideal para compra de reposición</p>
-                </div>
-            </div>
+        <x-catalog.product-grid-section
+            id="relacionados"
+            title="Productos relacionados"
+            subtitle="De la misma categoría · Ideal para compra de reposición"
+            :products="$relatedProducts"
+            empty-message="No hay productos relacionados disponibles para esta categoría."
+        />
 
-            @if($relatedProducts->isNotEmpty())
-                <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    @foreach($relatedProducts as $related)
-                        <x-catalog.product-card :product="$related" />
-                    @endforeach
-                </div>
-            @else
-                <div class="flex items-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-6">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                    </svg>
-                    <p class="text-sm text-slate-500">No hay productos relacionados disponibles para esta categoría.</p>
-                </div>
-            @endif
-        </section>
-
-        {{-- ──────────────────────────────────────────────────────────────
-             Sección: Alternativas
-        ────────────────────────────────────────────────────────────────── --}}
-        <section id="alternativas" class="scroll-mt-32">
-            <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
-                <div>
-                    <h2 class="text-lg font-bold text-slate-950">Alternativas similares</h2>
-                    <p class="mt-0.5 text-sm text-slate-500">Opciones de sustitución y continuidad operativa</p>
-                </div>
-            </div>
-
-            @if($alternativeProducts->isNotEmpty())
-                <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    @foreach($alternativeProducts as $alternative)
-                        <x-catalog.product-card :product="$alternative" />
-                    @endforeach
-                </div>
-            @else
-                <div class="flex items-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-6">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                        <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>
-                        <polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
-                    </svg>
-                    <p class="text-sm text-slate-500">No hay alternativas registradas para este producto.</p>
-                </div>
-            @endif
-        </section>
+        <x-catalog.product-grid-section
+            id="alternativas"
+            title="Alternativas similares"
+            subtitle="Opciones de sustitución y continuidad operativa"
+            :products="$alternativeProducts"
+            empty-message="No hay alternativas registradas para este producto."
+        />
 
     </div>
 

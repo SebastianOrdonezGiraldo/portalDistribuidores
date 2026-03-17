@@ -69,7 +69,7 @@ class Product extends Model
 
     public function documents(): HasMany
     {
-        return $this->hasMany(ProductDocument::class);
+        return $this->hasMany(ProductDocument::class)->orderBy('sort_order')->orderBy('id');
     }
 
     public function orderItems(): HasMany
