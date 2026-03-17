@@ -61,8 +61,10 @@
         $documents = $product->documents;
         $relatedProducts = $relatedProducts ?? collect();
         $alternativeProducts = $alternativeProducts ?? collect();
+        $productVideo = $product->videos->first();
         $secondaryDocuments = $documents->filter(
-            fn ($document) => ! $techSheet || $document->id !== $techSheet->id
+            fn ($document) => $document->type !== 'tech_sheet'
+                && (! $techSheet || $document->id !== $techSheet->id)
         );
 
         $documentTypeLabels = [
@@ -602,7 +604,7 @@
 
             <div class="px-6 py-5 sm:px-7 sm:py-6">
                 @php
-                    $hasAnyDocument = $techSheet || $secondaryDocuments->isNotEmpty();
+                    $hasAnyDocument = $techSheet || $productVideo || $secondaryDocuments->isNotEmpty();
                 @endphp
 
                 @if(! $hasAnyDocument)
@@ -617,9 +619,10 @@
                         </div>
                     </div>
                 @else
+                    {{-- Grid principal: Ficha técnica (izq) + Video de apoyo (der) --}}
                     <div class="grid gap-3 sm:grid-cols-2">
 
-                        {{-- Ficha técnica: documento principal --}}
+                        {{-- Tarjeta izquierda: Ficha técnica --}}
                         <div class="group relative overflow-hidden rounded-2xl border transition {{ $techSheet ? 'border-brand-primary/30 bg-brand-primary/5 hover:border-brand-primary/50' : 'border-slate-200 bg-slate-50' }}">
                             <div class="flex items-start gap-4 p-5">
                                 <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl {{ $techSheet ? 'bg-brand-primary/15 text-brand-primary' : 'bg-slate-200 text-slate-400' }}">
@@ -657,35 +660,78 @@
                             </div>
                         </div>
 
-                        {{-- Documentos secundarios --}}
-                        @foreach($secondaryDocuments as $document)
-                            <div class="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:border-slate-300">
-                                <div class="flex items-start gap-4 p-5">
-                                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                            <polyline points="14 2 14 8 20 8"/>
-                                        </svg>
+                        {{-- Tarjeta derecha: Video de apoyo --}}
+                        <div class="group relative overflow-hidden rounded-2xl border transition {{ $productVideo ? 'border-slate-200 bg-white hover:border-slate-300' : 'border-slate-200 bg-slate-50' }}">
+                            <div class="flex items-start gap-4 p-5">
+                                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl {{ $productVideo ? 'bg-rose-50 text-rose-500' : 'bg-slate-200 text-slate-400' }}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                        <polygon points="23 7 16 12 23 17 23 7"/>
+                                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                                    </svg>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <p class="font-semibold text-slate-900">Video de apoyo</p>
+                                        <span class="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">Video</span>
                                     </div>
-                                    <div class="min-w-0 flex-1">
-                                        <div class="flex items-center gap-2">
-                                            <p class="truncate font-semibold text-slate-900">
-                                                {{ $documentTypeLabels[$document->type] ?? ucfirst($document->type) }}
-                                            </p>
-                                            <span class="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">PDF</span>
-                                        </div>
-                                        <p class="mt-0.5 truncate text-xs text-slate-500" title="{{ $document->filename }}">
-                                            {{ $document->filename }}
-                                        </p>
-                                        <p class="mt-3 text-xs text-slate-400">
-                                            Solicitar a soporte comercial
-                                        </p>
+                                    <p class="mt-0.5 text-xs text-slate-500">Demostración y guía de uso del producto</p>
+
+                                    <div class="mt-3">
+                                        @if($productVideo)
+                                            <a
+                                                href="{{ $productVideo->url }}"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 focus-ring"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <polygon points="5 3 19 12 5 21 5 3"/>
+                                                </svg>
+                                                Ver video
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                                                    <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                                                </svg>
+                                            </a>
+                                        @else
+                                            <p class="text-xs text-slate-400">Sin video disponible para este producto</p>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
-                        @endforeach
+                        </div>
 
                     </div>
+
+                    {{-- Documentos secundarios adicionales (catálogos, certificados, manuales) --}}
+                    @if($secondaryDocuments->isNotEmpty())
+                        <div class="mt-3 overflow-hidden rounded-2xl border border-slate-200">
+                            <table class="min-w-full divide-y divide-slate-100 text-sm">
+                                <thead class="bg-slate-50">
+                                    <tr>
+                                        <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">Tipo</th>
+                                        <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">Archivo</th>
+                                        <th class="px-5 py-3 text-right text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">Acceso</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 bg-white">
+                                    @foreach($secondaryDocuments as $document)
+                                        <tr>
+                                            <td class="px-5 py-3 font-medium text-slate-700">
+                                                {{ $documentTypeLabels[$document->type] ?? ucfirst($document->type) }}
+                                            </td>
+                                            <td class="px-5 py-3 text-slate-500" title="{{ $document->filename }}">
+                                                <span class="block max-w-[200px] truncate">{{ $document->filename }}</span>
+                                            </td>
+                                            <td class="px-5 py-3 text-right text-xs text-slate-400">
+                                                Solicitar a soporte comercial
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
                 @endif
             </div>
         </section>
