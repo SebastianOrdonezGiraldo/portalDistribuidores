@@ -26,6 +26,14 @@ class OrderController extends Controller
         CreateOrderAction $createOrderAction,
         OrderPdfGenerator $pdfGenerator,
     ): RedirectResponse {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        if ($user && ! $user->canCreateOrders()) {
+            return redirect()->route('empresa.dashboard')
+                ->withErrors('Tu rol de empresa no permite crear pedidos.');
+        }
+
         $items = $cartService->items()->map(fn (array $line) => [
             'product_id' => $line['product']->id,
             'variant_id' => $line['variant']?->id,

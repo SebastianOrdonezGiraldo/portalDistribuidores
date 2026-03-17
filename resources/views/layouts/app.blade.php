@@ -60,7 +60,19 @@
             @endif
 
             @if($isDistributor)
-                <p class="px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Comercial</p>
+                <p class="px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Mi Empresa</p>
+                <div class="mt-2 space-y-1">
+                    <x-ui.sidebar-link :href="route('empresa.dashboard')" :active="request()->routeIs('empresa.dashboard')">Inicio</x-ui.sidebar-link>
+                    <x-ui.sidebar-link :href="route('empresa.orders.index')" :active="request()->routeIs('empresa.orders.*')">Mis Pedidos</x-ui.sidebar-link>
+                    @can('editCompany', \App\Modules\AuthAccess\Models\Distributor::class)
+                        <x-ui.sidebar-link :href="route('empresa.profile.edit')" :active="request()->routeIs('empresa.profile.*')">Datos de Empresa</x-ui.sidebar-link>
+                    @endcan
+                    @can('manageUsers', \App\Modules\AuthAccess\Models\Distributor::class)
+                        <x-ui.sidebar-link :href="route('empresa.users.index')" :active="request()->routeIs('empresa.users.*')">Usuarios</x-ui.sidebar-link>
+                    @endcan
+                </div>
+
+                <p class="mt-5 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Comercial</p>
                 <div class="mt-2 space-y-1">
                     <x-ui.sidebar-link :href="route('catalog.index')" :active="request()->routeIs('catalog.*', 'products.show')">Catálogo</x-ui.sidebar-link>
                     <x-ui.sidebar-link :href="route('cart.index')" :active="request()->routeIs('cart.*')">

@@ -11,6 +11,14 @@ class CheckoutController extends Controller
 {
     public function __invoke(CartService $cartService): View|RedirectResponse
     {
+        /** @var \App\Models\User|null $user */
+        $user = auth()->user();
+
+        if ($user && ! $user->canCreateOrders()) {
+            return redirect()->route('empresa.dashboard')
+                ->withErrors('Tu rol de empresa no permite crear pedidos.');
+        }
+
         $items = $cartService->items();
 
         if ($items->isEmpty()) {

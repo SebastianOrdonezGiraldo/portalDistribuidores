@@ -15,7 +15,18 @@ class Distributor extends Model
     protected $fillable = [
         'name',
         'status',
+        'nit',
+        'address',
+        'city',
+        'phone',
+        'contact_email',
+        'contact_name',
     ];
+
+    public function isActive(): bool
+    {
+        return $this->status === 'active';
+    }
 
     public function users(): HasMany
     {

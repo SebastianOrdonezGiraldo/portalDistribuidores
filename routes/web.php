@@ -22,7 +22,7 @@ Route::get('/dashboard', function () {
         return redirect()->route('admin.dashboard');
     }
 
-    return redirect()->route('catalog.index');
+    return redirect()->route('empresa.dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
@@ -50,4 +50,5 @@ Route::middleware(['auth', 'verified', 'role:distributor'])->group(function () {
 });
 
 require __DIR__.'/admin.php';
+require __DIR__.'/company.php';
 require __DIR__.'/auth.php';

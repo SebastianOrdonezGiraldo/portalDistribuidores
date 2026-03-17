@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Modules\AuthAccess\Models\Distributor;
+use App\Modules\Shared\Enums\CompanyRole;
 use App\Modules\Shared\Enums\UserRole;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -26,6 +27,7 @@ class User extends Authenticatable
         'name',
         'email',
         'role',
+        'company_role',
         'distributor_id',
         'password',
     ];
@@ -51,6 +53,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'role' => UserRole::class,
+            'company_role' => CompanyRole::class,
         ];
     }
 
@@ -72,5 +75,46 @@ class User extends Authenticatable
     public function isDistributor(): bool
     {
         return $this->role === UserRole::Distributor;
+    }
+
+    public function companyRole(): ?CompanyRole
+    {
+        return $this->company_role;
+    }
+
+    public function isCompanyAdmin(): bool
+    {
+        return $this->isDistributor() && $this->company_role === CompanyRole::AdminEmpresa;
+    }
+
+    public function canCreateOrders(): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        if (! $this->isDistributor()) {
+            return false;
+        }
+
+        if ($this->company_role === null) {
+            return true;
+        }
+
+        return $this->company_role->canCreateOrders();
+    }
+
+    public function canManageCompanyUsers(): bool
+    {
+        return $this->isDistributor()
+            && $this->company_role !== null
+            && $this->company_role->canManageUsers();
+    }
+
+    public function canEditCompany(): bool
+    {
+        return $this->isDistributor()
+            && $this->company_role !== null
+            && $this->company_role->canEditCompany();
     }
 }
