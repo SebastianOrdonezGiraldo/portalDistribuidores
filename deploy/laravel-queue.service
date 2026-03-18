@@ -1,0 +1,59 @@
+# =============================================================================
+# laravel-queue.service — systemd unit para el worker de colas
+# Portal Distribuidores · Hostinger VPS · Ubuntu 24.04
+#
+# Instrucciones:
+#   sudo cp deploy/laravel-queue.service /etc/systemd/system/laravel-queue.service
+#   sudo mkdir -p /var/log/laravel && sudo chown www-data:www-data /var/log/laravel
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now laravel-queue
+#   sudo systemctl status laravel-queue
+#
+# Para ver logs:
+#   journalctl -u laravel-queue -f
+#   tail -f /var/log/laravel/queue.log
+# =============================================================================
+
+[Unit]
+Description=Laravel Queue Worker — Portal Distribuidores
+Documentation=https://laravel.com/docs/queues
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/portal-distribuidores
+
+# Comando del worker:
+#   --sleep=3          Espera 3 segundos si la cola está vacía
+#   --tries=3          Reintenta un job hasta 3 veces antes de marcarlo como fallido
+#   --max-time=3600    Reinicia el proceso cada hora (libera memoria, aplica código nuevo)
+#   --queue=default    Procesa la cola 'default' (la usada por ORDER_NOTIFICATION_EMAIL_DISPATCH=queue)
+ExecStart=/usr/bin/php artisan queue:work \
+    --sleep=3 \
+    --tries=3 \
+    --max-time=3600 \
+    --queue=default
+
+# Señal para reinicio graceful (php artisan queue:restart escribe en cache)
+ExecReload=/bin/kill -s HUP $MAINPID
+
+# Si el proceso falla, reiniciar automáticamente después de 5 segundos
+Restart=always
+RestartSec=5
+
+# Tiempo de espera para shutdown graceful (debe ser > max-time si jobs pueden tardar)
+TimeoutStopSec=3700
+KillMode=mixed
+KillSignal=SIGTERM
+
+# Logs
+StandardOutput=append:/var/log/laravel/queue.log
+StandardError=append:/var/log/laravel/queue-error.log
+
+# Límites de recursos
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
