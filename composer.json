@@ -6,7 +6,7 @@
     "keywords": ["laravel", "portal", "distribuidores", "medical"],
     "license": "MIT",
     "require": {
-        "php": "^8.3",
+        "php": "^8.3.6",
         "barryvdh/laravel-dompdf": "^3.1",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
