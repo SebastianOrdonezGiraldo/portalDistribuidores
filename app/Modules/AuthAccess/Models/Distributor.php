@@ -3,6 +3,8 @@
 namespace App\Modules\AuthAccess\Models;
 
 use App\Models\User;
+use App\Modules\Company\Models\CompanyBranch;
+use App\Modules\Company\Models\CompanyList;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Shared\Enums\DistributorStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,6 +18,12 @@ class Distributor extends Model
     protected $fillable = [
         'name',
         'status',
+        'nit',
+        'address',
+        'city',
+        'phone',
+        'contact_email',
+        'contact_name',
     ];
 
     protected function casts(): array
@@ -39,5 +47,19 @@ class Distributor extends Model
     {
         return $this->hasMany(Order::class);
     }
-}
 
+    public function branches(): HasMany
+    {
+        return $this->hasMany(CompanyBranch::class);
+    }
+
+    public function lists(): HasMany
+    {
+        return $this->hasMany(CompanyList::class);
+    }
+
+    public function defaultBranch(): ?CompanyBranch
+    {
+        return $this->branches()->where('is_default', true)->first();
+    }
+}

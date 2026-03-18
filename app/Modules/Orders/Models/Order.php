@@ -29,6 +29,7 @@ class Order extends Model
         'city',
         'phone',
         'notes',
+        'approval_note',
         'status',
         'total_amount',
         'pdf_path',

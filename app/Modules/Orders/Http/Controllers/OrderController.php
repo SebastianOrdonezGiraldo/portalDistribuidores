@@ -25,6 +25,16 @@ class OrderController extends Controller
         CartService $cartService,
         CreateOrderAction $createOrderAction,
     ): RedirectResponse {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        if ($user && ! $user->canCreateOrders()) {
+            return redirect()->route('empresa.dashboard')
+                ->withErrors('Tu rol de empresa no permite crear pedidos.');
+        }
+
+        $requiresApproval = $user !== null && $user->orderRequiresApproval();
+
         $items = $cartService->items()->map(fn (array $line) => [
             'product_id' => $line['product']->id,
             'variant_id' => $line['variant']?->id,
@@ -36,7 +46,10 @@ class OrderController extends Controller
             return redirect()->route('cart.index')->withErrors('No hay productos en el carrito.');
         }
 
-        $data = CreateOrderData::fromArray(array_merge($request->validated(), ['items' => $items]));
+        $data = CreateOrderData::fromArray(array_merge($request->validated(), [
+            'items'             => $items,
+            'requires_approval' => $requiresApproval,
+        ]));
 
         try {
             $order = $createOrderAction->execute($request->user(), $data);
@@ -46,6 +59,12 @@ class OrderController extends Controller
 
         $this->rememberGuestOrder($order);
         $cartService->clear();
+
+        if ($requiresApproval) {
+            return redirect()
+                ->route('empresa.orders.show', $order)
+                ->with('status', 'Solicitud enviada. Queda pendiente de aprobación por el administrador de tu empresa.');
+        }
 
         // El PDF y el email de notificación se gestionan vía el evento OrderPlaced
         // que dispara CreateOrderAction. Ver GenerateOrderPdfListener.

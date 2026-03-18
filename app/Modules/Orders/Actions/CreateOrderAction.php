@@ -48,6 +48,10 @@ class CreateOrderAction
         }
 
         $order = DB::transaction(function () use ($user, $data, $products, $variants, $preTotal) {
+            $status = $data->requiresApproval
+                ? OrderStatus::PendingApproval
+                : OrderStatus::Submitted;
+
             $order = Order::create([
                 'distributor_id'  => $user?->distributor_id,
                 'user_id'         => $user?->id,
@@ -59,7 +63,7 @@ class CreateOrderAction
                 'company_address' => $data->companyAddress,
                 'city'            => $data->city,
                 'notes'           => $data->notes,
-                'status'          => OrderStatus::Submitted,
+                'status'          => $status,
                 'total_amount'    => 0,
             ]);
 
@@ -112,7 +116,10 @@ class CreateOrderAction
             return $order->refresh();
         });
 
-        event(new OrderPlaced($order));
+        // Solo disparar el evento si la orden no requiere aprobación interna previa
+        if (! $data->requiresApproval) {
+            event(new OrderPlaced($order));
+        }
 
         return $order;
     }
