@@ -12,6 +12,30 @@
 
         <x-ui.card class="p-5">
             <h2 class="card-title">Datos comerciales</h2>
+
+            {{-- Selector de sucursal (solo si la empresa tiene sucursales registradas) --}}
+            @if(isset($branches) && $branches->isNotEmpty())
+                <div class="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3">
+                    <label class="form-label mb-1" for="branch_select">Dirección de entrega (sucursal)</label>
+                    <select id="branch_select" class="form-input"
+                        onchange="applyBranch(this)">
+                        <option value="">— Ingresar dirección manualmente —</option>
+                        @foreach($branches as $branch)
+                            <option
+                                value="{{ $branch->id }}"
+                                data-address="{{ $branch->address }}"
+                                data-city="{{ $branch->city }}"
+                                {{ $branch->is_default ? 'selected' : '' }}
+                            >
+                                {{ $branch->name }}{{ $branch->is_default ? ' (predeterminada)' : '' }}
+                                @if($branch->city) — {{ $branch->city }} @endif
+                            </option>
+                        @endforeach
+                    </select>
+                    <p class="mt-1 text-xs text-blue-600">Selecciona una sucursal para prellenar la dirección automáticamente.</p>
+                </div>
+            @endif
+
             <div class="mt-4 grid gap-4 sm:grid-cols-2">
                 <div>
                     <label class="form-label" for="company_name">Razón social *</label>
@@ -20,11 +44,11 @@
                 </div>
                 <div>
                     <label class="form-label" for="company_nit">NIT / Cédula *</label>
-                    <x-ui.input id="company_nit" name="company_nit" :value="old('company_nit')" required />
+                    <x-ui.input id="company_nit" name="company_nit" :value="old('company_nit', $distributor?->nit)" required />
                     <x-input-error :messages="$errors->get('company_nit')" />
                 </div>
                 <div>
-                    <label class="form-label" for="contact_name">Numero de contacto *</label>
+                    <label class="form-label" for="contact_name">Nombre de contacto *</label>
                     <x-ui.input id="contact_name" name="contact_name" :value="old('contact_name', auth()->user()?->name)" required />
                     <x-input-error :messages="$errors->get('contact_name')" />
                 </div>
@@ -35,12 +59,16 @@
                 </div>
                 <div>
                     <label class="form-label" for="company_address">Dirección *</label>
-                    <x-ui.input id="company_address" name="company_address" :value="old('company_address')" required />
+                    <x-ui.input id="company_address" name="company_address"
+                        :value="old('company_address', $distributor?->address)"
+                        required />
                     <x-input-error :messages="$errors->get('company_address')" />
                 </div>
                 <div>
                     <label class="form-label" for="city">Ciudad *</label>
-                    <x-ui.input id="city" name="city" :value="old('city')" required />
+                    <x-ui.input id="city" name="city"
+                        :value="old('city', $distributor?->city)"
+                        required />
                     <x-input-error :messages="$errors->get('city')" />
                 </div>
                 <div class="sm:col-span-2">
@@ -81,4 +109,25 @@
             </div>
         </x-ui.card>
     </form>
+
+    @push('scripts')
+        <script>
+            function applyBranch(select) {
+                const opt = select.options[select.selectedIndex];
+                if (!opt || !opt.value) return;
+                const addr = opt.dataset.address || '';
+                const city = opt.dataset.city || '';
+                if (addr) document.getElementById('company_address').value = addr;
+                if (city) document.getElementById('city').value = city;
+            }
+
+            // Aplicar la sucursal predeterminada al cargar si no hay old() values
+            document.addEventListener('DOMContentLoaded', function () {
+                const sel = document.getElementById('branch_select');
+                if (sel && sel.value) {
+                    applyBranch(sel);
+                }
+            });
+        </script>
+    @endpush
 </x-app-layout>

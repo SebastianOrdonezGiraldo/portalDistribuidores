@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Admin\Policies\DistributorPolicy;
 use App\Modules\Admin\Policies\UserPolicy;
 use App\Modules\AuthAccess\Models\Distributor;
+use App\Modules\Company\Policies\CompanyPolicy;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Policies\ProductPolicy;
 use App\Modules\Catalog\Queries\PostgresSearchEngine;
@@ -43,6 +44,31 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(ProductDocument::class, ProductDocumentPolicy::class);
         Gate::policy(Distributor::class, DistributorPolicy::class);
         Gate::policy(User::class, UserPolicy::class);
+        // Gates para el panel de empresa — admin global siempre puede, luego delega a CompanyPolicy
+        Gate::define('editCompany', function (User $user) {
+            if ($user->isAdmin()) {
+                return true;
+            }
+            return (new CompanyPolicy)->editCompany($user);
+        });
+        Gate::define('manageUsers', function (User $user) {
+            if ($user->isAdmin()) {
+                return true;
+            }
+            return (new CompanyPolicy)->manageUsers($user);
+        });
+        Gate::define('manageBranches', function (User $user) {
+            if ($user->isAdmin()) {
+                return true;
+            }
+            return $user->canManageBranches();
+        });
+        Gate::define('approveOrders', function (User $user) {
+            if ($user->isAdmin()) {
+                return true;
+            }
+            return $user->canApproveOrders();
+        });
 
         View::composer('layouts.app', function ($view): void {
             $count = app(CartService::class)->count();
@@ -57,6 +83,7 @@ class AppServiceProvider extends ServiceProvider
 
             $view->with([
                 'navCartCount'        => $count,
+                'cartCount'           => $count,
                 'footerTopCategories' => $footerTopCategories,
             ]);
         });

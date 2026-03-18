@@ -78,7 +78,62 @@
             @endif
 
             @if($isDistributor)
-                <p class="sidebar-section-label">Comercial</p>
+                @php
+                    $pendingApprovalCount = 0;
+                    if ($user?->canApproveOrders()) {
+                        $pendingApprovalCount = \App\Modules\Orders\Models\Order::query()
+                            ->where('distributor_id', $user->distributor_id)
+                            ->where('status', \App\Modules\Shared\Enums\OrderStatus::PendingApproval)
+                            ->count();
+                    }
+                @endphp
+
+                <p class="sidebar-section-label">Mi Empresa</p>
+                <div class="mt-2 space-y-0.5">
+                    <x-ui.sidebar-link :href="route('empresa.dashboard')" :active="request()->routeIs('empresa.dashboard')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+                        Inicio
+                    </x-ui.sidebar-link>
+                    <x-ui.sidebar-link :href="route('empresa.orders.index')" :active="request()->routeIs('empresa.orders.*')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+                        Mis Pedidos
+                    </x-ui.sidebar-link>
+                    @can('approveOrders')
+                        <x-ui.sidebar-link :href="route('empresa.approvals.index')" :active="request()->routeIs('empresa.approvals.*')">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            Aprobaciones
+                            @if($pendingApprovalCount > 0)
+                                <x-ui.badge variant="brand" class="ml-auto">{{ $pendingApprovalCount }}</x-ui.badge>
+                            @endif
+                        </x-ui.sidebar-link>
+                    @endcan
+                    @if($user?->canManageLists())
+                        <x-ui.sidebar-link :href="route('empresa.lists.index')" :active="request()->routeIs('empresa.lists.*')">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                            Listas Frecuentes
+                        </x-ui.sidebar-link>
+                    @endif
+                    @can('manageBranches')
+                        <x-ui.sidebar-link :href="route('empresa.branches.index')" :active="request()->routeIs('empresa.branches.*')">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                            Sucursales
+                        </x-ui.sidebar-link>
+                    @endcan
+                    @can('editCompany', \App\Modules\AuthAccess\Models\Distributor::class)
+                        <x-ui.sidebar-link :href="route('empresa.profile.edit')" :active="request()->routeIs('empresa.profile.*')">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                            Datos de Empresa
+                        </x-ui.sidebar-link>
+                    @endcan
+                    @can('manageUsers', \App\Modules\AuthAccess\Models\Distributor::class)
+                        <x-ui.sidebar-link :href="route('empresa.users.index')" :active="request()->routeIs('empresa.users.*')">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            Usuarios
+                        </x-ui.sidebar-link>
+                    @endcan
+                </div>
+
+                <p class="sidebar-section-label mt-5">Comercial</p>
                 <div class="mt-2 space-y-0.5">
                     <x-ui.sidebar-link :href="route('catalog.index')" :active="request()->routeIs('catalog.*', 'products.show')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
