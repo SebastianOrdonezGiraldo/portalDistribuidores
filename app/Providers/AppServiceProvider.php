@@ -57,6 +57,18 @@ class AppServiceProvider extends ServiceProvider
             }
             return (new CompanyPolicy)->manageUsers($user);
         });
+        Gate::define('manageBranches', function (User $user) {
+            if ($user->isAdmin()) {
+                return true;
+            }
+            return $user->canManageBranches();
+        });
+        Gate::define('approveOrders', function (User $user) {
+            if ($user->isAdmin()) {
+                return true;
+            }
+            return $user->canApproveOrders();
+        });
 
         View::composer('layouts.app', function ($view): void {
             $count = app(CartService::class)->count();
@@ -71,6 +83,7 @@ class AppServiceProvider extends ServiceProvider
 
             $view->with([
                 'navCartCount'        => $count,
+                'cartCount'           => $count,
                 'footerTopCategories' => $footerTopCategories,
             ]);
         });

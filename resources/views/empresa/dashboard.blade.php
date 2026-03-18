@@ -87,13 +87,47 @@
                 </div>
             </x-ui.card>
 
+            {{-- Aprobaciones pendientes (solo admin_empresa) --}}
+            @can('approveOrders')
+                @php
+                    $pendingCount = \App\Modules\Orders\Models\Order::query()
+                        ->where('distributor_id', auth()->user()->distributor_id)
+                        ->where('status', \App\Modules\Shared\Enums\OrderStatus::PendingApproval)
+                        ->count();
+                @endphp
+                @if($pendingCount > 0)
+                    <x-ui.card class="border-l-4 border-l-violet-400 p-5">
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <h2 class="card-title text-violet-800">Aprobaciones Pendientes</h2>
+                                <p class="mt-0.5 text-sm text-violet-600">
+                                    {{ $pendingCount }} solicitud{{ $pendingCount !== 1 ? 'es' : '' }} esperando tu revisión.
+                                </p>
+                            </div>
+                            <span class="badge badge-violet text-lg font-bold px-3 py-1">{{ $pendingCount }}</span>
+                        </div>
+                        <a href="{{ route('empresa.approvals.index') }}" class="btn btn-primary mt-4 w-full justify-center text-sm">
+                            Revisar solicitudes
+                        </a>
+                    </x-ui.card>
+                @endif
+            @endcan
+
             {{-- Accesos rápidos --}}
             <x-ui.card class="p-5">
                 <h2 class="card-title">Accesos Rápidos</h2>
                 <div class="mt-4 grid gap-2 sm:grid-cols-2">
                     <a href="{{ route('empresa.orders.index') }}" class="btn btn-secondary justify-start">Historial de pedidos</a>
-                    <a href="{{ route('checkout.show') }}" class="btn btn-secondary justify-start">Nuevo pedido</a>
+                    @if(auth()->user()?->canCreateOrders())
+                        <a href="{{ route('checkout.show') }}" class="btn btn-secondary justify-start">Nuevo pedido</a>
+                    @endif
                     <a href="{{ route('catalog.index') }}" class="btn btn-secondary justify-start">Catálogo de productos</a>
+                    @if(auth()->user()?->canManageLists())
+                        <a href="{{ route('empresa.lists.index') }}" class="btn btn-secondary justify-start">Listas frecuentes</a>
+                    @endif
+                    @can('manageBranches')
+                        <a href="{{ route('empresa.branches.index') }}" class="btn btn-secondary justify-start">Sucursales</a>
+                    @endcan
                     @can('editCompany', \App\Modules\AuthAccess\Models\Distributor::class)
                         <a href="{{ route('empresa.profile.edit') }}" class="btn btn-secondary justify-start">Datos de empresa</a>
                     @endcan

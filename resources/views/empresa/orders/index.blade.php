@@ -93,7 +93,12 @@
                                 <p class="font-medium text-slate-900">{{ $order->company_name }}</p>
                                 <p class="text-xs text-slate-500">{{ $order->contact_name }}</p>
                             </td>
-                            <td><x-ui.status-badge :status="$order->status" /></td>
+                            <td>
+                                <x-ui.status-badge :status="$order->status" />
+                                @if($order->status->isRejected() && $order->approval_note)
+                                    <p class="mt-0.5 text-xs text-red-600 italic">{{ Str::limit($order->approval_note, 60) }}</p>
+                                @endif
+                            </td>
                             <td class="font-medium text-slate-900">${{ number_format((float) $order->total_amount, 0, ',', '.') }}</td>
                             <td class="text-sm text-slate-600">{{ $order->user?->name ?? '—' }}</td>
                             <td>
@@ -105,6 +110,12 @@
                                     <a href="{{ route('empresa.orders.show', $order) }}" class="btn btn-ghost !px-2 !py-1 text-xs">Ver</a>
                                     @if($order->pdf_path)
                                         <a href="{{ route('empresa.orders.pdf', $order) }}" class="btn btn-ghost !px-2 !py-1 text-xs">PDF</a>
+                                    @endif
+                                    @if(auth()->user()?->canReorder() && $order->status->value !== 'pending_approval')
+                                        <form method="POST" action="{{ route('empresa.orders.reorder', $order) }}">
+                                            @csrf
+                                            <button type="submit" class="btn btn-ghost !px-2 !py-1 text-xs" title="Volver a cotizar">↺</button>
+                                        </form>
                                     @endif
                                 </div>
                             </td>

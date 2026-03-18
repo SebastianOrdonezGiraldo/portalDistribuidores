@@ -3,8 +3,11 @@
 namespace App\Modules\Company\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Catalog\Models\Product;
+use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Orders\Jobs\GenerateOrderPdfJob;
 use App\Modules\Orders\Models\Order;
+use App\Modules\Orders\Services\Cart\CartService;
 use App\Modules\Orders\Services\OrderPdfGenerator;
 use App\Modules\Shared\Enums\OrderStatus;
 use Illuminate\Http\RedirectResponse;
@@ -112,5 +115,96 @@ class CompanyOrderController extends Controller
         }
 
         return Storage::disk('public')->download($path, $order->oc_number.'.pdf');
+    }
+
+    public function reorder(Order $order, CartService $cartService): RedirectResponse
+    {
+        $this->authorize('view', $order);
+
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+
+        abort_unless($user->canReorder(), 403, 'Tu rol no permite reordenar.');
+
+        $order->loadMissing('items');
+
+        if ($order->items->isEmpty()) {
+            return back()->with('warning', 'Este pedido no tiene ítems para reordenar.');
+        }
+
+        $productIds = $order->items
+            ->pluck('product_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $variantIds = $order->items
+            ->pluck('product_variant_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $activeProducts = Product::active()
+            ->whereIn('id', $productIds)
+            ->get()
+            ->keyBy('id');
+
+        $activeVariants = $variantIds
+            ? ProductVariant::active()->whereIn('id', $variantIds)->get()->keyBy('id')
+            : collect();
+
+        $added   = 0;
+        $skipped = [];
+
+        foreach ($order->items as $item) {
+            $product = $activeProducts->get($item->product_id);
+
+            if (! $product) {
+                $skipped[] = $item->product_name_snapshot.' (no disponible)';
+                continue;
+            }
+
+            $variant = null;
+
+            if ($item->product_variant_id) {
+                $variant = $activeVariants->get($item->product_variant_id);
+
+                if (! $variant) {
+                    $skipped[] = $item->product_name_snapshot.' (variante no disponible)';
+                    continue;
+                }
+            } elseif ($product->hasConfigurableVariants()) {
+                $skipped[] = $item->product_name_snapshot.' (requiere elegir variante)';
+                continue;
+            }
+
+            $cartService->add(
+                product: $product,
+                qty: max(1, (int) $item->qty),
+                unitLabel: $item->unit_label ?? 'unidad',
+                variant: $variant,
+            );
+
+            $added++;
+        }
+
+        if ($added === 0) {
+            return redirect()->route('catalog.index')
+                ->with('warning', 'No se pudo agregar ningún producto al carrito. Puede que todos estén inactivos o requieran selección de variante.');
+        }
+
+        $statusMessage = "Se agregaron {$added} producto(s) al carrito desde {$order->oc_number}.";
+
+        if (! empty($skipped)) {
+            $skippedList = implode(', ', $skipped);
+
+            return redirect()->route('cart.index')
+                ->with('status', $statusMessage)
+                ->with('warning', "No se pudieron agregar: {$skippedList}");
+        }
+
+        return redirect()->route('cart.index')->with('status', $statusMessage);
     }
 }

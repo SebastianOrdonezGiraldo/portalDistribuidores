@@ -16,20 +16,22 @@ final readonly class CreateOrderData
         public string $city,
         public ?string $notes,
         public array $items,
+        public bool $requiresApproval = false,
     ) {
     }
 
     public static function fromArray(array $payload): self
     {
         return new self(
-            contactName: $payload['contact_name'],
-            contactEmail: $payload['contact_email'],
-            companyName: $payload['company_name'],
-            companyNit: $payload['company_nit'],
-            companyAddress: $payload['company_address'],
-            city: $payload['city'],
-            notes: $payload['notes'] ?? null,
-            items: $payload['items'] ?? [],
+            contactName:      $payload['contact_name'],
+            contactEmail:     $payload['contact_email'],
+            companyName:      $payload['company_name'],
+            companyNit:       $payload['company_nit'],
+            companyAddress:   $payload['company_address'],
+            city:             $payload['city'],
+            notes:            $payload['notes'] ?? null,
+            items:            $payload['items'] ?? [],
+            requiresApproval: (bool) ($payload['requires_approval'] ?? false),
         );
     }
 }

@@ -34,4 +34,38 @@ enum CompanyRole: string
             default                                    => false,
         };
     }
+
+    public function canReorder(): bool
+    {
+        return match ($this) {
+            self::AdminEmpresa, self::UsuarioComercial => true,
+            default                                    => false,
+        };
+    }
+
+    public function canManageLists(): bool
+    {
+        return match ($this) {
+            self::AdminEmpresa, self::UsuarioComercial => true,
+            default                                    => false,
+        };
+    }
+
+    public function canManageBranches(): bool
+    {
+        return $this === self::AdminEmpresa;
+    }
+
+    public function canApproveOrders(): bool
+    {
+        return $this === self::AdminEmpresa;
+    }
+
+    /**
+     * Cuando este rol crea una orden, ¿debe pasar por aprobación interna?
+     */
+    public function requiresOrderApproval(): bool
+    {
+        return $this === self::UsuarioComercial;
+    }
 }

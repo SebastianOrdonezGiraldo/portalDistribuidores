@@ -116,4 +116,62 @@ class User extends Authenticatable
             && $this->company_role !== null
             && $this->company_role->canEditCompany();
     }
+
+    public function canReorder(): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        if (! $this->isDistributor()) {
+            return false;
+        }
+
+        // Legacy users without company_role can reorder
+        if ($this->company_role === null) {
+            return true;
+        }
+
+        return $this->company_role->canReorder();
+    }
+
+    public function canManageLists(): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        if (! $this->isDistributor()) {
+            return false;
+        }
+
+        if ($this->company_role === null) {
+            return true;
+        }
+
+        return $this->company_role->canManageLists();
+    }
+
+    public function canManageBranches(): bool
+    {
+        return $this->isDistributor()
+            && $this->company_role !== null
+            && $this->company_role->canManageBranches();
+    }
+
+    public function canApproveOrders(): bool
+    {
+        return $this->isDistributor()
+            && $this->company_role !== null
+            && $this->company_role->canApproveOrders();
+    }
+
+    public function orderRequiresApproval(): bool
+    {
+        if (! $this->isDistributor()) {
+            return false;
+        }
+
+        return $this->company_role?->requiresOrderApproval() ?? false;
+    }
 }

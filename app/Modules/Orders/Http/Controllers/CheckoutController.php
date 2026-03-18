@@ -25,9 +25,16 @@ class CheckoutController extends Controller
             return redirect()->route('catalog.index')->withErrors('Tu carrito está vacío.');
         }
 
+        $distributor = $user?->distributor;
+        $branches    = $distributor
+            ? $distributor->branches()->orderByDesc('is_default')->orderBy('name')->get()
+            : collect();
+
         return view('orders.checkout', [
-            'items' => $items,
-            'total' => $cartService->total(),
+            'items'       => $items,
+            'total'       => $cartService->total(),
+            'distributor' => $distributor,
+            'branches'    => $branches,
         ]);
     }
 }

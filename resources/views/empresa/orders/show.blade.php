@@ -47,6 +47,19 @@
             </x-slot>
             <x-slot name="actions">
                 <a href="{{ route('empresa.orders.index') }}" class="btn btn-secondary">Volver al historial</a>
+                @if(auth()->user()?->canReorder() && !$order->status->isPendingReview())
+                    <form method="POST" action="{{ route('empresa.orders.reorder', $order) }}" class="inline">
+                        @csrf
+                        <x-ui.button type="submit" variant="secondary">Volver a cotizar</x-ui.button>
+                    </form>
+                @endif
+                @if(auth()->user()?->canManageLists())
+                    <button type="button"
+                        onclick="document.getElementById('save-as-list-modal').showModal()"
+                        class="btn btn-secondary">
+                        Guardar como lista
+                    </button>
+                @endif
                 <a href="{{ route('empresa.orders.pdf', $order) }}" class="btn btn-primary">Descargar PDF</a>
             </x-slot>
         </x-ui.page-header>
@@ -242,4 +255,91 @@
             </x-ui.card>
         </div>
     </section>
+
+    {{-- Banner de aprobación pendiente --}}
+    @if($order->status->isPendingReview())
+        <div class="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-4">
+            <div class="flex items-start gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="mt-0.5 h-5 w-5 flex-shrink-0 text-violet-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <div>
+                    <p class="font-semibold text-violet-800">En revisión interna</p>
+                    <p class="mt-0.5 text-sm text-violet-700">Esta solicitud está pendiente de aprobación por el administrador de tu empresa. Recibirás una notificación una vez sea revisada.</p>
+                    @can('approveOrders')
+                        <div class="mt-3 flex gap-2">
+                            <form method="POST" action="{{ route('empresa.approvals.approve', $order) }}">
+                                @csrf
+                                <x-ui.button type="submit" variant="primary" class="text-sm">Aprobar ahora</x-ui.button>
+                            </form>
+                            <button type="button" onclick="document.getElementById('reject-modal-show').showModal()" class="btn btn-danger text-sm">Rechazar</button>
+                        </div>
+                    @endcan
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Banner de rechazo --}}
+    @if($order->status->isRejected())
+        <div class="mt-4 rounded-xl border border-red-200 bg-red-50 p-4">
+            <div class="flex items-start gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                <div>
+                    <p class="font-semibold text-red-800">Solicitud rechazada</p>
+                    @if($order->approval_note)
+                        <p class="mt-0.5 text-sm text-red-700">Motivo: <em>{{ $order->approval_note }}</em></p>
+                    @endif
+                    @if(auth()->user()?->canReorder())
+                        <p class="mt-2 text-sm text-red-600">Puedes usar "Volver a cotizar" para crear una nueva solicitud corregida.</p>
+                    @endif
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Modal: Guardar como lista frecuente --}}
+    @if(auth()->user()?->canManageLists())
+        <dialog id="save-as-list-modal" class="modal-dialog">
+            <div class="modal-dialog-panel w-full max-w-md">
+                <h2 class="card-title">Guardar como lista frecuente</h2>
+                <p class="mt-1 text-sm text-slate-500">Guarda los {{ $order->items->count() }} producto(s) de esta cotización para reutilizarlos.</p>
+                <form method="POST" action="{{ route('empresa.lists.store-from-order', $order) }}" class="mt-4">
+                    @csrf
+                    <div>
+                        <label class="form-label" for="list-name-order">Nombre de la lista *</label>
+                        <x-ui.input id="list-name-order" name="name" required
+                            placeholder="Ej: Reposición mensual, Kit básico..." />
+                        <x-input-error :messages="$errors->get('name')" />
+                    </div>
+                    <div class="mt-4 flex justify-end gap-2">
+                        <button type="button" onclick="document.getElementById('save-as-list-modal').close()" class="btn btn-secondary">Cancelar</button>
+                        <x-ui.button type="submit" variant="primary">Guardar lista</x-ui.button>
+                    </div>
+                </form>
+            </div>
+        </dialog>
+    @endif
+
+    {{-- Modal: Rechazar desde detalle (solo admin_empresa) --}}
+    @can('approveOrders')
+        @if($order->status->isPendingReview())
+            <dialog id="reject-modal-show" class="modal-dialog">
+                <div class="modal-dialog-panel w-full max-w-md">
+                    <h2 class="card-title text-red-700">Rechazar solicitud</h2>
+                    <form method="POST" action="{{ route('empresa.approvals.reject', $order) }}" class="mt-4">
+                        @csrf
+                        <div>
+                            <label class="form-label" for="reject-note-show">Motivo del rechazo *</label>
+                            <x-ui.textarea id="reject-note-show" name="approval_note" rows="3" required
+                                placeholder="Indica el motivo..."></x-ui.textarea>
+                            <x-input-error :messages="$errors->get('approval_note')" />
+                        </div>
+                        <div class="mt-4 flex justify-end gap-2">
+                            <button type="button" onclick="document.getElementById('reject-modal-show').close()" class="btn btn-secondary">Cancelar</button>
+                            <x-ui.button type="submit" variant="danger">Confirmar rechazo</x-ui.button>
+                        </div>
+                    </form>
+                </div>
+            </dialog>
+        @endif
+    @endcan
 </x-app-layout>
