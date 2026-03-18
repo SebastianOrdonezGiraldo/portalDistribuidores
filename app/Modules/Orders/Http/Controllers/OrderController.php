@@ -24,7 +24,6 @@ class OrderController extends Controller
         StoreOrderRequest $request,
         CartService $cartService,
         CreateOrderAction $createOrderAction,
-        OrderPdfGenerator $pdfGenerator,
     ): RedirectResponse {
         /** @var \App\Models\User|null $user */
         $user = $request->user();
@@ -56,15 +55,20 @@ class OrderController extends Controller
         $this->rememberGuestOrder($order);
         $cartService->clear();
 
-        $pdfPath = $pdfGenerator->generate($order);
-
-        if ($order->pdf_path !== $pdfPath) {
-            $order->update(['pdf_path' => $pdfPath]);
-        }
+        // El PDF y el email de notificación se gestionan vía el evento OrderPlaced
+        // que dispara CreateOrderAction. Ver GenerateOrderPdfListener.
 
         return redirect()
-            ->route('orders.show', ['order' => $order, 'download_pdf' => 1, 'open_whatsapp' => 1])
-            ->with('status', 'Orden creada correctamente. Descargando cotización en PDF.');
+            ->route('orders.submitted', ['order' => $order])
+            ->with('status', 'Orden creada correctamente. Estamos procesando la cotización.');
+    }
+
+    public function submitted(Order $order): View
+    {
+        abort_unless($this->canAccessOrder($order), 403);
+        $order->loadMissing('items');
+
+        return view('orders.submitted', ['order' => $order]);
     }
 
     public function show(Order $order): View

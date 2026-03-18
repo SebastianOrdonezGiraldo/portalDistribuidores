@@ -8,8 +8,12 @@ use App\Modules\Catalog\Models\ProductAttribute;
 use App\Modules\Catalog\Models\ProductAttributeValue;
 use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Categories\Models\Category;
+use App\Modules\Orders\Mail\OrderCreatedCustomerQuotationMail;
+use App\Modules\Orders\Mail\OrderCreatedNotificationMail;
+use App\Modules\Orders\Models\Order;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class ProductVariantsFlowTest extends TestCase
@@ -67,6 +71,8 @@ class ProductVariantsFlowTest extends TestCase
     public function test_cart_requires_variant_selection_and_order_uses_variant_price(): void
     {
         $this->withoutMiddleware(ValidateCsrfToken::class);
+        Mail::fake();
+        config(['mail.order_notification_to' => 'asesora@test.com']);
 
         $category = Category::create([
             'parent_id' => null,
@@ -127,7 +133,8 @@ class ProductVariantsFlowTest extends TestCase
             'notes' => 'Pedido con variante',
         ]);
 
-        $response->assertRedirect();
+        $order = Order::query()->firstOrFail();
+        $response->assertRedirect(route('orders.submitted', ['order' => $order]));
 
         $this->assertDatabaseHas('order_items', [
             'product_id' => $product->id,
@@ -138,6 +145,7 @@ class ProductVariantsFlowTest extends TestCase
             'qty' => 2.00,
             'subtotal' => 30000.00,
         ]);
+        Mail::assertSent(OrderCreatedNotificationMail::class);
+        Mail::assertSent(OrderCreatedCustomerQuotationMail::class);
     }
 }
-

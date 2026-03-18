@@ -3,6 +3,7 @@
 namespace App\Modules\Categories\Models;
 
 use App\Modules\Catalog\Models\Product;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -45,6 +46,11 @@ class Category extends Model
     public function synonyms(): HasMany
     {
         return $this->hasMany(CategorySynonym::class);
+    }
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('is_active', true);
     }
 }
 

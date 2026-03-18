@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Categories\Queries\CategoryBreadcrumbsQuery;
 use App\Modules\Documents\Services\TechSheetDownloadService;
+use App\Modules\Shared\Enums\DocumentType;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class ProductController extends Controller
@@ -43,15 +45,122 @@ class ProductController extends Controller
             );
         }
 
-        return view('product.show', [
-            'product' => $product,
-            'breadcrumbs' => $breadcrumbs,
-            'techSheet' => $techSheet,
+        $viewData = $this->buildViewData($product, $commercialSnapshot, $techSheet);
+
+        return view('product.show', array_merge($viewData, [
+            'product'            => $product,
+            'breadcrumbs'        => $breadcrumbs,
+            'techSheet'          => $techSheet,
             'remainingDownloads' => $remainingDownloads,
-            'commercialSnapshot' => $commercialSnapshot,
-            'relatedProducts' => $relatedProducts,
+            'relatedProducts'    => $relatedProducts,
             'alternativeProducts' => $alternativeProducts,
-        ]);
+        ]));
+    }
+
+    /**
+     * Prepares all display variables so that the Blade view contains no business logic.
+     */
+    private function buildViewData(Product $product, array $commercial, mixed $techSheet): array
+    {
+        $formatQty = static fn (float|int $value): string =>
+            rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
+
+        $mainPhoto    = $product->primaryPhoto ?? $product->photos->first();
+        $galleryPhotos = $product->photos->take(10);
+        $categoryName  = $product->category?->name ?? 'Sin categoría';
+        $brand         = $commercial['brand'] ?? 'Marca no especificada';
+        $unitLabel     = $commercial['unit'] ?? 'unidad';
+        $unitLabelLower = Str::lower($unitLabel);
+        $packaging     = $commercial['packaging'] ?? null;
+        $presentation  = $commercial['presentation'] ?? null;
+        $leadTimeLabel = $commercial['leadTimeLabel'] ?? null;
+        $etaLabel      = $commercial['etaLabel'] ?? null;
+        $minMultiple   = max(1, (int) ceil((float) ($commercial['minMultiple'] ?? 1)));
+        $stepValue     = (string) $minMultiple;
+        $discountPercent = $commercial['discountPercent'] ?? null;
+        $promoLabel    = $commercial['promoLabel'] ?? null;
+
+        $activeVariants      = $product->activeVariantsCollection();
+        $hasVariants         = $activeVariants->isNotEmpty();
+        $variantAttributeName = $product->variantAttribute?->name ?? 'Variante';
+        $minVariantPrice     = $hasVariants ? (float) ($activeVariants->min('price') ?? 0) : null;
+        $maxVariantPrice     = $hasVariants ? (float) ($activeVariants->max('price') ?? 0) : null;
+        $price               = $hasVariants ? (float) ($minVariantPrice ?? 0) : (float) $product->price;
+        $isRangePrice        = $hasVariants && $maxVariantPrice !== null && $maxVariantPrice > $price;
+        $formattedPrice      = $isRangePrice
+            ? '$'.number_format($price, 0, ',', '.').' – $'.number_format((float) $maxVariantPrice, 0, ',', '.')
+            : '$'.number_format($price, 0, ',', '.');
+
+        $stock    = $hasVariants ? null : ($commercial['stock'] ?? null);
+        $canBuy   = $hasVariants
+            ? $activeVariants->isNotEmpty()
+            : ! in_array($commercial['availability']['key'] ?? '', ['out', 'inactive'], true);
+        $isLowStock = ! $hasVariants && in_array($commercial['availability']['key'] ?? '', ['low', 'out'], true);
+
+        // Resolve final availability: override to "requires selection" when product has variants.
+        $availability = $hasVariants
+            ? [
+                'key'    => 'variant',
+                'label'  => 'Requiere selección',
+                'badge'  => 'brand',
+                'helper' => 'Selecciona '.Str::lower($variantAttributeName).' para definir precio y disponibilidad.',
+            ]
+            : ($commercial['availability'] ?? [
+                'key'    => 'check',
+                'label'  => 'Disponibilidad a confirmar',
+                'badge'  => 'warning',
+                'helper' => 'Consulta disponibilidad en tiempo real.',
+            ]);
+
+        $stockLabel = $hasVariants
+            ? 'Selecciona '.Str::lower($variantAttributeName)
+            : (is_null($stock) ? 'A confirmar' : $formatQty($stock).' '.$unitLabelLower);
+
+        $documents         = $product->documents;
+        $productVideo      = $product->videos->first();
+        $secondaryDocuments = $documents->filter(
+            fn ($doc) => $doc->type !== DocumentType::TechSheet->value
+                && (! $techSheet || $doc->id !== $techSheet->id)
+        );
+
+        $documentTypeLabels = [
+            'tech_sheet'  => 'Ficha técnica',
+            'catalog'     => 'Catálogo',
+            'certificate' => 'Certificado',
+            'manual'      => 'Manual',
+        ];
+
+        $specRows = [
+            ['label' => 'SKU',       'value' => $product->sku],
+            ['label' => 'Marca',     'value' => $brand],
+            ['label' => 'Categoría', 'value' => $categoryName],
+        ];
+        if ($packaging) {
+            $specRows[] = ['label' => 'Empaque',       'value' => $packaging];
+        }
+        if ($presentation) {
+            $specRows[] = ['label' => 'Presentación',  'value' => $presentation];
+        }
+
+        $sections = [
+            ['id' => 'descripcion',     'label' => 'Descripción'],
+            ['id' => 'especificaciones', 'label' => 'Especificaciones'],
+            ['id' => 'documentos',       'label' => 'Documentos'],
+            ['id' => 'relacionados',     'label' => 'Relacionados'],
+            ['id' => 'alternativas',     'label' => 'Alternativas'],
+        ];
+
+        return compact(
+            'formatQty', 'mainPhoto', 'galleryPhotos', 'categoryName', 'brand',
+            'unitLabel', 'unitLabelLower', 'packaging', 'presentation',
+            'leadTimeLabel', 'etaLabel', 'minMultiple', 'stepValue',
+            'discountPercent', 'promoLabel', 'activeVariants', 'hasVariants',
+            'variantAttributeName', 'minVariantPrice', 'maxVariantPrice',
+            'price', 'isRangePrice', 'formattedPrice', 'stock', 'canBuy',
+            'isLowStock', 'availability', 'stockLabel', 'documents',
+            'productVideo', 'secondaryDocuments', 'documentTypeLabels',
+            'specRows', 'sections',
+        );
     }
 
     /**

@@ -25,15 +25,13 @@ class CreateOrderAction
             ->unique()
             ->all();
 
-        $products = Product::query()
+        $products = Product::active()
             ->whereIn('id', $productIds)
-            ->where('is_active', true)
-            ->withCount(['variants as active_variants_count' => fn ($query) => $query->where('is_active', true)])
+            ->withCount(['variants as active_variants_count' => fn ($query) => $query->active()])
             ->get()
             ->keyBy('id');
-        $variants = ProductVariant::query()
+        $variants = ProductVariant::active()
             ->whereIn('id', $variantIds)
-            ->where('is_active', true)
             ->with('attributeValue.attribute')
             ->get()
             ->keyBy('id');
@@ -42,24 +40,28 @@ class CreateOrderAction
             throw new DomainException('No hay productos válidos en el pedido.');
         }
 
-        $order = DB::transaction(function () use ($user, $data, $products, $variants) {
-            $order = Order::create([
-                'distributor_id' => $user?->distributor_id,
-                'user_id' => $user?->id,
-                'oc_number' => 'CTC-TMP-'.Str::upper(Str::random(8)),
-                'contact_name' => $data->contactName,
-                'contact_email' => $data->contactEmail,
-                'company_name' => $data->companyName,
-                'company_nit' => $data->companyNit,
-                'company_address' => $data->companyAddress,
-                'city' => $data->city,
-                'phone' => '',
-                'notes' => $data->notes,
-                'status' => OrderStatus::Submitted,
-                'total_amount' => 0,
-            ]);
+        // Pre-calculate total outside the transaction to catch empty-cart errors early.
+        $preTotal = $this->calculateTotal($data->items, $products, $variants);
 
-            $total = 0;
+        if ($preTotal <= 0) {
+            throw new DomainException('El carrito no puede generar una orden vacía.');
+        }
+
+        $order = DB::transaction(function () use ($user, $data, $products, $variants, $preTotal) {
+            $order = Order::create([
+                'distributor_id'  => $user?->distributor_id,
+                'user_id'         => $user?->id,
+                'oc_number'       => Order::OC_PREFIX.'TMP-'.Str::upper(Str::random(8)),
+                'contact_name'    => $data->contactName,
+                'contact_email'   => $data->contactEmail,
+                'company_name'    => $data->companyName,
+                'company_nit'     => $data->companyNit,
+                'company_address' => $data->companyAddress,
+                'city'            => $data->city,
+                'notes'           => $data->notes,
+                'status'          => OrderStatus::Submitted,
+                'total_amount'    => 0,
+            ]);
 
             foreach ($data->items as $item) {
                 $product = $products->get((int) $item['product_id']);
@@ -69,7 +71,7 @@ class CreateOrderAction
                 }
 
                 $variantId = isset($item['variant_id']) ? (int) $item['variant_id'] : null;
-                $variant = null;
+                $variant   = null;
                 $priceEach = (float) $product->price;
 
                 if ($variantId > 0) {
@@ -85,31 +87,26 @@ class CreateOrderAction
                     continue;
                 }
 
-                $qty = max(1, (int) $item['qty']);
+                $qty      = max(1, (int) $item['qty']);
                 $subtotal = $qty * $priceEach;
-                $total += $subtotal;
 
                 $order->items()->create([
-                    'product_id' => $product->id,
-                    'product_variant_id' => $variant?->id,
-                    'product_name_snapshot' => $product->name,
-                    'sku_snapshot' => $product->sku,
+                    'product_id'                 => $product->id,
+                    'product_variant_id'         => $variant?->id,
+                    'product_name_snapshot'      => $product->name,
+                    'sku_snapshot'               => $product->sku,
                     'variant_attribute_snapshot' => $variant?->attributeValue?->attribute?->name,
-                    'variant_value_snapshot' => $variant?->attributeValue?->value,
-                    'qty' => $qty,
-                    'unit_label' => $item['unit_label'] ?? 'unidades',
-                    'price_each' => $priceEach,
-                    'subtotal' => $subtotal,
+                    'variant_value_snapshot'     => $variant?->attributeValue?->value,
+                    'qty'                        => $qty,
+                    'unit_label'                 => $item['unit_label'] ?? 'unidades',
+                    'price_each'                 => $priceEach,
+                    'subtotal'                   => $subtotal,
                 ]);
             }
 
-            if ($total <= 0) {
-                throw new DomainException('El carrito no puede generar una orden vacía.');
-            }
-
             $order->update([
-                'total_amount' => $total,
-                'oc_number' => sprintf('CTC-%06d', $order->id),
+                'total_amount' => $preTotal,
+                'oc_number'    => sprintf(Order::OC_PREFIX.'%0'.Order::OC_PADDING.'d', $order->id),
             ]);
 
             return $order->refresh();
@@ -118,5 +115,38 @@ class CreateOrderAction
         event(new OrderPlaced($order));
 
         return $order;
+    }
+
+    private function calculateTotal(
+        array $items,
+        \Illuminate\Support\Collection $products,
+        \Illuminate\Support\Collection $variants,
+    ): float {
+        $total = 0.0;
+
+        foreach ($items as $item) {
+            $product = $products->get((int) $item['product_id']);
+
+            if (! $product) {
+                continue;
+            }
+
+            $variantId = isset($item['variant_id']) ? (int) $item['variant_id'] : null;
+            $priceEach = (float) $product->price;
+
+            if ($variantId > 0) {
+                $variant = $variants->get($variantId);
+                if (! $variant || (int) $variant->product_id !== (int) $product->id) {
+                    continue;
+                }
+                $priceEach = (float) $variant->price;
+            } elseif ((int) ($product->active_variants_count ?? 0) > 0) {
+                continue;
+            }
+
+            $total += max(1, (int) $item['qty']) * $priceEach;
+        }
+
+        return $total;
     }
 }

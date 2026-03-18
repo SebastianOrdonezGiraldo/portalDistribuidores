@@ -59,6 +59,10 @@
         @apply btn border-red-200 bg-red-600 text-white hover:bg-red-700;
     }
 
+    .btn-success {
+        @apply btn border-emerald-600 bg-emerald-600 text-white shadow-soft hover:bg-emerald-700;
+    }
+
     .form-label {
         @apply mb-1.5 block text-sm font-semibold text-slate-700;
     }
@@ -70,7 +74,7 @@
     .form-input,
     .form-select,
     .form-textarea {
-        @apply w-full rounded-xl border-slate-300 bg-white text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand-primary focus:ring-brand-primary;
+        @apply w-full rounded-xl border-slate-300 bg-white text-sm text-slate-900 shadow-sm placeholder:text-slate-400 transition focus:border-brand-primary focus:ring-brand-primary;
     }
 
     .form-checkbox {
@@ -94,7 +98,7 @@
     }
 
     .card-title {
-        @apply text-base font-semibold text-slate-900;
+        @apply text-[15px] font-semibold leading-snug text-slate-900;
     }
 
     .badge {
@@ -122,11 +126,11 @@
     }
 
     .status-meter {
-        @apply h-1.5 w-full overflow-hidden rounded-full bg-slate-200;
+        @apply h-2 w-full overflow-hidden rounded-full bg-slate-200;
     }
 
     .status-meter-fill {
-        @apply h-full rounded-full transition-all duration-300;
+        @apply h-full rounded-full transition-all duration-500;
     }
 
     .table-wrap {
@@ -195,6 +199,17 @@
     .toast {
         @apply rounded-xl border p-3 text-sm shadow-panel;
     }
+
+    .sidebar-section-label {
+        @apply px-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400;
+    }
+
+    .kpi-accent-brand  { border-left: 3px solid rgb(54 177 187); }
+    .kpi-accent-success{ border-left: 3px solid rgb(16 185 129); }
+    .kpi-accent-warning{ border-left: 3px solid rgb(245 158 11); }
+    .kpi-accent-danger { border-left: 3px solid rgb(239 68 68);  }
+    .kpi-accent-info   { border-left: 3px solid rgb(14 165 233); }
+    .kpi-accent-neutral{ border-left: 3px solid rgb(148 163 184); }
 
     .status-pending {
         @apply border-amber-300 bg-amber-50 text-amber-700;
@@ -327,11 +342,38 @@
         }
     }
 
+    @keyframes toast-slide-in {
+        from {
+            opacity: 0;
+            transform: translateX(14px) scale(0.97);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+        }
+    }
+
+    .animate-toast-in {
+        animation: toast-slide-in 220ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+    }
+
+    @keyframes btn-spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .btn-spinning {
+        animation: btn-spin 650ms linear infinite;
+    }
+
     .text-balance {
         text-wrap: balance;
     }
 
     .skeleton {
         @apply animate-pulse rounded-lg bg-slate-200/70;
+    }
+
+    .tabular-nums {
+        font-variant-numeric: tabular-nums;
     }
 }

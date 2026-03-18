@@ -69,12 +69,6 @@ class ProductVariantSyncService
             ->whereNotIn('id', $keptVariantIds)
             ->delete();
 
-        if ($keptVariantIds !== []) {
-            $product->variants()
-                ->whereIn('id', $keptVariantIds)
-                ->update(['is_active' => true]);
-        }
-
         $minPrice = (float) ($rows->min('price') ?? 0);
         $stockValues = $rows->pluck('stock');
         $hasAnyStock = $stockValues->contains(fn ($stock) => $stock !== null);

@@ -3,6 +3,7 @@
 namespace App\Modules\Categories\Actions;
 
 use App\Modules\Categories\Models\Category;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class CreateCategoryAction
@@ -11,7 +12,11 @@ class CreateCategoryAction
     {
         $payload['slug'] = $payload['slug'] ?? Str::slug($payload['name']);
 
-        return Category::create($payload);
+        $category = Category::create($payload);
+
+        Cache::forget('footer_top_categories');
+
+        return $category;
     }
 }
 

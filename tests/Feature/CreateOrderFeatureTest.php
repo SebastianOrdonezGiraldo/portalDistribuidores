@@ -6,10 +6,13 @@ use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Categories\Models\Category;
+use App\Modules\Orders\Mail\OrderCreatedCustomerQuotationMail;
+use App\Modules\Orders\Mail\OrderCreatedNotificationMail;
+use App\Modules\Orders\Models\Order;
 use App\Modules\Shared\Enums\UserRole;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class CreateOrderFeatureTest extends TestCase
@@ -18,7 +21,8 @@ class CreateOrderFeatureTest extends TestCase
 
     public function test_distributor_can_create_order_from_cart(): void
     {
-        Queue::fake();
+        Mail::fake();
+        config(['mail.order_notification_to' => 'asesora@test.com']);
         $this->withoutMiddleware(ValidateCsrfToken::class);
 
         $distributor = Distributor::create(['name' => 'Distribuidor A', 'status' => 'active']);
@@ -58,7 +62,8 @@ class CreateOrderFeatureTest extends TestCase
             'notes' => 'nota',
         ]);
 
-        $response->assertRedirect();
+        $order = Order::query()->firstOrFail();
+        $response->assertRedirect(route('orders.submitted', ['order' => $order]));
         $this->assertDatabaseCount('orders', 1);
         $this->assertDatabaseCount('order_items', 1);
         $this->assertDatabaseHas('orders', [
@@ -69,5 +74,7 @@ class CreateOrderFeatureTest extends TestCase
             'contact_email' => 'comprador@test.com',
             'city' => 'Bogotá',
         ]);
+        Mail::assertSent(OrderCreatedNotificationMail::class);
+        Mail::assertSent(OrderCreatedCustomerQuotationMail::class);
     }
 }

@@ -11,6 +11,8 @@ use Throwable;
 
 class ProductBulkImportService
 {
+    private const MAX_ERRORS = 60;
+
     /**
      * @var array<string, bool>
      */
@@ -41,21 +43,6 @@ class ProductBulkImportService
         'price',
     ];
 
-    public function __construct()
-    {
-        $categories = Category::query()
-            ->orderBy('id')
-            ->get(['id', 'slug', 'name']);
-
-        foreach ($categories as $category) {
-            $id = (int) $category->id;
-
-            $this->categoryIds[(string) $id] = true;
-            $this->rememberCategoryLookup($this->categoryIdBySlug, $this->normalizeLookupKey((string) $category->slug), $id);
-            $this->rememberCategoryLookup($this->categoryIdByName, $this->normalizeLookupKey((string) $category->name), $id);
-        }
-    }
-
     /**
      * @return array{
      *   ok:bool,
@@ -69,6 +56,8 @@ class ProductBulkImportService
      */
     public function importFromCsv(string $absolutePath, string $defaultAction = 'upsert'): array
     {
+        $this->boot();
+
         $report = [
             'ok' => true,
             'total_rows' => 0,
@@ -165,10 +154,7 @@ class ProductBulkImportService
                         continue;
                     }
 
-                    $created = Product::query()->create($attributes);
-                    $this->productCacheBySku[$sku] = $created;
-                    $report['created']++;
-                    $report['processed_rows']++;
+                    $this->persistCreate($sku, $attributes, $report);
                     continue;
                 }
 
@@ -179,25 +165,16 @@ class ProductBulkImportService
                         continue;
                     }
 
-                    $existing->update($attributes);
-                    $this->productCacheBySku[$sku] = $existing->refresh();
-                    $report['updated']++;
-                    $report['processed_rows']++;
+                    $this->persistUpdate($existing, $attributes, $report);
                     continue;
                 }
 
                 if ($existing) {
-                    $existing->update($attributes);
-                    $this->productCacheBySku[$sku] = $existing->refresh();
-                    $report['updated']++;
-                    $report['processed_rows']++;
+                    $this->persistUpdate($existing, $attributes, $report);
                     continue;
                 }
 
-                $created = Product::query()->create($attributes);
-                $this->productCacheBySku[$sku] = $created;
-                $report['created']++;
-                $report['processed_rows']++;
+                $this->persistCreate($sku, $attributes, $report);
             } catch (Throwable) {
                 $report['ok'] = false;
                 $this->appendError($report, $lineNumber, $sku, 'Error inesperado al procesar la fila.');
@@ -451,7 +428,7 @@ class ProductBulkImportService
      */
     private function appendError(array &$report, int $row, string $sku, string $message): void
     {
-        if (count($report['errors']) >= 60) {
+        if (count($report['errors']) >= self::MAX_ERRORS) {
             return;
         }
 
@@ -499,5 +476,48 @@ class ProductBulkImportService
             ->squish()
             ->lower()
             ->toString();
+    }
+
+    private function boot(): void
+    {
+        if ($this->categoryIds !== []) {
+            return;
+        }
+
+        $categories = Category::query()
+            ->orderBy('id')
+            ->get(['id', 'slug', 'name']);
+
+        foreach ($categories as $category) {
+            $id = (int) $category->id;
+
+            $this->categoryIds[(string) $id] = true;
+            $this->rememberCategoryLookup($this->categoryIdBySlug, $this->normalizeLookupKey((string) $category->slug), $id);
+            $this->rememberCategoryLookup($this->categoryIdByName, $this->normalizeLookupKey((string) $category->name), $id);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $attributes
+     * @param array<string, mixed> $report
+     */
+    private function persistCreate(string $sku, array $attributes, array &$report): void
+    {
+        $created = Product::query()->create($attributes);
+        $this->productCacheBySku[$sku] = $created;
+        $report['created']++;
+        $report['processed_rows']++;
+    }
+
+    /**
+     * @param array<string, mixed> $attributes
+     * @param array<string, mixed> $report
+     */
+    private function persistUpdate(Product $existing, array $attributes, array &$report): void
+    {
+        $existing->update($attributes);
+        $this->productCacheBySku[$existing->sku] = $existing->refresh();
+        $report['updated']++;
+        $report['processed_rows']++;
     }
 }

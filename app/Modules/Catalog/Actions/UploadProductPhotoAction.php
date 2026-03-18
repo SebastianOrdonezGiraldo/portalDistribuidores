@@ -8,25 +8,27 @@ use Illuminate\Http\UploadedFile;
 
 class UploadProductPhotoAction
 {
+    public function __construct(
+        private readonly SetPrimaryPhotoAction $setPrimaryPhotoAction,
+    ) {}
+
     public function execute(Product $product, UploadedFile $file, int $sortOrder = 0): ProductPhoto
     {
+        $isFirst = $product->photos()->doesntExist();
+
         $path = $file->store('products/photos', 'public');
 
         $photo = $product->photos()->create([
-            'path' => $path,
+            'path'       => $path,
             'sort_order' => $sortOrder,
-            'is_primary' => $product->photos()->doesntExist(),
+            'is_primary' => $isFirst,
         ]);
 
-        if ($photo->is_primary) {
-            $this->setOnlyPrimary($product, $photo);
+        if ($isFirst) {
+            // Delegate to the canonical action to enforce the "single primary" rule.
+            $this->setPrimaryPhotoAction->execute($product, $photo);
         }
 
-        return $photo;
-    }
-
-    private function setOnlyPrimary(Product $product, ProductPhoto $photo): void
-    {
-        $product->photos()->where('id', '!=', $photo->id)->update(['is_primary' => false]);
+        return $photo->refresh();
     }
 }

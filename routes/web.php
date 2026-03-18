@@ -33,21 +33,19 @@ Route::middleware('auth')->group(function () {
 
 Route::get('/catalog', CatalogController::class)->name('catalog.index');
 Route::get('/products/{product}', [ProductController::class, 'show'])->name('products.show');
+Route::get('/documents/tech-sheet/{productDocument}', TechSheetDownloadController::class)
+    ->name('documents.tech-sheet.download');
 
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
 Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
-Route::put('/cart', [CartController::class, 'update'])->name('cart.update');
+Route::patch('/cart', [CartController::class, 'update'])->name('cart.update');
 Route::delete('/cart/{lineKey}', [CartController::class, 'destroy'])->name('cart.destroy');
 
 Route::get('/checkout', CheckoutController::class)->name('checkout.show');
 Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
+Route::get('/orders/{order}/submitted', [OrderController::class, 'submitted'])->name('orders.submitted');
 Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
 Route::get('/orders/{order}/pdf', [OrderController::class, 'downloadPdf'])->name('orders.pdf');
-
-Route::middleware(['auth', 'verified', 'role:distributor'])->group(function () {
-    Route::get('/documents/tech-sheet/{productDocument}', TechSheetDownloadController::class)
-        ->name('documents.tech-sheet.download');
-});
 
 require __DIR__.'/admin.php';
 require __DIR__.'/company.php';

@@ -119,23 +119,18 @@ class CartService
             return $this->resolvedItems;
         }
 
-        $products = Product::query()
+        $products = Product::active()
             ->whereIn('id', $ids)
-            ->where('is_active', true)
             ->with([
                 'primaryPhoto',
                 'variants' => fn ($query) => $query
-                    ->where('is_active', true)
+                    ->active()
                     ->with('attributeValue.attribute'),
             ])
             ->get()
             ->keyBy('id');
-        $variants = ProductVariant::query()
-            ->whereIn('id', $variantIds)
-            ->where('is_active', true)
-            ->with('attributeValue.attribute')
-            ->get()
-            ->keyBy('id');
+
+        $variants = $products->flatMap->variants->keyBy('id');
 
         $this->resolvedItems = collect($raw)
             ->map(function (array $item, string $lineKey) use ($products, $variants) {

@@ -26,14 +26,6 @@
     </style>
 </head>
 <body>
-    @php
-        $totalFinal = 0.0;
-        $logoPath = public_path('images/import-corporal-logo.png');
-        $logoBase64 = null;
-        if (is_file($logoPath)) {
-            $logoBase64 = 'data:image/png;base64,'.base64_encode((string) file_get_contents($logoPath));
-        }
-    @endphp
 
     <div class="header">
         <table class="header-table">
@@ -87,26 +79,19 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($order->items as $item)
-                @php
-                    $valorUnit = (float) $item->price_each;
-                    $valorBase = (float) $item->subtotal;
-                    $valorIva = round($valorBase * 0.19, 2);
-                    $valorTotal = $valorBase + $valorIva;
-                    $totalFinal += $valorTotal;
-                @endphp
+            @foreach($lineItems as $line)
                 <tr>
-                    <td>{{ $item->sku_snapshot }}</td>
+                    <td>{{ $line['item']->sku_snapshot }}</td>
                     <td>
-                        {{ $item->product_name_snapshot }}
-                        @if($item->variant_value_snapshot)
-                            ({{ $item->variant_attribute_snapshot ?? 'Variante' }}: {{ $item->variant_value_snapshot }})
+                        {{ $line['item']->product_name_snapshot }}
+                        @if($line['item']->variant_value_snapshot)
+                            ({{ $line['item']->variant_attribute_snapshot ?? 'Variante' }}: {{ $line['item']->variant_value_snapshot }})
                         @endif
                     </td>
-                    <td class="num">{{ (int) $item->qty }}</td>
-                    <td class="num">${{ number_format($valorUnit, 2, '.', ',') }}</td>
-                    <td class="num">${{ number_format($valorIva, 2, '.', ',') }}</td>
-                    <td class="num">${{ number_format($valorTotal, 2, '.', ',') }}</td>
+                    <td class="num">{{ (int) $line['item']->qty }}</td>
+                    <td class="num">${{ number_format($line['valorUnit'], 2, '.', ',') }}</td>
+                    <td class="num">${{ number_format($line['valorIva'], 2, '.', ',') }}</td>
+                    <td class="num">${{ number_format($line['valorTotal'], 2, '.', ',') }}</td>
                 </tr>
             @endforeach
         </tbody>

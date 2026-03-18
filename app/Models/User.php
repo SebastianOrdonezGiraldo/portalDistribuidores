@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Shared\Enums\CompanyRole;
 use App\Modules\Shared\Enums\UserRole;
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;

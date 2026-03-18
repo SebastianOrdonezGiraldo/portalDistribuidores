@@ -18,6 +18,39 @@ class TechSheetDownloadLimitTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_guest_can_download_active_tech_sheet(): void
+    {
+        Storage::fake('public');
+
+        $category = Category::create([
+            'name' => 'Proteccion',
+            'slug' => 'proteccion',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $product = Product::create([
+            'name' => 'Producto A',
+            'sku' => 'TS-001',
+            'description' => 'desc',
+            'category_id' => $category->id,
+            'price' => 1000,
+            'is_active' => true,
+        ]);
+
+        Storage::disk('public')->put('products/documents/a.pdf', 'PDF');
+        $document = ProductDocument::create([
+            'product_id' => $product->id,
+            'type' => 'tech_sheet',
+            'path' => 'products/documents/a.pdf',
+            'filename' => 'a.pdf',
+        ]);
+
+        $this->get(route('documents.tech-sheet.download', $document))
+            ->assertOk()
+            ->assertDownload('a.pdf');
+    }
+
     public function test_distributor_cannot_download_more_than_three_times_per_month(): void
     {
         Storage::fake('public');
@@ -69,4 +102,3 @@ class TechSheetDownloadLimitTest extends TestCase
         $response->assertSessionHasErrors();
     }
 }
-

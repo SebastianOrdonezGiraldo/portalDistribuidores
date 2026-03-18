@@ -4,6 +4,7 @@ namespace App\Modules\Catalog\Actions;
 
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductDocument;
+use App\Modules\Shared\Enums\DocumentType;
 use Illuminate\Http\UploadedFile;
 
 class AttachTechSheetAction
@@ -13,7 +14,7 @@ class AttachTechSheetAction
         $path = $file->store('products/documents', 'public');
 
         return $product->documents()->create([
-            'type' => 'tech_sheet',
+            'type' => DocumentType::TechSheet,
             'path' => $path,
             'filename' => $file->getClientOriginalName(),
         ]);

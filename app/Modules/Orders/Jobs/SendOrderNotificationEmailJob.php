@@ -5,6 +5,7 @@ namespace App\Modules\Orders\Jobs;
 use App\Modules\Orders\Mail\OrderCreatedCustomerQuotationMail;
 use App\Modules\Orders\Mail\OrderCreatedNotificationMail;
 use App\Modules\Orders\Models\Order;
+use App\Modules\Orders\Services\OrderPdfGenerator;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -13,7 +14,6 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
-use RuntimeException;
 
 class SendOrderNotificationEmailJob implements ShouldQueue
 {
@@ -32,11 +32,9 @@ class SendOrderNotificationEmailJob implements ShouldQueue
         return [30, 120, 300, 600];
     }
 
-    public function __construct(public readonly int $orderId)
-    {
-    }
+    public function __construct(public readonly int $orderId) {}
 
-    public function handle(): void
+    public function handle(OrderPdfGenerator $pdfGenerator): void
     {
         $order = Order::query()->with(['items', 'distributor', 'user'])->find($this->orderId);
 
@@ -45,25 +43,53 @@ class SendOrderNotificationEmailJob implements ShouldQueue
         }
 
         if (! $order->pdf_path || ! Storage::disk('public')->exists($order->pdf_path)) {
-            GenerateOrderPdfJob::dispatch($order->id);
-            $this->release(20);
+            $path = $pdfGenerator->generate($order);
+
+            if ($order->pdf_path !== $path) {
+                $order->update(['pdf_path' => $path]);
+                $order = $order->fresh(['items', 'distributor', 'user']) ?? $order;
+            }
+        }
+
+        if (! $order->pdf_path || ! Storage::disk('public')->exists($order->pdf_path)) {
+            Log::error('order.email.skipped.pdf_missing', [
+                'order_id' => $order->id,
+                'oc_number' => $order->oc_number,
+                'pdf_path' => $order->pdf_path,
+            ]);
 
             return;
         }
 
         $pdfContents = (string) Storage::disk('public')->get($order->pdf_path);
 
+        // Send both emails independently so that a failure in one does not prevent the other.
+        $internalFailed = null;
         try {
             $this->sendInternalNotification($order, $pdfContents);
-            $this->sendCustomerQuotation($order, $pdfContents);
         } catch (\Throwable $exception) {
-            Log::error('order.email.failed', [
+            $internalFailed = $exception;
+            Log::error('order.email.internal.failed', [
                 'order_id' => $order->id,
                 'oc_number' => $order->oc_number,
-                'error' => $exception->getMessage(),
+                'error'     => $exception->getMessage(),
+            ]);
+        }
+
+        try {
+            $this->sendCustomerQuotation($order, $pdfContents);
+        } catch (\Throwable $exception) {
+            Log::error('order.email.customer.failed', [
+                'order_id' => $order->id,
+                'oc_number' => $order->oc_number,
+                'error'     => $exception->getMessage(),
             ]);
 
-            throw new RuntimeException($exception->getMessage(), previous: $exception);
+            throw $exception;
+        }
+
+        if ($internalFailed !== null) {
+            throw $internalFailed;
         }
 
         Log::info('order.email.processed', [
@@ -90,8 +116,29 @@ class SendOrderNotificationEmailJob implements ShouldQueue
         Log::info('order.email.internal.sent', [
             'order_id' => $order->id,
             'oc_number' => $order->oc_number,
-            'recipient' => $recipient,
+            'recipient' => $this->maskEmail($recipient),
         ]);
+    }
+
+    /**
+     * Anonimiza un email para logs: "juan.perez@empresa.com" → "ju***@emp***.com"
+     * Cumple con Ley 1581 de Habeas Data: no expone datos personales en logs de infraestructura.
+     */
+    private function maskEmail(string $email): string
+    {
+        if (! str_contains($email, '@')) {
+            return '***';
+        }
+
+        [$local, $domain] = explode('@', $email, 2);
+
+        $maskedLocal  = substr($local, 0, min(2, strlen($local))) . '***';
+
+        $domainParts  = explode('.', $domain, 2);
+        $maskedDomain = substr($domainParts[0], 0, min(3, strlen($domainParts[0]))) . '***'
+            . (isset($domainParts[1]) ? '.' . $domainParts[1] : '');
+
+        return $maskedLocal . '@' . $maskedDomain;
     }
 
     private function sendCustomerQuotation(Order $order, string $pdfContents): void
@@ -102,7 +149,7 @@ class SendOrderNotificationEmailJob implements ShouldQueue
             Log::warning('order.email.customer.skipped.invalid_recipient', [
                 'order_id' => $order->id,
                 'oc_number' => $order->oc_number,
-                'contact_email' => $order->contact_email,
+                'contact_email' => $this->maskEmail((string) $order->contact_email),
             ]);
 
             return;
@@ -113,7 +160,7 @@ class SendOrderNotificationEmailJob implements ShouldQueue
         Log::info('order.email.customer.sent', [
             'order_id' => $order->id,
             'oc_number' => $order->oc_number,
-            'recipient' => $customerRecipient,
+            'recipient' => $this->maskEmail($customerRecipient),
         ]);
     }
 }

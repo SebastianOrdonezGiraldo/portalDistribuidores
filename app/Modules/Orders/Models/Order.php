@@ -14,6 +14,9 @@ class Order extends Model
 {
     use HasFactory;
 
+    public const OC_PREFIX  = 'CTC-';
+    public const OC_PADDING = 6;
+
     protected $fillable = [
         'distributor_id',
         'user_id',

@@ -157,17 +157,6 @@
                     document.body.appendChild(downloadFrame);
                 }
 
-                if (@json(request()->boolean('open_whatsapp'))) {
-                    const whatsappNumber = '573117479607';
-                    const message = @json('Hola, acabo de crear la una orden '.$order->oc_number.'.');
-                    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
-                    const popup = window.open(whatsappUrl, '_blank', 'noopener');
-
-                    if (!popup) {
-                        window.location.href = whatsappUrl;
-                    }
-                }
-
                 const cleanUrl = new URL(window.location.href);
                 cleanUrl.searchParams.delete('download_pdf');
                 cleanUrl.searchParams.delete('open_whatsapp');

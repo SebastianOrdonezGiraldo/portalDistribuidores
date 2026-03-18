@@ -8,25 +8,19 @@ use App\Modules\Catalog\Actions\AttachTechSheetAction;
 use App\Modules\Catalog\Actions\CreateProductAction;
 use App\Modules\Catalog\Actions\UpdateProductAction;
 use App\Modules\Catalog\Actions\UploadProductPhotoAction;
-use App\Modules\Catalog\Http\Requests\ImportProductsRequest;
 use App\Modules\Catalog\Http\Requests\StoreProductRequest;
 use App\Modules\Catalog\Http\Requests\UpdateProductRequest;
 use App\Modules\Catalog\Models\ProductAttribute;
-use App\Modules\Catalog\Models\ProductDocument;
-use App\Modules\Catalog\Models\ProductPhoto;
 use App\Modules\Catalog\Models\Product;
-use App\Modules\Catalog\Models\ProductVideo;
-use App\Modules\Catalog\Services\ProductBulkImportService;
 use App\Modules\Catalog\Services\ProductVariantSyncService;
 use App\Modules\Categories\Models\Category;
+use App\Modules\Shared\Enums\DocumentType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProductAdminController extends Controller
 {
@@ -76,7 +70,7 @@ class ProductAdminController extends Controller
             ->when(! empty($filters['status']), fn ($query) => $query->where('is_active', $filters['status'] === 'active'))
             ->when($filters['media'] === 'with_photo', fn ($query) => $query->whereHas('photos'))
             ->when($filters['media'] === 'without_photo', fn ($query) => $query->whereDoesntHave('photos'))
-            ->when($filters['media'] === 'with_sheet', fn ($query) => $query->whereHas('documents', fn ($documents) => $documents->where('type', 'tech_sheet')))
+            ->when($filters['media'] === 'with_sheet', fn ($query) => $query->whereHas('documents', fn ($documents) => $documents->where('type', DocumentType::TechSheet)))
             ->when($filters['media'] === 'with_video', fn ($query) => $query->whereHas('videos'))
             ->when($filters['stock'] === 'in_stock', fn ($query) => $query->whereNotNull('stock')->where('stock', '>', 0))
             ->when($filters['stock'] === 'no_stock', fn ($query) => $query->whereNotNull('stock')->where('stock', '<=', 0))
@@ -98,7 +92,7 @@ class ProductAdminController extends Controller
 
         $metrics = [
             'total_products' => (clone $filteredQuery)->count(),
-            'active_products' => (clone $filteredQuery)->where('is_active', true)->count(),
+            'active_products' => (clone $filteredQuery)->active()->count(),
             'inactive_products' => (clone $filteredQuery)->where('is_active', false)->count(),
             'with_photo' => (clone $filteredQuery)->whereHas('photos')->count(),
             'without_stock' => (clone $filteredQuery)->where(function ($query) {
@@ -122,67 +116,20 @@ class ProductAdminController extends Controller
             'stockOptions' => $stockOptions,
             'sortOptions' => $sortOptions,
             'perPageOptions' => $perPageOptions,
-            'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'categories' => Category::active()->orderBy('name')->get(['id', 'name']),
             'metrics' => $metrics,
             'activeFiltersCount' => $activeFiltersCount,
         ]);
-    }
-
-    public function downloadImportTemplate(): StreamedResponse
-    {
-        $this->authorize('create', Product::class);
-
-        return response()->streamDownload(function (): void {
-            $output = fopen('php://output', 'wb');
-
-            if (! is_resource($output)) {
-                return;
-            }
-
-            // BOM UTF-8 to improve Excel compatibility in Windows.
-            fwrite($output, "\xEF\xBB\xBF");
-            fputcsv($output, ['action', 'sku', 'name', 'brand', 'description', 'category_id', 'price', 'stock', 'is_active'], ';');
-            fclose($output);
-        }, 'plantilla_import_productos.csv', [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
-    }
-
-    public function import(
-        ImportProductsRequest $request,
-        ProductBulkImportService $bulkImportService,
-    ): RedirectResponse {
-        $this->authorize('create', Product::class);
-
-        $report = $bulkImportService->importFromCsv(
-            $request->file('file')->getRealPath(),
-            (string) $request->input('default_action', 'upsert'),
-        );
-
-        $message = sprintf(
-            'Importación finalizada. Filas: %d, creados: %d, actualizados: %d, omitidos: %d, errores: %d.',
-            (int) $report['total_rows'],
-            (int) $report['created'],
-            (int) $report['updated'],
-            (int) $report['skipped'],
-            count($report['errors']),
-        );
-
-        return redirect()
-            ->route('admin.products.index')
-            ->with('status', $message)
-            ->with('importReport', $report);
     }
 
     public function create(): View
     {
         $this->authorize('create', Product::class);
 
-        return view('admin.products.form', [
-            'product' => new Product(),
-            'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(),
-            'variantAttributes' => ProductAttribute::query()->with('values')->orderBy('name')->get(),
-        ]);
+        return view('admin.products.form', array_merge(
+            ['product' => new Product()],
+            $this->formViewData(),
+        ));
     }
 
     public function store(
@@ -214,11 +161,10 @@ class ProductAdminController extends Controller
     {
         $this->authorize('update', $product);
 
-        return view('admin.products.form', [
-            'product' => $product->load('photos', 'videos', 'documents', 'category', 'variantAttribute', 'variants.attributeValue'),
-            'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(),
-            'variantAttributes' => ProductAttribute::query()->with('values')->orderBy('name')->get(),
-        ]);
+        return view('admin.products.form', array_merge(
+            ['product' => $product->load('photos', 'videos', 'documents', 'category', 'variantAttribute', 'variants.attributeValue')],
+            $this->formViewData(),
+        ));
     }
 
     public function update(
@@ -289,63 +235,6 @@ class ProductAdminController extends Controller
         return back()->with('status', $isActive ? 'Producto activado.' : 'Producto desactivado.');
     }
 
-    public function destroyPhoto(Product $product, ProductPhoto $photo): RedirectResponse
-    {
-        $this->authorize('update', $product);
-
-        if ($photo->product_id !== $product->id) {
-            abort(404);
-        }
-
-        $path = $photo->path;
-        $wasPrimary = $photo->is_primary;
-        $photo->delete();
-
-        if ($path && Storage::disk('public')->exists($path)) {
-            Storage::disk('public')->delete($path);
-        }
-
-        if ($wasPrimary) {
-            $nextPrimary = $product->photos()->orderBy('sort_order')->orderBy('id')->first();
-            if ($nextPrimary) {
-                $nextPrimary->update(['is_primary' => true]);
-            }
-        }
-
-        return back()->with('status', 'Foto eliminada.');
-    }
-
-    public function destroyDocument(Product $product, ProductDocument $document): RedirectResponse
-    {
-        $this->authorize('update', $product);
-
-        if ($document->product_id !== $product->id) {
-            abort(404);
-        }
-
-        $path = $document->path;
-        $document->delete();
-
-        if ($path && Storage::disk('public')->exists($path)) {
-            Storage::disk('public')->delete($path);
-        }
-
-        return back()->with('status', 'Documento eliminado.');
-    }
-
-    public function destroyVideo(Product $product, ProductVideo $video): RedirectResponse
-    {
-        $this->authorize('update', $product);
-
-        if ($video->product_id !== $product->id) {
-            abort(404);
-        }
-
-        $video->delete();
-
-        return back()->with('status', 'Video eliminado.');
-    }
-
     private function attachMedia(
         StoreProductRequest|UpdateProductRequest $request,
         Product $product,
@@ -353,8 +242,11 @@ class ProductAdminController extends Controller
         AttachTechSheetAction $attachTechSheetAction,
         AddVideoAction $addVideoAction,
     ): void {
-        if ($request->hasFile('photo')) {
-            $uploadPhotoAction->execute($product, $request->file('photo'));
+        if ($request->hasFile('photos')) {
+            $existingSortOrder = $product->photos()->max('sort_order') ?? -1;
+            foreach ($request->file('photos') as $index => $photo) {
+                $uploadPhotoAction->execute($product, $photo, $existingSortOrder + $index + 1);
+            }
         }
 
         if ($request->filled('video_url')) {
@@ -384,6 +276,17 @@ class ProductAdminController extends Controller
         }
 
         return redirect()->route('admin.products.edit', $product)->with('status', $status);
+    }
+
+    /**
+     * @return array{categories: \Illuminate\Database\Eloquent\Collection, variantAttributes: \Illuminate\Database\Eloquent\Collection}
+     */
+    private function formViewData(): array
+    {
+        return [
+            'categories'        => Category::active()->orderBy('name')->get(),
+            'variantAttributes' => ProductAttribute::query()->with('values')->orderBy('name')->get(),
+        ];
     }
 
     private function extractProductPayload(StoreProductRequest|UpdateProductRequest $request): array
