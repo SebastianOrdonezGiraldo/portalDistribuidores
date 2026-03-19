@@ -139,7 +139,7 @@ chown -R www-data:www-data /var/www/portal-distribuidores
 ## 5. Configurar el entorno (.env)
 
 ```bash
-cd /var/www/portal-distribuidores
+cd /var/www/portalDistribuidores
 
 # Copiar la plantilla
 cp .env.example .env
@@ -233,7 +233,7 @@ sudo -u www-data php artisan key:generate
 ## 6. Instalar dependencias y build inicial
 
 ```bash
-cd /var/www/portal-distribuidores
+cd /var/www/portalDistribuidores
 
 # Dependencias PHP (sin paquetes de desarrollo)
 sudo -u www-data composer install --no-dev --optimize-autoloader --no-interaction
@@ -262,7 +262,7 @@ npm run build
 ## 7. Permisos de directorios
 
 ```bash
-cd /var/www/portal-distribuidores
+cd /var/www/portalDistribuidores
 
 # Propietario correcto para todos los archivos
 chown -R www-data:www-data .
@@ -419,7 +419,7 @@ Para actualizaciones del código, usa el script incluido:
 chmod +x /var/www/portal-distribuidores/deploy.sh
 
 # Ejecutar despliegue
-cd /var/www/portal-distribuidores
+cd /var/www/portalDistribuidores
 sudo bash deploy.sh
 ```
 
@@ -539,7 +539,7 @@ Si el proyecto agrega `schedule:run` en el futuro, agregar al cron de `www-data`
 ```bash
 crontab -u www-data -e
 # Agregar:
-* * * * * cd /var/www/portal-distribuidores && php artisan schedule:run >> /dev/null 2>&1
+* * * * * cd /var/www/portalDistribuidores && php artisan schedule:run >> /dev/null 2>&1
 ```
 
 ---

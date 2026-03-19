@@ -461,7 +461,7 @@ sudo -u www-data php artisan key:generate
 ### 5. Instalar dependencias, migraciones y assets
 
 ```bash
-cd /var/www/portal-distribuidores
+cd /var/www/portalDistribuidores
 
 # Dependencias PHP (sin paquetes de desarrollo)
 sudo -u www-data composer install --no-dev --optimize-autoloader --no-interaction
@@ -703,7 +703,7 @@ sudo -u www-data php artisan up
 Para actualizar el código en producción, usar el script incluido en el repositorio:
 
 ```bash
-cd /var/www/portal-distribuidores
+cd /var/www/portalDistribuidores
 sudo bash deploy.sh
 ```
 
@@ -729,7 +729,7 @@ Si el proyecto incorpora comandos programados con `schedule:run`, agregar al cro
 ```bash
 crontab -u www-data -e
 # Agregar:
-* * * * * cd /var/www/portal-distribuidores && php artisan schedule:run >> /dev/null 2>&1
+* * * * * cd /var/www/portalDistribuidores && php artisan schedule:run >> /dev/null 2>&1
 ```
 
 ---
