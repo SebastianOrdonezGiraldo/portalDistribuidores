@@ -77,7 +77,7 @@ class ProductAdminController extends Controller
             ->when($filters['stock'] === 'unknown', fn ($query) => $query->whereNull('stock'));
 
         $products = (clone $filteredQuery)
-            ->with('category', 'primaryPhoto')
+            ->with('category', 'primaryPhoto', 'photos')
             ->withCount(['photos', 'videos', 'documents'])
             ->when($filters['sort'] === 'newest', fn ($query) => $query->latest())
             ->when($filters['sort'] === 'oldest', fn ($query) => $query->oldest())
