@@ -37,7 +37,7 @@ class PostgresSearchEngine implements SearchEngineInterface
         if ($normalizedTerm === '') {
             return $this
                 ->baseQuery($query)
-                ->with(['category', 'primaryPhoto', 'variantAttribute', 'variants.attributeValue'])
+                ->with(['category', 'primaryPhoto', 'photos', 'variantAttribute', 'variants.attributeValue'])
                 ->orderBy('products.name')
                 ->orderBy('products.id')
                 ->paginate($query->perPage, ['products.*'], 'page', $query->page)
@@ -64,7 +64,7 @@ class PostgresSearchEngine implements SearchEngineInterface
             })
             ->select('products.*')
             ->distinct()
-            ->with(['category.synonyms', 'primaryPhoto', 'variantAttribute', 'variants.attributeValue'])
+            ->with(['category.synonyms', 'primaryPhoto', 'photos', 'variantAttribute', 'variants.attributeValue'])
             ->get();
 
         $ranked = $this->rank($candidates, $query);

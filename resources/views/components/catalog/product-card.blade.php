@@ -7,6 +7,8 @@
     $maxPrice = $hasVariants ? (float) ($activeVariants->max('price') ?? 0) : $minPrice;
     $isRangePrice = $maxPrice > $minPrice;
     $detailUrl = route('products.show', $product);
+    $coverPhoto = $product->primaryPhoto
+        ?? ($product->relationLoaded('photos') ? $product->photos->first() : null);
 @endphp
 
 <article class="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-panel">
@@ -17,9 +19,9 @@
             </x-ui.badge>
         </div>
 
-        @if($product->primaryPhoto)
+        @if($coverPhoto)
             <img
-                src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($product->primaryPhoto->path) }}"
+                src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($coverPhoto->path) }}"
                 alt="{{ $product->name }}"
                 loading="lazy"
                 decoding="async"
