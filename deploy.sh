@@ -86,7 +86,6 @@ run_as_app() {
         PATH="$SYSTEM_PATH" \
         bash -lc "cd \"$APP_DIR\" && $1"
 }
-
 # ── Inicio ───────────────────────────────────────────────────────────────────
 echo -e "\n${CYAN}============================================"
 echo "  Portal Distribuidores — Deploy Script"
