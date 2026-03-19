@@ -27,5 +27,5 @@ jobs:
           port: ${{ secrets.VPS_SSH_PORT || '22' }}
           debug: true
           script: |
-            cd /var/www/portal-distribuidores
+            cd /var/www/portalDistribuidores
             sudo bash deploy.sh
