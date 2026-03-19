@@ -69,7 +69,16 @@ resolve_cmd() {
 APP_HOME="$(getent passwd "$APP_USER" | cut -d: -f6 || true)"
 [[ -n "$APP_HOME" ]] || fail "No se pudo determinar el HOME del usuario '$APP_USER'"
 
-run_as_app() {
+run_as_app() 
+set_laravel_writable_permissions() {
+    mkdir -p "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
+
+    chown -R "$APP_USER:$APP_USER" "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
+
+    find "$APP_DIR/storage" "$APP_DIR/bootstrap/cache" -type d -exec chmod 775 {} \;
+    find "$APP_DIR/storage" "$APP_DIR/bootstrap/cache" -type f ! -name ".gitignore" -exec chmod 664 {} \;
+    find "$APP_DIR/storage" "$APP_DIR/bootstrap/cache" -type f -name ".gitignore" -exec chmod 644 {} \;
+}{
     sudo -u "$APP_USER" env \
         HOME="$APP_HOME" \
         XDG_CONFIG_HOME="$APP_HOME/.config" \
@@ -123,9 +132,8 @@ log_ok "HOME listo para $APP_USER"
 # ── Alinear permisos base del proyecto ───────────────────────────────────────
 log_step "Alineando propietario y permisos base del proyecto..."
 
-mkdir -p "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
-chmod -R 775 "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
+set_laravel_writable_permissions
 
 if [[ -f "$APP_DIR/.env" ]]; then
     chown "$APP_USER:$APP_USER" "$APP_DIR/.env"
@@ -262,7 +270,7 @@ fi
 log_step "Ajustando permisos finales..."
 
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
-chmod -R 775 "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
+set_laravel_writable_permissions
 
 if [[ -f "$APP_DIR/.env" ]]; then
     chown "$APP_USER:$APP_USER" "$APP_DIR/.env"
