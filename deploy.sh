@@ -78,7 +78,9 @@ set_laravel_writable_permissions() {
     find "$APP_DIR/storage" "$APP_DIR/bootstrap/cache" -type d -exec chmod 775 {} \;
     find "$APP_DIR/storage" "$APP_DIR/bootstrap/cache" -type f ! -name ".gitignore" -exec chmod 664 {} \;
     find "$APP_DIR/storage" "$APP_DIR/bootstrap/cache" -type f -name ".gitignore" -exec chmod 644 {} \;
-}{
+}
+
+run_as_app() {
     sudo -u "$APP_USER" env \
         HOME="$APP_HOME" \
         XDG_CONFIG_HOME="$APP_HOME/.config" \
@@ -197,7 +199,7 @@ if [[ -n "$GIT_STATUS" ]]; then
     echo "$GIT_STATUS"
     fail "El repositorio tiene cambios locales en archivos versionados. Haz commit, stash o restore antes del deploy."
 fi
-
+log_step "Alineando propietario y permisos base del proyecto..."
 log_ok "Working tree limpio"
 
 # ── 1. Git pull ──────────────────────────────────────────────────────────────
