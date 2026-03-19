@@ -51,6 +51,12 @@ require_file() {
     [[ -f "$file" ]] || fail "No se encontró $(basename "$file") en $APP_DIR"
 }
 
+require_git_repo() {
+    if [[ ! -d "$APP_DIR/.git" && ! -f "$APP_DIR/.git" ]]; then
+        fail "No se encontró .git en $APP_DIR. Este script debe ejecutarse dentro del repositorio."
+    fi
+}
+
 resolve_cmd() {
     local name="$1"
     local path
@@ -88,13 +94,13 @@ log_step "Verificando requisitos..."
 
 require_file "$APP_DIR/.env"
 require_file "$APP_DIR/artisan"
+require_git_repo
 
 PHP_BIN="$(resolve_cmd php)"
 COMPOSER_BIN="$(resolve_cmd composer)"
 GIT_BIN="$(resolve_cmd git)"
 NPM_BIN="$(resolve_cmd npm)"
 NODE_BIN="$(resolve_cmd node)"
-SSH_BIN="$(resolve_cmd ssh)"
 SSH_KEYSCAN_BIN="$(resolve_cmd ssh-keyscan)"
 
 PHP_VERSION="$("$PHP_BIN" -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;")"
@@ -106,8 +112,9 @@ log_ok "Node.js $("$NODE_BIN" --version) / npm $("$NPM_BIN" --version) encontrad
 # ── Preparar HOME/config del usuario app ─────────────────────────────────────
 log_step "Preparando HOME y configuración del usuario de aplicación..."
 
-mkdir -p "$APP_HOME" "$APP_HOME/.config"
-chown -R "$APP_USER:$APP_USER" "$APP_HOME"
+mkdir -p "$APP_HOME/.config"
+chown "$APP_USER:$APP_USER" "$APP_HOME"
+chown -R "$APP_USER:$APP_USER" "$APP_HOME/.config"
 chmod 755 "$APP_HOME"
 chmod 755 "$APP_HOME/.config"
 
@@ -116,6 +123,7 @@ log_ok "HOME listo para $APP_USER"
 # ── Alinear permisos base del proyecto ───────────────────────────────────────
 log_step "Alineando propietario y permisos base del proyecto..."
 
+mkdir -p "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 chmod -R 775 "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
 
@@ -135,8 +143,7 @@ REMOTE_URL="$(run_as_app "\"$GIT_BIN\" remote get-url origin" 2>/dev/null || tru
 echo "  origin: $REMOTE_URL"
 
 if [[ "$REMOTE_URL" == https://github.com/* ]]; then
-    log_warn "origin usa HTTPS. Funcionará solo si el usuario $APP_USER tiene credenciales guardadas."
-    log_warn "Se recomienda SSH para evitar prompts en cada deploy."
+    log_warn "origin usa HTTPS. Se recomienda SSH para evitar prompts en cada deploy."
 fi
 
 # ── Preparar SSH si el remoto usa GitHub por SSH ─────────────────────────────
@@ -144,10 +151,23 @@ if [[ "$REMOTE_URL" == git@github.com:* || "$REMOTE_URL" == ssh://git@github.com
     log_step "Preparando SSH para GitHub..."
 
     mkdir -p "$APP_HOME/.ssh"
-    chmod 700 "$APP_HOME/.ssh"
     touch "$APP_HOME/.ssh/known_hosts"
-    chmod 644 "$APP_HOME/.ssh/known_hosts"
     chown -R "$APP_USER:$APP_USER" "$APP_HOME/.ssh"
+    chmod 700 "$APP_HOME/.ssh"
+    chmod 644 "$APP_HOME/.ssh/known_hosts"
+
+    if [[ -f "$APP_HOME/.ssh/id_ed25519" ]]; then
+        chmod 600 "$APP_HOME/.ssh/id_ed25519"
+    fi
+    if [[ -f "$APP_HOME/.ssh/id_ed25519.pub" ]]; then
+        chmod 644 "$APP_HOME/.ssh/id_ed25519.pub"
+    fi
+    if [[ -f "$APP_HOME/.ssh/id_rsa" ]]; then
+        chmod 600 "$APP_HOME/.ssh/id_rsa"
+    fi
+    if [[ -f "$APP_HOME/.ssh/id_rsa.pub" ]]; then
+        chmod 644 "$APP_HOME/.ssh/id_rsa.pub"
+    fi
 
     if [[ ! -f "$APP_HOME/.ssh/id_ed25519" && ! -f "$APP_HOME/.ssh/id_rsa" ]]; then
         fail "El remoto usa SSH pero no existe una llave privada en $APP_HOME/.ssh para $APP_USER"
@@ -164,10 +184,10 @@ fi
 # ── Validar working tree limpio antes del pull ───────────────────────────────
 log_step "Validando estado local del repositorio..."
 
-GIT_STATUS="$(run_as_app "\"$GIT_BIN\" status --porcelain" || true)"
+GIT_STATUS="$(run_as_app "\"$GIT_BIN\" status --porcelain --untracked-files=no" || true)"
 if [[ -n "$GIT_STATUS" ]]; then
     echo "$GIT_STATUS"
-    fail "El repositorio tiene cambios locales sin commit. Haz commit, stash o restore antes del deploy."
+    fail "El repositorio tiene cambios locales en archivos versionados. Haz commit, stash o restore antes del deploy."
 fi
 
 log_ok "Working tree limpio"
