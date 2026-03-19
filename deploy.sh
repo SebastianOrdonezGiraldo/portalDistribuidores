@@ -38,10 +38,22 @@ fail() {
     exit 1
 }
 
+# ── Modo mantenimiento: se levanta automáticamente al salir por error ─────────
+MAINTENANCE_UP=false
+
+ensure_app_up() {
+    if [[ "$MAINTENANCE_UP" == "false" ]]; then
+        log_warn "Levantando aplicación por salida inesperada..."
+        run_as_app "\"$PHP_BIN\" artisan up" 2>/dev/null || true
+        MAINTENANCE_UP=true
+    fi
+}
+
 on_error() {
     local exit_code="$1"
     local line_no="$2"
     log_error "Deploy abortado en la línea ${line_no} (exit code ${exit_code})"
+    ensure_app_up
     exit "$exit_code"
 }
 trap 'on_error $? $LINENO' ERR
@@ -79,13 +91,17 @@ set_laravel_writable_permissions() {
     find "$APP_DIR/storage" "$APP_DIR/bootstrap/cache" -type f -name ".gitignore" -exec chmod 644 {} \;
 }
 
+# run_as_app: ejecuta un comando como APP_USER con el entorno mínimo necesario.
+# Se usa bash -c (sin -l) para evitar que los archivos de perfil de www-data
+# sobreescriban el PATH que pasamos explícitamente.
 run_as_app() {
     sudo -u "$APP_USER" env \
         HOME="$APP_HOME" \
         XDG_CONFIG_HOME="$APP_HOME/.config" \
         PATH="$SYSTEM_PATH" \
-        bash -lc "cd \"$APP_DIR\" && $1"
+        bash -c "cd \"$APP_DIR\" && $1"
 }
+
 # ── Inicio ───────────────────────────────────────────────────────────────────
 echo -e "\n${CYAN}============================================"
 echo "  Portal Distribuidores — Deploy Script"
@@ -118,6 +134,20 @@ log_ok "Composer encontrado en $COMPOSER_BIN"
 log_ok "Git encontrado en $GIT_BIN"
 log_ok "Node.js $("$NODE_BIN" --version) / npm $("$NPM_BIN" --version) encontrados"
 
+# ── Advertencia si APP_ENV no es production ───────────────────────────────────
+log_step "Verificando entorno de la aplicación..."
+
+APP_ENV_VALUE="$(grep -E '^APP_ENV=' "$APP_DIR/.env" | cut -d= -f2 | tr -d '"' | tr -d "'" | tr -d '[:space:]' || true)"
+APP_DEBUG_VALUE="$(grep -E '^APP_DEBUG=' "$APP_DIR/.env" | cut -d= -f2 | tr -d '"' | tr -d "'" | tr -d '[:space:]' || true)"
+
+if [[ "$APP_ENV_VALUE" != "production" ]]; then
+    log_warn "APP_ENV=${APP_ENV_VALUE} — Se recomienda APP_ENV=production en el VPS."
+fi
+if [[ "$APP_DEBUG_VALUE" == "true" ]]; then
+    log_warn "APP_DEBUG=true — En producción debe ser false para no exponer errores."
+fi
+log_ok "Variables de entorno revisadas (APP_ENV=${APP_ENV_VALUE})"
+
 # ── Preparar HOME/config del usuario app ─────────────────────────────────────
 log_step "Preparando HOME y configuración del usuario de aplicación..."
 
@@ -129,10 +159,9 @@ chmod 755 "$APP_HOME/.config"
 
 log_ok "HOME listo para $APP_USER"
 
-# ── Alinear permisos base del proyecto ───────────────────────────────────────
-log_step "Alineando propietario y permisos base del proyecto..."
+# ── Alinear permisos de storage y .env (no el proyecto entero aún) ────────────
+log_step "Preparando permisos de escritura iniciales..."
 
-chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 set_laravel_writable_permissions
 
 if [[ -f "$APP_DIR/.env" ]]; then
@@ -140,10 +169,19 @@ if [[ -f "$APP_DIR/.env" ]]; then
     chmod 640 "$APP_DIR/.env"
 fi
 
-log_ok "Propietario del proyecto alineado con $APP_USER"
+log_ok "Permisos de storage y .env listos"
 
 # ── Verificar remoto Git ─────────────────────────────────────────────────────
 log_step "Verificando remoto Git..."
+
+# Para que git funcione como www-data necesitamos que el directorio esté
+# bajo su propiedad antes del fetch/reset.
+chown -R "$APP_USER:$APP_USER" "$APP_DIR"
+set_laravel_writable_permissions
+if [[ -f "$APP_DIR/.env" ]]; then
+    chown "$APP_USER:$APP_USER" "$APP_DIR/.env"
+    chmod 640 "$APP_DIR/.env"
+fi
 
 REMOTE_URL="$(run_as_app "\"$GIT_BIN\" remote get-url origin" 2>/dev/null || true)"
 [[ -n "$REMOTE_URL" ]] || fail "No se pudo leer el remoto 'origin'"
@@ -197,11 +235,10 @@ if [[ -n "$GIT_STATUS" ]]; then
     echo "$GIT_STATUS"
     fail "El repositorio tiene cambios locales en archivos versionados. Haz commit, stash o restore antes del deploy."
 fi
-log_step "Alineando propietario y permisos base del proyecto..."
 log_ok "Working tree limpio"
 
-# ── 1. Git pull ──────────────────────────────────────────────────────────────
-log_step "Actualizando código fuente (git pull)..."
+# ── 1. Git fetch + reset --hard (más robusto que pull --ff-only) ──────────────
+log_step "Actualizando código fuente..."
 
 BRANCH="$(run_as_app "\"$GIT_BIN\" rev-parse --abbrev-ref HEAD" 2>/dev/null || true)"
 if [[ -z "$BRANCH" || "$BRANCH" == "HEAD" ]]; then
@@ -212,7 +249,7 @@ fi
 log_warn "Rama actual: $BRANCH"
 
 run_as_app "\"$GIT_BIN\" fetch --prune origin"
-run_as_app "\"$GIT_BIN\" pull --ff-only origin \"$BRANCH\""
+run_as_app "\"$GIT_BIN\" reset --hard origin/\"$BRANCH\""
 
 COMMIT="$(run_as_app "\"$GIT_BIN\" rev-parse --short HEAD")"
 log_ok "Código actualizado — commit: $COMMIT"
@@ -223,19 +260,31 @@ log_step "Instalando dependencias PHP (composer install --no-dev)..."
 run_as_app "\"$COMPOSER_BIN\" install --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-progress"
 log_ok "Dependencias PHP instaladas"
 
-# ── 3. Migraciones ───────────────────────────────────────────────────────────
-log_step "Ejecutando migraciones de base de datos..."
+# ── 3. Modo mantenimiento ─────────────────────────────────────────────────────
+log_step "Activando modo mantenimiento..."
 
-run_as_app "\"$PHP_BIN\" artisan migrate --force"
-log_ok "Migraciones completadas"
+run_as_app "\"$PHP_BIN\" artisan down --render=\"errors::503\" --retry=60"
+MAINTENANCE_UP=false
+log_ok "Aplicación en modo mantenimiento"
 
-# ── 4. Limpiar y regenerar cachés ────────────────────────────────────────────
-log_step "Regenerando caché de configuración, rutas, vistas y eventos..."
+# ── 4. Limpiar cachés ANTES de migrar ────────────────────────────────────────
+log_step "Limpiando cachés antes de migrar..."
 
 run_as_app "\"$PHP_BIN\" artisan config:clear"
 run_as_app "\"$PHP_BIN\" artisan route:clear"
 run_as_app "\"$PHP_BIN\" artisan view:clear"
 run_as_app "\"$PHP_BIN\" artisan event:clear"
+
+log_ok "Cachés limpiados"
+
+# ── 5. Migraciones ───────────────────────────────────────────────────────────
+log_step "Ejecutando migraciones de base de datos..."
+
+run_as_app "\"$PHP_BIN\" artisan migrate --force"
+log_ok "Migraciones completadas"
+
+# ── 6. Regenerar cachés ──────────────────────────────────────────────────────
+log_step "Regenerando caché de configuración, rutas, vistas y eventos..."
 
 run_as_app "\"$PHP_BIN\" artisan config:cache"
 run_as_app "\"$PHP_BIN\" artisan route:cache"
@@ -244,7 +293,7 @@ run_as_app "\"$PHP_BIN\" artisan event:cache"
 
 log_ok "Cachés regenerados"
 
-# ── 5. Build de assets (Vite) ────────────────────────────────────────────────
+# ── 7. Build de assets (Vite) ────────────────────────────────────────────────
 if [[ -f "$APP_DIR/package.json" ]]; then
     log_step "Instalando dependencias Node.js..."
 
@@ -257,7 +306,7 @@ if [[ -f "$APP_DIR/package.json" ]]; then
     fi
 
     log_step "Compilando assets frontend (Vite)..."
-    run_as_app "\"$NPM_BIN\" run build"
+    run_as_app "NODE_ENV=production \"$NPM_BIN\" run build"
 
     [[ -f "$APP_DIR/public/build/manifest.json" ]] || fail "El build terminó pero no se encontró public/build/manifest.json"
 
@@ -266,7 +315,13 @@ else
     log_warn "No se encontró package.json. Se omite el build frontend."
 fi
 
-# ── 6. Ajuste final de permisos ──────────────────────────────────────────────
+# ── 8. Storage link ───────────────────────────────────────────────────────────
+log_step "Asegurando enlace simbólico de storage..."
+
+run_as_app "\"$PHP_BIN\" artisan storage:link --force"
+log_ok "Storage link verificado"
+
+# ── 9. Ajuste final de permisos ──────────────────────────────────────────────
 log_step "Ajustando permisos finales..."
 
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
@@ -279,7 +334,7 @@ fi
 
 log_ok "Permisos finales ajustados"
 
-# ── 7. Reiniciar worker de colas ─────────────────────────────────────────────
+# ── 10. Reiniciar worker de colas ─────────────────────────────────────────────
 log_step "Señalizando reinicio del worker de colas..."
 
 run_as_app "\"$PHP_BIN\" artisan queue:restart" || true
@@ -296,7 +351,7 @@ else
     log_warn "Revisa con: systemctl status $QUEUE_SERVICE"
 fi
 
-# ── 8. Recargar PHP-FPM ──────────────────────────────────────────────────────
+# ── 11. Recargar PHP-FPM ──────────────────────────────────────────────────────
 log_step "Recargando PHP-FPM..."
 
 if systemctl is-active --quiet "$PHP_FPM_SERVICE"; then
@@ -305,6 +360,13 @@ if systemctl is-active --quiet "$PHP_FPM_SERVICE"; then
 else
     log_warn "$PHP_FPM_SERVICE no está activo. Verifica con: systemctl status $PHP_FPM_SERVICE"
 fi
+
+# ── 12. Levantar aplicación ───────────────────────────────────────────────────
+log_step "Levantando aplicación..."
+
+run_as_app "\"$PHP_BIN\" artisan up"
+MAINTENANCE_UP=true
+log_ok "Aplicación en línea"
 
 # ── Resumen final ────────────────────────────────────────────────────────────
 echo -e "\n${GREEN}============================================"
