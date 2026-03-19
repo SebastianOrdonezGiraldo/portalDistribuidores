@@ -69,7 +69,6 @@ resolve_cmd() {
 APP_HOME="$(getent passwd "$APP_USER" | cut -d: -f6 || true)"
 [[ -n "$APP_HOME" ]] || fail "No se pudo determinar el HOME del usuario '$APP_USER'"
 
-run_as_app() 
 set_laravel_writable_permissions() {
     mkdir -p "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
 
