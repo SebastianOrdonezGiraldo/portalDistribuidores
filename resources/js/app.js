@@ -441,6 +441,85 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshBulk();
     }
 
+    const infiniteGrid = document.querySelector('[data-infinite-grid]');
+    const infiniteSentinel = document.querySelector('[data-infinite-sentinel]');
+    const infiniteEnd = document.querySelector('[data-infinite-end]');
+
+    if (infiniteGrid && infiniteSentinel) {
+        let loading = false;
+
+        const loadMore = async () => {
+            if (loading) {
+                return;
+            }
+
+            const hasMore = infiniteGrid.dataset.hasMore === 'true';
+
+            if (!hasMore) {
+                infiniteSentinel.classList.add('hidden');
+                infiniteEnd?.classList.remove('hidden');
+                observer.disconnect();
+                return;
+            }
+
+            loading = true;
+            infiniteSentinel.classList.remove('hidden');
+
+            const nextPage = infiniteGrid.dataset.nextPage;
+            const baseUrl = infiniteGrid.dataset.loadUrl;
+            const filters = infiniteGrid.dataset.filters || '';
+
+            const params = new URLSearchParams(filters);
+            params.set('page', nextPage);
+
+            try {
+                const response = await fetch(`${baseUrl}?${params.toString()}`, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                    },
+                    credentials: 'same-origin',
+                });
+
+                if (!response.ok) {
+                    throw new Error('catalog-load-failed');
+                }
+
+                const payload = await response.json();
+
+                infiniteGrid.insertAdjacentHTML('beforeend', payload.html);
+                infiniteGrid.dataset.nextPage = String(payload.nextPage);
+                infiniteGrid.dataset.hasMore = payload.hasMore ? 'true' : 'false';
+
+                if (!payload.hasMore) {
+                    infiniteSentinel.classList.add('hidden');
+                    infiniteEnd?.classList.remove('hidden');
+                    observer.disconnect();
+                }
+            } catch {
+                // Do nothing on error; the user can scroll down again to retry
+            } finally {
+                loading = false;
+            }
+        };
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0]?.isIntersecting) {
+                    loadMore();
+                }
+            },
+            { rootMargin: '200px' },
+        );
+
+        if (infiniteGrid.dataset.hasMore === 'true') {
+            observer.observe(infiniteSentinel);
+        } else {
+            infiniteSentinel.classList.add('hidden');
+            infiniteEnd?.classList.remove('hidden');
+        }
+    }
+
     const productForm = document.querySelector('form[data-product-form]');
 
     if (productForm) {
