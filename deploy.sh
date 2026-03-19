@@ -7,10 +7,10 @@
 #   sudo bash deploy.sh
 #
 # Requisito: ejecutar desde el directorio raíz del proyecto.
-# El código, Composer, Git, Artisan y npm se ejecutan como www-data.
+# Git, Composer, Artisan y npm se ejecutan como www-data.
 # =============================================================================
 
-set -euo pipefail
+set -Eeuo pipefail
 
 # ── Colores ──────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -19,14 +19,10 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-# ── Variables ────────────────────────────────────────────────────────────────
+# ── Variables base ───────────────────────────────────────────────────────────
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_USER="www-data"
-
-PHP_BIN="/usr/bin/php"
-COMPOSER_BIN="/usr/local/bin/composer"
-GIT_BIN="/usr/bin/git"
-NPM_BIN="/usr/bin/npm"
+SYSTEM_PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 QUEUE_SERVICE="laravel-queue"
 PHP_FPM_SERVICE="php8.3-fpm"
@@ -42,24 +38,37 @@ fail() {
     exit 1
 }
 
-run_as_app() {
-    sudo -H -u "$APP_USER" bash -lc "cd \"$APP_DIR\" && $1"
+on_error() {
+    local exit_code="$1"
+    local line_no="$2"
+    log_error "Deploy abortado en la línea ${line_no} (exit code ${exit_code})"
+    exit "$exit_code"
 }
+trap 'on_error $? $LINENO' ERR
 
 require_file() {
     local file="$1"
     [[ -f "$file" ]] || fail "No se encontró $(basename "$file") en $APP_DIR"
 }
 
-require_cmd() {
+resolve_cmd() {
     local name="$1"
-    local path="$2"
+    local path
+    path="$(command -v "$name" 2>/dev/null || true)"
+    [[ -n "$path" ]] || fail "No se encontró '$name' en PATH"
+    printf '%s\n' "$path"
+}
 
-    if [[ -n "$path" && -x "$path" ]]; then
-        return 0
-    fi
+# ── Usuario de aplicación ────────────────────────────────────────────────────
+APP_HOME="$(getent passwd "$APP_USER" | cut -d: -f6 || true)"
+[[ -n "$APP_HOME" ]] || fail "No se pudo determinar el HOME del usuario '$APP_USER'"
 
-    command -v "$name" >/dev/null 2>&1 || fail "No se encontró $name"
+run_as_app() {
+    sudo -u "$APP_USER" env \
+        HOME="$APP_HOME" \
+        XDG_CONFIG_HOME="$APP_HOME/.config" \
+        PATH="$SYSTEM_PATH" \
+        bash -lc "cd \"$APP_DIR\" && $1"
 }
 
 # ── Inicio ───────────────────────────────────────────────────────────────────
@@ -68,7 +77,8 @@ echo "  Portal Distribuidores — Deploy Script"
 echo -e "============================================${NC}"
 echo "  Directorio: $APP_DIR"
 echo "  Usuario app: $APP_USER"
-echo "  Fecha: $(date '+%Y-%m-%d %H:%M:%S')"
+echo "  Home app:    $APP_HOME"
+echo "  Fecha:       $(date '+%Y-%m-%d %H:%M:%S')"
 echo ""
 
 [[ "${EUID}" -eq 0 ]] || fail "Este script debe ejecutarse con sudo o como root"
@@ -79,25 +89,38 @@ log_step "Verificando requisitos..."
 require_file "$APP_DIR/.env"
 require_file "$APP_DIR/artisan"
 
-require_cmd "php" "$PHP_BIN"
-require_cmd "composer" "$COMPOSER_BIN"
-require_cmd "git" "$GIT_BIN"
-require_cmd "npm" "$NPM_BIN"
+PHP_BIN="$(resolve_cmd php)"
+COMPOSER_BIN="$(resolve_cmd composer)"
+GIT_BIN="$(resolve_cmd git)"
+NPM_BIN="$(resolve_cmd npm)"
+NODE_BIN="$(resolve_cmd node)"
+SSH_BIN="$(resolve_cmd ssh)"
+SSH_KEYSCAN_BIN="$(resolve_cmd ssh-keyscan)"
 
 PHP_VERSION="$("$PHP_BIN" -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;")"
-log_ok "PHP $PHP_VERSION encontrado"
-log_ok "Composer encontrado"
-log_ok "Git encontrado"
-log_ok "Node.js $(node --version) / npm $(npm --version) encontrados"
+log_ok "PHP $PHP_VERSION encontrado en $PHP_BIN"
+log_ok "Composer encontrado en $COMPOSER_BIN"
+log_ok "Git encontrado en $GIT_BIN"
+log_ok "Node.js $("$NODE_BIN" --version) / npm $("$NPM_BIN" --version) encontrados"
+
+# ── Preparar HOME/config del usuario app ─────────────────────────────────────
+log_step "Preparando HOME y configuración del usuario de aplicación..."
+
+mkdir -p "$APP_HOME" "$APP_HOME/.config"
+chown -R "$APP_USER:$APP_USER" "$APP_HOME"
+chmod 755 "$APP_HOME"
+chmod 755 "$APP_HOME/.config"
+
+log_ok "HOME listo para $APP_USER"
 
 # ── Alinear permisos base del proyecto ───────────────────────────────────────
 log_step "Alineando propietario y permisos base del proyecto..."
 
-chown -R "$APP_USER":"$APP_USER" "$APP_DIR"
+chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 chmod -R 775 "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
 
 if [[ -f "$APP_DIR/.env" ]]; then
-    chown "$APP_USER":"$APP_USER" "$APP_DIR/.env"
+    chown "$APP_USER:$APP_USER" "$APP_DIR/.env"
     chmod 640 "$APP_DIR/.env"
 fi
 
@@ -107,30 +130,60 @@ log_ok "Propietario del proyecto alineado con $APP_USER"
 log_step "Verificando remoto Git..."
 
 REMOTE_URL="$(run_as_app "\"$GIT_BIN\" remote get-url origin" 2>/dev/null || true)"
-if [[ -z "$REMOTE_URL" ]]; then
-    fail "No se pudo leer el remoto 'origin'"
-fi
+[[ -n "$REMOTE_URL" ]] || fail "No se pudo leer el remoto 'origin'"
 
 echo "  origin: $REMOTE_URL"
 
 if [[ "$REMOTE_URL" == https://github.com/* ]]; then
-    log_warn "origin está usando HTTPS. Se recomienda SSH para evitar pedir credenciales en cada deploy."
+    log_warn "origin usa HTTPS. Funcionará solo si el usuario $APP_USER tiene credenciales guardadas."
+    log_warn "Se recomienda SSH para evitar prompts en cada deploy."
 fi
+
+# ── Preparar SSH si el remoto usa GitHub por SSH ─────────────────────────────
+if [[ "$REMOTE_URL" == git@github.com:* || "$REMOTE_URL" == ssh://git@github.com/* ]]; then
+    log_step "Preparando SSH para GitHub..."
+
+    mkdir -p "$APP_HOME/.ssh"
+    chmod 700 "$APP_HOME/.ssh"
+    touch "$APP_HOME/.ssh/known_hosts"
+    chmod 644 "$APP_HOME/.ssh/known_hosts"
+    chown -R "$APP_USER:$APP_USER" "$APP_HOME/.ssh"
+
+    if [[ ! -f "$APP_HOME/.ssh/id_ed25519" && ! -f "$APP_HOME/.ssh/id_rsa" ]]; then
+        fail "El remoto usa SSH pero no existe una llave privada en $APP_HOME/.ssh para $APP_USER"
+    fi
+
+    if ! grep -q "github.com" "$APP_HOME/.ssh/known_hosts" 2>/dev/null; then
+        run_as_app "\"$SSH_KEYSCAN_BIN\" -H github.com >> \"$APP_HOME/.ssh/known_hosts\""
+        log_ok "github.com agregado a known_hosts"
+    fi
+
+    log_ok "SSH listo para GitHub"
+fi
+
+# ── Validar working tree limpio antes del pull ───────────────────────────────
+log_step "Validando estado local del repositorio..."
+
+GIT_STATUS="$(run_as_app "\"$GIT_BIN\" status --porcelain" || true)"
+if [[ -n "$GIT_STATUS" ]]; then
+    echo "$GIT_STATUS"
+    fail "El repositorio tiene cambios locales sin commit. Haz commit, stash o restore antes del deploy."
+fi
+
+log_ok "Working tree limpio"
 
 # ── 1. Git pull ──────────────────────────────────────────────────────────────
 log_step "Actualizando código fuente (git pull)..."
 
 BRANCH="$(run_as_app "\"$GIT_BIN\" rev-parse --abbrev-ref HEAD" 2>/dev/null || true)"
-
 if [[ -z "$BRANCH" || "$BRANCH" == "HEAD" ]]; then
     BRANCH="$(run_as_app "\"$GIT_BIN\" symbolic-ref --short refs/remotes/origin/HEAD | sed 's@^origin/@@'" 2>/dev/null || true)"
 fi
-
 [[ -n "$BRANCH" ]] || fail "No se pudo determinar la rama actual del repositorio"
 
 log_warn "Rama actual: $BRANCH"
 
-run_as_app "\"$GIT_BIN\" fetch origin"
+run_as_app "\"$GIT_BIN\" fetch --prune origin"
 run_as_app "\"$GIT_BIN\" pull --ff-only origin \"$BRANCH\""
 
 COMMIT="$(run_as_app "\"$GIT_BIN\" rev-parse --short HEAD")"
@@ -139,7 +192,7 @@ log_ok "Código actualizado — commit: $COMMIT"
 # ── 2. Dependencias PHP ──────────────────────────────────────────────────────
 log_step "Instalando dependencias PHP (composer install --no-dev)..."
 
-run_as_app "\"$COMPOSER_BIN\" install --no-dev --optimize-autoloader --no-interaction --prefer-dist"
+run_as_app "\"$COMPOSER_BIN\" install --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-progress"
 log_ok "Dependencias PHP instaladas"
 
 # ── 3. Migraciones ───────────────────────────────────────────────────────────
@@ -177,6 +230,9 @@ if [[ -f "$APP_DIR/package.json" ]]; then
 
     log_step "Compilando assets frontend (Vite)..."
     run_as_app "\"$NPM_BIN\" run build"
+
+    [[ -f "$APP_DIR/public/build/manifest.json" ]] || fail "El build terminó pero no se encontró public/build/manifest.json"
+
     log_ok "Assets compilados en public/build/"
 else
     log_warn "No se encontró package.json. Se omite el build frontend."
@@ -185,11 +241,11 @@ fi
 # ── 6. Ajuste final de permisos ──────────────────────────────────────────────
 log_step "Ajustando permisos finales..."
 
-chown -R "$APP_USER":"$APP_USER" "$APP_DIR"
+chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 chmod -R 775 "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
 
 if [[ -f "$APP_DIR/.env" ]]; then
-    chown "$APP_USER":"$APP_USER" "$APP_DIR/.env"
+    chown "$APP_USER:$APP_USER" "$APP_DIR/.env"
     chmod 640 "$APP_DIR/.env"
 fi
 
@@ -198,7 +254,7 @@ log_ok "Permisos finales ajustados"
 # ── 7. Reiniciar worker de colas ─────────────────────────────────────────────
 log_step "Señalizando reinicio del worker de colas..."
 
-run_as_app "\"$PHP_BIN\" artisan queue:restart" 2>/dev/null || true
+run_as_app "\"$PHP_BIN\" artisan queue:restart" || true
 
 if systemctl cat "$QUEUE_SERVICE" >/dev/null 2>&1; then
     sleep 2
@@ -209,7 +265,7 @@ elif command -v supervisorctl >/dev/null 2>&1 && supervisorctl status "laravel-q
     log_ok "Supervisor laravel-queue reiniciado"
 else
     log_warn "No se encontró un servicio de colas administrado por systemd o Supervisor"
-    log_warn "  Revisa con: systemctl status $QUEUE_SERVICE"
+    log_warn "Revisa con: systemctl status $QUEUE_SERVICE"
 fi
 
 # ── 8. Recargar PHP-FPM ──────────────────────────────────────────────────────
