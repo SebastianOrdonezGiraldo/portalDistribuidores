@@ -18,7 +18,7 @@ class DatabaseSeeder extends Seeder
             AccessUsersSeeder::class,
         ]);
 
-        if ((bool) env('SEED_DEMO_DATA', false)) {
+        if ((bool) config('seeders.seed_demo_data', false)) {
             $this->call([
                 PortalSeeder::class,
             ]);

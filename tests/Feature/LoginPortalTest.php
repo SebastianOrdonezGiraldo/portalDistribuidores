@@ -7,6 +7,7 @@ use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Shared\Enums\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class LoginPortalTest extends TestCase
@@ -15,6 +16,8 @@ class LoginPortalTest extends TestCase
 
     public function test_distributor_can_login(): void
     {
+        $password = Str::random(32);
+
         $distributor = Distributor::create([
             'name' => 'Distribuidor Test',
             'status' => 'active',
@@ -23,7 +26,7 @@ class LoginPortalTest extends TestCase
         User::create([
             'name' => 'Distribuidor',
             'email' => 'dist@login.test',
-            'password' => Hash::make('Password123!'),
+            'password' => Hash::make($password),
             'role' => UserRole::Distributor,
             'distributor_id' => $distributor->id,
             'email_verified_at' => now(),
@@ -31,11 +34,10 @@ class LoginPortalTest extends TestCase
 
         $response = $this->post('/login', [
             'email' => 'dist@login.test',
-            'password' => 'Password123!',
+            'password' => $password,
         ]);
 
         $response->assertRedirect('/dashboard');
         $this->assertAuthenticated();
     }
 }
-

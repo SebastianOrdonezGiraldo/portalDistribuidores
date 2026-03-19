@@ -7,10 +7,10 @@
   "variable": [
     { "key": "base_url", "value": "http://127.0.0.1:8000" },
     { "key": "csrf_token", "value": "" },
-    { "key": "admin_email", "value": "admin@importcorporal.test" },
-    { "key": "admin_password", "value": "Password123!" },
-    { "key": "dist_email", "value": "dist@importcorporal.test" },
-    { "key": "dist_password", "value": "Password123!" },
+    { "key": "admin_email", "value": "" },
+    { "key": "admin_password", "value": "" },
+    { "key": "dist_email", "value": "" },
+    { "key": "dist_password", "value": "" },
     { "key": "product_id", "value": "1" },
     { "key": "order_id", "value": "1" },
     { "key": "product_document_id", "value": "1" }

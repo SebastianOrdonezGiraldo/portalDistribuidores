@@ -6,7 +6,7 @@ $legacyMailScheme = match ($legacyMailEncryption) {
     'tls' => 'tls',
     default => null,
 };
-$rawAppUrl = (string) env('APP_URL', 'https://pedidos.importcorporalmedical.com');
+$rawAppUrl = (string) env('APP_URL', 'http://localhost');
 $appHost = parse_url($rawAppUrl, PHP_URL_HOST);
 
 if (! is_string($appHost) || $appHost === '') {

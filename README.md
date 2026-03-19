@@ -151,12 +151,12 @@ npm install && npm run build
 
 ### Credenciales de demo (solo desarrollo local)
 
-> **Estas credenciales son exclusivas para entornos de desarrollo y demo. No tienen ningún uso en producción.**
+> Define estos valores en `.env` antes de ejecutar `php artisan db:seed`. No los subas a Git.
 
-| Rol          | Correo                        | Contraseña    |
-|--------------|-------------------------------|---------------|
-| Admin        | `admin@importcorporal.test`   | `Password123!` |
-| Distribuidor | `dist@importcorporal.test`    | `Password123!` |
+| Rol          | Correo (.env)                    | Contraseña (.env)                    |
+|--------------|----------------------------------|--------------------------------------|
+| Admin        | `ACCESS_USERS_ADMIN_EMAIL`       | `ACCESS_USERS_ADMIN_PASSWORD`        |
+| Distribuidor | `ACCESS_USERS_DISTRIBUTOR_EMAIL` | `ACCESS_USERS_DISTRIBUTOR_PASSWORD`  |
 
 ---
 
@@ -181,6 +181,12 @@ DB_PORT=5432
 DB_DATABASE=portal_distribuidores
 DB_USERNAME=postgres
 DB_PASSWORD=
+
+# Usuarios de acceso para seed (solo desarrollo/demo)
+ACCESS_USERS_ADMIN_EMAIL=admin@importcorporal.test
+ACCESS_USERS_ADMIN_PASSWORD=
+ACCESS_USERS_DISTRIBUTOR_EMAIL=dist@importcorporal.test
+ACCESS_USERS_DISTRIBUTOR_PASSWORD=
 
 # Colas, sesiones y caché
 QUEUE_CONNECTION=database

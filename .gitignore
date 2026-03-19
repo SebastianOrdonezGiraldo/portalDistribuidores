@@ -1,8 +1,11 @@
 *.log
 .DS_Store
 .env
+.env.*
 .env.backup
 .env.production
+!.env.example
+!.env.testing
 .phpactor.json
 .phpunit.result.cache
 /.fleet
@@ -27,3 +30,14 @@ Thumbs.db
 php.ini
 ngrok.exe
 run-artisan.ps1
+
+# Material sensible
+*.pem
+*.p8
+*.p12
+*.pfx
+*.jks
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
