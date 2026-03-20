@@ -12,8 +12,8 @@
             </x-slot>
             <x-slot name="actions">
                 <div class="flex flex-wrap items-center gap-2">
-                    <a href="{{ route('admin.products.import.template') }}" class="btn btn-secondary">Descargar plantilla CSV</a>
-                    <form action="{{ route('admin.products.import') }}" method="POST" enctype="multipart/form-data" class="flex flex-wrap items-center gap-2">
+                    <a href="{{ route('admin.products.import.template') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Descargar plantilla CSV</a>
+                    <form action="{{ route('admin.products.import') }}" method="POST" enctype="multipart/form-data" class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                         @csrf
                         <input type="hidden" name="default_action" value="upsert">
                         <input
@@ -21,11 +21,11 @@
                             name="file"
                             accept=".csv,text/csv,application/vnd.ms-excel"
                             required
-                            class="block w-48 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+                            class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/30 sm:w-56"
                         >
-                        <button type="submit" class="btn btn-secondary">Importar CSV</button>
+                        <button type="submit" class="btn btn-secondary w-full justify-center sm:w-auto">Importar CSV</button>
                     </form>
-                    <a href="{{ route('admin.products.create') }}" class="btn btn-primary">Nuevo producto</a>
+                    <a href="{{ route('admin.products.create') }}" class="btn btn-primary w-full justify-center sm:w-auto">Nuevo producto</a>
                 </div>
             </x-slot>
         </x-ui.page-header>
@@ -197,14 +197,14 @@
             </x-ui.select>
         </div>
 
-        <div class="xl:col-span-8 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3">
+        <div class="xl:col-span-8 flex flex-col gap-3 border-t border-slate-200 pt-3 sm:flex-row sm:items-center sm:justify-between">
             <div class="text-xs text-slate-500">
                 Mostrando <strong class="text-slate-700">{{ $products->firstItem() ?? 0 }}-{{ $products->lastItem() ?? 0 }}</strong>
                 de <strong class="text-slate-700">{{ number_format($products->total()) }}</strong> productos
             </div>
-            <div class="flex items-center gap-2">
-                <button type="submit" form="products-filter-form" class="btn btn-primary">Buscar</button>
-                <a href="{{ route('admin.products.index') }}" class="btn btn-secondary">Limpiar</a>
+            <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                <button type="submit" form="products-filter-form" class="btn btn-primary w-full justify-center sm:w-auto">Buscar</button>
+                <a href="{{ route('admin.products.index') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Limpiar</a>
             </div>
         </div>
     </x-ui.filter-bar>

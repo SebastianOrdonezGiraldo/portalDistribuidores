@@ -55,7 +55,7 @@
     }
 
     .btn {
-        @apply focus-ring inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold tracking-tight transition duration-200 disabled:cursor-not-allowed disabled:opacity-60;
+        @apply focus-ring inline-flex min-h-[2.5rem] items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold tracking-tight transition duration-200 disabled:cursor-not-allowed disabled:opacity-60;
     }
 
     .btn-primary {
@@ -89,7 +89,16 @@
     .form-input,
     .form-select,
     .form-textarea {
-        @apply w-full rounded-xl border-slate-300 bg-white text-sm text-slate-900 shadow-sm placeholder:text-slate-400 transition focus:border-brand-primary focus:ring-brand-primary;
+        @apply w-full rounded-xl border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 transition focus:border-brand-primary focus:ring-brand-primary;
+        min-height: 2.75rem;
+    }
+
+    @media (max-width: 767px) {
+        .form-input,
+        .form-select,
+        .form-textarea {
+            font-size: 16px;
+        }
     }
 
     .form-checkbox {
@@ -350,6 +359,44 @@
 
     details[data-action-menu] > summary::-webkit-details-marker {
         display: none;
+    }
+
+    .action-item {
+        @apply focus-ring block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900;
+    }
+
+    .action-item--danger {
+        @apply text-red-700 hover:bg-red-50 hover:text-red-800;
+    }
+
+    .modal-dialog {
+        margin: auto;
+        width: min(100%, 40rem);
+        max-width: 100%;
+        border: 0;
+        padding: 1rem;
+        background: transparent;
+    }
+
+    .modal-dialog::backdrop {
+        background-color: rgb(2 6 23 / 0.58);
+        backdrop-filter: blur(2px);
+    }
+
+    .modal-dialog-panel {
+        @apply rounded-2xl border border-slate-200 bg-white p-5 shadow-panel;
+        max-height: calc(100dvh - 2rem);
+        overflow-y: auto;
+    }
+
+    .modal-actions {
+        @apply mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end;
+    }
+
+    .modal-actions .btn,
+    .modal-actions button,
+    .modal-actions a {
+        @apply w-full justify-center sm:w-auto;
     }
 }
 

@@ -116,7 +116,7 @@
                         <h2 class="card-title">Variantes del producto</h2>
                         <p class="form-help">Solo se permite 1 atributo por producto (por ejemplo: Color).</p>
                     </div>
-                    <div class="min-w-44">
+                    <div class="w-full sm:w-auto">
                         <input type="hidden" name="has_variants" value="0">
                         <x-ui.checkbox
                             name="has_variants"
@@ -203,7 +203,7 @@
                                         <x-input-error :messages="$errors->get('variants.'.$index.'.stock')" />
                                     </div>
                                     <div class="flex items-end justify-end">
-                                        <button type="button" class="btn btn-ghost !px-2 text-xs text-red-700 hover:bg-red-50" data-variant-remove-row>Quitar</button>
+                                        <button type="button" class="btn btn-ghost !px-3 !py-2 text-xs text-red-700 hover:bg-red-50" data-variant-remove-row>Quitar</button>
                                     </div>
                                 </div>
                             @endforeach
@@ -244,7 +244,7 @@
                             >
                         </div>
                         <div class="flex items-end justify-end">
-                            <button type="button" class="btn btn-ghost !px-2 text-xs text-red-700 hover:bg-red-50" data-variant-remove-row>Quitar</button>
+                            <button type="button" class="btn btn-ghost !px-3 !py-2 text-xs text-red-700 hover:bg-red-50" data-variant-remove-row>Quitar</button>
                         </div>
                     </div>
                 </template>
@@ -344,14 +344,14 @@
             </x-ui.card>
 
             <div class="sticky bottom-3 z-20 rounded-2xl border border-slate-200 bg-white p-3 shadow-panel">
-                <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <input type="hidden" name="is_active" value="0">
                     <x-ui.checkbox name="is_active" value="1" :checked="$isActiveChecked ?? false" label="Producto disponible para distribuidores" data-preview-active />
-                    <div class="flex items-center gap-2">
-                        <a href="{{ route('admin.products.index') }}" class="btn btn-secondary">Cancelar</a>
-                        <button type="submit" name="after_save" value="save" class="btn btn-primary" data-loading-label="Guardando...">Guardar</button>
-                        <button type="submit" name="after_save" value="stay" class="btn btn-secondary" data-loading-label="Guardando...">Guardar y seguir editando</button>
-                        <button type="submit" name="after_save" value="index" class="btn btn-secondary" data-loading-label="Guardando...">Guardar y volver</button>
+                    <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                        <a href="{{ route('admin.products.index') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Cancelar</a>
+                        <button type="submit" name="after_save" value="save" class="btn btn-primary w-full justify-center sm:w-auto" data-loading-label="Guardando...">Guardar</button>
+                        <button type="submit" name="after_save" value="stay" class="btn btn-secondary w-full justify-center sm:w-auto" data-loading-label="Guardando...">Guardar y seguir editando</button>
+                        <button type="submit" name="after_save" value="index" class="btn btn-secondary w-full justify-center sm:w-auto" data-loading-label="Guardando...">Guardar y volver</button>
                     </div>
                 </div>
             </div>

@@ -71,8 +71,8 @@
                         <x-ui.input id="list-name-cart" name="name" placeholder="Ej: Insumos mensuales, Reposición Q1" required />
                         <x-input-error :messages="$errors->get('name')" />
                     </div>
-                    <div class="mt-4 flex justify-end gap-2">
-                        <button type="button" onclick="document.getElementById('save-from-cart-modal').close()" class="btn btn-secondary">Cancelar</button>
+                    <div class="modal-actions">
+                        <button type="button" data-dialog-close="save-from-cart-modal" class="btn btn-secondary">Cancelar</button>
                         <x-ui.button type="submit" variant="primary">Guardar lista</x-ui.button>
                     </div>
                 </form>
@@ -90,8 +90,8 @@
                     <label class="form-label" for="rename-input">Nuevo nombre *</label>
                     <x-ui.input id="rename-input" name="name" required />
                 </div>
-                <div class="mt-4 flex justify-end gap-2">
-                    <button type="button" onclick="document.getElementById('rename-list-modal').close()" class="btn btn-secondary">Cancelar</button>
+                <div class="modal-actions">
+                    <button type="button" data-dialog-close="rename-list-modal" class="btn btn-secondary">Cancelar</button>
                     <x-ui.button type="submit" variant="primary">Guardar</x-ui.button>
                 </div>
             </form>

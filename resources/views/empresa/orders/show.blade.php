@@ -46,21 +46,21 @@
                 </div>
             </x-slot>
             <x-slot name="actions">
-                <a href="{{ route('empresa.orders.index') }}" class="btn btn-secondary">Volver al historial</a>
+                <a href="{{ route('empresa.orders.index') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Volver al historial</a>
                 @if(auth()->user()?->canReorder() && !$order->status->isPendingReview())
-                    <form method="POST" action="{{ route('empresa.orders.reorder', $order) }}" class="inline">
+                    <form method="POST" action="{{ route('empresa.orders.reorder', $order) }}" class="w-full sm:w-auto">
                         @csrf
-                        <x-ui.button type="submit" variant="secondary">Volver a cotizar</x-ui.button>
+                        <x-ui.button type="submit" variant="secondary" class="w-full justify-center sm:w-auto">Volver a cotizar</x-ui.button>
                     </form>
                 @endif
                 @if(auth()->user()?->canManageLists())
                     <button type="button"
                         onclick="document.getElementById('save-as-list-modal').showModal()"
-                        class="btn btn-secondary">
+                        class="btn btn-secondary w-full justify-center sm:w-auto">
                         Guardar como lista
                     </button>
                 @endif
-                <a href="{{ route('empresa.orders.pdf', $order) }}" class="btn btn-primary">Descargar PDF</a>
+                <a href="{{ route('empresa.orders.pdf', $order) }}" class="btn btn-primary w-full justify-center sm:w-auto">Descargar PDF</a>
             </x-slot>
         </x-ui.page-header>
     </x-slot>
@@ -246,10 +246,10 @@
                 </div>
 
                 <div class="mt-4 flex flex-wrap gap-2">
-                    <a href="{{ route('empresa.orders.pdf', $order) }}" class="btn btn-primary">Descargar PDF</a>
-                    <a href="{{ route('empresa.orders.index') }}" class="btn btn-secondary">Volver</a>
+                    <a href="{{ route('empresa.orders.pdf', $order) }}" class="btn btn-primary w-full justify-center sm:w-auto">Descargar PDF</a>
+                    <a href="{{ route('empresa.orders.index') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Volver</a>
                     @if($order->contact_email)
-                        <a href="mailto:{{ $order->contact_email }}" class="btn btn-secondary">Enviar correo</a>
+                        <a href="mailto:{{ $order->contact_email }}" class="btn btn-secondary w-full justify-center sm:w-auto">Enviar correo</a>
                     @endif
                 </div>
             </x-ui.card>
@@ -265,12 +265,12 @@
                     <p class="font-semibold text-violet-800">En revisión interna</p>
                     <p class="mt-0.5 text-sm text-violet-700">Esta solicitud está pendiente de aprobación por el administrador de tu empresa. Recibirás una notificación una vez sea revisada.</p>
                     @can('approveOrders')
-                        <div class="mt-3 flex gap-2">
-                            <form method="POST" action="{{ route('empresa.approvals.approve', $order) }}">
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            <form method="POST" action="{{ route('empresa.approvals.approve', $order) }}" class="w-full sm:w-auto">
                                 @csrf
-                                <x-ui.button type="submit" variant="primary" class="text-sm">Aprobar ahora</x-ui.button>
+                                <x-ui.button type="submit" variant="primary" class="w-full justify-center text-sm sm:w-auto">Aprobar ahora</x-ui.button>
                             </form>
-                            <button type="button" onclick="document.getElementById('reject-modal-show').showModal()" class="btn btn-danger text-sm">Rechazar</button>
+                            <button type="button" onclick="document.getElementById('reject-modal-show').showModal()" class="btn btn-danger w-full justify-center text-sm sm:w-auto">Rechazar</button>
                         </div>
                     @endcan
                 </div>
@@ -310,8 +310,8 @@
                             placeholder="Ej: Reposición mensual, Kit básico..." />
                         <x-input-error :messages="$errors->get('name')" />
                     </div>
-                    <div class="mt-4 flex justify-end gap-2">
-                        <button type="button" onclick="document.getElementById('save-as-list-modal').close()" class="btn btn-secondary">Cancelar</button>
+                    <div class="modal-actions">
+                        <button type="button" data-dialog-close="save-as-list-modal" class="btn btn-secondary">Cancelar</button>
                         <x-ui.button type="submit" variant="primary">Guardar lista</x-ui.button>
                     </div>
                 </form>
@@ -333,8 +333,8 @@
                                 placeholder="Indica el motivo..."></x-ui.textarea>
                             <x-input-error :messages="$errors->get('approval_note')" />
                         </div>
-                        <div class="mt-4 flex justify-end gap-2">
-                            <button type="button" onclick="document.getElementById('reject-modal-show').close()" class="btn btn-secondary">Cancelar</button>
+                        <div class="modal-actions">
+                            <button type="button" data-dialog-close="reject-modal-show" class="btn btn-secondary">Cancelar</button>
                             <x-ui.button type="submit" variant="danger">Confirmar rechazo</x-ui.button>
                         </div>
                     </form>

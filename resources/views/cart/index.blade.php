@@ -65,9 +65,9 @@
                                     </div>
                                 </div>
 
-                                <div class="flex flex-wrap items-center gap-2">
+                                <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                                     <div class="inline-flex items-center rounded-xl border border-slate-300 bg-white p-1">
-                                        <button type="button" data-cart-step="-1" data-cart-target="{{ $inputId }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-700 transition hover:bg-slate-100 focus-ring" aria-label="Disminuir cantidad">-</button>
+                                        <button type="button" data-cart-step="-1" data-cart-target="{{ $inputId }}" class="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-700 transition hover:bg-slate-100 focus-ring" aria-label="Disminuir cantidad">-</button>
                                         <input
                                             id="{{ $inputId }}"
                                             type="number"
@@ -75,13 +75,13 @@
                                             min="0"
                                             step="1"
                                             value="{{ (int) $item['qty'] }}"
-                                            class="w-16 border-0 bg-transparent text-center text-sm font-semibold text-slate-900 focus:ring-0"
+                                            class="w-14 border-0 bg-transparent text-center text-sm font-semibold text-slate-900 focus:ring-0"
                                             data-cart-qty
                                         >
-                                        <button type="button" data-cart-step="1" data-cart-target="{{ $inputId }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-700 transition hover:bg-slate-100 focus-ring" aria-label="Aumentar cantidad">+</button>
+                                        <button type="button" data-cart-step="1" data-cart-target="{{ $inputId }}" class="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-700 transition hover:bg-slate-100 focus-ring" aria-label="Aumentar cantidad">+</button>
                                     </div>
 
-                                    <button type="button" data-cart-remove="{{ $inputId }}" class="btn btn-ghost !px-2 text-xs text-red-700 hover:bg-red-50">
+                                    <button type="button" data-cart-remove="{{ $inputId }}" class="btn btn-ghost w-full justify-center !px-3 text-xs text-red-700 hover:bg-red-50 sm:w-auto">
                                         Quitar
                                     </button>
                                 </div>

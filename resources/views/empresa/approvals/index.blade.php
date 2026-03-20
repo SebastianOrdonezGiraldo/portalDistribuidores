@@ -44,19 +44,19 @@
                                 @endif
                             </div>
 
-                            <div class="flex flex-shrink-0 flex-wrap items-center gap-2">
+                            <div class="flex w-full flex-shrink-0 flex-wrap items-center gap-2 sm:w-auto">
                                 <a href="{{ route('empresa.orders.show', $order) }}"
-                                   class="btn btn-secondary text-sm"
+                                   class="btn btn-secondary w-full justify-center text-sm sm:w-auto"
                                    target="_blank">
                                     Ver detalle
                                 </a>
-                                <form method="POST" action="{{ route('empresa.approvals.approve', $order) }}">
+                                <form method="POST" action="{{ route('empresa.approvals.approve', $order) }}" class="w-full sm:w-auto">
                                     @csrf
-                                    <x-ui.button type="submit" variant="primary" class="text-sm">Aprobar</x-ui.button>
+                                    <x-ui.button type="submit" variant="primary" class="w-full justify-center text-sm sm:w-auto">Aprobar</x-ui.button>
                                 </form>
                                 <button type="button"
-                                    onclick="openRejectModal({{ $order=>id }})"
-                                    class="btn btn-danger text-sm">
+                                    onclick="openRejectModal({{ $order->id }})"
+                                    class="btn btn-danger w-full justify-center text-sm sm:w-auto">
                                     Rechazar
                                 </button>
                             </div>
@@ -119,8 +119,8 @@
                         placeholder="Ej: Presupuesto excedido, producto fuera de catálogo..."></x-ui.textarea>
                     <x-input-error :messages="$errors->get('approval_note')" />
                 </div>
-                <div class="mt-4 flex justify-end gap-2">
-                    <button type="button" onclick="document.getElementById('reject-modal').close()" class="btn btn-secondary">Cancelar</button>
+                <div class="modal-actions">
+                    <button type="button" data-dialog-close="reject-modal" class="btn btn-secondary">Cancelar</button>
                     <x-ui.button type="submit" variant="danger">Confirmar rechazo</x-ui.button>
                 </div>
             </form>
