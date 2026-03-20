@@ -117,7 +117,7 @@
         </div>
     </x-ui.card>
 
-    <x-ui.filter-bar method="GET" action="{{ route('admin.products.index') }}" class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-8">
+    <x-ui.filter-bar id="products-filter-form" method="GET" action="{{ route('admin.products.index') }}" class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-8">
         <div class="xl:col-span-2">
             <label class="form-label" for="products-q">Buscar</label>
             <x-ui.input id="products-q" name="q" :value="$filters['q']" placeholder="Producto, marca, SKU o descripción" />
@@ -203,7 +203,7 @@
                 de <strong class="text-slate-700">{{ number_format($products->total()) }}</strong> productos
             </div>
             <div class="flex items-center gap-2">
-                <x-ui.button type="submit" variant="primary">Aplicar</x-ui.button>
+                <button type="submit" form="products-filter-form" class="btn btn-primary">Buscar</button>
                 <a href="{{ route('admin.products.index') }}" class="btn btn-secondary">Limpiar</a>
             </div>
         </div>
