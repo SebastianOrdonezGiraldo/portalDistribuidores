@@ -103,7 +103,7 @@
                             <td class="text-sm text-slate-600">{{ $order->user?->name ?? '—' }}</td>
                             <td>
                                 <p class="text-sm">{{ $order->created_at?->format('d/m/Y') }}</p>
-                                <p class="text-[11px] text-slate-500">{{ $order->created_at?->format('H:i') }}</p>
+                                <p class="text-xs text-slate-500">{{ $order->created_at?->format('H:i') }}</p>
                             </td>
                             <td class="text-right">
                                 <div class="flex items-center justify-end gap-1">

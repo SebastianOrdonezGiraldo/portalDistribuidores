@@ -15,7 +15,7 @@
 </head>
 <body>
 <div class="relative flex min-h-screen items-stretch">
-    <div class="hidden w-[44%] flex-col justify-between border-r border-slate-200 bg-[#050200] px-10 py-8 text-white lg:flex">
+    <div class="hidden w-[44%] flex-col justify-between border-r border-slate-200 bg-brand-ink px-10 py-8 text-white lg:flex">
         <div>
             <div class="flex items-center gap-3">
                 <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-10 w-auto">
@@ -29,11 +29,35 @@
             <p class="mt-4 max-w-md text-sm text-slate-300">Gestiona catálogo, pedidos, stock documental y seguimiento diario desde una interfaz diseñada para trabajo B2B intensivo.</p>
         </div>
 
-        <div class="grid grid-cols-2 gap-3 text-xs text-slate-300">
-            <div class="rounded-xl border border-slate-700 bg-slate-900/40 p-3">Catálogo y búsqueda avanzada</div>
-            <div class="rounded-xl border border-slate-700 bg-slate-900/40 p-3">Pedidos con trazabilidad</div>
-            <div class="rounded-xl border border-slate-700 bg-slate-900/40 p-3">Documentos PDF centralizados</div>
-            <div class="rounded-xl border border-slate-700 bg-slate-900/40 p-3">Alertas operativas claras</div>
+        <div class="grid grid-cols-2 gap-3">
+            <div class="rounded-xl border border-slate-700 bg-slate-900/40 p-3">
+                <div class="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-brand-primary/20 text-brand-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                </div>
+                <p class="text-xs font-semibold text-white">Catálogo y búsqueda</p>
+                <p class="mt-0.5 text-xs leading-snug text-slate-400">Filtros, categorías y sinónimos para encontrar rápido.</p>
+            </div>
+            <div class="rounded-xl border border-slate-700 bg-slate-900/40 p-3">
+                <div class="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-brand-primary/20 text-brand-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+                </div>
+                <p class="text-xs font-semibold text-white">Pedidos con trazabilidad</p>
+                <p class="mt-0.5 text-xs leading-snug text-slate-400">Seguimiento de estados y CTC en un solo lugar.</p>
+            </div>
+            <div class="rounded-xl border border-slate-700 bg-slate-900/40 p-3">
+                <div class="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-brand-primary/20 text-brand-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+                </div>
+                <p class="text-xs font-semibold text-white">Documentos PDF</p>
+                <p class="mt-0.5 text-xs leading-snug text-slate-400">Fichas técnicas y descargas controladas.</p>
+            </div>
+            <div class="rounded-xl border border-slate-700 bg-slate-900/40 p-3">
+                <div class="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-brand-primary/20 text-brand-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+                <p class="text-xs font-semibold text-white">Alertas operativas</p>
+                <p class="mt-0.5 text-xs leading-snug text-slate-400">Incidencias visibles para actuar a tiempo.</p>
+            </div>
         </div>
     </div>
 

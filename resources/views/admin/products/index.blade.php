@@ -96,15 +96,15 @@
         <div class="flex flex-wrap items-center gap-2">
             <a href="{{ route('admin.products.index', $baseStatusQuery) }}"
                class="btn {{ empty($filters['status']) ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
-                Todos <span class="ml-1 text-[11px] opacity-80">{{ number_format($metrics['total_products']) }}</span>
+                Todos <span class="ml-1 text-xs opacity-80">{{ number_format($metrics['total_products']) }}</span>
             </a>
             <a href="{{ route('admin.products.index', array_merge($baseStatusQuery, ['status' => 'active'])) }}"
                class="btn {{ $filters['status'] === 'active' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
-                Activos <span class="ml-1 text-[11px] opacity-80">{{ number_format($metrics['active_products']) }}</span>
+                Activos <span class="ml-1 text-xs opacity-80">{{ number_format($metrics['active_products']) }}</span>
             </a>
             <a href="{{ route('admin.products.index', array_merge($baseStatusQuery, ['status' => 'inactive'])) }}"
                class="btn {{ $filters['status'] === 'inactive' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
-                Inactivos <span class="ml-1 text-[11px] opacity-80">{{ number_format($metrics['inactive_products']) }}</span>
+                Inactivos <span class="ml-1 text-xs opacity-80">{{ number_format($metrics['inactive_products']) }}</span>
             </a>
             <a href="{{ route('admin.products.index', array_merge($baseStatusQuery, ['media' => 'without_photo'])) }}"
                class="btn {{ $filters['media'] === 'without_photo' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">

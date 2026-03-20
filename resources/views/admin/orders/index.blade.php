@@ -53,13 +53,13 @@
         <div class="flex flex-wrap items-center gap-2">
             <a href="{{ route('admin.orders.index', $baseStatusQuery) }}"
                class="btn {{ empty($filters['status']) ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
-                Todos <span class="ml-1 text-[11px] opacity-80">{{ number_format($metrics['total_orders']) }}</span>
+                Todos <span class="ml-1 text-xs opacity-80">{{ number_format($metrics['total_orders']) }}</span>
             </a>
             @foreach($statusOptions as $status)
                 <a href="{{ route('admin.orders.index', array_merge($baseStatusQuery, ['status' => $status])) }}"
                    class="btn {{ $filters['status'] === $status ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
                     {{ $statusLabels[$status] ?? ucfirst($status) }}
-                    <span class="ml-1 text-[11px] opacity-80">{{ number_format($statusSummary[$status] ?? 0) }}</span>
+                    <span class="ml-1 text-xs opacity-80">{{ number_format($statusSummary[$status] ?? 0) }}</span>
                 </a>
             @endforeach
         </div>
@@ -176,7 +176,7 @@
                             <td class="font-medium text-slate-900">${{ number_format((float) $order->total_amount, 0, ',', '.') }}</td>
                             <td>
                                 <p>{{ $order->created_at?->format('d/m/Y H:i') }}</p>
-                                <p class="text-[11px] text-slate-500">{{ $order->created_at?->diffForHumans() }}</p>
+                                <p class="text-xs text-slate-500">{{ $order->created_at?->diffForHumans() }}</p>
                             </td>
                             <td>{{ $order->updated_at?->format('d/m/Y H:i') }}</td>
                             <td>

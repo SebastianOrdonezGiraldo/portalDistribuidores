@@ -7,7 +7,7 @@
             <div>
                 <p class="font-semibold text-slate-900">{{ $category->name }}</p>
                 @if($depth > 0)
-                    <p class="text-[11px] text-slate-500">Nivel {{ $depth + 1 }}</p>
+                    <p class="text-xs text-slate-500">Nivel {{ $depth + 1 }}</p>
                 @endif
             </div>
         </div>
@@ -25,7 +25,7 @@
     <td>{{ $category->sort_order }}</td>
     <td>
         <p>{{ $category->updated_at?->format('d/m/Y') }}</p>
-        <p class="text-[11px] text-slate-500">{{ $category->updated_at?->diffForHumans() }}</p>
+        <p class="text-xs text-slate-500">{{ $category->updated_at?->diffForHumans() }}</p>
     </td>
     <td class="text-right">
         <x-ui.action-menu>

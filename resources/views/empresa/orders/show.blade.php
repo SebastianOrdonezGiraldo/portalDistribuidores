@@ -79,19 +79,19 @@
 
                 <div class="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <p class="text-[11px] uppercase tracking-wide text-slate-500">CTC</p>
+                        <p class="text-xs uppercase tracking-wide text-slate-500">CTC</p>
                         <p class="mt-1 text-sm font-semibold text-slate-900">{{ $order->oc_number }}</p>
                     </div>
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <p class="text-[11px] uppercase tracking-wide text-slate-500">Monto total</p>
+                        <p class="text-xs uppercase tracking-wide text-slate-500">Monto total</p>
                         <p class="mt-1 text-sm font-semibold text-slate-900">${{ number_format((float) $order->total_amount, 0, ',', '.') }}</p>
                     </div>
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <p class="text-[11px] uppercase tracking-wide text-slate-500">Ítems</p>
+                        <p class="text-xs uppercase tracking-wide text-slate-500">Ítems</p>
                         <p class="mt-1 text-sm font-semibold text-slate-900">{{ number_format($totals['items_count']) }}</p>
                     </div>
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <p class="text-[11px] uppercase tracking-wide text-slate-500">Unidades</p>
+                        <p class="text-xs uppercase tracking-wide text-slate-500">Unidades</p>
                         <p class="mt-1 text-sm font-semibold text-slate-900">{{ $formatQty($totals['units_total']) }}</p>
                     </div>
                 </div>
@@ -187,15 +187,15 @@
 
                         <div class="mt-4 grid gap-2 border-t border-slate-200 pt-3 sm:grid-cols-3">
                             <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                <p class="text-[11px] uppercase tracking-wide text-slate-500">Subtotal ítems</p>
+                                <p class="text-xs uppercase tracking-wide text-slate-500">Subtotal ítems</p>
                                 <p class="mt-1 text-sm font-semibold text-slate-900">${{ number_format($totals['subtotals_total'], 0, ',', '.') }}</p>
                             </div>
                             <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                <p class="text-[11px] uppercase tracking-wide text-slate-500">Promedio unitario</p>
+                                <p class="text-xs uppercase tracking-wide text-slate-500">Promedio unitario</p>
                                 <p class="mt-1 text-sm font-semibold text-slate-900">${{ number_format($totals['average_unit_price'], 0, ',', '.') }}</p>
                             </div>
                             <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                <p class="text-[11px] uppercase tracking-wide text-slate-500">Total cotización</p>
+                                <p class="text-xs uppercase tracking-wide text-slate-500">Total cotización</p>
                                 <p class="mt-1 text-sm font-semibold text-slate-900">${{ number_format((float) $order->total_amount, 0, ',', '.') }}</p>
                             </div>
                         </div>
@@ -224,7 +224,7 @@
                                 <x-ui.status-badge :status="$event['status']" class="shrink-0" />
                             </div>
                             <p class="mt-1 text-xs text-slate-600">{{ $event['description'] }}</p>
-                            <p class="mt-1 text-[11px] text-slate-500">{{ $event['at']?->format('d/m/Y H:i') }}</p>
+                            <p class="mt-1 text-xs text-slate-500">{{ $event['at']?->format('d/m/Y H:i') }}</p>
                         </li>
                     @endforeach
                 </ol>

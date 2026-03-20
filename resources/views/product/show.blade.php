@@ -193,13 +193,13 @@
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-brand-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                             </svg>
-                            <p class="text-sm font-semibold text-[#15565c]">{{ $promoLabel }}</p>
+                            <p class="text-sm font-semibold text-brand-dark">{{ $promoLabel }}</p>
                         </div>
                     @endif
 
                     {{-- Precio principal --}}
                     <div class="mb-5">
-                        <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Precio</p>
+                        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Precio</p>
                         <div class="mt-1 flex flex-wrap items-baseline gap-2">
                             <span
                                 class="text-4xl font-bold tabular-nums tracking-tight text-slate-950"
@@ -219,13 +219,13 @@
                     {{-- Disponibilidad + stock --}}
                     <div class="mb-5 grid grid-cols-2 gap-3">
                         <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                            <p class="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Disponibilidad</p>
+                            <p class="mb-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Disponibilidad</p>
                             <x-ui.badge :variant="$availability['badge']" class="!normal-case !tracking-normal">
                                 {{ $availability['label'] }}
                             </x-ui.badge>
                         </div>
                         <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                            <p class="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Stock</p>
+                            <p class="mb-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Stock</p>
                             <p
                                 class="text-sm font-semibold text-slate-900"
                                 data-variant-stock-target
@@ -541,7 +541,7 @@
                                 <div class="min-w-0 flex-1">
                                     <div class="flex items-center gap-2">
                                         <p class="font-semibold text-slate-900">Ficha técnica</p>
-                                        <span class="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-500">PDF</span>
+                                        <span class="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-slate-500">PDF</span>
                                     </div>
                                     <p class="mt-0.5 text-xs text-slate-500">Documento principal para validación técnica y comercial</p>
 
@@ -577,7 +577,7 @@
                                 <div class="min-w-0 flex-1">
                                     <div class="flex items-center gap-2">
                                         <p class="font-semibold text-slate-900">Video de apoyo</p>
-                                        <span class="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">Video</span>
+                                        <span class="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-slate-400">Video</span>
                                     </div>
                                     <p class="mt-0.5 text-xs text-slate-500">Demostración y guía de uso del producto</p>
 

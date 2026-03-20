@@ -164,7 +164,7 @@
 
         <div class="border-t border-slate-200 px-4 py-4">
             <div class="mb-3 flex items-center gap-3 px-1">
-                <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-brand-primary/15 text-sm font-semibold text-[#0f6268]">
+                <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-brand-primary/15 text-sm font-semibold text-brand-dark">
                     {{ strtoupper(substr($user->name, 0, 1)) }}
                 </span>
                 <div class="min-w-0">
@@ -197,28 +197,15 @@
                     </a>
                 @endif
 
-                <div class="hidden min-w-0 flex-1 md:block">
-                    @if($isAuthenticated)
-                        <p class="truncate text-sm font-semibold text-slate-900">{{ $user->name }}</p>
-                        <p class="truncate text-xs text-slate-500">
-                            @if($isDistributor)
-                                {{ $user->distributor?->name ?? 'Distribuidor' }}
-                            @else
-                                Equipo administrativo
-                            @endif
-                        </p>
-                    @endif
-                </div>
-
-                <div class="flex-1">
+                <div class="min-w-0 flex-1">
                     @if($isAdmin)
-                        <form method="GET" action="{{ route('admin.orders.index') }}" class="relative max-w-xl">
+                        <form method="GET" action="{{ route('admin.orders.index') }}" class="relative mx-auto w-full max-w-2xl">
                             <label class="sr-only" for="top-search-admin">Buscar pedido</label>
                             <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                             <input id="top-search-admin" type="text" name="q" value="{{ request('q') }}" placeholder="Buscar CTC, cliente o contacto" class="form-input py-2 pl-9 pr-4">
                         </form>
                     @elseif(!request()->routeIs('catalog.*', 'products.show'))
-                        <form method="GET" action="{{ route('catalog.index') }}" class="relative max-w-xl">
+                        <form method="GET" action="{{ route('catalog.index') }}" class="relative mx-auto w-full max-w-2xl">
                             <label class="sr-only" for="top-search-catalog">Buscar producto</label>
                             <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                             <input id="top-search-catalog" type="text" name="term" value="{{ request('term') }}" placeholder="Buscar producto o categoría" class="form-input py-2 pl-9 pr-4">
@@ -227,20 +214,40 @@
                 </div>
 
                 @if($isAuthenticated)
-                    <details data-action-menu class="relative">
-                        <summary class="btn btn-ghost !px-2">
-                            <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
+                    <div class="relative shrink-0" x-data="{ profileMenuOpen: false }" @keydown.escape.window="profileMenuOpen = false">
+                        <button
+                            type="button"
+                            class="btn btn-ghost !px-2"
+                            @click="profileMenuOpen = !profileMenuOpen"
+                            x-bind:aria-expanded="profileMenuOpen"
+                            aria-haspopup="menu"
+                            aria-controls="profile-menu-panel"
+                        >
+                            <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary/15 text-sm font-semibold text-brand-dark">
                                 {{ strtoupper(substr($user->name, 0, 1)) }}
                             </span>
-                        </summary>
-                        <div class="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-panel">
-                            <a href="{{ route('profile.edit') }}" class="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">Perfil</a>
+                        </button>
+                        <div
+                            id="profile-menu-panel"
+                            x-cloak
+                            x-show="profileMenuOpen"
+                            x-transition:enter="transition ease-out duration-150"
+                            x-transition:enter-start="opacity-0 scale-95 translate-y-1"
+                            x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                            x-transition:leave="transition ease-in duration-100"
+                            x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+                            x-transition:leave-end="opacity-0 scale-95 translate-y-1"
+                            @click.outside="profileMenuOpen = false"
+                            role="menu"
+                            class="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-panel"
+                        >
+                            <a href="{{ route('profile.edit') }}" role="menuitem" class="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-ring">Perfil</a>
                             <form method="POST" action="{{ route('logout') }}" class="mt-1 border-t border-slate-100 pt-1">
                                 @csrf
-                                <button type="submit" class="block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">Cerrar sesión</button>
+                                <button type="submit" role="menuitem" class="block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 focus-ring">Cerrar sesión</button>
                             </form>
                         </div>
-                    </details>
+                    </div>
                 @else
                     <a href="{{ route('cart.index') }}" class="btn btn-secondary">
                         Carrito

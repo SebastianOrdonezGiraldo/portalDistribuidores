@@ -44,7 +44,7 @@
     }
 
     .btn-primary {
-        @apply btn border-brand-primary bg-brand-primary text-white shadow-soft hover:bg-[#2f9ca5];
+        @apply btn border-brand-primary bg-brand-primary text-white shadow-soft hover:bg-brand-hover;
     }
 
     .btn-secondary {
@@ -98,15 +98,15 @@
     }
 
     .card-title {
-        @apply text-[15px] font-semibold leading-snug text-slate-900;
+        @apply text-sm font-semibold leading-snug text-slate-900;
     }
 
     .badge {
-        @apply inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide;
+        @apply inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium;
     }
 
     .stat-pill {
-        @apply inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600;
+        @apply inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600;
     }
 
     .stat-chip {
@@ -118,7 +118,7 @@
     }
 
     .stat-chip-hint {
-        @apply mt-1 text-[11px] text-slate-500;
+        @apply mt-1 text-xs text-slate-500;
     }
 
     .stat-chip-value {
@@ -201,42 +201,43 @@
     }
 
     .sidebar-section-label {
-        @apply px-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400;
+        @apply px-2 text-xs font-bold uppercase tracking-wide text-slate-400;
     }
 
-    .kpi-accent-brand  { border-left: 3px solid rgb(54 177 187); }
-    .kpi-accent-success{ border-left: 3px solid rgb(16 185 129); }
-    .kpi-accent-warning{ border-left: 3px solid rgb(245 158 11); }
-    .kpi-accent-danger { border-left: 3px solid rgb(239 68 68);  }
-    .kpi-accent-info   { border-left: 3px solid rgb(14 165 233); }
-    .kpi-accent-neutral{ border-left: 3px solid rgb(148 163 184); }
-
     .status-pending {
-        @apply border-amber-300 bg-amber-50 text-amber-700;
+        @apply bg-amber-100 text-amber-900;
     }
 
     .status-processing {
-        @apply border-sky-300 bg-sky-50 text-sky-700;
+        @apply bg-sky-100 text-sky-900;
     }
 
     .status-approved {
-        @apply border-emerald-300 bg-emerald-50 text-emerald-700;
+        @apply bg-emerald-100 text-emerald-900;
     }
 
     .status-sent {
-        @apply border-blue-300 bg-blue-50 text-blue-700;
+        @apply bg-blue-100 text-blue-900;
     }
 
     .status-delivered {
-        @apply border-teal-300 bg-teal-50 text-teal-700;
+        @apply bg-teal-100 text-teal-900;
     }
 
     .status-canceled {
-        @apply border-rose-300 bg-rose-50 text-rose-700;
+        @apply bg-rose-100 text-rose-900;
     }
 
     .status-error {
-        @apply border-red-300 bg-red-50 text-red-700;
+        @apply bg-red-100 text-red-900;
+    }
+
+    .badge-violet {
+        @apply bg-violet-100 text-violet-900;
+    }
+
+    .badge-danger {
+        @apply bg-red-100 text-red-900;
     }
 
     .pagination-wrap nav > div:first-child {

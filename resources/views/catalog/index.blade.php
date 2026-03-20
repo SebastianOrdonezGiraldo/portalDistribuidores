@@ -49,7 +49,7 @@
                 data-next-page="{{ $products->currentPage() + 1 }}"
                 data-has-more="{{ $products->hasMorePages() ? 'true' : 'false' }}"
                 data-filters="{{ http_build_query(request()->except('page')) }}"
-                class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                class="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                 @foreach($products as $product)
                     <x-catalog.product-card :product="$product" />
                 @endforeach

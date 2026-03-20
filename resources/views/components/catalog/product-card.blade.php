@@ -14,7 +14,7 @@
 <article class="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-panel">
     <div class="relative aspect-[4/3] overflow-hidden bg-slate-100">
         <div class="absolute left-3 top-3 z-10">
-            <x-ui.badge variant="neutral" class="!rounded-full !px-2 !py-0.5 !text-[10px] !normal-case !tracking-normal">
+            <x-ui.badge variant="neutral" class="!rounded-full !px-2 !py-0.5 !text-xs !font-medium !normal-case !tracking-normal">
                 {{ $product->category?->name ?? 'Sin categoría' }}
             </x-ui.badge>
         </div>
@@ -40,7 +40,7 @@
         @endif
     </div>
 
-    <div class="flex flex-1 flex-col p-3">
+    <div class="flex flex-1 flex-col p-4">
         {{-- Stretched link: el ::after cubre toda la tarjeta (article es relative) --}}
         <h3 class="min-h-[2.75rem] overflow-hidden text-base font-semibold leading-tight text-slate-900 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
             <a
@@ -51,20 +51,28 @@
             >{{ $product->name }}</a>
         </h3>
 
-        <p class="mt-1 text-sm text-slate-600">SKU: {{ $product->sku }}</p>
-        @if($product->brand)
-            <p class="text-sm text-slate-500">Marca: {{ $product->brand }}</p>
-        @endif
+        <dl class="mt-2 space-y-1 text-xs text-slate-600">
+            <div class="flex gap-1.5">
+                <dt class="shrink-0 font-medium text-slate-500">SKU</dt>
+                <dd class="min-w-0 truncate font-medium text-slate-800">{{ $product->sku }}</dd>
+            </div>
+            @if($product->brand)
+                <div class="flex gap-1.5">
+                    <dt class="shrink-0 font-medium text-slate-500">Marca</dt>
+                    <dd class="min-w-0 truncate text-slate-700">{{ $product->brand }}</dd>
+                </div>
+            @endif
+        </dl>
 
         <div class="relative z-10 mt-3 flex items-end justify-between gap-2">
             <div>
                 @if($isRangePrice)
-                    <p class="text-2xl font-semibold tabular-nums tracking-tight text-slate-950">
+                    <p class="text-xl font-semibold tabular-nums tracking-tight text-slate-950 sm:text-2xl">
                         ${{ number_format($minPrice, 0, ',', '.') }} – ${{ number_format($maxPrice, 0, ',', '.') }}
                     </p>
                     <p class="text-xs text-slate-500">Precio según variante</p>
                 @else
-                    <p class="text-2xl font-semibold tabular-nums tracking-tight text-slate-950">
+                    <p class="text-xl font-semibold tabular-nums tracking-tight text-slate-950 sm:text-2xl">
                         ${{ number_format($minPrice, 0, ',', '.') }}
                     </p>
                 @endif
@@ -72,7 +80,7 @@
 
             <div class="relative z-10 flex items-center gap-2">
                 @if($hasVariants)
-                    <a href="{{ $detailUrl }}" class="relative z-10 inline-flex h-9 items-center justify-center rounded-lg border border-brand-primary bg-brand-primary px-3 text-xs font-semibold text-white transition hover:bg-[#2f9ca5] focus-ring">
+                    <a href="{{ $detailUrl }}" class="relative z-10 inline-flex h-10 items-center justify-center rounded-lg border border-brand-primary bg-brand-primary px-3 text-xs font-semibold text-white transition hover:bg-brand-hover focus-ring">
                         Elegir
                     </a>
                 @else
@@ -83,7 +91,7 @@
                         <input type="hidden" name="qty" value="1">
                         <button
                             type="submit"
-                            class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-brand-primary bg-brand-primary text-white transition hover:bg-[#2f9ca5] focus-ring"
+                            class="inline-flex h-10 w-10 min-h-[2.5rem] min-w-[2.5rem] items-center justify-center rounded-lg border border-brand-primary bg-brand-primary text-white transition hover:bg-brand-hover focus-ring"
                             aria-label="Agregar {{ $product->name }} al carrito"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">

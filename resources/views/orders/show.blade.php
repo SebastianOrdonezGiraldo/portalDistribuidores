@@ -123,7 +123,7 @@
                                 <x-ui.status-badge :status="$event['status']" class="shrink-0" />
                             </div>
                             <p class="mt-1 text-xs text-slate-600">{{ $event['description'] }}</p>
-                            <p class="mt-1 text-[11px] text-slate-500">{{ $event['at']?->format('d/m/Y H:i') }}</p>
+                            <p class="mt-1 text-xs text-slate-500">{{ $event['at']?->format('d/m/Y H:i') }}</p>
                         </li>
                     @endforeach
                 </ol>

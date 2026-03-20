@@ -356,7 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.querySelectorAll('[data-cart-badge]').forEach((badge) => {
                     badge.textContent = String(count);
                     badge.classList.remove('border-slate-200', 'bg-slate-100', 'text-slate-700');
-                    badge.classList.add('border-brand-primary/30', 'bg-brand-primary/10', 'text-[#15565c]');
+                    badge.classList.add('bg-brand-primary/10', 'text-brand-dark');
                 });
 
                 // Show success state on button

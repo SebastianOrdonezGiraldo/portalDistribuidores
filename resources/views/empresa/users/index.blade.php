@@ -40,7 +40,7 @@
                             <td>
                                 <p class="font-medium text-slate-900">{{ $user->name }}</p>
                                 @if((int) $user->id === (int) auth()->id())
-                                    <p class="text-[11px] text-brand-600 font-semibold">Tú</p>
+                                    <p class="text-xs text-brand-dark font-semibold">Tú</p>
                                 @endif
                             </td>
                             <td class="text-sm text-slate-600">{{ $user->email }}</td>

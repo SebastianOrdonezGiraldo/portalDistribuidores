@@ -103,7 +103,7 @@
                                         <td class="font-medium">${{ number_format((float) $order->total_amount, 0, ',', '.') }}</td>
                                         <td>
                                             <p>{{ $order->created_at?->format('d/m/Y H:i') }}</p>
-                                            <p class="text-[11px] text-slate-500">{{ $order->created_at?->diffForHumans() }}</p>
+                                            <p class="text-xs text-slate-500">{{ $order->created_at?->diffForHumans() }}</p>
                                         </td>
                                         <td class="text-right">
                                             <a href="{{ route('admin.orders.show', $order) }}" class="btn btn-ghost !px-2 !py-1 text-xs">Ver</a>
@@ -126,7 +126,7 @@
                         Gestión de pedidos
                     </a>
                     <a href="{{ route('admin.products.index') }}" class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-white hover:text-slate-900">
-                        <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-[#0f6268]">
+                        <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-dark">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                         </span>
                         Catálogo de productos
@@ -203,7 +203,7 @@
                                     <x-ui.status-badge :status="$event['status']" class="shrink-0" />
                                 </div>
                                 <p class="mt-0.5 text-xs text-slate-500">{{ $event['description'] }}</p>
-                                <p class="mt-1 text-[11px] font-medium text-slate-400">{{ $event['created_at']?->diffForHumans() }}</p>
+                                <p class="mt-1 text-xs font-medium text-slate-400">{{ $event['created_at']?->diffForHumans() }}</p>
                             </div>
                         </li>
                     @empty

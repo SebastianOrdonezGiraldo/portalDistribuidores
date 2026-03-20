@@ -24,7 +24,8 @@
         'info'             => ['class' => 'status-processing', 'label' => 'Info'],
     ];
 
-    $meta = $map[$value] ?? ['class' => 'border-slate-300 bg-slate-50 text-slate-700', 'label' => ucfirst($value ?: 'Sin estado')];
+    $meta = $map[$value] ?? ['class' => 'bg-slate-100 text-slate-800', 'label' => ucfirst($value ?: 'Sin estado')];
+    $displayLabel = $label ?? $meta['label'];
 @endphp
 
-<span {{ $attributes->merge(['class' => 'badge '.$meta['class']]) }}>{{ $label ?? $meta['label'] }}</span>
+<span {{ $attributes->merge(['class' => 'badge '.$meta['class'], 'aria-label' => $displayLabel]) }}>{{ $displayLabel }}</span>

@@ -14,6 +14,8 @@ export default {
             colors: {
                 brand: {
                     primary: '#36B1BB',
+                    dark: '#0f6268',
+                    hover: '#2f9ca5',
                     ink: '#050200',
                     canvas: '#FFFFFF',
                 },

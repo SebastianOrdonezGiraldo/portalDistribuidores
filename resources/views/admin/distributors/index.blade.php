@@ -32,15 +32,15 @@
         <div class="flex flex-wrap items-center gap-2">
             <a href="{{ route('admin.distributors.index', $baseQuickFilters) }}"
                class="btn {{ empty($filters['status']) && empty($filters['relation']) ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
-                Todos <span class="ml-1 text-[11px] opacity-80">{{ number_format($metrics['total_distributors']) }}</span>
+                Todos <span class="ml-1 text-xs opacity-80">{{ number_format($metrics['total_distributors']) }}</span>
             </a>
             <a href="{{ route('admin.distributors.index', array_merge($baseQuickFilters, ['status' => 'active'])) }}"
                class="btn {{ $filters['status'] === 'active' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
-                Activos <span class="ml-1 text-[11px] opacity-80">{{ number_format($metrics['active_distributors']) }}</span>
+                Activos <span class="ml-1 text-xs opacity-80">{{ number_format($metrics['active_distributors']) }}</span>
             </a>
             <a href="{{ route('admin.distributors.index', array_merge($baseQuickFilters, ['status' => 'inactive'])) }}"
                class="btn {{ $filters['status'] === 'inactive' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
-                Inactivos <span class="ml-1 text-[11px] opacity-80">{{ number_format($metrics['inactive_distributors']) }}</span>
+                Inactivos <span class="ml-1 text-xs opacity-80">{{ number_format($metrics['inactive_distributors']) }}</span>
             </a>
             <a href="{{ route('admin.distributors.index', array_merge($baseQuickFilters, ['relation' => 'with_users'])) }}"
                class="btn {{ $filters['relation'] === 'with_users' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
@@ -155,7 +155,7 @@
                             <td class="font-medium text-slate-900">{{ number_format((int) $distributor->orders_count) }}</td>
                             <td>
                                 <p>{{ $distributor->created_at?->format('d/m/Y H:i') }}</p>
-                                <p class="text-[11px] text-slate-500">{{ $distributor->created_at?->diffForHumans() }}</p>
+                                <p class="text-xs text-slate-500">{{ $distributor->created_at?->diffForHumans() }}</p>
                             </td>
                             <td>{{ $distributor->updated_at?->format('d/m/Y H:i') }}</td>
                             <td class="text-right">

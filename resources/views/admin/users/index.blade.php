@@ -32,15 +32,15 @@
         <div class="flex flex-wrap items-center gap-2">
             <a href="{{ route('admin.users.index', $baseQuickFilters) }}"
                class="btn {{ empty($filters['role']) && empty($filters['distributor_link']) ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
-                Todos <span class="ml-1 text-[11px] opacity-80">{{ number_format($metrics['total_users']) }}</span>
+                Todos <span class="ml-1 text-xs opacity-80">{{ number_format($metrics['total_users']) }}</span>
             </a>
             <a href="{{ route('admin.users.index', array_merge($baseQuickFilters, ['role' => 'admin'])) }}"
                class="btn {{ $filters['role'] === 'admin' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
-                Admins <span class="ml-1 text-[11px] opacity-80">{{ number_format($metrics['admin_users']) }}</span>
+                Admins <span class="ml-1 text-xs opacity-80">{{ number_format($metrics['admin_users']) }}</span>
             </a>
             <a href="{{ route('admin.users.index', array_merge($baseQuickFilters, ['role' => 'distributor'])) }}"
                class="btn {{ $filters['role'] === 'distributor' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
-                Distribuidores <span class="ml-1 text-[11px] opacity-80">{{ number_format($metrics['distributor_users']) }}</span>
+                Distribuidores <span class="ml-1 text-xs opacity-80">{{ number_format($metrics['distributor_users']) }}</span>
             </a>
             <a href="{{ route('admin.users.index', array_merge($baseQuickFilters, ['distributor_link' => 'linked'])) }}"
                class="btn {{ $filters['distributor_link'] === 'linked' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
@@ -168,7 +168,7 @@
                             </td>
                             <td>
                                 <p>{{ $user->created_at?->format('d/m/Y H:i') }}</p>
-                                <p class="text-[11px] text-slate-500">{{ $user->created_at?->diffForHumans() }}</p>
+                                <p class="text-xs text-slate-500">{{ $user->created_at?->diffForHumans() }}</p>
                             </td>
                             <td class="text-right">
                                 <x-ui.action-menu>

@@ -74,7 +74,7 @@
                                         <td class="text-sm text-slate-600">{{ $order->user?->name ?? '—' }}</td>
                                         <td>
                                             <p class="text-sm">{{ $order->created_at?->format('d/m/Y') }}</p>
-                                            <p class="text-[11px] text-slate-500">{{ $order->created_at?->diffForHumans() }}</p>
+                                            <p class="text-xs text-slate-500">{{ $order->created_at?->diffForHumans() }}</p>
                                         </td>
                                         <td class="text-right">
                                             <a href="{{ route('empresa.orders.show', $order) }}" class="btn btn-ghost !px-2 !py-1 text-xs">Ver</a>
@@ -117,25 +117,65 @@
             <x-ui.card class="p-5">
                 <h2 class="card-title">Accesos Rápidos</h2>
                 <div class="mt-4 grid gap-2 sm:grid-cols-2">
-                    <a href="{{ route('empresa.orders.index') }}" class="btn btn-secondary justify-start">Historial de pedidos</a>
+                    <a href="{{ route('empresa.orders.index') }}" class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-900">
+                        <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+                        </span>
+                        Historial de pedidos
+                    </a>
                     @if(auth()->user()?->canCreateOrders())
-                        <a href="{{ route('checkout.show') }}" class="btn btn-secondary justify-start">Nuevo pedido</a>
+                        <a href="{{ route('checkout.show') }}" class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-900">
+                            <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                            </span>
+                            Nuevo pedido
+                        </a>
                     @endif
-                    <a href="{{ route('catalog.index') }}" class="btn btn-secondary justify-start">Catálogo de productos</a>
+                    <a href="{{ route('catalog.index') }}" class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-900">
+                        <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-dark">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                        </span>
+                        Catálogo de productos
+                    </a>
                     @if(auth()->user()?->canManageLists())
-                        <a href="{{ route('empresa.lists.index') }}" class="btn btn-secondary justify-start">Listas frecuentes</a>
+                        <a href="{{ route('empresa.lists.index') }}" class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-900">
+                            <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-700">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                            </span>
+                            Listas frecuentes
+                        </a>
                     @endif
                     @can('manageBranches')
-                        <a href="{{ route('empresa.branches.index') }}" class="btn btn-secondary justify-start">Sucursales</a>
+                        <a href="{{ route('empresa.branches.index') }}" class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-900">
+                            <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                            </span>
+                            Sucursales
+                        </a>
                     @endcan
                     @can('editCompany', \App\Modules\AuthAccess\Models\Distributor::class)
-                        <a href="{{ route('empresa.profile.edit') }}" class="btn btn-secondary justify-start">Datos de empresa</a>
+                        <a href="{{ route('empresa.profile.edit') }}" class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-900">
+                            <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                            </span>
+                            Datos de empresa
+                        </a>
                     @endcan
                     @can('manageUsers', \App\Modules\AuthAccess\Models\Distributor::class)
-                        <a href="{{ route('empresa.users.index') }}" class="btn btn-secondary justify-start">Usuarios de empresa</a>
+                        <a href="{{ route('empresa.users.index') }}" class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-900">
+                            <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            </span>
+                            Usuarios de empresa
+                        </a>
                     @endcan
                     @if($latestOrderWithPdf)
-                        <a href="{{ route('empresa.orders.pdf', $latestOrderWithPdf) }}" class="btn btn-secondary justify-start">Último PDF</a>
+                        <a href="{{ route('empresa.orders.pdf', $latestOrderWithPdf) }}" class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-900">
+                            <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+                            </span>
+                            Último PDF
+                        </a>
                     @endif
                 </div>
             </x-ui.card>
