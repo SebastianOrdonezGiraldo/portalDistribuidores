@@ -55,7 +55,7 @@
                                     <x-ui.button type="submit" variant="primary" class="text-sm">Aprobar</x-ui.button>
                                 </form>
                                 <button type="button"
-                                    onclick="openRejectModal({{ $order->id }})"
+                                    onclick="openRejectModal({{ $order=>id }})"
                                     class="btn btn-danger text-sm">
                                     Rechazar
                                 </button>
