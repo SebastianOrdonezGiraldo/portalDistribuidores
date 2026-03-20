@@ -8,9 +8,9 @@
         <x-ui.page-header title="Tu carrito" subtitle="Revisa cantidades y confirma el pedido antes de continuar a checkout.">
             <x-slot name="meta">
                 <div class="flex flex-wrap items-center gap-2">
-                    <span class="stat-pill">Productos: {{ number_format($itemsCount) }}</span>
-                    <span class="stat-pill">Unidades: {{ number_format($unitsCount) }}</span>
-                    <span class="stat-pill">Total: ${{ number_format((float) $total, 0, ',', '.') }}</span>
+                    <span class="stat-pill">Productos: <span data-cart-products-count>{{ number_format($itemsCount) }}</span></span>
+                    <span class="stat-pill">Unidades: <span data-cart-units-count>{{ number_format($unitsCount) }}</span></span>
+                    <span class="stat-pill">Total: <span data-cart-total-amount>${{ number_format((float) $total, 0, ',', '.') }}</span></span>
                 </div>
             </x-slot>
             <x-slot name="actions">
@@ -43,7 +43,11 @@
                             $lineKey = (string) $item['line_key'];
                             $inputId = 'qty-'.preg_replace('/[^A-Za-z0-9\-_]/', '-', $lineKey);
                         @endphp
-                        <article class="rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
+                        <article
+                            class="rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4"
+                            data-cart-item
+                            data-unit-price="{{ (float) $item['unit_price'] }}"
+                        >
                             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div class="flex min-w-0 items-center gap-3">
                                     <x-ui.product-thumb :product="$product" size="md" />
@@ -85,7 +89,7 @@
 
                             <div class="mt-2 text-right">
                                 <span class="text-xs text-slate-500">Subtotal</span>
-                                <p class="text-sm font-semibold text-slate-900">${{ number_format((float) $item['subtotal'], 0, ',', '.') }}</p>
+                                <p class="text-sm font-semibold text-slate-900" data-cart-subtotal-amount>${{ number_format((float) $item['subtotal'], 0, ',', '.') }}</p>
                             </div>
                         </article>
                     @endforeach
@@ -99,17 +103,17 @@
                     <div class="mt-4 space-y-2 text-sm">
                         <div class="flex items-center justify-between">
                             <span class="text-slate-500">Productos distintos</span>
-                            <span class="font-medium text-slate-900">{{ number_format($itemsCount) }}</span>
+                            <span class="font-medium text-slate-900" data-cart-products-count>{{ number_format($itemsCount) }}</span>
                         </div>
                         <div class="flex items-center justify-between">
                             <span class="text-slate-500">Unidades totales</span>
-                            <span class="font-medium text-slate-900">{{ number_format($unitsCount) }}</span>
+                            <span class="font-medium text-slate-900" data-cart-units-count>{{ number_format($unitsCount) }}</span>
                         </div>
                     </div>
 
                     <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total estimado</p>
-                        <p class="mt-1 text-3xl font-semibold tracking-tight text-slate-950">${{ number_format((float) $total, 0, ',', '.') }}</p>
+                        <p class="mt-1 text-3xl font-semibold tracking-tight text-slate-950" data-cart-total-amount>${{ number_format((float) $total, 0, ',', '.') }}</p>
                     </div>
 
                     <div class="mt-4 space-y-2">
@@ -138,6 +142,55 @@
                 return Math.max(0, Math.round(parsed));
             };
 
+            const numberFormatter = new Intl.NumberFormat('es-CO', {
+                maximumFractionDigits: 0,
+            });
+
+            const formatNumber = (value) => numberFormatter.format(Math.max(0, Math.round(value)));
+            const formatMoney = (value) => `$${formatNumber(value)}`;
+
+            const refreshCartSummary = () => {
+                let total = 0;
+                let units = 0;
+                let products = 0;
+
+                cartForm.querySelectorAll('[data-cart-item]').forEach((item) => {
+                    const qtyInput = item.querySelector('[data-cart-qty]');
+                    if (!qtyInput) {
+                        return;
+                    }
+
+                    const qty = parseQty(qtyInput.value);
+                    qtyInput.value = String(qty);
+
+                    const unitPrice = Number(item.dataset.unitPrice || 0);
+                    const subtotal = qty * unitPrice;
+
+                    total += subtotal;
+                    units += qty;
+                    if (qty > 0) {
+                        products += 1;
+                    }
+
+                    const subtotalOutput = item.querySelector('[data-cart-subtotal-amount]');
+                    if (subtotalOutput) {
+                        subtotalOutput.textContent = formatMoney(subtotal);
+                    }
+                });
+
+                document.querySelectorAll('[data-cart-total-amount]').forEach((element) => {
+                    element.textContent = formatMoney(total);
+                });
+
+                document.querySelectorAll('[data-cart-units-count]').forEach((element) => {
+                    element.textContent = formatNumber(units);
+                });
+
+                document.querySelectorAll('[data-cart-products-count]').forEach((element) => {
+                    element.textContent = formatNumber(products);
+                });
+            };
+
             document.querySelectorAll('[data-cart-step]').forEach((button) => {
                 button.addEventListener('click', () => {
                     const targetId = button.dataset.cartTarget;
@@ -150,7 +203,13 @@
                     const direction = Number(button.dataset.cartStep || 0);
                     const current = parseQty(input.value);
                     input.value = String(Math.max(0, current + direction));
+                    refreshCartSummary();
                 });
+            });
+
+            cartForm.querySelectorAll('[data-cart-qty]').forEach((input) => {
+                input.addEventListener('input', refreshCartSummary);
+                input.addEventListener('change', refreshCartSummary);
             });
 
             document.querySelectorAll('[data-cart-remove]').forEach((button) => {
@@ -163,9 +222,12 @@
                     }
 
                     input.value = '0';
+                    refreshCartSummary();
                     cartForm.requestSubmit();
                 });
             });
+
+            refreshCartSummary();
         });
     </script>
 </x-app-layout>
