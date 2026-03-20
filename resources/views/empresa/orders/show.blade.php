@@ -169,17 +169,17 @@
                             <tbody>
                                 @foreach($order->items as $index => $item)
                                     <tr>
-                                        <td class="text-xs text-slate-500">{{ $index + 1 }}</td>
-                                        <td class="font-medium text-slate-900">{{ $item->sku_snapshot }}</td>
-                                        <td>
+                                        <td data-label="#" class="text-xs text-slate-500">{{ $index + 1 }}</td>
+                                        <td data-label="SKU" class="font-medium text-slate-900">{{ $item->sku_snapshot }}</td>
+                                        <td data-label="Producto" data-full="true">
                                             <p class="font-medium text-slate-900">{{ $item->product_name_snapshot }}</p>
                                             @if($item->variant_value_snapshot)
                                                 <p class="text-xs text-slate-500">{{ $item->variant_attribute_snapshot ?? 'Variante' }}: {{ $item->variant_value_snapshot }}</p>
                                             @endif
                                         </td>
-                                        <td>{{ $formatQty($item->qty) }} {{ $item->unit_label }}</td>
-                                        <td>${{ number_format((float) $item->price_each, 0, ',', '.') }}</td>
-                                        <td class="font-semibold text-slate-900">${{ number_format((float) $item->subtotal, 0, ',', '.') }}</td>
+                                        <td data-label="Cantidad">{{ $formatQty($item->qty) }} {{ $item->unit_label }}</td>
+                                        <td data-label="Precio">${{ number_format((float) $item->price_each, 0, ',', '.') }}</td>
+                                        <td data-label="Subtotal" class="font-semibold text-slate-900">${{ number_format((float) $item->subtotal, 0, ',', '.') }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>

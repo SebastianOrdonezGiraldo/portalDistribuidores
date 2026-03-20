@@ -37,28 +37,28 @@
                 <tbody>
                     @foreach($users as $user)
                         <tr>
-                            <td>
+                            <td data-label="Nombre" data-full="true">
                                 <p class="font-medium text-slate-900">{{ $user->name }}</p>
                                 @if((int) $user->id === (int) auth()->id())
                                     <p class="text-xs text-brand-dark font-semibold">Tú</p>
                                 @endif
                             </td>
-                            <td class="text-sm text-slate-600">{{ $user->email }}</td>
-                            <td>
+                            <td data-label="Email" class="text-sm text-slate-600">{{ $user->email }}</td>
+                            <td data-label="Rol en empresa">
                                 @if($user->company_role)
                                     <x-ui.badge variant="info">{{ $user->company_role->label() }}</x-ui.badge>
                                 @else
                                     <x-ui.badge variant="neutral">Sin rol asignado</x-ui.badge>
                                 @endif
                             </td>
-                            <td>
+                            <td data-label="Estado">
                                 @if($user->email_verified_at)
                                     <x-ui.badge variant="success">Activo</x-ui.badge>
                                 @else
                                     <x-ui.badge variant="warning">Inactivo</x-ui.badge>
                                 @endif
                             </td>
-                            <td class="text-right">
+                            <td data-label="Acciones" class="text-right">
                                 <div class="flex items-center justify-end gap-1">
                                     <a href="{{ route('empresa.users.edit', $user) }}" class="btn btn-ghost !px-2 !py-1 text-xs">Editar</a>
                                     @if((int) $user->id !== (int) auth()->id())

@@ -157,15 +157,82 @@
     }
 
     .table-base thead th {
-        @apply whitespace-nowrap bg-slate-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600;
+        @apply bg-slate-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600;
     }
 
     .table-base tbody td {
-        @apply whitespace-nowrap px-4 py-3 align-middle text-slate-700;
+        @apply px-4 py-3 align-middle text-slate-700;
     }
 
     .table-base tbody tr {
         @apply transition hover:bg-slate-50;
+    }
+
+    @media (max-width: 767px) {
+        .table-mobile-cards .table-base {
+            display: block;
+            min-width: 0;
+        }
+
+        .table-mobile-cards .table-base thead {
+            display: none;
+        }
+
+        .table-mobile-cards .table-base tbody {
+            display: grid;
+            gap: 0.75rem;
+            padding: 0.75rem;
+        }
+
+        .table-mobile-cards .table-base tbody tr {
+            display: block;
+            border: 1px solid rgb(226 232 240);
+            border-radius: 0.95rem;
+            background-color: rgb(255 255 255);
+            padding: 0.75rem;
+        }
+
+        .table-mobile-cards .table-base tbody td {
+            display: flex;
+            width: 100%;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding: 0.375rem 0;
+            white-space: normal;
+            text-align: right;
+        }
+
+        .table-mobile-cards .table-base tbody td::before {
+            content: attr(data-label);
+            flex: 0 0 42%;
+            max-width: 42%;
+            text-align: left;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: rgb(100 116 139);
+        }
+
+        .table-mobile-cards .table-base tbody td[data-no-label='true']::before {
+            display: none;
+        }
+
+        .table-mobile-cards .table-base tbody td[data-no-label='true'] {
+            justify-content: flex-end;
+        }
+
+        .table-mobile-cards .table-base tbody td[data-full='true'] {
+            display: block;
+            text-align: left;
+        }
+
+        .table-mobile-cards .table-base tbody td[data-full='true']::before {
+            display: block;
+            max-width: 100%;
+            margin-bottom: 0.4rem;
+        }
     }
 
     .product-row-actions {

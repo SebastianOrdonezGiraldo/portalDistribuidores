@@ -149,28 +149,28 @@
                 <tbody>
                     @foreach($users as $user)
                         <tr>
-                            <td>
+                            <td data-label="Usuario" data-full="true">
                                 <p class="font-medium text-slate-900">{{ $user->name }}</p>
                                 <p class="text-xs text-slate-500">{{ $user->email }}</p>
                             </td>
-                            <td>
+                            <td data-label="Rol">
                                 <x-ui.badge :variant="$user->role->value === 'admin' ? 'brand' : 'info'">
                                     {{ $user->role->value === 'admin' ? 'Administrador' : 'Distribuidor' }}
                                 </x-ui.badge>
                             </td>
-                            <td>{{ $user->distributor?->name ?? '—' }}</td>
-                            <td>
+                            <td data-label="Distribuidor">{{ $user->distributor?->name ?? '—' }}</td>
+                            <td data-label="Verificación">
                                 @if($user->email_verified_at)
                                     <x-ui.badge variant="success">Verificado</x-ui.badge>
                                 @else
                                     <x-ui.badge variant="warning">Pendiente</x-ui.badge>
                                 @endif
                             </td>
-                            <td>
+                            <td data-label="Creación">
                                 <p>{{ $user->created_at?->format('d/m/Y H:i') }}</p>
                                 <p class="text-xs text-slate-500">{{ $user->created_at?->diffForHumans() }}</p>
                             </td>
-                            <td class="text-right">
+                            <td data-label="Acciones" class="text-right">
                                 <x-ui.action-menu>
                                     <a href="{{ route('admin.users.edit', $user) }}" class="block rounded-lg px-3 py-2 hover:bg-slate-50">Editar</a>
                                     <form action="{{ route('admin.users.destroy', $user) }}" method="POST"

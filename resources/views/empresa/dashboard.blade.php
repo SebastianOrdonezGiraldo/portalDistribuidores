@@ -68,15 +68,15 @@
                             <tbody>
                                 @foreach($recentOrders as $order)
                                     <tr>
-                                        <td class="font-semibold text-slate-900">{{ $order->oc_number }}</td>
-                                        <td><x-ui.status-badge :status="$order->status" /></td>
-                                        <td class="font-medium">${{ number_format((float) $order->total_amount, 0, ',', '.') }}</td>
-                                        <td class="text-sm text-slate-600">{{ $order->user?->name ?? '—' }}</td>
-                                        <td>
+                                        <td data-label="CTC" class="font-semibold text-slate-900">{{ $order->oc_number }}</td>
+                                        <td data-label="Estado"><x-ui.status-badge :status="$order->status" /></td>
+                                        <td data-label="Total" class="font-medium">${{ number_format((float) $order->total_amount, 0, ',', '.') }}</td>
+                                        <td data-label="Generado por" class="text-sm text-slate-600">{{ $order->user?->name ?? '—' }}</td>
+                                        <td data-label="Fecha">
                                             <p class="text-sm">{{ $order->created_at?->format('d/m/Y') }}</p>
                                             <p class="text-xs text-slate-500">{{ $order->created_at?->diffForHumans() }}</p>
                                         </td>
-                                        <td class="text-right">
+                                        <td data-label="Acciones" class="text-right">
                                             <a href="{{ route('empresa.orders.show', $order) }}" class="btn btn-ghost !px-2 !py-1 text-xs">Ver</a>
                                         </td>
                                     </tr>

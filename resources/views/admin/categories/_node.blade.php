@@ -1,5 +1,5 @@
 <tr>
-    <td>
+    <td data-label="Nombre" data-full="true">
         <div class="flex items-center gap-2" style="padding-left: {{ $depth * 18 }}px">
             @if($depth > 0)
                 <span class="h-px w-4 bg-slate-300"></span>
@@ -12,22 +12,22 @@
             </div>
         </div>
     </td>
-    <td class="font-medium text-slate-700">{{ $category->slug }}</td>
-    <td>
+    <td data-label="Slug" class="font-medium text-slate-700">{{ $category->slug }}</td>
+    <td data-label="Estado">
         <x-ui.status-badge :status="$category->is_active ? 'active' : 'inactive'" />
     </td>
-    <td>
+    <td data-label="Productos">
         <x-ui.badge :variant="$category->products_count > 0 ? 'success' : 'neutral'">{{ $category->products_count }}</x-ui.badge>
     </td>
-    <td>
+    <td data-label="Sinónimos">
         <x-ui.badge :variant="$category->synonyms_count > 0 ? 'info' : 'neutral'">{{ $category->synonyms_count }}</x-ui.badge>
     </td>
-    <td>{{ $category->sort_order }}</td>
-    <td>
+    <td data-label="Orden">{{ $category->sort_order }}</td>
+    <td data-label="Actualización">
         <p>{{ $category->updated_at?->format('d/m/Y') }}</p>
         <p class="text-xs text-slate-500">{{ $category->updated_at?->diffForHumans() }}</p>
     </td>
-    <td class="text-right">
+    <td data-label="Acciones" class="text-right">
         <x-ui.action-menu>
             <a href="{{ route('admin.categories.edit', $category) }}" class="block rounded-lg px-3 py-2 hover:bg-slate-50">Editar</a>
             <form action="{{ route('admin.categories.status', $category) }}" method="POST" data-confirm="{{ $category->is_active ? '¿Desactivar '.$category->name.'?' : '¿Activar '.$category->name.'?' }}">

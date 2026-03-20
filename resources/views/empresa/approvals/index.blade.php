@@ -85,18 +85,18 @@
                 <x-slot name="body">
                     @foreach($rejected as $order)
                         <tr>
-                            <td class="font-mono text-sm">{{ $order->oc_number }}</td>
-                            <td>{{ $order->user?->name ?? '—' }}</td>
-                            <td>${{ number_format((float) $order->total_amount, 0, ',', '.') }}</td>
-                            <td class="max-w-xs">
+                            <td data-label="CTC" class="font-mono text-sm">{{ $order->oc_number }}</td>
+                            <td data-label="Creado por">{{ $order->user?->name ?? '—' }}</td>
+                            <td data-label="Total">${{ number_format((float) $order->total_amount, 0, ',', '.') }}</td>
+                            <td data-label="Motivo" class="max-w-xs">
                                 @if($order->approval_note)
                                     <span class="text-sm text-slate-600 italic">{{ Str::limit($order->approval_note, 80) }}</span>
                                 @else
                                     <span class="text-slate-400">—</span>
                                 @endif
                             </td>
-                            <td class="text-sm text-slate-500">{{ $order->updated_at->format('d/m/Y') }}</td>
-                            <td>
+                            <td data-label="Fecha" class="text-sm text-slate-500">{{ $order->updated_at->format('d/m/Y') }}</td>
+                            <td data-label="Acciones">
                                 <a href="{{ route('empresa.orders.show', $order) }}" class="text-sm text-brand-primary hover:underline">Ver</a>
                             </td>
                         </tr>

@@ -230,7 +230,7 @@
                 <tbody>
                     @foreach($products as $product)
                         <tr>
-                            <td>
+                            <td data-label="Producto" data-full="true">
                                 <div class="flex items-center gap-3">
                                     <x-ui.product-thumb :product="$product" size="sm" />
                                     <div>
@@ -242,12 +242,12 @@
                                     </div>
                                 </div>
                             </td>
-                            <td>{{ $product->category?->name ?? '-' }}</td>
-                            <td class="font-medium text-slate-900">${{ number_format((float) $product->price, 0, ',', '.') }}</td>
-                            <td>
+                            <td data-label="Categoría">{{ $product->category?->name ?? '-' }}</td>
+                            <td data-label="Precio" class="font-medium text-slate-900">${{ number_format((float) $product->price, 0, ',', '.') }}</td>
+                            <td data-label="Disponibilidad">
                                 <x-ui.status-badge :status="$product->is_active ? 'active' : 'inactive'" :label="$product->is_active ? 'Disponible' : 'Inactivo'" />
                             </td>
-                            <td>
+                            <td data-label="Acciones">
                                 <div class="product-row-actions">
                                     <a
                                         href="{{ route('admin.products.edit', $product) }}"

@@ -146,19 +146,19 @@
                 <tbody>
                     @foreach($distributors as $distributor)
                         <tr>
-                            <td>
+                            <td data-label="Distribuidor" data-full="true">
                                 <p class="font-medium text-slate-900">{{ $distributor->name }}</p>
                                 <p class="text-xs text-slate-500">ID #{{ $distributor->id }}</p>
                             </td>
-                            <td><x-ui.status-badge :status="$distributor->status" /></td>
-                            <td class="font-medium text-slate-900">{{ number_format((int) $distributor->users_count) }}</td>
-                            <td class="font-medium text-slate-900">{{ number_format((int) $distributor->orders_count) }}</td>
-                            <td>
+                            <td data-label="Estado"><x-ui.status-badge :status="$distributor->status" /></td>
+                            <td data-label="Usuarios" class="font-medium text-slate-900">{{ number_format((int) $distributor->users_count) }}</td>
+                            <td data-label="Pedidos" class="font-medium text-slate-900">{{ number_format((int) $distributor->orders_count) }}</td>
+                            <td data-label="Creación">
                                 <p>{{ $distributor->created_at?->format('d/m/Y H:i') }}</p>
                                 <p class="text-xs text-slate-500">{{ $distributor->created_at?->diffForHumans() }}</p>
                             </td>
-                            <td>{{ $distributor->updated_at?->format('d/m/Y H:i') }}</td>
-                            <td class="text-right">
+                            <td data-label="Actualización">{{ $distributor->updated_at?->format('d/m/Y H:i') }}</td>
+                            <td data-label="Acciones" class="text-right">
                                 <x-ui.action-menu>
                                     <a href="{{ route('admin.distributors.edit', $distributor) }}" class="block rounded-lg px-3 py-2 hover:bg-slate-50">Editar</a>
 

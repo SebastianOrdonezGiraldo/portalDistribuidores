@@ -93,19 +93,19 @@
                             <tbody>
                                 @foreach($recentOrders as $order)
                                     <tr>
-                                        <td><input type="checkbox" class="form-checkbox" data-bulk-row value="{{ $order->oc_number }}"></td>
-                                        <td class="font-semibold text-slate-900">{{ $order->oc_number }}</td>
-                                        <td>
+                                        <td data-label="Seleccionar"><input type="checkbox" class="form-checkbox" data-bulk-row value="{{ $order->oc_number }}"></td>
+                                        <td data-label="CTC" class="font-semibold text-slate-900">{{ $order->oc_number }}</td>
+                                        <td data-label="Cliente">
                                             <p class="font-medium text-slate-900">{{ $order->company_name }}</p>
                                             <p class="text-xs text-slate-500">{{ $order->distributor?->name ?? 'Distribuidor' }}</p>
                                         </td>
-                                        <td><x-ui.status-badge :status="$order->status" /></td>
-                                        <td class="font-medium">${{ number_format((float) $order->total_amount, 0, ',', '.') }}</td>
-                                        <td>
+                                        <td data-label="Estado"><x-ui.status-badge :status="$order->status" /></td>
+                                        <td data-label="Total" class="font-medium">${{ number_format((float) $order->total_amount, 0, ',', '.') }}</td>
+                                        <td data-label="Fecha">
                                             <p>{{ $order->created_at?->format('d/m/Y H:i') }}</p>
                                             <p class="text-xs text-slate-500">{{ $order->created_at?->diffForHumans() }}</p>
                                         </td>
-                                        <td class="text-right">
+                                        <td data-label="Acciones" class="text-right">
                                             <a href="{{ route('admin.orders.show', $order) }}" class="btn btn-ghost !px-2 !py-1 text-xs">Ver</a>
                                         </td>
                                     </tr>

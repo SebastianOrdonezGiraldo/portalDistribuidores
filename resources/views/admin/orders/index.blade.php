@@ -159,34 +159,34 @@
                 <tbody>
                     @foreach($orders as $order)
                         <tr>
-                            <td><input type="checkbox" class="form-checkbox" data-bulk-row value="{{ $order->oc_number }}"></td>
-                            <td>
+                            <td data-label="Seleccionar"><input type="checkbox" class="form-checkbox" data-bulk-row value="{{ $order->oc_number }}"></td>
+                            <td data-label="CTC" data-full="true">
                                 <p class="font-semibold text-slate-900">{{ $order->oc_number }}</p>
                                 <p class="text-xs text-slate-500">{{ $order->user?->email }}</p>
                             </td>
-                            <td>
+                            <td data-label="Cliente" data-full="true">
                                 <p class="font-medium text-slate-900">{{ $order->company_name }}</p>
                                 <p class="text-xs text-slate-500">{{ $order->distributor?->name ?? 'Sin distribuidor' }}</p>
                             </td>
-                            <td>
+                            <td data-label="Contacto" data-full="true">
                                 <p class="text-sm text-slate-900">{{ $order->contact_name }}</p>
                                 <p class="text-xs text-slate-500">{{ $order->contact_email ?? 'Sin email' }}</p>
                             </td>
-                            <td><x-ui.status-badge :status="$order->status" /></td>
-                            <td class="font-medium text-slate-900">${{ number_format((float) $order->total_amount, 0, ',', '.') }}</td>
-                            <td>
+                            <td data-label="Estado"><x-ui.status-badge :status="$order->status" /></td>
+                            <td data-label="Total" class="font-medium text-slate-900">${{ number_format((float) $order->total_amount, 0, ',', '.') }}</td>
+                            <td data-label="Creado">
                                 <p>{{ $order->created_at?->format('d/m/Y H:i') }}</p>
                                 <p class="text-xs text-slate-500">{{ $order->created_at?->diffForHumans() }}</p>
                             </td>
-                            <td>{{ $order->updated_at?->format('d/m/Y H:i') }}</td>
-                            <td>
+                            <td data-label="Actualizado">{{ $order->updated_at?->format('d/m/Y H:i') }}</td>
+                            <td data-label="Documento">
                                 @if($order->pdf_path)
                                     <x-ui.badge variant="success">Disponible</x-ui.badge>
                                 @else
                                     <x-ui.badge variant="warning">Pendiente</x-ui.badge>
                                 @endif
                             </td>
-                            <td class="text-right">
+                            <td data-label="Acciones" class="text-right">
                                 <x-ui.action-menu>
                                     <a href="{{ route('admin.orders.show', $order) }}" class="block rounded-lg px-3 py-2 hover:bg-slate-50">Ver detalle</a>
                                     <a href="{{ route('admin.orders.pdf', $order) }}" class="block rounded-lg px-3 py-2 hover:bg-slate-50">Descargar PDF</a>

@@ -36,30 +36,28 @@
     </section>
 
     {{-- Filtros --}}
-    <x-ui.filter-bar class="mt-4" :active-count="$activeFiltersCount">
-        <form method="GET" action="{{ route('empresa.orders.index') }}" class="flex flex-wrap gap-3">
-            <div class="flex-1 min-w-48">
-                <x-ui.input
-                    name="q"
-                    :value="$filters['q']"
-                    placeholder="Buscar CTC, empresa o contacto…"
-                />
-            </div>
-            <div class="w-44">
-                <x-ui.select name="status">
-                    <option value="">Todos los estados</option>
-                    @foreach($statusOptions as $statusValue)
-                        <option value="{{ $statusValue }}" @selected($filters['status'] === $statusValue)>
-                            {{ ucfirst($statusValue) }}
-                        </option>
-                    @endforeach
-                </x-ui.select>
-            </div>
-            <x-ui.button type="submit" variant="primary">Filtrar</x-ui.button>
-            @if($activeFiltersCount > 0)
-                <a href="{{ route('empresa.orders.index') }}" class="btn btn-secondary">Limpiar</a>
-            @endif
-        </form>
+    <x-ui.filter-bar method="GET" action="{{ route('empresa.orders.index') }}" class="mt-4 flex flex-wrap gap-3">
+        <div class="flex-1 min-w-48">
+            <x-ui.input
+                name="q"
+                :value="$filters['q']"
+                placeholder="Buscar CTC, empresa o contacto…"
+            />
+        </div>
+        <div class="w-44">
+            <x-ui.select name="status">
+                <option value="">Todos los estados</option>
+                @foreach($statusOptions as $statusValue)
+                    <option value="{{ $statusValue }}" @selected($filters['status'] === $statusValue)>
+                        {{ ucfirst($statusValue) }}
+                    </option>
+                @endforeach
+            </x-ui.select>
+        </div>
+        <x-ui.button type="submit" variant="primary">Filtrar</x-ui.button>
+        @if($activeFiltersCount > 0)
+            <a href="{{ route('empresa.orders.index') }}" class="btn btn-secondary">Limpiar</a>
+        @endif
     </x-ui.filter-bar>
 
     {{-- Tabla --}}
@@ -88,24 +86,24 @@
                 <tbody>
                     @foreach($orders as $order)
                         <tr>
-                            <td class="font-semibold text-slate-900">{{ $order->oc_number }}</td>
-                            <td>
+                            <td data-label="CTC" class="font-semibold text-slate-900">{{ $order->oc_number }}</td>
+                            <td data-label="Empresa / Contacto" data-full="true">
                                 <p class="font-medium text-slate-900">{{ $order->company_name }}</p>
                                 <p class="text-xs text-slate-500">{{ $order->contact_name }}</p>
                             </td>
-                            <td>
+                            <td data-label="Estado" data-full="true">
                                 <x-ui.status-badge :status="$order->status" />
                                 @if($order->status->isRejected() && $order->approval_note)
                                     <p class="mt-0.5 text-xs text-red-600 italic">{{ Str::limit($order->approval_note, 60) }}</p>
                                 @endif
                             </td>
-                            <td class="font-medium text-slate-900">${{ number_format((float) $order->total_amount, 0, ',', '.') }}</td>
-                            <td class="text-sm text-slate-600">{{ $order->user?->name ?? '—' }}</td>
-                            <td>
+                            <td data-label="Total" class="font-medium text-slate-900">${{ number_format((float) $order->total_amount, 0, ',', '.') }}</td>
+                            <td data-label="Generado por" class="text-sm text-slate-600">{{ $order->user?->name ?? '—' }}</td>
+                            <td data-label="Fecha">
                                 <p class="text-sm">{{ $order->created_at?->format('d/m/Y') }}</p>
                                 <p class="text-xs text-slate-500">{{ $order->created_at?->format('H:i') }}</p>
                             </td>
-                            <td class="text-right">
+                            <td data-label="Acciones" class="text-right">
                                 <div class="flex items-center justify-end gap-1">
                                     <a href="{{ route('empresa.orders.show', $order) }}" class="btn btn-ghost !px-2 !py-1 text-xs">Ver</a>
                                     @if($order->pdf_path)
