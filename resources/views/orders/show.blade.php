@@ -25,9 +25,9 @@
     <x-slot name="header">
         <x-ui.page-header title="Seguimiento de Pedido {{ $order->oc_number }}" subtitle="Consulta estado, detalle de ítems y documentación de forma centralizada.">
             <x-slot name="actions">
-                <a href="{{ route('catalog.index') }}" class="btn btn-secondary">Volver al catálogo</a>
+                <a href="{{ route('catalog.index') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Volver al catálogo</a>
                 @if($order->pdf_path)
-                    <a href="{{ route('orders.pdf', $order) }}" class="btn btn-primary">Descargar PDF</a>
+                    <a href="{{ route('orders.pdf', $order) }}" class="btn btn-primary w-full justify-center sm:w-auto">Descargar PDF</a>
                 @endif
             </x-slot>
         </x-ui.page-header>

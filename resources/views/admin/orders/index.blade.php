@@ -10,7 +10,7 @@
                 </div>
             </x-slot>
             <x-slot name="actions">
-                <a href="{{ route('admin.orders.index') }}" class="btn btn-secondary">Limpiar filtros</a>
+                <a href="{{ route('admin.orders.index') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Limpiar filtros</a>
             </x-slot>
         </x-ui.page-header>
     </x-slot>
@@ -120,15 +120,15 @@
             </x-ui.select>
         </div>
 
-        <div class="xl:col-span-8 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3">
-            <div class="flex items-center gap-2 text-xs text-slate-500">
+        <div class="xl:col-span-8 flex flex-col gap-3 border-t border-slate-200 pt-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex w-full flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
                 <span>Resultados: <strong class="text-slate-700">{{ number_format($orders->total()) }}</strong></span>
                 <span>Mostrando: <strong class="text-slate-700">{{ $orders->firstItem() ?? 0 }}-{{ $orders->lastItem() ?? 0 }}</strong></span>
                 <span>Seleccionados: <strong data-bulk-count>0</strong></span>
             </div>
-            <div class="flex items-center gap-2">
-                <x-ui.button type="button" variant="secondary" size="sm" data-bulk-copy disabled>Copiar CTC</x-ui.button>
-                <x-ui.button type="submit" variant="primary">Aplicar filtros</x-ui.button>
+            <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                <x-ui.button type="button" variant="secondary" size="sm" class="w-full justify-center sm:w-auto" data-bulk-copy disabled>Copiar CTC</x-ui.button>
+                <x-ui.button type="submit" variant="primary" class="w-full justify-center sm:w-auto">Aplicar filtros</x-ui.button>
             </div>
         </div>
     </x-ui.filter-bar>

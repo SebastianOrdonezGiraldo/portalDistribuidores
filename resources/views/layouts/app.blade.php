@@ -298,9 +298,9 @@
 <x-ui.modal id="confirm-action-modal" data-confirm-modal title="Confirmar acción" description="Esta acción puede impactar la operación diaria.">
     <p data-confirm-text class="text-sm text-slate-700">¿Deseas continuar?</p>
 
-    <div class="mt-5 flex justify-end gap-2">
-        <x-ui.button type="button" variant="secondary" data-confirm-cancel>Cancelar</x-ui.button>
-        <x-ui.button type="button" variant="danger" data-confirm-approve>Confirmar</x-ui.button>
+    <div class="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <x-ui.button type="button" variant="secondary" class="w-full justify-center sm:w-auto" data-confirm-cancel>Cancelar</x-ui.button>
+        <x-ui.button type="button" variant="danger" class="w-full justify-center sm:w-auto" data-confirm-approve>Confirmar</x-ui.button>
     </div>
 </x-ui.modal>
 </body>

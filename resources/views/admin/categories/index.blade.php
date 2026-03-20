@@ -11,7 +11,7 @@
                 </div>
             </x-slot>
             <x-slot name="actions">
-                <a href="{{ route('admin.categories.create') }}" class="btn btn-primary">Nueva categoría</a>
+                <a href="{{ route('admin.categories.create') }}" class="btn btn-primary w-full justify-center sm:w-auto">Nueva categoría</a>
             </x-slot>
         </x-ui.page-header>
     </x-slot>
@@ -65,11 +65,11 @@
             </x-ui.select>
         </div>
 
-        <div class="xl:col-span-5 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3">
-            <p class="text-xs text-slate-500">Modo jerárquico con subcategorías anidadas y acciones rápidas.</p>
-            <div class="flex items-center gap-2">
-                <x-ui.button type="submit" variant="primary">Aplicar</x-ui.button>
-                <a href="{{ route('admin.categories.index') }}" class="btn btn-secondary">Limpiar</a>
+        <div class="xl:col-span-5 flex flex-col gap-3 border-t border-slate-200 pt-3 sm:flex-row sm:items-center sm:justify-between">
+            <p class="w-full text-xs text-slate-500">Modo jerárquico con subcategorías anidadas y acciones rápidas.</p>
+            <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                <x-ui.button type="submit" variant="primary" class="w-full justify-center sm:w-auto">Aplicar</x-ui.button>
+                <a href="{{ route('admin.categories.index') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Limpiar</a>
             </div>
         </div>
     </x-ui.filter-bar>

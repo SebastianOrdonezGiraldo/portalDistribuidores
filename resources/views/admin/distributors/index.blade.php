@@ -11,7 +11,7 @@
                 </div>
             </x-slot>
             <x-slot name="actions">
-                <a href="{{ route('admin.distributors.create') }}" class="btn btn-primary">Nuevo distribuidor</a>
+                <a href="{{ route('admin.distributors.create') }}" class="btn btn-primary w-full justify-center sm:w-auto">Nuevo distribuidor</a>
             </x-slot>
         </x-ui.page-header>
     </x-slot>
@@ -111,14 +111,14 @@
             </x-ui.select>
         </div>
 
-        <div class="xl:col-span-6 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3">
-            <div class="text-xs text-slate-500">
+        <div class="xl:col-span-6 flex flex-col gap-3 border-t border-slate-200 pt-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="w-full text-xs text-slate-500">
                 Mostrando <strong class="text-slate-700">{{ $distributors->firstItem() ?? 0 }}-{{ $distributors->lastItem() ?? 0 }}</strong>
                 de <strong class="text-slate-700">{{ number_format($distributors->total()) }}</strong> distribuidores
             </div>
-            <div class="flex items-center gap-2">
-                <x-ui.button type="submit" variant="primary">Aplicar</x-ui.button>
-                <a href="{{ route('admin.distributors.index') }}" class="btn btn-secondary">Limpiar</a>
+            <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                <x-ui.button type="submit" variant="primary" class="w-full justify-center sm:w-auto">Aplicar</x-ui.button>
+                <a href="{{ route('admin.distributors.index') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Limpiar</a>
             </div>
         </div>
     </x-ui.filter-bar>

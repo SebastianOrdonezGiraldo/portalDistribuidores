@@ -52,8 +52,8 @@
                 </div>
             </x-slot>
             <x-slot name="actions">
-                <a href="{{ route('admin.orders.index') }}" class="btn btn-secondary">Volver al listado</a>
-                <a href="{{ route('admin.orders.pdf', $order) }}" class="btn btn-primary">Descargar PDF</a>
+                <a href="{{ route('admin.orders.index') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Volver al listado</a>
+                <a href="{{ route('admin.orders.pdf', $order) }}" class="btn btn-primary w-full justify-center sm:w-auto">Descargar PDF</a>
             </x-slot>
         </x-ui.page-header>
     </x-slot>
@@ -229,15 +229,15 @@
                 </div>
 
                 <div class="mt-4 flex flex-wrap gap-2">
-                    <a href="{{ route('admin.orders.pdf', $order) }}" class="btn btn-primary">Descargar PDF</a>
-                    <a href="{{ route('admin.orders.index') }}" class="btn btn-secondary">Volver</a>
+                    <a href="{{ route('admin.orders.pdf', $order) }}" class="btn btn-primary w-full justify-center sm:w-auto">Descargar PDF</a>
+                    <a href="{{ route('admin.orders.index') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Volver</a>
                     @if($order->contact_email)
-                        <a href="mailto:{{ $order->contact_email }}" class="btn btn-secondary">Enviar correo</a>
+                        <a href="mailto:{{ $order->contact_email }}" class="btn btn-secondary w-full justify-center sm:w-auto">Enviar correo</a>
                     @endif
-                    <form action="{{ route('admin.orders.destroy', $order) }}" method="POST" data-confirm="¿Eliminar {{ $order->oc_number }}? Esta acción no se puede deshacer." class="inline">
+                    <form action="{{ route('admin.orders.destroy', $order) }}" method="POST" data-confirm="¿Eliminar {{ $order->oc_number }}? Esta acción no se puede deshacer." class="w-full sm:w-auto">
                         @csrf
                         @method('DELETE')
-                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                        <button type="submit" class="btn btn-danger w-full justify-center sm:w-auto">Eliminar</button>
                     </form>
                 </div>
             </x-ui.card>

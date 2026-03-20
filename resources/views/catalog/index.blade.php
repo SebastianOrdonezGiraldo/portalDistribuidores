@@ -25,7 +25,7 @@
         </div>
 
         <div class="flex items-end gap-2 md:col-span-2 lg:col-span-3 lg:justify-end">
-            <x-ui.button type="submit" variant="primary" class="w-full lg:min-w-[9rem] lg:w-auto">Buscar</x-ui.button>
+            <x-ui.button type="submit" variant="primary" class="w-full sm:w-auto">Buscar</x-ui.button>
             <a href="{{ route('catalog.index') }}" class="btn btn-secondary shrink-0">Limpiar</a>
         </div>
 

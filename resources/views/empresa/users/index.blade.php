@@ -8,8 +8,8 @@
                 </div>
             </x-slot>
             <x-slot name="actions">
-                <a href="{{ route('empresa.dashboard') }}" class="btn btn-secondary">Dashboard</a>
-                <a href="{{ route('empresa.users.create') }}" class="btn btn-primary">Nuevo usuario</a>
+                <a href="{{ route('empresa.dashboard') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Dashboard</a>
+                <a href="{{ route('empresa.users.create') }}" class="btn btn-primary w-full justify-center sm:w-auto">Nuevo usuario</a>
             </x-slot>
         </x-ui.page-header>
     </x-slot>
@@ -59,7 +59,7 @@
                                 @endif
                             </td>
                             <td data-label="Acciones" class="text-right">
-                                <div class="flex items-center justify-end gap-1">
+                                <div class="flex w-full flex-wrap items-center justify-end gap-1">
                                     <a href="{{ route('empresa.users.edit', $user) }}" class="btn btn-ghost !px-2 !py-1 text-xs">Editar</a>
                                     @if((int) $user->id !== (int) auth()->id())
                                         <form method="POST" action="{{ route('empresa.users.toggle-active', $user) }}" class="inline">

@@ -41,7 +41,7 @@
         {{-- ──────────────────────────────────────────────────────────────
              HERO: imagen (izquierda) + info + compra (derecha)
         ────────────────────────────────────────────────────────────────── --}}
-        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft lg:grid lg:grid-cols-[minmax(0,1.15fr)_400px] xl:grid-cols-[minmax(0,1.3fr)_440px]">
+        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] xl:grid-cols-[minmax(0,1.15fr)_minmax(22rem,26rem)]">
 
             {{-- Columna imagen --}}
             <div class="relative flex flex-col border-b border-slate-200 bg-slate-50/80 lg:border-b-0 lg:border-r">
@@ -217,7 +217,7 @@
                     </div>
 
                     {{-- Disponibilidad + stock --}}
-                    <div class="mb-5 grid grid-cols-2 gap-3">
+                    <div class="mb-5 grid gap-3 sm:grid-cols-2">
                         <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
                             <p class="mb-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Disponibilidad</p>
                             <x-ui.badge :variant="$availability['badge']" class="!normal-case !tracking-normal">
@@ -292,9 +292,9 @@
                                 Cantidad a agregar
                             </label>
 
-                            <div class="flex items-stretch gap-3">
+                            <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-3">
                                 {{-- Stepper de cantidad --}}
-                                <div class="inline-flex shrink-0 items-center rounded-xl border border-slate-300 bg-white shadow-sm">
+                                <div class="inline-flex w-fit shrink-0 items-center rounded-xl border border-slate-300 bg-white shadow-sm">
                                     <button
                                         type="button"
                                         data-qty-step="-1"
@@ -329,7 +329,7 @@
                                 {{-- Botón principal CTA --}}
                                 <button
                                     type="submit"
-                                    class="btn btn-primary h-11 flex-1 justify-center gap-2 text-sm font-semibold"
+                                    class="btn btn-primary h-11 w-full justify-center gap-2 text-sm font-semibold sm:flex-1"
                                     data-loading-label="Agregando..."
                                     @disabled(! $canBuy)
                                 >
@@ -409,7 +409,7 @@
              Navegación de secciones (sticky, estilo underline)
         ────────────────────────────────────────────────────────────────── --}}
         <nav
-            class="sticky top-[57px] z-20 -mx-4 overflow-x-auto border-y border-slate-200 bg-white/95 backdrop-blur sm:-mx-6 lg:-mx-8"
+            class="-mx-4 overflow-x-auto border-y border-slate-200 bg-white/95 backdrop-blur md:sticky md:top-[4.5rem] md:z-20 sm:-mx-6 lg:-mx-8"
             aria-label="Secciones del producto"
         >
             <div class="flex min-w-max items-center px-4 sm:px-6 lg:px-8" data-section-nav>
@@ -466,7 +466,7 @@
                 @if(count($specRows) > 0)
                     <dl class="divide-y divide-slate-100">
                         @foreach($specRows as $index => $row)
-                            <div class="grid grid-cols-[minmax(120px,180px)_1fr] items-baseline gap-4 py-3 sm:grid-cols-[200px_1fr] {{ $index === 0 ? 'pt-0' : '' }} {{ $index === count($specRows) - 1 ? 'pb-0' : '' }}">
+                            <div class="grid gap-1.5 py-3 sm:grid-cols-[200px_1fr] sm:items-baseline sm:gap-4 {{ $index === 0 ? 'pt-0' : '' }} {{ $index === count($specRows) - 1 ? 'pb-0' : '' }}">
                                 <dt class="text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">{{ $row['label'] }}</dt>
                                 <dd class="text-sm font-medium text-slate-800">{{ $row['value'] ?? '—' }}</dd>
                             </div>
@@ -549,7 +549,7 @@
                                         @if($techSheet)
                                             <a
                                                 href="{{ route('documents.tech-sheet.download', $techSheet) }}"
-                                                class="inline-flex items-center gap-2 rounded-lg border border-brand-primary/40 bg-white px-3.5 py-2 text-sm font-semibold text-brand-primary shadow-sm transition hover:bg-brand-primary/5 hover:border-brand-primary focus-ring"
+                                                class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-brand-primary/40 bg-white px-3.5 py-2 text-sm font-semibold text-brand-primary shadow-sm transition hover:bg-brand-primary/5 hover:border-brand-primary focus-ring sm:w-auto"
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -587,7 +587,7 @@
                                                 href="{{ $productVideo->url }}"
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 focus-ring"
+                                                class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 focus-ring sm:w-auto"
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                     <polygon points="5 3 19 12 5 21 5 3"/>
@@ -610,31 +610,31 @@
 
                     {{-- Documentos secundarios adicionales (catálogos, certificados, manuales) --}}
                     @if($secondaryDocuments->isNotEmpty())
-                        <div class="mt-3 overflow-hidden rounded-2xl border border-slate-200">
-                            <table class="min-w-full divide-y divide-slate-100 text-sm">
-                                <thead class="bg-slate-50">
+                        <div class="mt-3">
+                            <x-ui.table>
+                                <thead>
                                     <tr>
-                                        <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">Tipo</th>
-                                        <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">Archivo</th>
-                                        <th class="px-5 py-3 text-right text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">Acceso</th>
+                                        <th>Tipo</th>
+                                        <th>Archivo</th>
+                                        <th class="text-right">Acceso</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100 bg-white">
+                                <tbody>
                                     @foreach($secondaryDocuments as $document)
                                         <tr>
-                                            <td class="px-5 py-3 font-medium text-slate-700">
+                                            <td data-label="Tipo" class="font-medium text-slate-700">
                                                 {{ $documentTypeLabels[$document->type] ?? ucfirst($document->type) }}
                                             </td>
-                                            <td class="px-5 py-3 text-slate-500" title="{{ $document->filename }}">
-                                                <span class="block max-w-[200px] truncate">{{ $document->filename }}</span>
+                                            <td data-label="Archivo" data-full="true" class="text-slate-500" title="{{ $document->filename }}">
+                                                <span class="block truncate">{{ $document->filename }}</span>
                                             </td>
-                                            <td class="px-5 py-3 text-right text-xs text-slate-400">
+                                            <td data-label="Acceso" class="text-right text-xs text-slate-400">
                                                 Solicitar a soporte comercial
                                             </td>
                                         </tr>
                                     @endforeach
                                 </tbody>
-                            </table>
+                            </x-ui.table>
                         </div>
                     @endif
                 @endif
@@ -665,9 +665,9 @@
     {{-- ──────────────────────────────────────────────────────────────
          Barra de compra fija en mobile
     ────────────────────────────────────────────────────────────────── --}}
-    <div class="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-4px_16px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
-        <div class="mx-auto flex max-w-xl items-center gap-3">
-            <div class="min-w-0 flex-1">
+    <div class="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+        <div class="mx-auto flex max-w-xl flex-wrap items-center gap-2 sm:gap-3">
+            <div class="w-full min-w-0 sm:flex-1">
                 <p
                     class="truncate text-base font-bold tabular-nums text-slate-950"
                     data-variant-mobile-price-target
@@ -710,12 +710,12 @@
                 <button
                     type="submit"
                     form="product-purchase-form"
-                    class="btn btn-primary h-10 shrink-0 px-5 text-sm"
+                    class="btn btn-primary h-10 w-full justify-center px-5 text-sm sm:w-auto"
                 >
                     Agregar
                 </button>
             @else
-                <a href="#alternativas" data-scroll-link class="btn btn-secondary h-10 shrink-0 px-5 text-sm">
+                <a href="#alternativas" data-scroll-link class="btn btn-secondary h-10 w-full justify-center px-5 text-sm sm:w-auto">
                     Ver alternativas
                 </a>
             @endif

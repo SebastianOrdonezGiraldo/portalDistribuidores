@@ -14,8 +14,8 @@
                 </div>
             </x-slot>
             <x-slot name="actions">
-                <a href="{{ route('empresa.dashboard') }}" class="btn btn-secondary">Dashboard</a>
-                <a href="{{ route('checkout.show') }}" class="btn btn-primary">Nuevo pedido</a>
+                <a href="{{ route('empresa.dashboard') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Dashboard</a>
+                <a href="{{ route('checkout.show') }}" class="btn btn-primary w-full justify-center sm:w-auto">Nuevo pedido</a>
             </x-slot>
         </x-ui.page-header>
     </x-slot>
@@ -37,14 +37,14 @@
 
     {{-- Filtros --}}
     <x-ui.filter-bar method="GET" action="{{ route('empresa.orders.index') }}" class="mt-4 flex flex-wrap gap-3">
-        <div class="flex-1 min-w-48">
+        <div class="w-full sm:flex-1 sm:min-w-[16rem]">
             <x-ui.input
                 name="q"
                 :value="$filters['q']"
                 placeholder="Buscar CTC, empresa o contacto…"
             />
         </div>
-        <div class="w-44">
+        <div class="w-full sm:w-56">
             <x-ui.select name="status">
                 <option value="">Todos los estados</option>
                 @foreach($statusOptions as $statusValue)
@@ -54,9 +54,9 @@
                 @endforeach
             </x-ui.select>
         </div>
-        <x-ui.button type="submit" variant="primary">Filtrar</x-ui.button>
+        <x-ui.button type="submit" variant="primary" class="w-full justify-center sm:w-auto">Filtrar</x-ui.button>
         @if($activeFiltersCount > 0)
-            <a href="{{ route('empresa.orders.index') }}" class="btn btn-secondary">Limpiar</a>
+            <a href="{{ route('empresa.orders.index') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Limpiar</a>
         @endif
     </x-ui.filter-bar>
 
@@ -104,7 +104,7 @@
                                 <p class="text-xs text-slate-500">{{ $order->created_at?->format('H:i') }}</p>
                             </td>
                             <td data-label="Acciones" class="text-right">
-                                <div class="flex items-center justify-end gap-1">
+                                <div class="flex w-full flex-wrap items-center justify-end gap-1">
                                     <a href="{{ route('empresa.orders.show', $order) }}" class="btn btn-ghost !px-2 !py-1 text-xs">Ver</a>
                                     @if($order->pdf_path)
                                         <a href="{{ route('empresa.orders.pdf', $order) }}" class="btn btn-ghost !px-2 !py-1 text-xs">PDF</a>

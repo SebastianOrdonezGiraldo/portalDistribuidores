@@ -1,6 +1,6 @@
 @props(['title', 'subtitle' => null])
 
-<header {{ $attributes->merge(['class' => 'mb-5 flex flex-wrap items-start justify-between gap-4']) }}>
+<header {{ $attributes->merge(['class' => 'mb-5 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between']) }}>
     <div class="space-y-1">
         <h1 class="text-balance text-2xl font-semibold tracking-tight text-slate-900">{{ $title }}</h1>
         @if($subtitle)
@@ -12,7 +12,7 @@
     </div>
 
     @if (isset($actions))
-        <div class="flex flex-wrap items-center gap-2">
+        <div class="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
             {{ $actions }}
         </div>
     @endif

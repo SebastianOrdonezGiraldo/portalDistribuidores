@@ -178,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!container) {
             container = document.createElement('div');
             container.dataset.inlineToastStack = 'true';
-            container.className = 'pointer-events-none fixed right-4 top-4 z-[85] w-[min(92vw,22rem)] space-y-2';
+            container.className = 'pointer-events-none fixed inset-x-3 top-3 z-[85] space-y-2 sm:inset-x-auto sm:right-4 sm:top-4 sm:w-[22rem]';
             document.body.append(container);
         }
 
