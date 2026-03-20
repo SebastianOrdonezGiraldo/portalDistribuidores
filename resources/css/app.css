@@ -307,6 +307,110 @@
         animation: cart-glow 620ms ease-out;
     }
 
+    @keyframes cart-count-flip {
+        0% {
+            transform: translateY(0) scale(1);
+        }
+        35% {
+            transform: translateY(-2px) scale(1.14);
+        }
+        65% {
+            transform: translateY(1px) scale(0.96);
+        }
+        100% {
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    .animate-cart-count-flip {
+        animation: cart-count-flip 420ms cubic-bezier(0.2, 0.9, 0.2, 1);
+    }
+
+    @keyframes cart-target-ring {
+        from {
+            opacity: 0.28;
+            transform: scale(0.45);
+        }
+        to {
+            opacity: 0;
+            transform: scale(1.25);
+        }
+    }
+
+    .cart-target-ring {
+        position: fixed;
+        z-index: 75;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 9999px;
+        border: 2px solid rgba(54, 177, 187, 0.55);
+        pointer-events: none;
+        animation: cart-target-ring 480ms ease-out forwards;
+        will-change: transform, opacity;
+    }
+
+    .cart-fly-dot {
+        position: fixed;
+        z-index: 80;
+        border-radius: 9999px;
+        background: rgb(54, 177, 187);
+        box-shadow: 0 0 10px rgba(54, 177, 187, 0.5);
+        pointer-events: none;
+        will-change: transform, opacity;
+    }
+
+    @keyframes cart-button-pop {
+        0% {
+            transform: scale(1);
+        }
+        45% {
+            transform: scale(1.1);
+        }
+        100% {
+            transform: scale(1);
+        }
+    }
+
+    .animate-cart-button-pop {
+        animation: cart-button-pop 260ms cubic-bezier(0.2, 0.9, 0.2, 1);
+    }
+
+    @keyframes cart-button-shake {
+        0%,
+        100% {
+            transform: translateX(0);
+        }
+        30% {
+            transform: translateX(-3px);
+        }
+        60% {
+            transform: translateX(3px);
+        }
+    }
+
+    .animate-cart-button-shake {
+        animation: cart-button-shake 260ms ease-in-out;
+    }
+
+    @keyframes cart-card-highlight {
+        0% {
+            box-shadow: 0 0 0 0 rgba(54, 177, 187, 0);
+            border-color: rgb(226 232 240);
+        }
+        35% {
+            box-shadow: 0 0 0 4px rgba(54, 177, 187, 0.2);
+            border-color: rgb(54 177 187 / 0.75);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(54, 177, 187, 0);
+            border-color: rgb(226 232 240);
+        }
+    }
+
+    .cart-card-highlight {
+        animation: cart-card-highlight 520ms ease-out;
+    }
+
     .cart-submit-feedback {
         transform: scale(0.98);
         opacity: 0.92;

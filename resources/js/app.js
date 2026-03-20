@@ -61,14 +61,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const cartSuccessToast = document.querySelector('[data-toast][data-cart-success="true"]');
-    const animateCartBadges = () => {
+    const prefersReducedMotion = typeof window.matchMedia === 'function'
+        && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const animateCartBadges = (withCountFlip = false) => {
         document.querySelectorAll('[data-cart-badge]').forEach((badge) => {
-            badge.classList.remove('animate-cart-bump', 'animate-cart-glow');
+            badge.classList.remove('animate-cart-bump', 'animate-cart-glow', 'animate-cart-count-flip');
             void badge.offsetWidth;
             badge.classList.add('animate-cart-bump', 'animate-cart-glow');
+            if (withCountFlip) {
+                badge.classList.add('animate-cart-count-flip');
+            }
 
             window.setTimeout(() => {
-                badge.classList.remove('animate-cart-bump', 'animate-cart-glow');
+                badge.classList.remove('animate-cart-bump', 'animate-cart-glow', 'animate-cart-count-flip');
             }, 750);
         });
     };
@@ -131,50 +136,168 @@ document.addEventListener('DOMContentLoaded', () => {
         return visible || badges[0] || null;
     };
 
+    const getProductNameFromForm = (form) => {
+        const explicit = form.dataset.productName?.trim();
+        if (explicit) {
+            return explicit;
+        }
+
+        const heading = form.closest('article')?.querySelector('h3 a, h3');
+        if (heading?.textContent?.trim()) {
+            return heading.textContent.trim();
+        }
+
+        return 'Producto';
+    };
+
+    const pulseCartButton = (button) => {
+        if (!button || prefersReducedMotion) {
+            return;
+        }
+
+        button.classList.remove('animate-cart-button-pop');
+        void button.offsetWidth;
+        button.classList.add('animate-cart-button-pop');
+    };
+
+    const shakeCartButton = (button) => {
+        if (!button || prefersReducedMotion) {
+            return;
+        }
+
+        button.classList.remove('animate-cart-button-shake');
+        void button.offsetWidth;
+        button.classList.add('animate-cart-button-shake');
+    };
+
+    const pulseProductCard = (fromEl) => {
+        if (prefersReducedMotion) {
+            return;
+        }
+
+        const card = fromEl?.closest('article');
+        if (!card) {
+            return;
+        }
+
+        card.classList.remove('cart-card-highlight');
+        void card.offsetWidth;
+        card.classList.add('cart-card-highlight');
+
+        window.setTimeout(() => {
+            card.classList.remove('cart-card-highlight');
+        }, 560);
+    };
+
+    const spawnBadgeRing = (toEl) => {
+        if (!toEl || prefersReducedMotion) {
+            return;
+        }
+
+        const to = toEl.getBoundingClientRect();
+        const ring = document.createElement('span');
+        ring.className = 'cart-target-ring';
+        ring.setAttribute('aria-hidden', 'true');
+        ring.style.left = `${to.left + to.width / 2 - 16}px`;
+        ring.style.top = `${to.top + to.height / 2 - 16}px`;
+        document.body.append(ring);
+        window.setTimeout(() => ring.remove(), 520);
+    };
+
+    const launchParticle = (fromX, fromY, toX, toY, options = {}) => {
+        const size = options.size ?? 10;
+        const duration = options.duration ?? 560;
+        const delay = options.delay ?? 0;
+        const arcHeight = options.arcHeight ?? 72;
+        const startOpacity = options.opacity ?? 1;
+
+        const particle = document.createElement('span');
+        particle.className = 'cart-fly-dot';
+        particle.setAttribute('aria-hidden', 'true');
+        particle.style.left = `${fromX - size / 2}px`;
+        particle.style.top = `${fromY - size / 2}px`;
+        particle.style.width = `${size}px`;
+        particle.style.height = `${size}px`;
+        particle.style.opacity = String(startOpacity);
+        document.body.append(particle);
+
+        const deltaX = toX - fromX;
+        const deltaY = toY - fromY;
+
+        if (typeof particle.animate === 'function') {
+            const animation = particle.animate(
+                [
+                    { transform: 'translate3d(0, 0, 0) scale(1)', opacity: startOpacity },
+                    {
+                        transform: `translate3d(${deltaX * 0.56}px, ${deltaY * 0.5 - arcHeight}px, 0) scale(0.86)`,
+                        opacity: Math.max(0.65, startOpacity - 0.1),
+                        offset: 0.58,
+                    },
+                    { transform: `translate3d(${deltaX}px, ${deltaY}px, 0) scale(0.24)`, opacity: 0 },
+                ],
+                {
+                    duration,
+                    delay,
+                    easing: 'cubic-bezier(0.18, 0.88, 0.22, 1)',
+                    fill: 'forwards',
+                },
+            );
+
+            animation.onfinish = () => particle.remove();
+            return;
+        }
+
+        Object.assign(particle.style, {
+            transition: `transform ${duration}ms ease, opacity ${duration}ms ease`,
+            transform: `translate3d(${deltaX}px, ${deltaY}px, 0) scale(0.24)`,
+            opacity: '0',
+        });
+        window.setTimeout(() => particle.remove(), duration + delay + 80);
+    };
+
     const flyParticle = (fromEl, toEl) => {
         if (!fromEl || !toEl) {
+            return;
+        }
+
+        if (prefersReducedMotion) {
+            animateCartBadges(true);
             return;
         }
 
         const from = fromEl.getBoundingClientRect();
         const to = toEl.getBoundingClientRect();
 
-        const particle = document.createElement('span');
-        particle.setAttribute('aria-hidden', 'true');
-        Object.assign(particle.style, {
-            position: 'fixed',
-            zIndex: '9999',
-            width: '10px',
-            height: '10px',
-            borderRadius: '50%',
-            background: 'rgb(54 177 187)',
-            boxShadow: '0 0 8px 2px rgba(54,177,187,0.5)',
-            pointerEvents: 'none',
-            left: `${from.left + from.width / 2 - 5}px`,
-            top: `${from.top + from.height / 2 - 5}px`,
-            opacity: '1',
-            transform: 'scale(1)',
-            transition: [
-                'left 460ms cubic-bezier(0.4, 0, 0.2, 1)',
-                'top 460ms cubic-bezier(0.4, 0, 0.2, 1)',
-                'opacity 180ms ease 280ms',
-                'transform 180ms ease 280ms',
-            ].join(', '),
-            willChange: 'left, top',
+        const fromX = from.left + from.width / 2;
+        const fromY = from.top + from.height / 2;
+        const toX = to.left + to.width / 2;
+        const toY = to.top + to.height / 2;
+
+        launchParticle(fromX, fromY, toX, toY, {
+            size: 10,
+            duration: 610,
+            delay: 0,
+            arcHeight: 86,
+            opacity: 1,
+        });
+        launchParticle(fromX, fromY, toX, toY, {
+            size: 7,
+            duration: 560,
+            delay: 40,
+            arcHeight: 62,
+            opacity: 0.92,
+        });
+        launchParticle(fromX, fromY, toX, toY, {
+            size: 6,
+            duration: 520,
+            delay: 90,
+            arcHeight: 46,
+            opacity: 0.78,
         });
 
-        document.body.append(particle);
-
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                particle.style.left = `${to.left + to.width / 2 - 5}px`;
-                particle.style.top = `${to.top + to.height / 2 - 5}px`;
-                particle.style.opacity = '0';
-                particle.style.transform = 'scale(0.3)';
-            });
-        });
-
-        window.setTimeout(() => particle.remove(), 520);
+        window.setTimeout(() => {
+            spawnBadgeRing(toEl);
+        }, 360);
     };
 
     const makeSpinnerSvg = (extraClass = '') =>
@@ -311,6 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 submitButton.innerHTML = `${makeCrossSvg()} Error`;
             }
             submitButton.classList.add('!bg-red-500', '!border-red-500');
+            shakeCartButton(submitButton);
         };
 
         const resetButton = () => {
@@ -318,6 +442,7 @@ document.addEventListener('DOMContentLoaded', () => {
             submitButton.classList.remove(
                 '!bg-emerald-500', '!border-emerald-500',
                 '!bg-red-500', '!border-red-500',
+                'animate-cart-button-pop', 'animate-cart-button-shake',
             );
             submitButton.disabled = false;
         };
@@ -361,15 +486,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Show success state on button
                 setSuccess();
+                pulseCartButton(submitButton);
+                pulseProductCard(submitButton);
 
                 // Launch particle from button toward cart badge
                 const badgeTarget = getCartBadgeTarget();
-                window.setTimeout(() => flyParticle(submitButton, badgeTarget), 80);
+                window.setTimeout(() => flyParticle(submitButton, badgeTarget), 70);
 
                 // Animate badge when particle lands
-                window.setTimeout(() => animateCartBadges(), 450);
+                window.setTimeout(() => animateCartBadges(true), 430);
 
-                showInlineToast(payload.message || '¡Producto agregado al pedido!', 'success');
+                const productName = getProductNameFromForm(form);
+                const shortName = productName.length > 52 ? `${productName.slice(0, 49)}...` : productName;
+                const fallbackMessage = `${shortName} agregado al carrito.`;
+                const successMessage = payload.message && payload.message !== 'Producto agregado al carrito.'
+                    ? payload.message
+                    : fallbackMessage;
+
+                showInlineToast(successMessage, 'success');
 
                 // Reset button after success display
                 window.setTimeout(resetButton, 1300);
