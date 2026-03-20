@@ -177,6 +177,19 @@ class CartControllerTest extends TestCase
             ->assertSessionHas('status', 'Carrito actualizado.');
     }
 
+    public function test_update_cart_quantities_accepts_put_method(): void
+    {
+        $product = Product::factory()->create(['price' => 5000]);
+
+        $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 1]);
+
+        $lineKey = $product->id.'-0';
+
+        $this->put(route('cart.update'), ['quantities' => [$lineKey => 3]])
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Carrito actualizado.');
+    }
+
     public function test_update_with_zero_quantity_removes_line(): void
     {
         $product = Product::factory()->create(['price' => 5000]);

@@ -38,7 +38,7 @@ Route::get('/documents/tech-sheet/{productDocument}', TechSheetDownloadControlle
 
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
 Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
-Route::patch('/cart', [CartController::class, 'update'])->name('cart.update');
+Route::match(['put', 'patch'], '/cart', [CartController::class, 'update'])->name('cart.update');
 Route::delete('/cart/{lineKey}', [CartController::class, 'destroy'])->name('cart.destroy');
 
 Route::get('/checkout', CheckoutController::class)->name('checkout.show');

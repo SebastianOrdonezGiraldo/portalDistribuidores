@@ -28,7 +28,7 @@
     @else
         <form id="cart-update-form" action="{{ route('cart.update') }}" method="POST" data-loading-form data-cart-form class="grid gap-4 lg:grid-cols-[1.8fr_1fr]">
             @csrf
-            @method('PUT')
+            @method('PATCH')
 
             <x-ui.card class="p-4 sm:p-5">
                 <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
