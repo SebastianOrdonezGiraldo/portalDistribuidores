@@ -12,7 +12,7 @@
 @endphp
 
 <article class="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-panel">
-    <div class="relative aspect-[16/10] overflow-hidden bg-slate-100">
+    <div class="relative flex aspect-square items-center justify-center overflow-hidden bg-slate-100 p-4">
         <div class="absolute left-3 top-3 z-10">
             <x-ui.badge variant="neutral" class="!rounded-full !px-2 !py-0.5 !text-xs !font-medium !normal-case !tracking-normal">
                 {{ $product->category?->name ?? 'Sin categoría' }}
@@ -25,10 +25,10 @@
                 alt="{{ $product->name }}"
                 loading="lazy"
                 decoding="async"
-                class="h-full w-full object-cover object-center transition duration-300 group-hover:scale-[1.04]"
+                class="h-full w-full object-contain object-center transition duration-300 group-hover:scale-[1.03]"
             >
         @else
-            <div class="flex h-full items-center justify-center bg-gradient-to-br from-slate-50 to-slate-200">
+            <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-50 to-slate-200">
                 <div class="rounded-full border border-slate-300 bg-white p-4 shadow-soft">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
                         <rect x="3" y="5" width="18" height="14" rx="2"></rect>
