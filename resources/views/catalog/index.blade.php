@@ -8,13 +8,13 @@
         </x-ui.page-header>
     </x-slot>
 
-    <x-ui.filter-bar method="GET" action="{{ route('catalog.index') }}" class="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <div class="xl:col-span-2">
+    <x-ui.filter-bar method="GET" action="{{ route('catalog.index') }}" class="grid gap-4 p-5 md:grid-cols-2 lg:grid-cols-12">
+        <div class="lg:col-span-5">
             <label class="form-label" for="catalog-term">Buscar producto</label>
             <x-ui.input id="catalog-term" name="term" :value="$search->term" placeholder="Nombre, categoría o sinónimo" />
         </div>
 
-        <div class="xl:col-span-2">
+        <div class="lg:col-span-4">
             <label class="form-label" for="catalog-category">Categoría</label>
             <x-ui.select id="catalog-category" name="category_id">
                 <option value="">Todas las categorías</option>
@@ -24,12 +24,12 @@
             </x-ui.select>
         </div>
 
-        <div class="flex items-end gap-2">
-            <x-ui.button type="submit" variant="primary" class="w-full">Buscar</x-ui.button>
-            <a href="{{ route('catalog.index') }}" class="btn btn-secondary">Limpiar</a>
+        <div class="flex items-end gap-2 md:col-span-2 lg:col-span-3 lg:justify-end">
+            <x-ui.button type="submit" variant="primary" class="w-full lg:min-w-[9rem] lg:w-auto">Buscar</x-ui.button>
+            <a href="{{ route('catalog.index') }}" class="btn btn-secondary shrink-0">Limpiar</a>
         </div>
 
-        <div class="xl:col-span-5 flex items-center justify-between gap-3 border-t border-slate-200 pt-3 text-sm">
+        <div class="md:col-span-2 lg:col-span-12 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-3 text-sm">
             <x-ui.checkbox name="include_children" value="1" :checked="$search->includeChildren" label="Incluir subcategorías" />
             <p class="text-slate-600">Resultados encontrados: <strong class="text-slate-900">{{ $resultsTotal }}</strong></p>
         </div>
@@ -49,7 +49,7 @@
                 data-next-page="{{ $products->currentPage() + 1 }}"
                 data-has-more="{{ $products->hasMorePages() ? 'true' : 'false' }}"
                 data-filters="{{ http_build_query(request()->except('page')) }}"
-                class="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 @foreach($products as $product)
                     <x-catalog.product-card :product="$product" />
                 @endforeach
