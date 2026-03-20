@@ -21,13 +21,13 @@
     $isDistributor = $user?->isDistributor();
 @endphp
 
-<div class="relative min-h-screen">
+<div class="relative min-h-dvh overflow-x-clip">
     <x-ui.flash-stack />
 
     @if($isAuthenticated)
-        <div data-sidebar-overlay class="fixed inset-0 z-40 hidden bg-slate-950/45 lg:hidden"></div>
+        <div data-sidebar-overlay class="fixed inset-0 z-40 hidden bg-slate-950/45 lg:hidden" aria-hidden="true"></div>
 
-        <aside data-sidebar class="fixed inset-y-0 left-0 z-50 flex w-72 -translate-x-full flex-col border-r border-slate-200 bg-white shadow-panel transition-transform duration-200 lg:translate-x-0">
+        <aside id="app-sidebar" data-sidebar aria-hidden="true" class="fixed inset-y-0 left-0 z-50 flex w-[18rem] max-w-[calc(100vw-2rem)] -translate-x-full flex-col border-r border-slate-200 bg-white shadow-panel transition-transform duration-200 ease-out lg:translate-x-0">
         <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
             <a href="{{ route('dashboard') }}" class="flex min-w-0 items-center gap-3 focus-ring rounded-lg">
                 <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-9 w-auto">
@@ -37,7 +37,7 @@
                 </div>
             </a>
 
-            <button type="button" data-sidebar-close class="btn btn-ghost !px-2 lg:hidden" aria-label="Cerrar menú">
+            <button type="button" data-sidebar-close class="btn btn-ghost !min-h-10 !px-2 lg:hidden" aria-label="Cerrar menú" aria-controls="app-sidebar">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 0 1 1.414 0L10 8.586l4.293-4.293a1 1 0 1 1 1.414 1.414L11.414 10l4.293 4.293a1 1 0 0 1-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 0 1-1.414-1.414L8.586 10 4.293 5.707a1 1 0 0 1 0-1.414Z" clip-rule="evenodd" /></svg>
             </button>
         </div>
@@ -183,86 +183,99 @@
         </aside>
     @endif
 
-    <div class="flex min-h-screen flex-col {{ $isAuthenticated ? 'lg:pl-72' : '' }}">
-        <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
-            <div class="flex items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
-                @if($isAuthenticated)
-                    <button type="button" data-sidebar-toggle class="btn btn-secondary !px-2 lg:hidden" aria-label="Abrir menú">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M3 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4A1 1 0 0 1 3 5Zm0 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm1 4a1 1 0 1 0 0 2h12a1 1 0 1 0 0-2H4Z" /></svg>
-                    </button>
-                @else
-                    <a href="{{ route('catalog.index') }}" class="flex items-center gap-2 rounded-lg focus-ring">
-                        <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-8 w-auto">
-                        <span class="hidden text-sm font-semibold text-slate-900 sm:inline">Portal Distribuidores</span>
-                    </a>
-                @endif
-
-                <div class="min-w-0 flex-1">
-                    @if($isAdmin)
-                        <form method="GET" action="{{ route('admin.orders.index') }}" class="relative mx-auto w-full max-w-2xl">
-                            <label class="sr-only" for="top-search-admin">Buscar pedido</label>
-                            <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                            <input id="top-search-admin" type="text" name="q" value="{{ request('q') }}" placeholder="Buscar CTC, cliente o contacto" class="form-input py-2 pl-9 pr-4">
-                        </form>
-                    @elseif(!request()->routeIs('catalog.*', 'products.show'))
-                        <form method="GET" action="{{ route('catalog.index') }}" class="relative mx-auto w-full max-w-2xl">
-                            <label class="sr-only" for="top-search-catalog">Buscar producto</label>
-                            <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                            <input id="top-search-catalog" type="text" name="term" value="{{ request('term') }}" placeholder="Buscar producto o categoría" class="form-input py-2 pl-9 pr-4">
-                        </form>
-                    @endif
-                </div>
-
-                @if($isAuthenticated)
-                    <div class="relative shrink-0" x-data="{ profileMenuOpen: false }" @keydown.escape.window="profileMenuOpen = false">
+    <div class="flex min-h-dvh min-w-0 flex-col {{ $isAuthenticated ? 'lg:pl-72' : '' }}">
+        <header class="sticky top-0 z-30 border-b border-slate-200/95 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
+            <div class="flex flex-col gap-2 px-3 py-3 sm:px-6 lg:px-8">
+                <div class="flex min-w-0 items-center gap-2 sm:gap-3">
+                    @if($isAuthenticated)
                         <button
                             type="button"
-                            class="btn btn-ghost !px-2"
-                            @click="profileMenuOpen = !profileMenuOpen"
-                            x-bind:aria-expanded="profileMenuOpen"
-                            aria-haspopup="menu"
-                            aria-controls="profile-menu-panel"
+                            data-sidebar-toggle
+                            class="btn btn-secondary !min-h-10 !px-2.5 lg:hidden"
+                            aria-label="Abrir menú"
+                            aria-controls="app-sidebar"
+                            aria-expanded="false"
                         >
-                            <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary/15 text-sm font-semibold text-brand-dark">
-                                {{ strtoupper(substr($user->name, 0, 1)) }}
-                            </span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M3 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4A1 1 0 0 1 3 5Zm0 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm1 4a1 1 0 1 0 0 2h12a1 1 0 1 0 0-2H4Z" /></svg>
                         </button>
-                        <div
-                            id="profile-menu-panel"
-                            x-cloak
-                            x-show="profileMenuOpen"
-                            x-transition:enter="transition ease-out duration-150"
-                            x-transition:enter-start="opacity-0 scale-95 translate-y-1"
-                            x-transition:enter-end="opacity-100 scale-100 translate-y-0"
-                            x-transition:leave="transition ease-in duration-100"
-                            x-transition:leave-start="opacity-100 scale-100 translate-y-0"
-                            x-transition:leave-end="opacity-0 scale-95 translate-y-1"
-                            @click.outside="profileMenuOpen = false"
-                            role="menu"
-                            class="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-panel"
-                        >
-                            <a href="{{ route('profile.edit') }}" role="menuitem" class="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-ring">Perfil</a>
-                            <form method="POST" action="{{ route('logout') }}" class="mt-1 border-t border-slate-100 pt-1">
-                                @csrf
-                                <button type="submit" role="menuitem" class="block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 focus-ring">Cerrar sesión</button>
-                            </form>
-                        </div>
-                    </div>
-                @else
-                    <a href="{{ route('cart.index') }}" class="btn btn-secondary">
-                        Carrito
-                        @if(($navCartCount ?? 0) > 0)
-                            <x-ui.badge variant="brand" class="ml-1" data-cart-badge>{{ $navCartCount }}</x-ui.badge>
+                        <a href="{{ route('dashboard') }}" class="hidden min-w-0 items-center gap-2 rounded-lg focus-ring lg:flex">
+                            <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-8 w-auto">
+                            <span class="truncate text-sm font-semibold text-slate-900">Portal Distribuidores</span>
+                        </a>
+                    @else
+                        <a href="{{ route('catalog.index') }}" class="flex min-w-0 items-center gap-2 rounded-lg focus-ring">
+                            <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-8 w-auto">
+                            <span class="hidden text-sm font-semibold text-slate-900 sm:inline">Portal Distribuidores</span>
+                        </a>
+                    @endif
+
+                    <div class="ml-auto flex shrink-0 items-center gap-2">
+                        @if($isAuthenticated)
+                            <div class="relative" x-data="{ profileMenuOpen: false }" @keydown.escape.window="profileMenuOpen = false">
+                                <button
+                                    type="button"
+                                    class="btn btn-ghost !min-h-10 !px-2"
+                                    @click="profileMenuOpen = !profileMenuOpen"
+                                    x-bind:aria-expanded="profileMenuOpen"
+                                    aria-haspopup="menu"
+                                    aria-controls="profile-menu-panel"
+                                >
+                                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary/15 text-sm font-semibold text-brand-dark">
+                                        {{ strtoupper(substr($user->name, 0, 1)) }}
+                                    </span>
+                                </button>
+                                <div
+                                    id="profile-menu-panel"
+                                    x-cloak
+                                    x-show="profileMenuOpen"
+                                    x-transition:enter="transition ease-out duration-150"
+                                    x-transition:enter-start="opacity-0 scale-95 translate-y-1"
+                                    x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                                    x-transition:leave="transition ease-in duration-100"
+                                    x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+                                    x-transition:leave-end="opacity-0 scale-95 translate-y-1"
+                                    @click.outside="profileMenuOpen = false"
+                                    role="menu"
+                                    class="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-panel"
+                                >
+                                    <a href="{{ route('profile.edit') }}" role="menuitem" class="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-ring">Perfil</a>
+                                    <form method="POST" action="{{ route('logout') }}" class="mt-1 border-t border-slate-100 pt-1">
+                                        @csrf
+                                        <button type="submit" role="menuitem" class="block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 focus-ring">Cerrar sesión</button>
+                                    </form>
+                                </div>
+                            </div>
                         @else
-                            <x-ui.badge variant="neutral" class="ml-1" data-cart-badge>0</x-ui.badge>
+                            <a href="{{ route('cart.index') }}" class="btn btn-secondary !min-h-10 !px-3 sm:!px-4">
+                                Carrito
+                                @if(($navCartCount ?? 0) > 0)
+                                    <x-ui.badge variant="brand" class="ml-1" data-cart-badge>{{ $navCartCount }}</x-ui.badge>
+                                @else
+                                    <x-ui.badge variant="neutral" class="ml-1" data-cart-badge>0</x-ui.badge>
+                                @endif
+                            </a>
+                            <a href="{{ route('login') }}" class="btn btn-primary !min-h-10 !px-3 sm:!px-4">Iniciar sesión</a>
                         @endif
-                    </a>
-                    <a href="{{ route('login') }}" class="btn btn-primary">Iniciar sesión</a>
+                    </div>
+                </div>
+
+                @if($isAdmin)
+                    <form method="GET" action="{{ route('admin.orders.index') }}" class="relative w-full lg:mx-auto lg:max-w-2xl">
+                        <label class="sr-only" for="top-search-admin">Buscar pedido</label>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                        <input id="top-search-admin" type="text" name="q" value="{{ request('q') }}" placeholder="Buscar CTC, cliente o contacto" class="form-input py-2.5 pl-9 pr-4">
+                    </form>
+                @elseif(!request()->routeIs('catalog.*', 'products.show'))
+                    <form method="GET" action="{{ route('catalog.index') }}" class="relative w-full lg:mx-auto lg:max-w-2xl">
+                        <label class="sr-only" for="top-search-catalog">Buscar producto</label>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                        <input id="top-search-catalog" type="text" name="term" value="{{ request('term') }}" placeholder="Buscar producto o categoría" class="form-input py-2.5 pl-9 pr-4">
+                    </form>
                 @endif
             </div>
         </header>
 
-        <main class="flex-1 px-4 py-5 sm:px-6 lg:px-8">
+        <main class="min-w-0 flex-1 px-3 py-4 sm:px-6 sm:py-5 lg:px-8">
             @if (isset($breadcrumbs))
                 <x-ui.breadcrumbs :items="$breadcrumbs" />
             @endif

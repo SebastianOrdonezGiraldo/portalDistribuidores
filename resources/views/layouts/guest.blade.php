@@ -14,8 +14,8 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
-<div class="relative flex min-h-screen items-stretch">
-    <div class="hidden w-[44%] flex-col justify-between border-r border-slate-200 bg-brand-ink px-10 py-8 text-white lg:flex">
+<div class="relative flex min-h-dvh flex-col overflow-x-clip lg:flex-row">
+    <div class="hidden flex-col justify-between border-r border-slate-200 bg-brand-ink px-10 py-8 text-white lg:flex lg:w-[42%] xl:w-[40%]">
         <div>
             <div class="flex items-center gap-3">
                 <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-10 w-auto">
@@ -61,8 +61,8 @@
         </div>
     </div>
 
-    <div class="flex flex-1 items-center justify-center px-4 py-8 sm:px-6 lg:px-10">
-        <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-panel sm:p-8">
+    <div class="flex flex-1 items-center justify-center px-3 py-6 sm:px-6 lg:px-10">
+        <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-panel sm:p-8">
             <div class="mb-6 lg:hidden">
                 <div class="flex items-center gap-3">
                     <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-10 w-auto">
