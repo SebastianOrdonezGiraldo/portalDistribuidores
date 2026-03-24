@@ -1,7 +1,7 @@
 <x-app-layout>
     @php
         $isEdit = $distributor->exists;
-        $statusValue = old('status', $distributor->status ?? 'active');
+        $statusValue = old('status', $distributor->status?->value ?? 'active');
     @endphp
 
     <x-slot name="header">
@@ -46,9 +46,9 @@
                         <label class="form-label" for="distributor-status">Estado</label>
                         <x-ui.select id="distributor-status" name="status">
                             <option value="active" @selected($statusValue === 'active')>Activo</option>
-                            <option value="inactive" @selected($statusValue === 'inactive')>Inactivo</option>
+                            <option value="suspended" @selected($statusValue === 'suspended')>Suspendido</option>
                         </x-ui.select>
-                        <p class="form-help">Los distribuidores inactivos no deberían operar nuevas cuentas.</p>
+                        <p class="form-help">Los distribuidores suspendidos no deberían operar nuevas cuentas.</p>
                         <x-input-error :messages="$errors->get('status')" />
                     </div>
                 </div>
@@ -90,12 +90,12 @@
 
                 @if($isEdit)
                     <form method="POST" action="{{ route('admin.distributors.status', $distributor) }}" class="mt-4 border-t border-slate-200 pt-4"
-                          data-confirm="{{ $distributor->status === 'active' ? '¿Desactivar este distribuidor?' : '¿Activar este distribuidor?' }}">
+                          data-confirm="{{ $distributor->status?->value === 'active' ? '¿Suspender este distribuidor?' : '¿Activar este distribuidor?' }}">
                         @csrf
                         @method('PATCH')
-                        <input type="hidden" name="status" value="{{ $distributor->status === 'active' ? 'inactive' : 'active' }}">
-                        <button type="submit" class="btn {{ $distributor->status === 'active' ? 'btn-secondary' : 'btn-primary' }} w-full justify-center">
-                            {{ $distributor->status === 'active' ? 'Desactivar distribuidor' : 'Activar distribuidor' }}
+                        <input type="hidden" name="status" value="{{ $distributor->status?->value === 'active' ? 'suspended' : 'active' }}">
+                        <button type="submit" class="btn {{ $distributor->status?->value === 'active' ? 'btn-secondary' : 'btn-primary' }} w-full justify-center">
+                            {{ $distributor->status?->value === 'active' ? 'Suspender distribuidor' : 'Activar distribuidor' }}
                         </button>
                     </form>
                 @endif

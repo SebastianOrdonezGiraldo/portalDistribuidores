@@ -38,8 +38,8 @@
                class="btn {{ $filters['status'] === 'active' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
                 Activos <span class="ml-1 text-xs opacity-80">{{ number_format($metrics['active_distributors']) }}</span>
             </a>
-            <a href="{{ route('admin.distributors.index', array_merge($baseQuickFilters, ['status' => 'inactive'])) }}"
-               class="btn {{ $filters['status'] === 'inactive' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
+            <a href="{{ route('admin.distributors.index', array_merge($baseQuickFilters, ['status' => 'suspended'])) }}"
+               class="btn {{ $filters['status'] === 'suspended' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
                 Inactivos <span class="ml-1 text-xs opacity-80">{{ number_format($metrics['inactive_distributors']) }}</span>
             </a>
             <a href="{{ route('admin.distributors.index', array_merge($baseQuickFilters, ['relation' => 'with_users'])) }}"
@@ -64,7 +64,7 @@
             <x-ui.select id="distributors-status" name="status">
                 <option value="">Todos</option>
                 @foreach($statusOptions as $status)
-                    <option value="{{ $status }}" @selected($filters['status'] === $status)>{{ $status === 'active' ? 'Activo' : 'Inactivo' }}</option>
+                    <option value="{{ $status }}" @selected($filters['status'] === $status)>{{ $status === 'active' ? 'Activo' : 'Suspendido' }}</option>
                 @endforeach
             </x-ui.select>
         </div>
@@ -145,12 +145,13 @@
                 </thead>
                 <tbody>
                     @foreach($distributors as $distributor)
+                        @php($statusValue = $distributor->status->value)
                         <tr>
                             <td data-label="Distribuidor" data-full="true">
                                 <p class="font-medium text-slate-900">{{ $distributor->name }}</p>
                                 <p class="text-xs text-slate-500">ID #{{ $distributor->id }}</p>
                             </td>
-                            <td data-label="Estado"><x-ui.status-badge :status="$distributor->status" /></td>
+                            <td data-label="Estado"><x-ui.status-badge :status="$statusValue" /></td>
                             <td data-label="Usuarios" class="font-medium text-slate-900">{{ number_format((int) $distributor->users_count) }}</td>
                             <td data-label="Pedidos" class="font-medium text-slate-900">{{ number_format((int) $distributor->orders_count) }}</td>
                             <td data-label="Creación">
@@ -163,12 +164,12 @@
                                     <a href="{{ route('admin.distributors.edit', $distributor) }}" class="block rounded-lg px-3 py-2 hover:bg-slate-50">Editar</a>
 
                                     <form action="{{ route('admin.distributors.status', $distributor) }}" method="POST"
-                                          data-confirm="{{ $distributor->status === 'active' ? '¿Desactivar '.$distributor->name.'?' : '¿Activar '.$distributor->name.'?' }}">
+                                          data-confirm="{{ $statusValue === 'active' ? '¿Suspender '.$distributor->name.'?' : '¿Activar '.$distributor->name.'?' }}">
                                         @csrf
                                         @method('PATCH')
-                                        <input type="hidden" name="status" value="{{ $distributor->status === 'active' ? 'inactive' : 'active' }}">
+                                        <input type="hidden" name="status" value="{{ $statusValue === 'active' ? 'suspended' : 'active' }}">
                                         <button type="submit" class="block w-full rounded-lg px-3 py-2 text-left hover:bg-slate-50">
-                                            {{ $distributor->status === 'active' ? 'Desactivar' : 'Activar' }}
+                                            {{ $statusValue === 'active' ? 'Suspender' : 'Activar' }}
                                         </button>
                                     </form>
 

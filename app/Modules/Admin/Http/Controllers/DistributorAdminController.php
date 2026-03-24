@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Admin\Http\Requests\StoreDistributorRequest;
 use App\Modules\Admin\Http\Requests\UpdateDistributorRequest;
 use App\Modules\AuthAccess\Models\Distributor;
+use App\Modules\Shared\Enums\DistributorStatus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -17,7 +18,10 @@ class DistributorAdminController extends Controller
     {
         $this->authorize('viewAny', Distributor::class);
 
-        $statusOptions = ['active', 'inactive'];
+        $statusOptions = array_map(
+            static fn (DistributorStatus $status) => $status->value,
+            DistributorStatus::cases(),
+        );
         $relationOptions = ['with_users', 'without_users', 'with_orders', 'without_orders'];
         $sortOptions = ['newest', 'oldest', 'name_asc', 'name_desc', 'users_desc', 'orders_desc'];
         $perPageOptions = [15, 30, 60];
@@ -63,8 +67,8 @@ class DistributorAdminController extends Controller
 
         $metrics = [
             'total_distributors' => (clone $filteredQuery)->count(),
-            'active_distributors' => (clone $filteredQuery)->where('status', 'active')->count(),
-            'inactive_distributors' => (clone $filteredQuery)->where('status', 'inactive')->count(),
+            'active_distributors' => (clone $filteredQuery)->where('status', DistributorStatus::Active->value)->count(),
+            'inactive_distributors' => (clone $filteredQuery)->where('status', DistributorStatus::Suspended->value)->count(),
             'with_users' => (clone $filteredQuery)->has('users')->count(),
             'with_orders' => (clone $filteredQuery)->has('orders')->count(),
         ];
@@ -148,12 +152,25 @@ class DistributorAdminController extends Controller
         $this->authorize('update', $distributor);
 
         $payload = $request->validate([
-            'status' => ['required', 'string', Rule::in(['active', 'inactive'])],
+            'status' => ['required', 'string', Rule::in($this->statusValues())],
         ]);
 
         $distributor->update(['status' => $payload['status']]);
 
-        return back()->with('status', $payload['status'] === 'active' ? 'Distribuidor activado.' : 'Distribuidor desactivado.');
+        return back()->with(
+            'status',
+            $payload['status'] === DistributorStatus::Active->value
+                ? 'Distribuidor activado.'
+                : 'Distribuidor suspendido.'
+        );
+    }
+
+    private function statusValues(): array
+    {
+        return array_map(
+            static fn (DistributorStatus $status) => $status->value,
+            DistributorStatus::cases(),
+        );
     }
 
     private function redirectAfterSave(Request $request, Distributor $distributor, bool $created): RedirectResponse

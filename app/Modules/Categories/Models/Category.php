@@ -3,7 +3,9 @@
 namespace App\Modules\Categories\Models;
 
 use App\Modules\Catalog\Models\Product;
+use Database\Factories\CategoryFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,6 +14,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Category extends Model
 {
     use HasFactory;
+
+    protected static function newFactory(): Factory
+    {
+        return CategoryFactory::new();
+    }
 
     protected $fillable = [
         'parent_id',
@@ -53,4 +60,3 @@ class Category extends Model
         return $query->where('is_active', true);
     }
 }
-

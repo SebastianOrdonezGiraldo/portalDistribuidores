@@ -21,6 +21,7 @@
         'error'            => ['class' => 'status-error',      'label' => 'Error'],
         'active'           => ['class' => 'status-approved',   'label' => 'Activo'],
         'inactive'         => ['class' => 'status-canceled',   'label' => 'Inactivo'],
+        'suspended'        => ['class' => 'status-canceled',   'label' => 'Suspendido'],
         'info'             => ['class' => 'status-processing', 'label' => 'Info'],
     ];
 

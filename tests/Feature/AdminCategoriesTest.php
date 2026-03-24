@@ -5,12 +5,12 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Categories\Models\Category;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class AdminCategoriesTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     public function test_guest_is_redirected_from_admin_categories(): void
     {

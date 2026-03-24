@@ -3,7 +3,9 @@
 namespace App\Modules\Catalog\Models;
 
 use App\Modules\Orders\Models\OrderItem;
+use Database\Factories\ProductVariantFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,6 +14,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class ProductVariant extends Model
 {
     use HasFactory;
+
+    protected static function newFactory(): Factory
+    {
+        return ProductVariantFactory::new();
+    }
 
     protected $fillable = [
         'product_id',
@@ -51,4 +58,3 @@ class ProductVariant extends Model
         return $query->where('is_active', true);
     }
 }
-

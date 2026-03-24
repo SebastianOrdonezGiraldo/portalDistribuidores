@@ -4,7 +4,9 @@ namespace App\Modules\Catalog\Models;
 
 use App\Modules\Categories\Models\Category;
 use App\Modules\Orders\Models\OrderItem;
+use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,6 +17,11 @@ use Illuminate\Support\Collection;
 class Product extends Model
 {
     use HasFactory;
+
+    protected static function newFactory(): Factory
+    {
+        return ProductFactory::new();
+    }
 
     protected $fillable = [
         'name',

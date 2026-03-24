@@ -1,9 +1,11 @@
 <x-app-layout>
+    @php($statusValue = $distributor->status?->value)
+
     <x-slot name="header">
         <x-ui.page-header title="Datos de Empresa" subtitle="Información maestra de tu empresa. Se usa para autocompletar pedidos y como referencia comercial.">
             <x-slot name="meta">
                 <div class="flex flex-wrap items-center gap-2">
-                    <span class="stat-pill">Estado: {{ $distributor->status === 'active' ? 'Activo' : 'Inactivo' }}</span>
+                    <span class="stat-pill">Estado: {{ $statusValue === 'active' ? 'Activo' : 'Suspendido' }}</span>
                     @if($distributor->nit)
                         <span class="stat-pill">NIT: {{ $distributor->nit }}</span>
                     @endif
@@ -85,8 +87,8 @@
                     <div class="flex items-center justify-between">
                         <dt class="text-slate-500">Estado</dt>
                         <dd>
-                            <x-ui.badge :variant="$distributor->status === 'active' ? 'success' : 'neutral'">
-                                {{ $distributor->status === 'active' ? 'Activo' : 'Inactivo' }}
+                            <x-ui.badge :variant="$statusValue === 'active' ? 'success' : 'neutral'">
+                                {{ $statusValue === 'active' ? 'Activo' : 'Suspendido' }}
                             </x-ui.badge>
                         </dd>
                     </div>
@@ -106,7 +108,7 @@
                 <ul class="mt-3 space-y-2 text-sm text-slate-600">
                     <li>Los datos aquí guardados se usan como referencia, pero <strong>no modifican pedidos históricos</strong>.</li>
                     <li>Cada pedido registra un snapshot de los datos al momento de su creación.</li>
-                    <li>El estado (activo/inactivo) solo puede ser modificado por un administrador global.</li>
+                    <li>El estado (activo/suspendido) solo puede ser modificado por un administrador global.</li>
                 </ul>
             </x-ui.card>
         </aside>

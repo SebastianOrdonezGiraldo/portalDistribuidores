@@ -123,6 +123,7 @@ class CartService
             ->whereIn('id', $ids)
             ->with([
                 'primaryPhoto',
+                'photos',
                 'variants' => fn ($query) => $query
                     ->active()
                     ->with('attributeValue.attribute'),

@@ -6,12 +6,12 @@ use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Shared\Enums\OrderStatus;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class AdminDistributorsTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     public function test_guest_is_redirected_from_admin_distributors_index(): void
     {
@@ -40,7 +40,7 @@ class AdminDistributorsTest extends TestCase
 
         Distributor::create([
             'name' => 'Distribuidor '.$token.' Inactivo',
-            'status' => 'inactive',
+            'status' => 'suspended',
         ]);
 
         Distributor::create([
@@ -123,13 +123,13 @@ class AdminDistributorsTest extends TestCase
             ->withSession(['_token' => 'test-token'])
             ->patch('/admin/distributors/'.$distributor->id.'/status', [
                 '_token' => 'test-token',
-                'status' => 'inactive',
+                'status' => 'suspended',
             ])
             ->assertRedirect();
 
         $this->assertDatabaseHas('distributors', [
             'id' => $distributor->id,
-            'status' => 'inactive',
+            'status' => 'suspended',
         ]);
     }
 

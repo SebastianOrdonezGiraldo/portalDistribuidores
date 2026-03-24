@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
@@ -18,10 +17,6 @@ class CartControllerTest extends TestCase
         parent::setUp();
         $this->withoutMiddleware(ValidateCsrfToken::class);
     }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // index – mostrar carrito
-    // ──────────────────────────────────────────────────────────────────────────
 
     public function test_anyone_can_view_empty_cart(): void
     {
@@ -46,9 +41,75 @@ class CartControllerTest extends TestCase
         $this->assertEquals(2, $items->first()['qty']);
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // store – agregar producto
-    // ──────────────────────────────────────────────────────────────────────────
+    public function test_cart_product_thumb_uses_primary_photo_when_available(): void
+    {
+        $product = Product::factory()->create(['price' => 10000]);
+        $primaryPhoto = $product->photos()->create([
+            'path' => 'products/photos/primary-photo.jpg',
+            'is_primary' => true,
+            'sort_order' => 2,
+        ]);
+        $product->photos()->create([
+            'path' => 'products/photos/secondary-photo.jpg',
+            'is_primary' => false,
+            'sort_order' => 1,
+        ]);
+
+        $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 1])
+            ->assertRedirect();
+
+        $response = $this->get(route('cart.index'));
+        $response->assertOk();
+        $response->assertSee($primaryPhoto->path);
+
+        $items = $response->viewData('items');
+        $cartProduct = $items->first()['product'];
+
+        $this->assertTrue($cartProduct->relationLoaded('primaryPhoto'));
+        $this->assertTrue($cartProduct->relationLoaded('photos'));
+        $this->assertEquals($primaryPhoto->id, $cartProduct->primaryPhoto?->id);
+    }
+
+    public function test_cart_product_thumb_falls_back_to_first_photo_when_no_primary_exists(): void
+    {
+        $product = Product::factory()->create(['price' => 10000]);
+        $fallbackPhoto = $product->photos()->create([
+            'path' => 'products/photos/fallback-photo.jpg',
+            'is_primary' => false,
+            'sort_order' => 1,
+        ]);
+        $product->photos()->create([
+            'path' => 'products/photos/later-photo.jpg',
+            'is_primary' => false,
+            'sort_order' => 2,
+        ]);
+
+        $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 1])
+            ->assertRedirect();
+
+        $response = $this->get(route('cart.index'));
+        $response->assertOk();
+        $response->assertSee($fallbackPhoto->path);
+
+        $items = $response->viewData('items');
+        $cartProduct = $items->first()['product'];
+
+        $this->assertTrue($cartProduct->relationLoaded('photos'));
+        $this->assertNull($cartProduct->primaryPhoto);
+        $this->assertEquals($fallbackPhoto->id, $cartProduct->photos->first()?->id);
+    }
+
+    public function test_cart_product_thumb_shows_placeholder_when_product_has_no_photos(): void
+    {
+        $product = Product::factory()->create(['price' => 10000]);
+
+        $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 1])
+            ->assertRedirect();
+
+        $this->get(route('cart.index'))
+            ->assertOk()
+            ->assertSee('Sin foto');
+    }
 
     public function test_adding_active_product_redirects_with_status(): void
     {
@@ -89,7 +150,6 @@ class CartControllerTest extends TestCase
     public function test_adding_product_with_variants_without_variant_id_returns_error_redirect(): void
     {
         $product = Product::factory()->create();
-        // Crea una variante activa, lo que obliga al usuario a elegir variante
         ProductVariant::factory()->forProduct($product)->create(['is_active' => true]);
 
         $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 1])
@@ -104,7 +164,10 @@ class CartControllerTest extends TestCase
 
         $this->postJson(route('cart.store'), ['product_id' => $product->id, 'qty' => 1])
             ->assertStatus(422)
-            ->assertJson(['ok' => false, 'message' => 'Debes seleccionar una variante válida.']);
+            ->assertJsonValidationErrors(['variant_id'])
+            ->assertJson([
+                'message' => 'Debes seleccionar una variante para este producto.',
+            ]);
     }
 
     public function test_adding_product_with_invalid_variant_id_returns_error(): void
@@ -114,7 +177,7 @@ class CartControllerTest extends TestCase
 
         $this->post(route('cart.store'), [
             'product_id' => $product->id,
-            'qty'        => 1,
+            'qty' => 1,
             'variant_id' => 99999,
         ])
             ->assertRedirect()
@@ -128,7 +191,7 @@ class CartControllerTest extends TestCase
 
         $this->postJson(route('cart.store'), [
             'product_id' => $product->id,
-            'qty'        => 1,
+            'qty' => 1,
             'variant_id' => $variant->id,
         ])
             ->assertOk()
@@ -137,37 +200,29 @@ class CartControllerTest extends TestCase
 
     public function test_adding_inactive_variant_is_rejected(): void
     {
-        $product        = Product::factory()->create();
+        $product = Product::factory()->create();
         $inactiveVariant = ProductVariant::factory()->forProduct($product)->inactive()->create();
 
-        // Solo hay variantes inactivas → el producto no tiene variantes activas,
-        // así que no exige elegir variante pero la variante enviada tampoco se encuentra.
-        // El carrito lo acepta como producto sin variante (ya que hasConfigurableVariants = false).
-        // Este test verifica que al menos el request no falla con 500.
         $this->postJson(route('cart.store'), [
             'product_id' => $product->id,
-            'qty'        => 1,
+            'qty' => 1,
             'variant_id' => $inactiveVariant->id,
         ])
-            ->assertOk()
-            ->assertJson(['ok' => true]);
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['variant_id']);
     }
 
-    public function test_adding_nonexistent_product_returns_404(): void
+    public function test_adding_nonexistent_product_returns_validation_error(): void
     {
         $this->post(route('cart.store'), ['product_id' => 99999, 'qty' => 1])
-            ->assertStatus(404);
+            ->assertRedirect()
+            ->assertSessionHasErrors(['product_id']);
     }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // update – actualizar cantidades
-    // ──────────────────────────────────────────────────────────────────────────
 
     public function test_update_cart_quantities_redirects_with_status(): void
     {
         $product = Product::factory()->create(['price' => 5000]);
 
-        // Primero agrega producto
         $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 1]);
 
         $lineKey = $product->id.'-0';
@@ -201,10 +256,6 @@ class CartControllerTest extends TestCase
         $items = $this->get(route('cart.index'))->viewData('items');
         $this->assertCount(0, $items);
     }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // destroy – eliminar línea del carrito
-    // ──────────────────────────────────────────────────────────────────────────
 
     public function test_destroy_removes_line_from_cart(): void
     {
