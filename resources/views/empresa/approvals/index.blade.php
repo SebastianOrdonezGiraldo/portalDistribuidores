@@ -55,7 +55,8 @@
                                     <x-ui.button type="submit" variant="primary" class="w-full justify-center text-sm sm:w-auto">Aprobar</x-ui.button>
                                 </form>
                                 <button type="button"
-                                    onclick="openRejectModal({{ $order->id }})"
+                                    data-reject-action="{{ route('empresa.approvals.reject', $order) }}"
+                                    onclick="openRejectModal(this.dataset.rejectAction)"
                                     class="btn btn-danger w-full justify-center text-sm sm:w-auto">
                                     Rechazar
                                 </button>
@@ -129,10 +130,11 @@
 
     @push('scripts')
         <script>
-            function openRejectModal(orderId) {
+            function openRejectModal(actionUrl) {
                 const modal = document.getElementById('reject-modal');
                 const form  = document.getElementById('reject-form');
-                form.action = `/empresa/aprobaciones/${orderId}/rechazar`;
+                if (!modal || !form || !actionUrl) return;
+                form.action = actionUrl;
                 modal.showModal();
             }
         </script>

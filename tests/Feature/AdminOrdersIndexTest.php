@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Shared\Enums\OrderStatus;
+use App\Modules\Shared\Enums\UserRole;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
@@ -21,7 +22,10 @@ class AdminOrdersIndexTest extends TestCase
 
     public function test_distributor_cannot_access_admin_orders_index(): void
     {
-        $distributorUser = User::factory()->create();
+        $distributorUser = User::factory()->create([
+            'role' => UserRole::Distributor,
+            'email_verified_at' => now(),
+        ]);
 
         $this->actingAs($distributorUser)
             ->get('/admin/orders')
@@ -30,7 +34,9 @@ class AdminOrdersIndexTest extends TestCase
 
     public function test_admin_can_filter_and_sort_orders(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create([
+            'email_verified_at' => now(),
+        ]);
         $distributor = Distributor::create([
             'name' => 'Distribuidor UX Test',
             'status' => 'active',

@@ -1,3 +1,8 @@
+@push('head')
+    <link rel="canonical" href="{{ $canonicalUrl }}">
+    <meta name="robots" content="{{ $robotsContent }}">
+@endpush
+
 <x-app-layout>
     @php
         $resultsTotal = method_exists($products, 'total') ? $products->total() : $products->count();
@@ -43,28 +48,11 @@
                 </x-slot>
             </x-ui.empty-state>
         @else
-            <div
-                data-infinite-grid
-                data-load-url="{{ route('catalog.index') }}"
-                data-next-page="{{ $products->currentPage() + 1 }}"
-                data-has-more="{{ $products->hasMorePages() ? 'true' : 'false' }}"
-                data-filters="{{ http_build_query(request()->except('page')) }}"
-                class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                @foreach($products as $product)
-                    <x-catalog.product-card :product="$product" />
-                @endforeach
-            </div>
-
-            <div data-infinite-sentinel class="mt-6 flex justify-center py-4">
-                <svg class="h-6 w-6 animate-spin text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.568 3 7.212l3-2.921z"></path>
-                </svg>
-            </div>
-
-            <p data-infinite-end class="mt-6 hidden text-center text-sm text-slate-400">
-                Has visto todos los productos
-            </p>
+            <x-catalog.product-grid-section
+                id="catalog-results"
+                :products="$products"
+                list-key="catalog"
+            />
         @endif
     </section>
 </x-app-layout>

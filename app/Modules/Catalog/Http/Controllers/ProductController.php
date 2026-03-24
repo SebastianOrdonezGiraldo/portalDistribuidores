@@ -8,7 +8,8 @@ use App\Modules\Categories\Queries\CategoryBreadcrumbsQuery;
 use App\Modules\Documents\Services\TechSheetDownloadService;
 use App\Modules\Shared\Enums\DocumentType;
 use Carbon\CarbonImmutable;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -20,7 +21,7 @@ class ProductController extends Controller
         Product $product,
         CategoryBreadcrumbsQuery $breadcrumbsQuery,
         TechSheetDownloadService $downloadService,
-    ): View {
+    ): View|JsonResponse {
         $product->loadMissing('category.synonyms', 'photos', 'primaryPhoto', 'videos', 'documents', 'variantAttribute', 'variants.attributeValue.attribute');
 
         if (! $product->is_active) {
@@ -31,11 +32,8 @@ class ProductController extends Controller
         $techSheet = $product->documents->firstWhere('type', 'tech_sheet');
         $remainingDownloads = null;
         $commercialSnapshot = $this->buildCommercialSnapshot($product);
-        $relatedProducts = $this->relatedProducts($product);
-        $alternativeProducts = $this->alternativeProducts(
-            $product,
-            $relatedProducts->pluck('id')->all(),
-        );
+        $relatedProducts = $this->relatedProducts($product, $request);
+        $alternativeProducts = $this->alternativeProducts($product, $request);
 
         if ($techSheet && $request->user()?->distributor) {
             $remainingDownloads = $downloadService->remainingDownloads(
@@ -47,6 +45,14 @@ class ProductController extends Controller
 
         $viewData = $this->buildViewData($product, $commercialSnapshot, $techSheet);
 
+        if ($request->ajax()) {
+            return match ($request->string('list')->toString()) {
+                'related' => response()->json($this->buildProductListPayload($relatedProducts)),
+                'alternatives' => response()->json($this->buildProductListPayload($alternativeProducts)),
+                default => abort(404),
+            };
+        }
+
         return view('product.show', array_merge($viewData, [
             'product'            => $product,
             'breadcrumbs'        => $breadcrumbs,
@@ -54,6 +60,7 @@ class ProductController extends Controller
             'remainingDownloads' => $remainingDownloads,
             'relatedProducts'    => $relatedProducts,
             'alternativeProducts' => $alternativeProducts,
+            'canonicalUrl'       => route('products.show', $product),
         ]));
     }
 
@@ -289,10 +296,10 @@ class ProductController extends Controller
         return "Entrega estimada en {$leadTimeDays} dias";
     }
 
-    private function relatedProducts(Product $product): EloquentCollection
+    private function relatedProducts(Product $product, Request $request): LengthAwarePaginator
     {
         if (! $product->category_id) {
-            return new EloquentCollection();
+            return $this->emptyPaginator($request, 'related_page');
         }
 
         return Product::query()
@@ -301,23 +308,17 @@ class ProductController extends Controller
             ->whereKeyNot($product->id)
             ->with(['category', 'primaryPhoto', 'variantAttribute', 'variants.attributeValue'])
             ->latest('id')
-            ->limit(8)
-            ->get();
+            ->paginate(20, ['*'], 'related_page', $request->integer('related_page', 1))
+            ->withQueryString();
     }
 
-    /**
-     * @param array<int, int|string> $excludeIds
-     */
-    private function alternativeProducts(Product $product, array $excludeIds = []): EloquentCollection
+    private function alternativeProducts(Product $product, Request $request): LengthAwarePaginator
     {
-        $excludeIds[] = $product->id;
-
         $query = Product::query()
             ->where('is_active', true)
-            ->whereNotIn('id', $excludeIds)
+            ->whereKeyNot($product->id)
             ->with(['category', 'primaryPhoto', 'variantAttribute', 'variants.attributeValue'])
-            ->latest('id')
-            ->limit(8);
+            ->latest('id');
 
         if ($product->category_id) {
             $query->where(function ($builder) use ($product) {
@@ -327,6 +328,57 @@ class ProductController extends Controller
             });
         }
 
-        return $query->get();
+        return $query
+            ->paginate(20, ['*'], 'alternatives_page', $request->integer('alternatives_page', 1))
+            ->withQueryString();
+    }
+
+    private function buildProductListPayload(LengthAwarePaginator $products): array
+    {
+        return [
+            'html' => view('catalog._products-partial', compact('products'))->render(),
+            'controlsHtml' => view('catalog._product-list-controls', compact('products'))->render(),
+            'hasMore' => $products->hasMorePages(),
+            'currentPage' => $products->currentPage(),
+            'nextPage' => $products->currentPage() + 1,
+            'pushUrl' => $this->pushUrl($products),
+        ];
+    }
+
+    private function pushUrl(LengthAwarePaginator $products): string
+    {
+        $query = request()->except('list');
+
+        if ($products->currentPage() <= 1) {
+            unset($query[$products->getPageName()]);
+        } else {
+            $query[$products->getPageName()] = $products->currentPage();
+        }
+
+        $query = array_filter(
+            $query,
+            static fn ($value) => ! is_null($value) && $value !== ''
+        );
+
+        $queryString = http_build_query($query);
+
+        return $queryString === ''
+            ? request()->url()
+            : request()->url() . '?' . $queryString;
+    }
+
+    private function emptyPaginator(Request $request, string $pageName): LengthAwarePaginator
+    {
+        return new \Illuminate\Pagination\LengthAwarePaginator(
+            [],
+            0,
+            20,
+            max(1, $request->integer($pageName, 1)),
+            [
+                'path' => $request->url(),
+                'pageName' => $pageName,
+                'query' => $request->query(),
+            ],
+        );
     }
 }

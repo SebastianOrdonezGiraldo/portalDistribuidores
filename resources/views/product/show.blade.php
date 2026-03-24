@@ -1,3 +1,8 @@
+@push('head')
+    <link rel="canonical" href="{{ $canonicalUrl }}">
+    <meta name="robots" content="index,follow">
+@endpush
+
 <x-app-layout>
     @php $defaultQty = $stepValue; @endphp
 
@@ -650,6 +655,7 @@
             subtitle="De la misma categoría · Ideal para compra de reposición"
             :products="$relatedProducts"
             empty-message="No hay productos relacionados disponibles para esta categoría."
+            list-key="related"
         />
 
         <x-catalog.product-grid-section
@@ -658,6 +664,7 @@
             subtitle="Opciones de sustitución y continuidad operativa"
             :products="$alternativeProducts"
             empty-message="No hay alternativas registradas para este producto."
+            list-key="alternatives"
         />
 
     </div>

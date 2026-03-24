@@ -669,84 +669,93 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshBulk();
     }
 
-    const infiniteGrid = document.querySelector('[data-infinite-grid]');
-    const infiniteSentinel = document.querySelector('[data-infinite-sentinel]');
-    const infiniteEnd = document.querySelector('[data-infinite-end]');
-
-    if (infiniteGrid && infiniteSentinel) {
+    document.querySelectorAll('[data-product-list]').forEach((productList) => {
         let loading = false;
 
-        const loadMore = async () => {
-            if (loading) {
+        const setButtonLoading = (isLoading) => {
+            const button = productList.querySelector('[data-product-load-more]');
+            if (!button) {
                 return;
             }
 
-            const hasMore = infiniteGrid.dataset.hasMore === 'true';
+            if (isLoading) {
+                button.disabled = true;
+                button.dataset.originalLabel = button.textContent.trim();
+                button.textContent = button.dataset.loadingLabel || 'Cargando...';
+                return;
+            }
 
-            if (!hasMore) {
-                infiniteSentinel.classList.add('hidden');
-                infiniteEnd?.classList.remove('hidden');
-                observer.disconnect();
+            button.disabled = false;
+            if (button.dataset.originalLabel) {
+                button.textContent = button.dataset.originalLabel;
+            }
+        };
+
+        const loadMore = async () => {
+            if (loading || productList.dataset.hasMore !== 'true') {
                 return;
             }
 
             loading = true;
-            infiniteSentinel.classList.remove('hidden');
+            setButtonLoading(true);
 
-            const nextPage = infiniteGrid.dataset.nextPage;
-            const baseUrl = infiniteGrid.dataset.loadUrl;
-            const filters = infiniteGrid.dataset.filters || '';
+            const params = new URLSearchParams(productList.dataset.baseQuery || '');
+            const pageParam = productList.dataset.pageParam || 'page';
+            params.set(pageParam, productList.dataset.nextPage || '1');
 
-            const params = new URLSearchParams(filters);
-            params.set('page', nextPage);
+            const listName = productList.dataset.list || '';
+            if (listName) {
+                params.set('list', listName);
+            }
 
             try {
-                const response = await fetch(`${baseUrl}?${params.toString()}`, {
+                const response = await fetch(`${productList.dataset.loadUrl}?${params.toString()}`, {
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json',
+                        Accept: 'application/json',
                     },
                     credentials: 'same-origin',
                 });
 
                 if (!response.ok) {
-                    throw new Error('catalog-load-failed');
+                    throw new Error('product-list-load-failed');
                 }
 
                 const payload = await response.json();
+                const grid = productList.querySelector('[data-product-grid]');
+                const controls = productList.querySelector('[data-product-list-controls]');
 
-                infiniteGrid.insertAdjacentHTML('beforeend', payload.html);
-                infiniteGrid.dataset.nextPage = String(payload.nextPage);
-                infiniteGrid.dataset.hasMore = payload.hasMore ? 'true' : 'false';
+                grid?.insertAdjacentHTML('beforeend', payload.html || '');
 
-                if (!payload.hasMore) {
-                    infiniteSentinel.classList.add('hidden');
-                    infiniteEnd?.classList.remove('hidden');
-                    observer.disconnect();
+                if (controls) {
+                    controls.innerHTML = payload.controlsHtml || '';
+                }
+
+                productList.dataset.currentPage = String(payload.currentPage || productList.dataset.currentPage || '1');
+                productList.dataset.nextPage = String(payload.nextPage || productList.dataset.nextPage || '1');
+                productList.dataset.hasMore = payload.hasMore ? 'true' : 'false';
+
+                if (payload.pushUrl && typeof window.history?.pushState === 'function') {
+                    window.history.pushState({}, '', payload.pushUrl);
                 }
             } catch {
-                // Do nothing on error; the user can scroll down again to retry
+                // Keep the current controls so the user can retry manually.
             } finally {
                 loading = false;
+                setButtonLoading(false);
             }
         };
 
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0]?.isIntersecting) {
-                    loadMore();
-                }
-            },
-            { rootMargin: '200px' },
-        );
+        productList.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-product-load-more]');
+            if (!button || !productList.contains(button)) {
+                return;
+            }
 
-        if (infiniteGrid.dataset.hasMore === 'true') {
-            observer.observe(infiniteSentinel);
-        } else {
-            infiniteSentinel.classList.add('hidden');
-            infiniteEnd?.classList.remove('hidden');
-        }
-    }
+            event.preventDefault();
+            loadMore();
+        });
+    });
 
     const productForm = document.querySelector('form[data-product-form]');
 
