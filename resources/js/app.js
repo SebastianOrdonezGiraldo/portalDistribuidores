@@ -221,13 +221,28 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Cart animation helpers
+    const isVisibleCartTarget = (element) => {
+        if (!element) {
+            return false;
+        }
+
+        const rect = element.getBoundingClientRect();
+
+        return rect.width > 0 && rect.height > 0 && rect.top >= 0 && rect.top <= window.innerHeight;
+    };
+
     const getCartBadgeTarget = () => {
         const badges = Array.from(document.querySelectorAll('[data-cart-badge]'));
-        const visible = badges.find((badge) => {
-            const rect = badge.getBoundingClientRect();
-            return rect.width > 0 && rect.top >= 0 && rect.top <= window.innerHeight;
-        });
-        return visible || badges[0] || null;
+        const visibleBadge = badges.find((badge) => isVisibleCartTarget(badge));
+
+        if (visibleBadge) {
+            return visibleBadge;
+        }
+
+        const targets = Array.from(document.querySelectorAll('[data-cart-target]'));
+        const visibleTarget = targets.find((target) => isVisibleCartTarget(target));
+
+        return visibleTarget || badges[0] || targets[0] || null;
     };
 
     const getProductNameFromForm = (form) => {
