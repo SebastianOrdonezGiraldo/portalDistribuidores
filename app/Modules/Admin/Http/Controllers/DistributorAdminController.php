@@ -6,14 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Modules\Admin\Http\Requests\StoreDistributorRequest;
 use App\Modules\Admin\Http\Requests\UpdateDistributorRequest;
 use App\Modules\AuthAccess\Models\Distributor;
+use App\Modules\Orders\Models\Order;
+use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Enums\DistributorStatus;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class DistributorAdminController extends Controller
 {
+    private const RECENT_ORDERS_LIMIT = 5;
+
     public function index(Request $request): View
     {
         $this->authorize('viewAny', Distributor::class);
@@ -56,6 +63,8 @@ class DistributorAdminController extends Controller
 
         $distributors = (clone $filteredQuery)
             ->withCount(['users', 'orders'])
+            ->withSum('orders as orders_total_amount', 'total_amount')
+            ->withMax('orders as latest_order_at', 'created_at')
             ->when($filters['sort'] === 'newest', fn ($query) => $query->latest())
             ->when($filters['sort'] === 'oldest', fn ($query) => $query->oldest())
             ->when($filters['sort'] === 'name_asc', fn ($query) => $query->orderBy('name'))
@@ -64,6 +73,8 @@ class DistributorAdminController extends Controller
             ->when($filters['sort'] === 'orders_desc', fn ($query) => $query->orderByDesc('orders_count')->orderBy('name'))
             ->paginate((int) $filters['per_page'])
             ->withQueryString();
+
+        $this->hydrateRecentOrders($distributors->getCollection());
 
         $metrics = [
             'total_distributors' => (clone $filteredQuery)->count(),
@@ -89,7 +100,62 @@ class DistributorAdminController extends Controller
             'perPageOptions' => $perPageOptions,
             'metrics' => $metrics,
             'activeFiltersCount' => $activeFiltersCount,
+            'recentOrdersLimit' => self::RECENT_ORDERS_LIMIT,
         ]);
+    }
+
+    private function hydrateRecentOrders(EloquentCollection $distributors): void
+    {
+        if ($distributors->isEmpty()) {
+            return;
+        }
+
+        $distributorIds = $distributors->pluck('id')->all();
+
+        $recentOrderIds = DB::query()
+            ->fromSub(
+                Order::query()
+                    ->select(['id', 'distributor_id'])
+                    ->selectRaw('ROW_NUMBER() OVER (PARTITION BY distributor_id ORDER BY created_at DESC, id DESC) as row_num')
+                    ->whereIn('distributor_id', $distributorIds),
+                'ranked_orders'
+            )
+            ->where('row_num', '<=', self::RECENT_ORDERS_LIMIT)
+            ->pluck('id');
+
+        $recentOrders = Order::query()
+            ->with(['user', 'items'])
+            ->withCount('items')
+            ->whereIn('id', $recentOrderIds)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->get()
+            ->groupBy('distributor_id');
+
+        $statusSummary = Order::query()
+            ->selectRaw('distributor_id, status, COUNT(*) as total')
+            ->whereIn('distributor_id', $distributorIds)
+            ->groupBy('distributor_id', 'status')
+            ->get()
+            ->groupBy('distributor_id')
+            ->map(function (Collection $rows): array {
+                $counts = $rows->mapWithKeys(function ($row): array {
+                    $status = $row->status instanceof \BackedEnum
+                        ? $row->status->value
+                        : (string) $row->status;
+
+                    return [$status => (int) $row->total];
+                });
+
+                return collect(OrderStatus::cases())
+                    ->mapWithKeys(fn (OrderStatus $status) => [$status->value => (int) ($counts[$status->value] ?? 0)])
+                    ->all();
+            });
+
+        $distributors->each(function (Distributor $distributor) use ($recentOrders, $statusSummary): void {
+            $distributor->setRelation('recent_orders', $recentOrders->get($distributor->id, collect()));
+            $distributor->setAttribute('order_status_summary', $statusSummary->get($distributor->id, []));
+        });
     }
 
     public function create(): View

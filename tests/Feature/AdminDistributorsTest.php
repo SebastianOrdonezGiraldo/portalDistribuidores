@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Orders\Models\Order;
+use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Shared\Enums\OrderStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -71,6 +72,78 @@ class AdminDistributorsTest extends TestCase
         });
 
         $response->assertViewHas('metrics', fn (array $metrics) => (int) $metrics['total_distributors'] === 1);
+    }
+
+    public function test_admin_distributors_index_includes_recent_orders_summary_for_each_distributor(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $target = Distributor::create([
+            'name' => 'Distribuidor detalle pedidos',
+            'status' => 'active',
+            'city' => 'Bogota',
+            'contact_email' => 'detalle@example.com',
+            'contact_name' => 'Equipo detalle',
+        ]);
+
+        $other = Distributor::create([
+            'name' => 'Distribuidor externo',
+            'status' => 'active',
+        ]);
+
+        $latestOrder = $this->createOrder($admin, $target, 'CTC-RECENT-005', OrderStatus::Sending, 350000);
+        $latestOrder->update(['created_at' => now()->subHour(), 'updated_at' => now()->subHour()]);
+        $olderOrder = $this->createOrder($admin, $target, 'CTC-RECENT-004', OrderStatus::Submitted, 120000);
+        $olderOrder->update(['created_at' => now()->subDays(2), 'updated_at' => now()->subDays(2)]);
+        $this->createOrder($admin, $other, 'CTC-OTHER-001', OrderStatus::Rejected, 99999);
+
+        OrderItem::create([
+            'order_id' => $latestOrder->id,
+            'product_name_snapshot' => 'Producto Alfa',
+            'sku_snapshot' => 'SKU-ALFA',
+            'qty' => 2,
+            'unit_label' => 'und',
+            'price_each' => 100000,
+            'subtotal' => 200000,
+        ]);
+
+        $response = $this->actingAs($admin)->get('/admin/distributors?q=detalle');
+
+        $response->assertOk();
+        $response->assertSee('CTC-RECENT-005');
+        $response->assertSee('CTC-RECENT-004');
+        $response->assertDontSee('CTC-OTHER-001');
+        $response->assertSee('Ver detalle');
+        $response->assertSee('Descargar PDF');
+        $response->assertSee('Monto acumulado');
+        $response->assertSee('Ultimo pedido');
+
+        $response->assertViewHas('distributors', function ($distributors) use ($target, $latestOrder) {
+            $distributor = $distributors->getCollection()->firstWhere('id', $target->id);
+
+            if (! $distributor) {
+                return false;
+            }
+
+            return (float) $distributor->orders_total_amount === 470000.0
+                && (int) $distributor->order_status_summary[OrderStatus::Sending->value] === 1
+                && (int) $distributor->order_status_summary[OrderStatus::Submitted->value] === 1
+                && $distributor->recent_orders->pluck('id')->contains($latestOrder->id);
+        });
+    }
+
+    public function test_admin_distributors_index_shows_empty_state_for_distributor_without_orders(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Distributor::create([
+            'name' => 'Distribuidor sin pedidos panel',
+            'status' => 'active',
+        ]);
+
+        $response = $this->actingAs($admin)->get('/admin/distributors?q=sin pedidos panel');
+
+        $response->assertOk();
+        $response->assertSee('Sin pedidos recientes');
+        $response->assertSee('Este distribuidor todavia no registra pedidos en el portal.');
     }
 
     public function test_admin_cannot_delete_distributor_with_users(): void
@@ -170,7 +243,13 @@ class AdminDistributorsTest extends TestCase
             ->assertRedirect('/admin/distributors');
     }
 
-    private function createOrder(User $admin, Distributor $distributor, string $ocNumber): Order
+    private function createOrder(
+        User $admin,
+        Distributor $distributor,
+        string $ocNumber,
+        OrderStatus $status = OrderStatus::Submitted,
+        float|int $totalAmount = 120000
+    ): Order
     {
         return Order::create([
             'distributor_id' => $distributor->id,
@@ -184,8 +263,8 @@ class AdminDistributorsTest extends TestCase
             'city' => 'Bogota',
             'phone' => '3000000000',
             'notes' => 'Orden de prueba',
-            'status' => OrderStatus::Submitted,
-            'total_amount' => 120000,
+            'status' => $status,
+            'total_amount' => $totalAmount,
             'pdf_path' => null,
         ]);
     }

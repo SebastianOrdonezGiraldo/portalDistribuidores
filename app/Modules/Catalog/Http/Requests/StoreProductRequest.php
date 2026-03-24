@@ -9,6 +9,10 @@ use Illuminate\Validation\Validator;
 
 class StoreProductRequest extends FormRequest
 {
+    private const PHOTO_MAX_KB = 3072;
+
+    private const TECH_SHEET_MAX_KB = 5120;
+
     protected function prepareForValidation(): void
     {
         $this->merge([
@@ -69,9 +73,21 @@ class StoreProductRequest extends FormRequest
             'stock' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
             'is_active' => ['nullable', 'boolean'],
             'photos' => ['nullable', 'array', 'max:10'],
-            'photos.*' => ['image', 'max:3072'],
+            'photos.*' => ['image', 'max:'.self::PHOTO_MAX_KB],
             'video_url' => ['nullable', 'url', 'max:255'],
-            'tech_sheet' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
+            'tech_sheet' => ['nullable', 'file', 'mimes:pdf', 'max:'.self::TECH_SHEET_MAX_KB],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'photos.max' => 'Puedes cargar hasta 10 fotos por producto.',
+            'photos.*.image' => 'Cada archivo en fotos debe ser una imagen valida.',
+            'photos.*.max' => 'Cada foto debe pesar como maximo 3 MB.',
+            'tech_sheet.file' => 'La ficha tecnica debe cargarse como un archivo adjunto.',
+            'tech_sheet.mimes' => 'La ficha tecnica debe estar en formato PDF.',
+            'tech_sheet.max' => 'La ficha tecnica debe pesar como maximo 5 MB.',
         ];
     }
 
@@ -87,7 +103,7 @@ class StoreProductRequest extends FormRequest
                 ->filter();
 
             if ($rows->isEmpty()) {
-                $validator->errors()->add('variants', 'Debes agregar al menos una variante con valor válido.');
+                $validator->errors()->add('variants', 'Debes agregar al menos una variante con valor valido.');
 
                 return;
             }

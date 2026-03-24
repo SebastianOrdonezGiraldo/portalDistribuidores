@@ -11,6 +11,7 @@ use Database\Factories\DistributorFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Distributor extends Model
 {
@@ -52,6 +53,11 @@ class Distributor extends Model
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function latestOrder(): HasOne
+    {
+        return $this->hasOne(Order::class)->latestOfMany();
     }
 
     public function branches(): HasMany

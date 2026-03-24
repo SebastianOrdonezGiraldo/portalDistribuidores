@@ -6,6 +6,9 @@ use App\Models\User;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Categories\Models\Category;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Exceptions\PostTooLargeException;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class AdminProductEditorTest extends TestCase
@@ -127,6 +130,63 @@ class AdminProductEditorTest extends TestCase
         $this->assertDatabaseMissing('product_videos', ['id' => $video->id]);
     }
 
+    public function test_store_product_shows_clear_error_when_tech_sheet_exceeds_individual_limit(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+
+        $response = $this->actingAs($admin)
+            ->from('/admin/products/create')
+            ->post('/admin/products', array_merge($this->validProductPayload($category), [
+                'tech_sheet' => UploadedFile::fake()->create('ficha-tecnica.pdf', 5201, 'application/pdf'),
+            ]));
+
+        $response
+            ->assertRedirect('/admin/products/create')
+            ->assertSessionHasErrors([
+                'tech_sheet' => 'La ficha tecnica debe pesar como maximo 5 MB.',
+            ]);
+    }
+
+    public function test_store_product_shows_clear_error_when_photo_exceeds_individual_limit(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+
+        $response = $this->actingAs($admin)
+            ->from('/admin/products/create')
+            ->post('/admin/products', array_merge($this->validProductPayload($category), [
+                'photos' => [
+                    UploadedFile::fake()->create('producto-grande.jpg', 3073, 'image/jpeg'),
+                ],
+            ]));
+
+        $response
+            ->assertRedirect('/admin/products/create')
+            ->assertSessionHasErrors([
+                'photos.0' => 'Cada foto debe pesar como maximo 3 MB.',
+            ]);
+    }
+
+    public function test_post_too_large_redirects_back_with_media_upload_error(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        Route::middleware('web')->post('/test-post-too-large', function () {
+            throw new PostTooLargeException();
+        });
+
+        $response = $this->actingAs($admin)
+            ->from('/admin/products/create')
+            ->post('/test-post-too-large');
+
+        $response
+            ->assertRedirect('/admin/products/create')
+            ->assertSessionHasErrors([
+                'media_upload' => 'Los archivos seleccionados superan el tamano maximo permitido para la carga total. Reduce la cantidad o el peso de fotos y documentos e intentalo nuevamente.',
+            ]);
+    }
+
     private function createCategory(): Category
     {
         return Category::create([
@@ -149,5 +209,19 @@ class AdminProductEditorTest extends TestCase
             'stock' => 15,
             'is_active' => true,
         ]);
+    }
+
+    private function validProductPayload(Category $category): array
+    {
+        return [
+            'name' => 'Producto Nuevo',
+            'brand' => 'Marca Nueva',
+            'sku' => 'SKU-NEW-001',
+            'description' => 'Producto con media',
+            'category_id' => $category->id,
+            'price' => 15000,
+            'stock' => 12,
+            'is_active' => 1,
+        ];
     }
 }

@@ -269,19 +269,20 @@
             </x-ui.card>
 
             <x-ui.card class="p-5" id="media-documentos">
+                <x-input-error class="mt-3" :messages="$errors->get('media_upload')" />
                 <h2 class="card-title">Media y Documentación</h2>
                 <div class="mt-4 grid gap-4 sm:grid-cols-2">
                     <div>
                         <label class="form-label" for="photos">Fotos del producto</label>
                         <x-ui.input id="photos" type="file" name="photos[]" accept="image/*" multiple />
-                        <p class="form-help">JPG/PNG hasta 3MB por imagen. Puedes seleccionar varias a la vez.</p>
+                        <p class="form-help">JPG/PNG hasta 3 MB por imagen. Puedes seleccionar varias a la vez.</p>
                         <x-input-error :messages="$errors->get('photos')" />
                         <x-input-error :messages="$errors->get('photos.*')" />
                     </div>
                     <div>
                         <label class="form-label" for="tech_sheet">Ficha técnica (PDF)</label>
                         <x-ui.input id="tech_sheet" type="file" name="tech_sheet" accept="application/pdf" />
-                        <p class="form-help">Archivo PDF hasta 5MB.</p>
+                        <p class="form-help">Archivo PDF hasta 5 MB.</p>
                         <x-input-error :messages="$errors->get('tech_sheet')" />
                     </div>
                 </div>

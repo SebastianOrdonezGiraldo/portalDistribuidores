@@ -1,11 +1,12 @@
 <?php
 
+use App\Modules\AuthAccess\Middleware\RoleMiddleware;
+use App\Modules\AuthAccess\Middleware\UseRequestHostForUrls;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Session\TokenMismatchException;
-use App\Modules\AuthAccess\Middleware\RoleMiddleware;
-use App\Modules\AuthAccess\Middleware\UseRequestHostForUrls;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -23,10 +24,16 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // Cuando el token CSRF expira (sesión vencida), redirigir al login en lugar de mostrar 419
+        $exceptions->render(function (PostTooLargeException $e, $request) {
+            return back()->withInput()->withErrors([
+                'media_upload' => 'Los archivos seleccionados superan el tamano maximo permitido para la carga total. Reduce la cantidad o el peso de fotos y documentos e intentalo nuevamente.',
+            ]);
+        });
+
+        // Cuando el token CSRF expira (sesion vencida), redirigir al login en lugar de mostrar 419.
         $exceptions->render(function (TokenMismatchException $e, $request) {
             return redirect()->route('login')->withErrors([
-                'email' => 'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                'email' => 'Tu sesion ha expirado. Por favor inicia sesion nuevamente.',
             ]);
         });
     })->create();
