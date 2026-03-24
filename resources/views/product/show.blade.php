@@ -497,7 +497,7 @@
                             <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
                         </svg>
                         <span class="text-xs font-semibold text-slate-600">
-                            {{ $remainingDownloads }}/3 descargas restantes este mes
+                            {{ $remainingDownloads }}/{{ $techSheetMonthlyLimit }} descargas restantes este mes
                         </span>
                     </div>
                 @endif

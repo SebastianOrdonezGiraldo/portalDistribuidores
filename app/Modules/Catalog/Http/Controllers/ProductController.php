@@ -31,6 +31,7 @@ class ProductController extends Controller
         $breadcrumbs = $breadcrumbsQuery->execute($product->category);
         $techSheet = $product->documents->firstWhere('type', 'tech_sheet');
         $remainingDownloads = null;
+        $techSheetMonthlyLimit = $downloadService->monthlyLimit();
         $commercialSnapshot = $this->buildCommercialSnapshot($product);
         $relatedProducts = $this->relatedProducts($product, $request);
         $alternativeProducts = $this->alternativeProducts($product, $request);
@@ -57,6 +58,7 @@ class ProductController extends Controller
             'product'            => $product,
             'breadcrumbs'        => $breadcrumbs,
             'techSheet'          => $techSheet,
+            'techSheetMonthlyLimit' => $techSheetMonthlyLimit,
             'remainingDownloads' => $remainingDownloads,
             'relatedProducts'    => $relatedProducts,
             'alternativeProducts' => $alternativeProducts,

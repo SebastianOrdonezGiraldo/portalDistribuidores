@@ -33,8 +33,9 @@ class TechSheetDownloadController extends Controller
 
             if (! $downloadService->canDownload($distributor, $productDocument, $now)) {
                 $remaining = $downloadService->remainingDownloads($distributor, $productDocument, $now);
+                $limit = $downloadService->monthlyLimit();
 
-                return back()->withErrors("Límite mensual alcanzado. Te quedan {$remaining} de 3 este mes.");
+                return back()->withErrors("Límite mensual alcanzado. Te quedan {$remaining} de {$limit} este mes.");
             }
 
             $downloadService->registerDownload($distributor, $productDocument, $now);

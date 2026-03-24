@@ -18,79 +18,59 @@ class TechSheetDownloadLimitTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function tearDown(): void
+    {
+        CarbonImmutable::setTestNow();
+
+        parent::tearDown();
+    }
+
     public function test_guest_can_download_active_tech_sheet(): void
     {
         Storage::fake('public');
 
-        $category = Category::create([
-            'name' => 'Proteccion',
-            'slug' => 'proteccion',
-            'is_active' => true,
-            'sort_order' => 1,
-        ]);
-
-        $product = Product::create([
-            'name' => 'Producto A',
-            'sku' => 'TS-001',
-            'description' => 'desc',
-            'category_id' => $category->id,
-            'price' => 1000,
-            'is_active' => true,
-        ]);
-
-        Storage::disk('public')->put('products/documents/a.pdf', 'PDF');
-        $document = ProductDocument::create([
-            'product_id' => $product->id,
-            'type' => 'tech_sheet',
-            'path' => 'products/documents/a.pdf',
-            'filename' => 'a.pdf',
-        ]);
+        ['document' => $document] = $this->createTechSheetDocument();
 
         $this->get(route('documents.tech-sheet.download', $document))
             ->assertOk()
             ->assertDownload('a.pdf');
     }
 
-    public function test_distributor_cannot_download_more_than_three_times_per_month(): void
+    public function test_distributor_can_download_a_tech_sheet_two_times_per_month(): void
     {
         Storage::fake('public');
 
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-03-15 10:00:00', 'UTC'));
+
+        $user = $this->createDistributorUser();
+        ['document' => $document] = $this->createTechSheetDocument();
+
+        $firstResponse = $this->actingAs($user)
+            ->get(route('documents.tech-sheet.download', $document));
+
+        $secondResponse = $this->actingAs($user)
+            ->get(route('documents.tech-sheet.download', $document));
+
+        $firstResponse->assertOk()->assertDownload('a.pdf');
+        $secondResponse->assertOk()->assertDownload('a.pdf');
+        $this->assertDatabaseCount('document_downloads', 2);
+    }
+
+    public function test_distributor_cannot_download_more_than_two_times_per_month(): void
+    {
+        Storage::fake('public');
+
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-03-20 08:00:00', 'UTC'));
+
         $distributor = Distributor::create(['name' => 'Dist', 'status' => 'active']);
-        $user = User::factory()->create([
-            'role' => UserRole::Distributor,
-            'distributor_id' => $distributor->id,
-            'email_verified_at' => now(),
-        ]);
+        $user = $this->createDistributorUser($distributor);
+        ['product' => $product, 'document' => $document] = $this->createTechSheetDocument();
 
-        $category = Category::create([
-            'name' => 'Proteccion',
-            'slug' => 'proteccion',
-            'is_active' => true,
-            'sort_order' => 1,
-        ]);
-
-        $product = Product::create([
-            'name' => 'Producto A',
-            'sku' => 'TS-001',
-            'description' => 'desc',
-            'category_id' => $category->id,
-            'price' => 1000,
-            'is_active' => true,
-        ]);
-
-        Storage::disk('public')->put('products/documents/a.pdf', 'PDF');
-        $document = ProductDocument::create([
-            'product_id' => $product->id,
-            'type' => 'tech_sheet',
-            'path' => 'products/documents/a.pdf',
-            'filename' => 'a.pdf',
-        ]);
-
-        for ($i = 0; $i < 3; $i++) {
+        for ($i = 0; $i < 2; $i++) {
             DocumentDownload::create([
                 'distributor_id' => $distributor->id,
                 'product_document_id' => $document->id,
-                'downloaded_at' => CarbonImmutable::now()->subDays($i),
+                'downloaded_at' => CarbonImmutable::now()->subDays($i)->setTimezone('UTC'),
             ]);
         }
 
@@ -100,5 +80,118 @@ class TechSheetDownloadLimitTest extends TestCase
 
         $response->assertRedirect(route('products.show', $product));
         $response->assertSessionHasErrors();
+        $this->assertDatabaseCount('document_downloads', 2);
+    }
+
+    public function test_distributor_download_limit_resets_when_a_new_month_starts_in_bogota(): void
+    {
+        Storage::fake('public');
+
+        config([
+            'documents.tech_sheet_monthly_limit' => 2,
+            'documents.tech_sheet_monthly_timezone' => 'America/Bogota',
+        ]);
+
+        $distributor = Distributor::create(['name' => 'Dist', 'status' => 'active']);
+        $user = $this->createDistributorUser($distributor);
+        ['document' => $document] = $this->createTechSheetDocument();
+
+        DocumentDownload::create([
+            'distributor_id' => $distributor->id,
+            'product_document_id' => $document->id,
+            'downloaded_at' => CarbonImmutable::parse('2026-04-01 03:30:00', 'UTC'),
+        ]);
+
+        DocumentDownload::create([
+            'distributor_id' => $distributor->id,
+            'product_document_id' => $document->id,
+            'downloaded_at' => CarbonImmutable::parse('2026-04-01 04:30:00', 'UTC'),
+        ]);
+
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-04-01 05:15:00', 'UTC'));
+
+        $this->actingAs($user)
+            ->get(route('documents.tech-sheet.download', $document))
+            ->assertOk()
+            ->assertDownload('a.pdf');
+
+        $this->assertDatabaseCount('document_downloads', 3);
+    }
+
+    public function test_admin_can_download_without_consuming_quota(): void
+    {
+        Storage::fake('public');
+
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'email_verified_at' => now(),
+        ]);
+
+        ['document' => $document] = $this->createTechSheetDocument();
+
+        $this->actingAs($admin)
+            ->get(route('documents.tech-sheet.download', $document))
+            ->assertOk()
+            ->assertDownload('a.pdf');
+
+        $this->assertDatabaseCount('document_downloads', 0);
+    }
+
+    public function test_product_page_shows_the_configured_monthly_limit(): void
+    {
+        Storage::fake('public');
+
+        config(['documents.tech_sheet_monthly_limit' => 2]);
+
+        $user = $this->createDistributorUser();
+        ['product' => $product] = $this->createTechSheetDocument();
+
+        $this->actingAs($user)
+            ->get(route('products.show', $product))
+            ->assertOk()
+            ->assertSeeText('2/2 descargas restantes este mes');
+    }
+
+    /**
+     * @return array{product: Product, document: ProductDocument}
+     */
+    private function createTechSheetDocument(): array
+    {
+        $category = Category::create([
+            'name' => 'Proteccion',
+            'slug' => 'proteccion',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $product = Product::create([
+            'name' => 'Producto A',
+            'sku' => 'TS-001',
+            'description' => 'desc',
+            'category_id' => $category->id,
+            'price' => 1000,
+            'is_active' => true,
+        ]);
+
+        Storage::disk('public')->put('products/documents/a.pdf', 'PDF');
+        $document = ProductDocument::create([
+            'product_id' => $product->id,
+            'type' => 'tech_sheet',
+            'path' => 'products/documents/a.pdf',
+            'filename' => 'a.pdf',
+        ]);
+
+        return compact('product', 'document');
+    }
+
+    private function createDistributorUser(?Distributor $distributor = null): User
+    {
+        $distributor ??= Distributor::create(['name' => 'Dist', 'status' => 'active']);
+
+        return User::factory()->create([
+            'role' => UserRole::Distributor,
+            'distributor_id' => $distributor->id,
+            'email_verified_at' => now(),
+        ]);
     }
 }
