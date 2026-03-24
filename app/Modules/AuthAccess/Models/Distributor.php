@@ -7,6 +7,7 @@ use App\Modules\Company\Models\CompanyBranch;
 use App\Modules\Company\Models\CompanyList;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Shared\Enums\DistributorStatus;
+use Database\Factories\DistributorFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,6 +15,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Distributor extends Model
 {
     use HasFactory;
+
+    protected static function newFactory(): DistributorFactory
+    {
+        return DistributorFactory::new();
+    }
 
     protected $fillable = [
         'name',

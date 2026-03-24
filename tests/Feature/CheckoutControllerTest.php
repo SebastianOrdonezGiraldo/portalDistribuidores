@@ -130,7 +130,7 @@ class CheckoutControllerTest extends TestCase
             ->assertOk()
             ->assertViewIs('orders.checkout')
             ->assertViewHas('items')
-            ->assertViewHasNull('distributor');
+            ->assertViewHas('distributor', null);
     }
 
     public function test_checkout_distributor_without_company_role_can_access(): void
