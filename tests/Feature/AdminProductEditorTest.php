@@ -130,6 +130,51 @@ class AdminProductEditorTest extends TestCase
         $this->assertDatabaseMissing('product_videos', ['id' => $video->id]);
     }
 
+    public function test_admin_can_delete_product_from_admin_route(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProduct($category, 'SKU-DELETE-001');
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->delete('/admin/products/'.$product->id, ['_token' => 'test-token'])
+            ->assertRedirect('/admin/products')
+            ->assertSessionHas('status', 'Producto eliminado.');
+
+        $this->assertDatabaseMissing('products', [
+            'id' => $product->id,
+        ]);
+    }
+
+    public function test_guest_cannot_delete_product_from_admin_route(): void
+    {
+        $category = $this->createCategory();
+        $product = $this->createProduct($category, 'SKU-DELETE-GUEST-001');
+
+        $this->delete('/admin/products/'.$product->id)
+            ->assertRedirect('/login');
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+        ]);
+    }
+
+    public function test_distributor_cannot_delete_product_from_admin_route(): void
+    {
+        $distributorUser = User::factory()->create();
+        $category = $this->createCategory();
+        $product = $this->createProduct($category, 'SKU-DELETE-DIST-001');
+
+        $this->actingAs($distributorUser)
+            ->delete('/admin/products/'.$product->id)
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+        ]);
+    }
+
     public function test_store_product_shows_clear_error_when_tech_sheet_exceeds_individual_limit(): void
     {
         $admin = User::factory()->admin()->create();

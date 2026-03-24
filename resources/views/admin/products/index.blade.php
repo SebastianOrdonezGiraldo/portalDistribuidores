@@ -301,6 +301,29 @@
                                             <span class="product-status-switch-thumb"></span>
                                         </button>
                                     </form>
+
+                                    <form
+                                        action="{{ route('admin.products.destroy', $product) }}"
+                                        method="POST"
+                                        data-confirm="Eliminar {{ $product->name }}? Esta accion no se puede deshacer."
+                                    >
+                                        @csrf
+                                        @method('DELETE')
+                                        <button
+                                            type="submit"
+                                            class="product-row-action-icon text-red-600 hover:text-red-700"
+                                            title="Eliminar producto"
+                                            aria-label="Eliminar {{ $product->name }}"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M3 6h18"></path>
+                                                <path d="M8 6V4h8v2"></path>
+                                                <path d="M19 6l-1 14H6L5 6"></path>
+                                                <path d="M10 11v6"></path>
+                                                <path d="M14 11v6"></path>
+                                            </svg>
+                                        </button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>

@@ -99,4 +99,33 @@ class AdminProductsIndexTest extends TestCase
         $this->assertNotNull($lowPrice->id);
         $this->assertNotNull($inactive->id);
     }
+
+    public function test_admin_products_index_renders_delete_action_for_each_product(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = Category::create([
+            'parent_id' => null,
+            'name' => 'Categoria Delete Action',
+            'slug' => 'categoria-delete-action',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $product = Product::create([
+            'name' => 'Producto Eliminable',
+            'sku' => 'SKU-DELETE-ACTION',
+            'description' => 'Producto para validar accion de eliminar',
+            'category_id' => $category->id,
+            'price' => 25000,
+            'stock' => 5,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get('/admin/products');
+
+        $response->assertOk();
+        $response->assertSee(route('admin.products.destroy', $product), false);
+        $response->assertSee('aria-label="Eliminar '.$product->name.'"', false);
+        $response->assertSee('data-confirm="Eliminar '.$product->name.'? Esta accion no se puede deshacer."', false);
+    }
 }
