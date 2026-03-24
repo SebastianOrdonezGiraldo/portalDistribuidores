@@ -28,7 +28,7 @@
     @if($isAuthenticated)
         <div data-sidebar-overlay class="fixed inset-0 z-40 hidden bg-slate-950/45 lg:hidden" aria-hidden="true"></div>
 
-        <aside id="app-sidebar" data-sidebar aria-hidden="true" class="fixed inset-y-0 left-0 z-50 flex w-[18rem] max-w-[calc(100vw-2rem)] -translate-x-full flex-col border-r border-slate-200 bg-white shadow-panel transition-transform duration-200 ease-out lg:translate-x-0">
+        <aside id="app-sidebar" data-sidebar aria-hidden="true" class="fixed inset-y-0 left-0 z-50 flex w-60 max-w-[calc(100vw-2rem)] -translate-x-full flex-col border-r border-slate-200 bg-white shadow-panel transition-transform duration-200 ease-out lg:translate-x-0">
         <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
             <a href="{{ route('dashboard') }}" class="flex min-w-0 items-center gap-3 focus-ring rounded-lg">
                 <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-9 w-auto">
@@ -184,7 +184,7 @@
         </aside>
     @endif
 
-    <div class="flex min-h-dvh min-w-0 flex-col {{ $isAuthenticated ? 'lg:pl-72' : '' }}">
+    <div class="flex min-h-dvh min-w-0 flex-col {{ $isAuthenticated ? 'lg:pl-60' : '' }}">
         <header class="sticky top-0 z-30 border-b border-slate-200/95 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
             <div class="flex flex-col gap-2 px-3 py-3 sm:px-6 lg:px-8">
                 <div class="flex min-w-0 items-center gap-2 sm:gap-3">
