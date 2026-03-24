@@ -78,8 +78,6 @@ class ProductController extends Controller
         $brand         = $commercial['brand'] ?? 'Marca no especificada';
         $unitLabel     = $commercial['unit'] ?? 'unidad';
         $unitLabelLower = Str::lower($unitLabel);
-        $packaging     = $commercial['packaging'] ?? null;
-        $presentation  = $commercial['presentation'] ?? null;
         $leadTimeLabel = $commercial['leadTimeLabel'] ?? null;
         $etaLabel      = $commercial['etaLabel'] ?? null;
         $minMultiple   = max(1, (int) ceil((float) ($commercial['minMultiple'] ?? 1)));
@@ -142,13 +140,6 @@ class ProductController extends Controller
             ['label' => 'Marca',     'value' => $brand],
             ['label' => 'Categoría', 'value' => $categoryName],
         ];
-        if ($packaging) {
-            $specRows[] = ['label' => 'Empaque',       'value' => $packaging];
-        }
-        if ($presentation) {
-            $specRows[] = ['label' => 'Presentación',  'value' => $presentation];
-        }
-
         $sections = [
             ['id' => 'descripcion',     'label' => 'Descripción'],
             ['id' => 'especificaciones', 'label' => 'Especificaciones'],
@@ -159,8 +150,8 @@ class ProductController extends Controller
 
         return compact(
             'formatQty', 'mainPhoto', 'galleryPhotos', 'categoryName', 'brand',
-            'unitLabel', 'unitLabelLower', 'packaging', 'presentation',
-            'leadTimeLabel', 'etaLabel', 'minMultiple', 'stepValue',
+            'unitLabel', 'unitLabelLower', 'leadTimeLabel', 'etaLabel',
+            'minMultiple', 'stepValue',
             'discountPercent', 'promoLabel', 'activeVariants', 'hasVariants',
             'variantAttributeName', 'minVariantPrice', 'maxVariantPrice',
             'price', 'isRangePrice', 'formattedPrice', 'stock', 'canBuy',
@@ -174,8 +165,6 @@ class ProductController extends Controller
      * @return array{
      *   brand:string,
      *   unit:string,
-     *   packaging:string,
-     *   presentation:string,
      *   minMultiple:int,
      *   stock:float|null,
      *   leadTimeLabel:string,
@@ -218,8 +207,6 @@ class ProductController extends Controller
         return [
             'brand' => (string) (data_get($product, 'brand') ?: 'Marca no especificada'),
             'unit' => (string) (data_get($product, 'unit') ?: data_get($product, 'unit_label') ?: 'unidad'),
-            'packaging' => (string) (data_get($product, 'packaging') ?: 'Empaque estandar'),
-            'presentation' => (string) (data_get($product, 'presentation') ?: 'Presentacion comercial'),
             'minMultiple' => $minMultiple,
             'stock' => $stock,
             'leadTimeLabel' => $this->leadTimeLabel($leadTimeDays),
