@@ -75,6 +75,60 @@ class AdminProductEditorTest extends TestCase
             ->assertRedirect('/admin/products');
     }
 
+    public function test_admin_update_flow_preserves_listing_context_when_present(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProduct($category, 'SKU-REDIRECT-CONTEXT-001');
+
+        $basePayload = [
+            'name' => 'Producto Redirect Context',
+            'brand' => 'Marca Redirect Context',
+            'sku' => 'SKU-REDIRECT-CONTEXT-001',
+            'description' => 'Edicion con contexto',
+            'category_id' => $category->id,
+            'price' => 22345,
+            'stock' => 11,
+            'is_active' => 1,
+        ];
+
+        $indexContext = [
+            'q' => 'guante',
+            'status' => 'inactive',
+            'media' => 'without_photo',
+            'sort' => 'name_desc',
+            'per_page' => 30,
+            'page' => 2,
+        ];
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->put('/admin/products/'.$product->id, array_merge($basePayload, [
+                'after_save' => 'save',
+                'index_context' => $indexContext,
+                '_token' => 'test-token',
+            ]))
+            ->assertRedirect(route('admin.products.edit', array_merge(['product' => $product], $indexContext)));
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->put('/admin/products/'.$product->id, array_merge($basePayload, [
+                'after_save' => 'stay',
+                'index_context' => $indexContext,
+                '_token' => 'test-token',
+            ]))
+            ->assertRedirect(route('admin.products.edit', array_merge(['product' => $product], $indexContext)));
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->put('/admin/products/'.$product->id, array_merge($basePayload, [
+                'after_save' => 'index',
+                'index_context' => $indexContext,
+                '_token' => 'test-token',
+            ]))
+            ->assertRedirect(route('admin.products.index', $indexContext));
+    }
+
     public function test_admin_can_deactivate_and_remove_product_media(): void
     {
         $admin = User::factory()->admin()->create();
@@ -140,6 +194,96 @@ class AdminProductEditorTest extends TestCase
             ->withSession(['_token' => 'test-token'])
             ->delete('/admin/products/'.$product->id, ['_token' => 'test-token'])
             ->assertRedirect('/admin/products')
+            ->assertSessionHas('status', 'Producto eliminado.');
+
+        $this->assertDatabaseMissing('products', [
+            'id' => $product->id,
+        ]);
+    }
+
+    public function test_admin_can_delete_product_and_preserve_listing_context(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProduct($category, 'SKU-DELETE-CONTEXT-001');
+
+        $product->update(['is_active' => false]);
+        $product->photos()->create([
+            'path' => 'products/photos/delete-context.png',
+            'is_primary' => true,
+            'sort_order' => 1,
+        ]);
+
+        $indexContext = [
+            'q' => 'SKU-DELETE-CONTEXT-001',
+            'status' => 'inactive',
+            'media' => 'with_photo',
+            'sort' => 'name_desc',
+            'per_page' => 30,
+        ];
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->delete('/admin/products/'.$product->id, [
+                'index_context' => $indexContext,
+                '_token' => 'test-token',
+            ])
+            ->assertRedirect(route('admin.products.index', $indexContext))
+            ->assertSessionHas('status', 'Producto eliminado.');
+
+        $this->assertDatabaseMissing('products', [
+            'id' => $product->id,
+        ]);
+    }
+
+    public function test_admin_delete_reduces_to_previous_page_when_filtered_page_becomes_invalid(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $token = 'PAGE-ADJUST-CONTEXT';
+
+        for ($index = 1; $index <= 30; $index++) {
+            Product::create([
+                'name' => 'Producto '.str_pad((string) $index, 2, '0', STR_PAD_LEFT),
+                'sku' => 'SKU-PAGE-ADJUST-'.$index,
+                'description' => $token,
+                'category_id' => $category->id,
+                'price' => 1000 + $index,
+                'stock' => 10,
+                'is_active' => true,
+            ]);
+        }
+
+        $product = Product::create([
+            'name' => 'Producto 31',
+            'sku' => 'SKU-PAGE-ADJUST-31',
+            'description' => $token,
+            'category_id' => $category->id,
+            'price' => 1031,
+            'stock' => 10,
+            'is_active' => true,
+        ]);
+
+        $indexContext = [
+            'q' => $token,
+            'status' => 'active',
+            'sort' => 'name_asc',
+            'per_page' => 30,
+            'page' => 2,
+        ];
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->delete('/admin/products/'.$product->id, [
+                'index_context' => $indexContext,
+                '_token' => 'test-token',
+            ])
+            ->assertRedirect(route('admin.products.index', [
+                'q' => $token,
+                'status' => 'active',
+                'sort' => 'name_asc',
+                'per_page' => 30,
+            ]))
             ->assertSessionHas('status', 'Producto eliminado.');
 
         $this->assertDatabaseMissing('products', [

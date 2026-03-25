@@ -10,11 +10,12 @@ use App\Modules\Catalog\Actions\UpdateProductAction;
 use App\Modules\Catalog\Actions\UploadProductPhotoAction;
 use App\Modules\Catalog\Http\Requests\StoreProductRequest;
 use App\Modules\Catalog\Http\Requests\UpdateProductRequest;
-use App\Modules\Catalog\Models\ProductAttribute;
 use App\Modules\Catalog\Models\Product;
+use App\Modules\Catalog\Models\ProductAttribute;
 use App\Modules\Catalog\Services\ProductVariantSyncService;
 use App\Modules\Categories\Models\Category;
 use App\Modules\Shared\Enums\DocumentType;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,43 +29,12 @@ class ProductAdminController extends Controller
     {
         $this->authorize('viewAny', Product::class);
 
-        $statusOptions = ['active', 'inactive'];
-        $mediaOptions = ['with_photo', 'without_photo', 'with_sheet', 'with_video'];
-        $stockOptions = ['in_stock', 'no_stock', 'unknown'];
-        $sortOptions = ['newest', 'oldest', 'name_asc', 'name_desc', 'price_desc', 'price_asc', 'stock_desc', 'stock_asc'];
-        $perPageOptions = [15, 30, 60];
+        $indexOptions = $this->indexFilterOptions();
+        $indexContext = $this->resolveIndexContext($request->query(), true, $indexOptions);
+        $indexContextQuery = $this->resolveIndexQuery($request->query(), true, $indexOptions);
+        $filters = $this->extractFiltersFromContext($indexContext);
 
-        $filters = $request->validate([
-            'q' => ['nullable', 'string', 'max:120'],
-            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
-            'status' => ['nullable', 'string', Rule::in($statusOptions)],
-            'media' => ['nullable', 'string', Rule::in($mediaOptions)],
-            'stock' => ['nullable', 'string', Rule::in($stockOptions)],
-            'sort' => ['nullable', 'string', Rule::in($sortOptions)],
-            'per_page' => ['nullable', 'integer', Rule::in($perPageOptions)],
-        ]);
-
-        $filters = array_merge([
-            'q' => null,
-            'category_id' => null,
-            'status' => null,
-            'media' => null,
-            'stock' => null,
-            'sort' => 'newest',
-            'per_page' => 15,
-        ], $filters);
-
-        $filteredQuery = Product::query()
-            ->when(! empty($filters['q']), fn ($query) => $query->adminSearch($filters['q']))
-            ->when(! empty($filters['category_id']), fn ($query) => $query->where('category_id', $filters['category_id']))
-            ->when(! empty($filters['status']), fn ($query) => $query->where('is_active', $filters['status'] === 'active'))
-            ->when($filters['media'] === 'with_photo', fn ($query) => $query->whereHas('photos'))
-            ->when($filters['media'] === 'without_photo', fn ($query) => $query->whereDoesntHave('photos'))
-            ->when($filters['media'] === 'with_sheet', fn ($query) => $query->whereHas('documents', fn ($documents) => $documents->where('type', DocumentType::TechSheet)))
-            ->when($filters['media'] === 'with_video', fn ($query) => $query->whereHas('videos'))
-            ->when($filters['stock'] === 'in_stock', fn ($query) => $query->whereNotNull('stock')->where('stock', '>', 0))
-            ->when($filters['stock'] === 'no_stock', fn ($query) => $query->whereNotNull('stock')->where('stock', '<=', 0))
-            ->when($filters['stock'] === 'unknown', fn ($query) => $query->whereNull('stock'));
+        $filteredQuery = $this->buildFilteredQuery($filters);
 
         $products = (clone $filteredQuery)
             ->with('category', 'primaryPhoto', 'photos')
@@ -77,7 +47,7 @@ class ProductAdminController extends Controller
             ->when($filters['sort'] === 'price_asc', fn ($query) => $query->orderBy('price')->orderBy('name'))
             ->when($filters['sort'] === 'stock_desc', fn ($query) => $query->orderByDesc('stock')->orderBy('name'))
             ->when($filters['sort'] === 'stock_asc', fn ($query) => $query->orderBy('stock')->orderBy('name'))
-            ->paginate((int) $filters['per_page'])
+            ->paginate((int) $filters['per_page'], ['*'], 'page', (int) $indexContext['page'])
             ->withQueryString();
 
         $metrics = [
@@ -101,23 +71,27 @@ class ProductAdminController extends Controller
         return view('admin.products.index', [
             'products' => $products,
             'filters' => $filters,
-            'statusOptions' => $statusOptions,
-            'mediaOptions' => $mediaOptions,
-            'stockOptions' => $stockOptions,
-            'sortOptions' => $sortOptions,
-            'perPageOptions' => $perPageOptions,
+            'indexContextQuery' => $indexContextQuery,
+            'statusOptions' => $indexOptions['status'],
+            'mediaOptions' => $indexOptions['media'],
+            'stockOptions' => $indexOptions['stock'],
+            'sortOptions' => $indexOptions['sort'],
+            'perPageOptions' => $indexOptions['per_page'],
             'categories' => Category::active()->orderBy('name')->get(['id', 'name']),
             'metrics' => $metrics,
             'activeFiltersCount' => $activeFiltersCount,
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
         $this->authorize('create', Product::class);
 
         return view('admin.products.form', array_merge(
-            ['product' => new Product()],
+            [
+                'product' => new Product(),
+                'indexContextQuery' => $this->resolveIndexQuery($request->query(), true),
+            ],
             $this->formViewData(),
         ));
     }
@@ -147,12 +121,15 @@ class ProductAdminController extends Controller
         return $this->redirectAfterSave($request, $product, true);
     }
 
-    public function edit(Product $product): View
+    public function edit(Request $request, Product $product): View
     {
         $this->authorize('update', $product);
 
         return view('admin.products.form', array_merge(
-            ['product' => $product->load('photos', 'videos', 'documents', 'category', 'variantAttribute', 'variants.attributeValue')],
+            [
+                'product' => $product->load('photos', 'videos', 'documents', 'category', 'variantAttribute', 'variants.attributeValue'),
+                'indexContextQuery' => $this->resolveIndexQuery($request->query(), true),
+            ],
             $this->formViewData(),
         ));
     }
@@ -183,12 +160,19 @@ class ProductAdminController extends Controller
         return $this->redirectAfterSave($request, $product, false);
     }
 
-    public function destroy(Product $product): RedirectResponse
+    public function destroy(Request $request, Product $product): RedirectResponse
     {
         $this->authorize('delete', $product);
+
+        $indexContextInput = (array) $request->input('index_context', []);
+        $indexContext = $this->resolveIndexContext($indexContextInput, true);
+        $indexContextQuery = $this->resolveIndexQuery($indexContextInput, true);
+
         $product->delete();
 
-        return redirect()->route('admin.products.index')->with('status', 'Producto eliminado.');
+        return redirect()
+            ->route('admin.products.index', $this->resolveDeleteIndexQuery($indexContext, $indexContextQuery))
+            ->with('status', 'Producto eliminado.');
     }
 
     public function checkSku(Request $request): JsonResponse
@@ -252,9 +236,10 @@ class ProductAdminController extends Controller
     {
         $status = $created ? 'Producto creado.' : 'Producto actualizado.';
         $afterSave = (string) $request->input('after_save', 'save');
+        $indexContextQuery = $this->resolveIndexQuery((array) $request->input('index_context', []), true);
 
         if ($afterSave === 'index') {
-            return redirect()->route('admin.products.index')->with('status', $status);
+            return redirect()->route('admin.products.index', $indexContextQuery)->with('status', $status);
         }
 
         if ($afterSave === 'preview') {
@@ -262,10 +247,10 @@ class ProductAdminController extends Controller
         }
 
         if ($afterSave === 'new') {
-            return redirect()->route('admin.products.create')->with('status', $status.' Puedes crear otro.');
+            return redirect()->route('admin.products.create', $indexContextQuery)->with('status', $status.' Puedes crear otro.');
         }
 
-        return redirect()->route('admin.products.edit', $product)->with('status', $status);
+        return redirect()->route('admin.products.edit', array_merge(['product' => $product], $indexContextQuery))->with('status', $status);
     }
 
     /**
@@ -314,5 +299,157 @@ class ProductAdminController extends Controller
         }
 
         return (float) max(0, $prices->min());
+    }
+
+    /**
+     * @return array{status: list<string>, media: list<string>, stock: list<string>, sort: list<string>, per_page: list<int>}
+     */
+    private function indexFilterOptions(): array
+    {
+        return [
+            'status' => ['active', 'inactive'],
+            'media' => ['with_photo', 'without_photo', 'with_sheet', 'with_video'],
+            'stock' => ['in_stock', 'no_stock', 'unknown'],
+            'sort' => ['newest', 'oldest', 'name_asc', 'name_desc', 'price_desc', 'price_asc', 'stock_desc', 'stock_asc'],
+            'per_page' => [15, 30, 60],
+        ];
+    }
+
+    /**
+     * @param array{status: list<string>, media: list<string>, stock: list<string>, sort: list<string>, per_page: list<int>} $options
+     * @return array<string, mixed>
+     */
+    private function indexContextRules(array $options, bool $includePage = false): array
+    {
+        $rules = [
+            'q' => ['nullable', 'string', 'max:120'],
+            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'status' => ['nullable', 'string', Rule::in($options['status'])],
+            'media' => ['nullable', 'string', Rule::in($options['media'])],
+            'stock' => ['nullable', 'string', Rule::in($options['stock'])],
+            'sort' => ['nullable', 'string', Rule::in($options['sort'])],
+            'per_page' => ['nullable', 'integer', Rule::in($options['per_page'])],
+        ];
+
+        if ($includePage) {
+            $rules['page'] = ['nullable', 'integer', 'min:1'];
+        }
+
+        return $rules;
+    }
+
+    /**
+     * @return array{q: ?string, category_id: ?int, status: ?string, media: ?string, stock: ?string, sort: string, per_page: int, page: int}
+     */
+    private function defaultIndexContext(): array
+    {
+        return [
+            'q' => null,
+            'category_id' => null,
+            'status' => null,
+            'media' => null,
+            'stock' => null,
+            'sort' => 'newest',
+            'per_page' => 15,
+            'page' => 1,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @param array{status: list<string>, media: list<string>, stock: list<string>, sort: list<string>, per_page: list<int>}|null $options
+     * @return array{q: ?string, category_id: ?int, status: ?string, media: ?string, stock: ?string, sort: string, per_page: int, page: int}
+     */
+    private function resolveIndexContext(array $input, bool $includePage = false, ?array $options = null): array
+    {
+        $options ??= $this->indexFilterOptions();
+        $defaults = $this->defaultIndexContext();
+        $validated = validator($input, $this->indexContextRules($options, $includePage))->validate();
+
+        if (! $includePage) {
+            unset($defaults['page']);
+        }
+
+        /** @var array{q: ?string, category_id: ?int, status: ?string, media: ?string, stock: ?string, sort: string, per_page: int, page: int} $context */
+        $context = array_merge($defaults, $validated);
+
+        return $context;
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @param array{status: list<string>, media: list<string>, stock: list<string>, sort: list<string>, per_page: list<int>}|null $options
+     * @return array<string, int|string>
+     */
+    private function resolveIndexQuery(array $input, bool $includePage = false, ?array $options = null): array
+    {
+        $options ??= $this->indexFilterOptions();
+        $validated = validator($input, $this->indexContextRules($options, $includePage))->validate();
+
+        return collect($validated)
+            ->reject(fn (mixed $value) => $value === null || $value === '')
+            ->all();
+    }
+
+    /**
+     * @param array{q: ?string, category_id: ?int, status: ?string, media: ?string, stock: ?string, sort: string, per_page: int, page: int} $context
+     * @return array{q: ?string, category_id: ?int, status: ?string, media: ?string, stock: ?string, sort: string, per_page: int}
+     */
+    private function extractFiltersFromContext(array $context): array
+    {
+        unset($context['page']);
+
+        return $context;
+    }
+
+    /**
+     * @param array{q: ?string, category_id: ?int, status: ?string, media: ?string, stock: ?string, sort: string, per_page: int} $filters
+     */
+    private function buildFilteredQuery(array $filters): Builder
+    {
+        return Product::query()
+            ->when(! empty($filters['q']), fn ($query) => $query->adminSearch($filters['q']))
+            ->when(! empty($filters['category_id']), fn ($query) => $query->where('category_id', $filters['category_id']))
+            ->when(! empty($filters['status']), fn ($query) => $query->where('is_active', $filters['status'] === 'active'))
+            ->when($filters['media'] === 'with_photo', fn ($query) => $query->whereHas('photos'))
+            ->when($filters['media'] === 'without_photo', fn ($query) => $query->whereDoesntHave('photos'))
+            ->when($filters['media'] === 'with_sheet', fn ($query) => $query->whereHas('documents', fn ($documents) => $documents->where('type', DocumentType::TechSheet)))
+            ->when($filters['media'] === 'with_video', fn ($query) => $query->whereHas('videos'))
+            ->when($filters['stock'] === 'in_stock', fn ($query) => $query->whereNotNull('stock')->where('stock', '>', 0))
+            ->when($filters['stock'] === 'no_stock', fn ($query) => $query->whereNotNull('stock')->where('stock', '<=', 0))
+            ->when($filters['stock'] === 'unknown', fn ($query) => $query->whereNull('stock'));
+    }
+
+    /**
+     * @param array{q: ?string, category_id: ?int, status: ?string, media: ?string, stock: ?string, sort: string, per_page: int, page: int} $context
+     * @param array<string, int|string> $query
+     * @return array<string, int|string>
+     */
+    private function resolveDeleteIndexQuery(array $context, array $query): array
+    {
+        if ($query === []) {
+            return [];
+        }
+
+        $filters = $this->extractFiltersFromContext($context);
+        $total = (clone $this->buildFilteredQuery($filters))->count();
+
+        if ($total === 0) {
+            unset($query['page']);
+
+            return $query;
+        }
+
+        $lastPage = (int) ceil($total / max(1, (int) $filters['per_page']));
+
+        if ((int) $context['page'] > $lastPage) {
+            if ($lastPage <= 1) {
+                unset($query['page']);
+            } else {
+                $query['page'] = $lastPage;
+            }
+        }
+
+        return $query;
     }
 }

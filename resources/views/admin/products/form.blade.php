@@ -1,6 +1,7 @@
 <x-app-layout>
     @php
         $isEdit = $product->exists;
+        $indexContextQuery = $indexContextQuery ?? [];
         $isActiveRaw = old('is_active', $product->is_active ?? true);
         $isActiveChecked = filter_var($isActiveRaw, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
         $selectedCategoryId = old('category_id', $product->category_id);
@@ -35,7 +36,7 @@
                 </div>
             </x-slot>
             <x-slot name="actions">
-                <a href="{{ route('admin.products.index') }}" class="btn btn-secondary">Volver al catálogo</a>
+                <a href="{{ route('admin.products.index', $indexContextQuery) }}" class="btn btn-secondary">Volver al catálogo</a>
                 @if($isEdit)
                     <a href="{{ route('products.show', $product) }}" target="_blank" rel="noopener" class="btn btn-secondary">Ver como distribuidor</a>
                 @endif
@@ -57,6 +58,9 @@
         @if($isEdit)
             @method('PUT')
         @endif
+        @foreach($indexContextQuery as $key => $value)
+            <input type="hidden" name="index_context[{{ $key }}]" value="{{ $value }}">
+        @endforeach
 
         <div class="space-y-4">
             <x-ui.card class="p-5" id="identificacion-producto">
@@ -349,7 +353,7 @@
                     <input type="hidden" name="is_active" value="0">
                     <x-ui.checkbox name="is_active" value="1" :checked="$isActiveChecked ?? false" label="Producto disponible para distribuidores" data-preview-active />
                     <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-                        <a href="{{ route('admin.products.index') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Cancelar</a>
+                        <a href="{{ route('admin.products.index', $indexContextQuery) }}" class="btn btn-secondary w-full justify-center sm:w-auto">Cancelar</a>
                         <button type="submit" name="after_save" value="save" class="btn btn-primary w-full justify-center sm:w-auto" data-loading-label="Guardando...">Guardar</button>
                         <button type="submit" name="after_save" value="stay" class="btn btn-secondary w-full justify-center sm:w-auto" data-loading-label="Guardando...">Guardar y seguir editando</button>
                         <button type="submit" name="after_save" value="index" class="btn btn-secondary w-full justify-center sm:w-auto" data-loading-label="Guardando...">Guardar y volver</button>

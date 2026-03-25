@@ -25,7 +25,7 @@
                         >
                         <button type="submit" class="btn btn-secondary w-full justify-center sm:w-auto">Importar CSV</button>
                     </form>
-                    <a href="{{ route('admin.products.create') }}" class="btn btn-primary w-full justify-center sm:w-auto">Nuevo producto</a>
+                    <a href="{{ route('admin.products.create', $indexContextQuery) }}" class="btn btn-primary w-full justify-center sm:w-auto">Nuevo producto</a>
                 </div>
             </x-slot>
         </x-ui.page-header>
@@ -89,7 +89,7 @@
     </section>
 
     @php
-        $baseStatusQuery = request()->except(['page', 'status']);
+        $baseStatusQuery = collect($indexContextQuery)->except(['page', 'status'])->all();
     @endphp
 
     <x-ui.card class="mt-4 p-4">
@@ -250,7 +250,7 @@
                             <td data-label="Acciones">
                                 <div class="product-row-actions">
                                     <a
-                                        href="{{ route('admin.products.edit', $product) }}"
+                                        href="{{ route('admin.products.edit', array_merge(['product' => $product], $indexContextQuery)) }}"
                                         class="product-row-action-icon"
                                         title="Editar producto"
                                         aria-label="Editar {{ $product->name }}"
@@ -309,6 +309,9 @@
                                     >
                                         @csrf
                                         @method('DELETE')
+                                        @foreach($indexContextQuery as $key => $value)
+                                            <input type="hidden" name="index_context[{{ $key }}]" value="{{ $value }}">
+                                        @endforeach
                                         <button
                                             type="submit"
                                             class="product-row-action-icon text-red-600 hover:text-red-700"

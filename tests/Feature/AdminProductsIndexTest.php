@@ -277,4 +277,53 @@ class AdminProductsIndexTest extends TestCase
         $response->assertSee('aria-label="Eliminar '.$product->name.'"', false);
         $response->assertSee('data-confirm="Eliminar '.$product->name.'? Esta accion no se puede deshacer."', false);
     }
+
+    public function test_admin_products_index_edit_links_preserve_current_context(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = Category::create([
+            'parent_id' => null,
+            'name' => 'Categoria Edit Context',
+            'slug' => 'categoria-edit-context',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $token = 'LINK-CONTEXT-TOKEN';
+
+        for ($index = 1; $index <= 15; $index++) {
+            Product::create([
+                'name' => 'Producto '.str_pad((string) $index, 2, '0', STR_PAD_LEFT),
+                'sku' => 'SKU-LINK-'.$index,
+                'description' => $token,
+                'category_id' => $category->id,
+                'price' => 1000 + $index,
+                'stock' => 10,
+                'is_active' => true,
+            ]);
+        }
+
+        $targetProduct = Product::create([
+            'name' => 'Producto 16',
+            'sku' => 'SKU-LINK-16',
+            'description' => $token,
+            'category_id' => $category->id,
+            'price' => 1016,
+            'stock' => 10,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->get('/admin/products?q='.$token.'&status=active&sort=name_asc&per_page=15&page=2');
+
+        $response->assertOk();
+        $response->assertSee(route('admin.products.edit', [
+            'product' => $targetProduct,
+            'q' => $token,
+            'status' => 'active',
+            'sort' => 'name_asc',
+            'per_page' => 15,
+            'page' => 2,
+        ]));
+    }
 }
