@@ -4,6 +4,7 @@ namespace App\Modules\Catalog\Models;
 
 use App\Modules\Categories\Models\Category;
 use App\Modules\Orders\Models\OrderItem;
+use App\Modules\Shared\Support\TextNormalizer;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class Product extends Model
 {
@@ -89,6 +91,34 @@ class Product extends Model
         return $query->where('is_active', true);
     }
 
+    public function scopeAdminSearch(Builder $query, ?string $term): Builder
+    {
+        $tokens = TextNormalizer::tokenize($term);
+
+        if ($tokens === []) {
+            return $query;
+        }
+
+        $searchableColumns = [
+            $this->qualifyColumn('name'),
+            $this->qualifyColumn('brand'),
+            $this->qualifyColumn('sku'),
+            $this->qualifyColumn('description'),
+        ];
+
+        foreach ($tokens as $token) {
+            $query->where(function (Builder $subQuery) use ($searchableColumns, $token): void {
+                $like = '%'.$token.'%';
+
+                foreach ($searchableColumns as $column) {
+                    $subQuery->orWhereRaw($this->accentInsensitiveExpr($column).' LIKE ?', [$like]);
+                }
+            });
+        }
+
+        return $query;
+    }
+
     public function hasConfigurableVariants(): bool
     {
         if ($this->relationLoaded('variants')) {
@@ -114,5 +144,37 @@ class Product extends Model
         $variants = $this->variants()->where('is_active', true)->get();
 
         return $variants;
+    }
+
+    private function accentInsensitiveExpr(string $column): string
+    {
+        $expression = "coalesce({$column}, '')";
+
+        if (DB::getDriverName() === 'pgsql') {
+            return "unaccent(lower({$expression}))";
+        }
+
+        $replacements = [
+            'Á' => 'A',
+            'É' => 'E',
+            'Í' => 'I',
+            'Ó' => 'O',
+            'Ú' => 'U',
+            'Ü' => 'U',
+            'Ñ' => 'N',
+            'á' => 'a',
+            'é' => 'e',
+            'í' => 'i',
+            'ó' => 'o',
+            'ú' => 'u',
+            'ü' => 'u',
+            'ñ' => 'n',
+        ];
+
+        foreach ($replacements as $search => $replace) {
+            $expression = "replace({$expression}, '{$search}', '{$replace}')";
+        }
+
+        return "lower({$expression})";
     }
 }

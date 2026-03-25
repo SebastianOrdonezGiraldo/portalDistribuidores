@@ -100,6 +100,155 @@ class AdminProductsIndexTest extends TestCase
         $this->assertNotNull($inactive->id);
     }
 
+    public function test_admin_search_matches_name_fragments(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $category = Category::create([
+            'parent_id' => null,
+            'name' => 'Categoria Fragment Search',
+            'slug' => 'categoria-fragment-search',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $matchingProduct = Product::create([
+            'name' => 'Guante Nitrilo Premium',
+            'sku' => 'SKU-FRAGMENT-MATCH',
+            'description' => 'Guante para procedimientos',
+            'category_id' => $category->id,
+            'price' => 35000,
+            'stock' => 10,
+            'is_active' => true,
+        ]);
+
+        Product::create([
+            'name' => 'Mascarilla Quirurgica',
+            'sku' => 'SKU-FRAGMENT-OTHER',
+            'description' => 'Proteccion facial',
+            'category_id' => $category->id,
+            'price' => 12000,
+            'stock' => 25,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get('/admin/products?q=nitri');
+
+        $response->assertOk();
+        $response->assertSee('Guante Nitrilo Premium');
+        $response->assertDontSee('Mascarilla Quirurgica');
+        $response->assertViewHas('products', function ($products) use ($matchingProduct) {
+            if ((int) $products->total() !== 1) {
+                return false;
+            }
+
+            return $products->getCollection()->first()?->id === $matchingProduct->id;
+        });
+    }
+
+    public function test_admin_search_matches_multi_word_terms_in_any_order(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $category = Category::create([
+            'parent_id' => null,
+            'name' => 'Categoria Multi Word Search',
+            'slug' => 'categoria-multi-word-search',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $matchingProduct = Product::create([
+            'name' => 'Guante Nitrilo Premium',
+            'sku' => 'SKU-MULTIWORD-MATCH',
+            'description' => 'Proteccion para examen clinico',
+            'category_id' => $category->id,
+            'price' => 18000,
+            'stock' => 8,
+            'is_active' => true,
+        ]);
+
+        Product::create([
+            'name' => 'Guante Latex Basico',
+            'sku' => 'SKU-MULTIWORD-GLOVE',
+            'description' => 'Guante sin nitrilo',
+            'category_id' => $category->id,
+            'price' => 9000,
+            'stock' => 30,
+            'is_active' => true,
+        ]);
+
+        Product::create([
+            'name' => 'Caja Premium',
+            'sku' => 'SKU-MULTIWORD-PREMIUM',
+            'description' => 'Caja de almacenamiento',
+            'category_id' => $category->id,
+            'price' => 22000,
+            'stock' => 4,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get('/admin/products?q=premium+nitrilo');
+
+        $response->assertOk();
+        $response->assertSee('Guante Nitrilo Premium');
+        $response->assertDontSee('Guante Latex Basico');
+        $response->assertDontSee('Caja Premium');
+        $response->assertViewHas('products', function ($products) use ($matchingProduct) {
+            if ((int) $products->total() !== 1) {
+                return false;
+            }
+
+            return $products->getCollection()->first()?->id === $matchingProduct->id;
+        });
+    }
+
+    public function test_admin_search_is_accent_insensitive(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $category = Category::create([
+            'parent_id' => null,
+            'name' => 'Categoria Accent Search',
+            'slug' => 'categoria-accent-search',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $matchingProduct = Product::create([
+            'name' => 'Termómetro Digital',
+            'sku' => 'SKU-ACCENT-MATCH',
+            'description' => 'Medicion precisa de temperatura',
+            'category_id' => $category->id,
+            'price' => 27000,
+            'stock' => 15,
+            'is_active' => true,
+        ]);
+
+        Product::create([
+            'name' => 'Tensiometro Manual',
+            'sku' => 'SKU-ACCENT-OTHER',
+            'description' => 'Control de presion arterial',
+            'category_id' => $category->id,
+            'price' => 41000,
+            'stock' => 12,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get('/admin/products?q=termometro');
+
+        $response->assertOk();
+        $response->assertSee('Termómetro Digital');
+        $response->assertDontSee('Tensiometro Manual');
+        $response->assertViewHas('products', function ($products) use ($matchingProduct) {
+            if ((int) $products->total() !== 1) {
+                return false;
+            }
+
+            return $products->getCollection()->first()?->id === $matchingProduct->id;
+        });
+    }
+
     public function test_admin_products_index_renders_delete_action_for_each_product(): void
     {
         $admin = User::factory()->admin()->create();

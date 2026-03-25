@@ -55,17 +55,7 @@ class ProductAdminController extends Controller
         ], $filters);
 
         $filteredQuery = Product::query()
-            ->when(! empty($filters['q']), function ($query) use ($filters) {
-                $term = trim((string) $filters['q']);
-
-                $query->where(function ($subQuery) use ($term) {
-                    $subQuery
-                        ->where('name', 'like', "%{$term}%")
-                        ->orWhere('brand', 'like', "%{$term}%")
-                        ->orWhere('sku', 'like', "%{$term}%")
-                        ->orWhere('description', 'like', "%{$term}%");
-                });
-            })
+            ->when(! empty($filters['q']), fn ($query) => $query->adminSearch($filters['q']))
             ->when(! empty($filters['category_id']), fn ($query) => $query->where('category_id', $filters['category_id']))
             ->when(! empty($filters['status']), fn ($query) => $query->where('is_active', $filters['status'] === 'active'))
             ->when($filters['media'] === 'with_photo', fn ($query) => $query->whereHas('photos'))
