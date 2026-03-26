@@ -1,21 +1,21 @@
 # =============================================================================
-# laravel-queue.service — systemd unit para el worker de colas
-# Portal Distribuidores · Hostinger VPS · Ubuntu 24.04
+# laravel-queue.service - legacy alias for production
+# Prefer: deploy/laravel-queue-prod.service
 #
 # Instrucciones:
-#   sudo cp deploy/laravel-queue.service /etc/systemd/system/laravel-queue.service
+#   sudo cp deploy/laravel-queue-prod.service /etc/systemd/system/laravel-queue-prod.service
 #   sudo mkdir -p /var/log/laravel && sudo chown www-data:www-data /var/log/laravel
 #   sudo systemctl daemon-reload
-#   sudo systemctl enable --now laravel-queue
-#   sudo systemctl status laravel-queue
+#   sudo systemctl enable --now laravel-queue-prod
+#   sudo systemctl status laravel-queue-prod
 #
 # Para ver logs:
-#   journalctl -u laravel-queue -f
-#   tail -f /var/log/laravel/queue.log
+#   journalctl -u laravel-queue-prod -f
+#   tail -f /var/log/laravel/queue-prod.log
 # =============================================================================
 
 [Unit]
-Description=Laravel Queue Worker — Portal Distribuidores
+Description=Laravel Queue Worker - Portal Distribuidores (production)
 Documentation=https://laravel.com/docs/queues
 After=network.target postgresql.service
 Requires=postgresql.service
@@ -23,7 +23,7 @@ Requires=postgresql.service
 [Service]
 User=www-data
 Group=www-data
-WorkingDirectory=/var/www/portal-distribuidores
+WorkingDirectory=/var/www/portalDistribuidores
 
 # Comando del worker:
 #   --sleep=3          Espera 3 segundos si la cola está vacía
@@ -49,8 +49,8 @@ KillMode=mixed
 KillSignal=SIGTERM
 
 # Logs
-StandardOutput=append:/var/log/laravel/queue.log
-StandardError=append:/var/log/laravel/queue-error.log
+StandardOutput=append:/var/log/laravel/queue-prod.log
+StandardError=append:/var/log/laravel/queue-prod-error.log
 
 # Límites de recursos
 LimitNOFILE=65536

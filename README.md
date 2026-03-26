@@ -864,9 +864,11 @@ systemctl restart php8.3-fpm
 ## 16. Recursos adicionales
 
 - **Guía completa de despliegue:** [`DEPLOY.md`](./DEPLOY.md) — cubre en detalle cada paso del despliegue inicial en el VPS, incluyendo preparación del servidor, configuración de PostgreSQL, Nginx, SSL y worker de colas.
+- **Guia de staging y produccion:** [`STAGING.md`](./STAGING.md) — define la separacion de ambientes, los workflows `develop`/`master`, el bucket `portal-distribuidores-staging` y el refresco seguro de datos hacia staging.
 - **Script de actualización:** [`deploy.sh`](./deploy.sh) — automatiza el ciclo completo de actualización en producción.
-- **Configuración de Nginx:** [`deploy/nginx.conf`](./deploy/nginx.conf) — configuración lista para usar con HTTP/2, gzip y cabeceras de seguridad.
-- **Worker systemd:** [`deploy/laravel-queue.service`](./deploy/laravel-queue.service) — unit file para el worker de colas bajo systemd.
+- **Script de refresco de staging:** [`deploy/refresh-staging.sh`](./deploy/refresh-staging.sh) — crea un dump solo lectura desde produccion, restaura en staging y ejecuta la sanitizacion.
+- **Configuraciones de Nginx:** [`deploy/nginx.production.conf`](./deploy/nginx.production.conf) y [`deploy/nginx.staging.conf`](./deploy/nginx.staging.conf) — plantillas separadas por ambiente.
+- **Workers systemd:** [`deploy/laravel-queue-prod.service`](./deploy/laravel-queue-prod.service) y [`deploy/laravel-queue-staging.service`](./deploy/laravel-queue-staging.service) — unit files separados por ambiente.
 - **Worker Supervisor:** [`deploy/laravel-queue-supervisor.conf`](./deploy/laravel-queue-supervisor.conf) — configuración alternativa con Supervisor.
 - **Colección Postman:** [`postman/PortalDistribuidores.postman_collection.json`](./postman/PortalDistribuidores.postman_collection.json) — rutas principales del proyecto documentadas.
 

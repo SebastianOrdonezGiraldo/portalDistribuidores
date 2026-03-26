@@ -3,6 +3,8 @@
 **Plataforma:** Hostinger VPS · Ubuntu 24.04 LTS  
 **Stack:** Nginx · PHP 8.3-FPM · PostgreSQL 16 · Node.js 20 · Laravel 12
 
+> Para la separacion completa entre `staging` y `production`, revisa tambien [`STAGING.md`](./STAGING.md).
+
 ---
 
 ## Tabla de contenidos
@@ -577,5 +579,14 @@ crontab -u www-data -e
 ```
 
 ---
+
+## Recursos relacionados
+
+- [`STAGING.md`](./STAGING.md) - flujo de ramas `develop`/`master`, hosts reales, bucket `portal-distribuidores-staging` y refresco seguro de datos.
+- [`deploy/nginx.production.conf`](./deploy/nginx.production.conf) - plantilla Nginx para `pedidos.importcorporalmedical.com`.
+- [`deploy/nginx.staging.conf`](./deploy/nginx.staging.conf) - plantilla Nginx para `staging-pedidos.importcorporalmedical.com`.
+- [`deploy/laravel-queue-prod.service`](./deploy/laravel-queue-prod.service) - worker systemd para produccion.
+- [`deploy/laravel-queue-staging.service`](./deploy/laravel-queue-staging.service) - worker systemd para staging.
+- [`deploy/refresh-staging.sh`](./deploy/refresh-staging.sh) - script de copia y sanitizacion de datos hacia staging.
 
 *Generado para el despliegue de Portal Distribuidores — Import Corporal Medical SAS*
