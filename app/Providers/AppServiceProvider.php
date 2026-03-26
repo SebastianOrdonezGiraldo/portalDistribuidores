@@ -20,6 +20,7 @@ use App\Modules\Orders\Services\Cart\CartService;
 use App\Modules\Shared\Contracts\SearchEngineInterface;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -35,8 +36,13 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         if (! app()->environment(['local', 'testing'])) {
-            $this->assertSecureRuntimeConfiguration();
-            URL::forceRootUrl(rtrim((string) config('app.url'), '/'));
+            $violations = $this->runtimeSecurityViolations();
+
+            $this->handleRuntimeSecurityViolations($violations);
+
+            if (! in_array('APP_URL debe apuntar a un host canonico fuera de local/testing.', $violations, true)) {
+                URL::forceRootUrl(rtrim((string) config('app.url'), '/'));
+            }
         }
 
         $configuredScheme = strtolower((string) parse_url((string) config('app.url'), PHP_URL_SCHEME));
@@ -99,31 +105,68 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 
-    private function assertSecureRuntimeConfiguration(): void
+    /**
+     * @return list<string>
+     */
+    private function runtimeSecurityViolations(): array
     {
+        $violations = [];
+
         if ((bool) config('app.debug')) {
-            throw new RuntimeException('APP_DEBUG debe estar deshabilitado fuera de local/testing.');
+            $violations[] = 'APP_DEBUG debe estar deshabilitado fuera de local/testing.';
         }
 
         if (config('session.secure') !== true) {
-            throw new RuntimeException('SESSION_SECURE_COOKIE debe ser true fuera de local/testing.');
+            $violations[] = 'SESSION_SECURE_COOKIE debe ser true fuera de local/testing.';
         }
 
         if (! $this->hasCanonicalAppUrl((string) config('app.url'))) {
-            throw new RuntimeException('APP_URL debe apuntar a un host canonico fuera de local/testing.');
+            $violations[] = 'APP_URL debe apuntar a un host canonico fuera de local/testing.';
         }
 
         if (! $this->usesSecureDatabaseTransport()) {
-            throw new RuntimeException('DB_SSLMODE debe ser require, verify-ca o verify-full fuera de local/testing.');
+            $violations[] = 'DB_SSLMODE debe ser require, verify-ca o verify-full fuera de local/testing.';
         }
 
         if ((string) config('filesystems.order_pdfs_disk', 'private') === 'public') {
-            throw new RuntimeException('Los PDFs de pedidos no pueden usar el disco public fuera de local/testing.');
+            $violations[] = 'Los PDFs de pedidos no pueden usar el disco public fuera de local/testing.';
         }
 
         if ((string) config('filesystems.tech_sheets_disk', 'private') === 'public') {
-            throw new RuntimeException('Las fichas tecnicas no pueden usar el disco public fuera de local/testing.');
+            $violations[] = 'Las fichas tecnicas no pueden usar el disco public fuera de local/testing.';
         }
+
+        return $violations;
+    }
+
+    /**
+     * @param  list<string>  $violations
+     */
+    private function handleRuntimeSecurityViolations(array $violations): void
+    {
+        if ($violations === []) {
+            return;
+        }
+
+        Log::critical('runtime.security_configuration_invalid', [
+            'environment' => config('app.env'),
+            'violations' => $violations,
+            'app_url' => config('app.url'),
+            'session_secure' => config('session.secure'),
+            'db_connection' => config('database.default'),
+            'db_sslmode' => config('database.connections.'.config('database.default').'.sslmode'),
+            'order_pdfs_disk' => config('filesystems.order_pdfs_disk', 'private'),
+            'tech_sheets_disk' => config('filesystems.tech_sheets_disk', 'private'),
+        ]);
+
+        if ($this->shouldEnforceRuntimeGuards()) {
+            throw new RuntimeException(implode(' | ', $violations));
+        }
+    }
+
+    private function shouldEnforceRuntimeGuards(): bool
+    {
+        return (bool) config('app.enforce_runtime_guards', false);
     }
 
     private function hasCanonicalAppUrl(string $appUrl): bool

@@ -43,6 +43,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Runtime Security Guards
+    |--------------------------------------------------------------------------
+    |
+    | When enabled, insecure runtime configuration causes the application to
+    | abort during boot. Keep this disabled by default so HTTP traffic does
+    | not fail closed because of deploy-time configuration drift; deploy.sh
+    | already blocks unsafe releases before traffic is switched over.
+    |
+    */
+
+    'enforce_runtime_guards' => (bool) env('APP_ENFORCE_RUNTIME_GUARDS', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application URL
     |--------------------------------------------------------------------------
     |
