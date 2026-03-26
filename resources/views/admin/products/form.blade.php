@@ -22,6 +22,8 @@
         }
         $selectedVariantAttributeId = old('variant_attribute_id', $product->variant_attribute_id);
         $newVariantAttributeName = old('new_variant_attribute_name');
+        $uploadLimits = \App\Modules\Catalog\Support\ProductUploadLimits::viewData();
+        $mediaUploadError = $errors->first('media_upload');
     @endphp
 
     <x-slot name="header">
@@ -53,6 +55,8 @@
           data-product-form
           data-sku-check-url="{{ route('admin.products.check-sku') }}"
           data-sku-ignore="{{ $isEdit ? $product->id : '' }}"
+          data-total-max-kb="{{ $uploadLimits['request_max_kb'] }}"
+          data-total-max-text="{{ $uploadLimits['request_max_size_label'] }}"
           class="contents">
         @csrf
         @if($isEdit)
@@ -273,20 +277,58 @@
             </x-ui.card>
 
             <x-ui.card class="p-5" id="media-documentos">
-                <x-input-error class="mt-3" :messages="$errors->get('media_upload')" />
+                <div
+                    data-upload-feedback
+                    class="{{ $mediaUploadError ? '' : 'hidden' }} rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-900"
+                    tabindex="-1"
+                >
+                    <div class="flex items-start gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                        </svg>
+                        <div>
+                            <p class="text-sm font-semibold">No pudimos cargar los archivos seleccionados.</p>
+                            <p class="mt-1 text-sm" data-upload-feedback-message>{{ $mediaUploadError }}</p>
+                        </div>
+                    </div>
+                </div>
                 <h2 class="card-title">Media y Documentación</h2>
+                <p class="mt-2 text-sm text-slate-600">
+                    Limites vigentes: hasta {{ $uploadLimits['photo_max_files'] }} fotos de {{ $uploadLimits['photo_max_size_label'] }} cada una,
+                    1 PDF de {{ $uploadLimits['tech_sheet_max_size_label'] }} y una carga total maxima de {{ $uploadLimits['request_max_size_label'] }}.
+                </p>
                 <div class="mt-4 grid gap-4 sm:grid-cols-2">
                     <div>
                         <label class="form-label" for="photos">Fotos del producto</label>
-                        <x-ui.input id="photos" type="file" name="photos[]" accept="image/*" multiple />
-                        <p class="form-help">JPG/PNG hasta 3 MB por imagen. Puedes seleccionar varias a la vez.</p>
+                        <x-ui.input
+                            id="photos"
+                            type="file"
+                            name="photos[]"
+                            accept="image/*"
+                            multiple
+                            data-max-size-kb="{{ $uploadLimits['photo_max_size_kb'] }}"
+                            data-max-size-text="{{ $uploadLimits['photo_max_size_label'] }}"
+                            data-upload-label="fotos del producto"
+                            data-max-files="{{ $uploadLimits['photo_max_files'] }}"
+                        />
+                        <p class="form-help">JPG/PNG hasta {{ $uploadLimits['photo_max_size_label'] }} por imagen. Puedes seleccionar varias a la vez.</p>
                         <x-input-error :messages="$errors->get('photos')" />
                         <x-input-error :messages="$errors->get('photos.*')" />
                     </div>
                     <div>
                         <label class="form-label" for="tech_sheet">Ficha técnica (PDF)</label>
-                        <x-ui.input id="tech_sheet" type="file" name="tech_sheet" accept="application/pdf" />
-                        <p class="form-help">Archivo PDF hasta 5 MB.</p>
+                        <x-ui.input
+                            id="tech_sheet"
+                            type="file"
+                            name="tech_sheet"
+                            accept="application/pdf"
+                            data-max-size-kb="{{ $uploadLimits['tech_sheet_max_size_kb'] }}"
+                            data-max-size-text="{{ $uploadLimits['tech_sheet_max_size_label'] }}"
+                            data-upload-label="ficha tecnica"
+                        />
+                        <p class="form-help">Archivo PDF hasta {{ $uploadLimits['tech_sheet_max_size_label'] }}.</p>
                         <x-input-error :messages="$errors->get('tech_sheet')" />
                     </div>
                 </div>

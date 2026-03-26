@@ -90,8 +90,8 @@ systemctl enable --now postgresql
 
 ```bash
 # Ajustar parámetros en /etc/php/8.3/fpm/php.ini
-sed -i 's/upload_max_filesize = .*/upload_max_filesize = 50M/' /etc/php/8.3/fpm/php.ini
-sed -i 's/post_max_size = .*/post_max_size = 55M/' /etc/php/8.3/fpm/php.ini
+sed -i 's/upload_max_filesize = .*/upload_max_filesize = 6M/' /etc/php/8.3/fpm/php.ini
+sed -i 's/post_max_size = .*/post_max_size = 45M/' /etc/php/8.3/fpm/php.ini
 sed -i 's/max_execution_time = .*/max_execution_time = 300/' /etc/php/8.3/fpm/php.ini
 sed -i 's/memory_limit = .*/memory_limit = 256M/' /etc/php/8.3/fpm/php.ini
 sed -i 's/;opcache.enable=.*/opcache.enable=1/' /etc/php/8.3/fpm/php.ini
@@ -99,6 +99,10 @@ sed -i 's/;opcache.memory_consumption=.*/opcache.memory_consumption=128/' /etc/p
 
 systemctl restart php8.3-fpm
 ```
+
+> La aplicacion valida hasta **3 MB por foto**, **5 MB por PDF** y **40 MB** de carga total.
+> Deja `upload_max_filesize`, `post_max_size` y `client_max_body_size` por encima de esos limites
+> para evitar `500` o `413` inconsistentes.
 
 ---
 
@@ -304,6 +308,11 @@ nginx -t
 systemctl reload nginx
 ```
 
+El archivo `deploy/nginx.conf` ya incluye:
+
+- `client_max_body_size 45M` para dejar margen sobre el limite funcional de 40 MB
+- `error_page 413 /413.html` para mostrar una pagina amigable cuando Nginx rechace la carga antes de Laravel
+
 ---
 
 ## 9. SSL con Let's Encrypt
@@ -401,6 +410,9 @@ ls -la /var/www/portal-distribuidores/bootstrap/cache/
 - [ ] La app carga en `https://tu-dominio.com` sin errores
 - [ ] El login funciona correctamente
 - [ ] Se puede subir una imagen/documento (va a R2)
+- [ ] Una foto > 3 MB muestra un mensaje claro en el formulario
+- [ ] Un PDF > 5 MB muestra un mensaje claro en el formulario
+- [ ] Una carga total excesiva muestra un mensaje claro o la pagina 413 amigable
 - [ ] Se puede generar un PDF de pedido (DomPDF)
 - [ ] Se envía correo de notificación (SMTP Hostinger)
 - [ ] `APP_DEBUG=false` está confirmado en `.env`

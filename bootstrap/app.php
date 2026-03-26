@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Catalog\Support\ProductUploadLimits;
 use App\Modules\AuthAccess\Middleware\RoleMiddleware;
 use App\Modules\AuthAccess\Middleware\UseRequestHostForUrls;
 use Illuminate\Foundation\Application;
@@ -7,6 +8,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Session\TokenMismatchException;
+use Illuminate\Support\Facades\Log;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -25,9 +27,37 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (PostTooLargeException $e, $request) {
-            return back()->withInput()->withErrors([
-                'media_upload' => 'Los archivos seleccionados superan el tamano maximo permitido para la carga total. Reduce la cantidad o el peso de fotos y documentos e intentalo nuevamente.',
+            $referer = (string) $request->headers->get('referer', '');
+            $currentHost = $request->getHost();
+            $refererHost = parse_url($referer, PHP_URL_HOST);
+            $fallbackUrl = app('router')->has('admin.products.create')
+                ? route('admin.products.create')
+                : url('/');
+
+            if ($referer !== '' && ($refererHost === null || $refererHost === '' || $refererHost === $currentHost)) {
+                $fallbackUrl = $referer;
+            }
+
+            Log::warning('request.post_too_large', [
+                'path' => $request->path(),
+                'referer' => $referer !== '' ? $referer : null,
+                'content_length' => $request->server('CONTENT_LENGTH'),
+                'ip' => $request->ip(),
+                'user_id' => $request->user()?->getAuthIdentifier(),
             ]);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => ProductUploadLimits::totalSizeExceededMessage(),
+                ], 413);
+            }
+
+            return redirect()
+                ->to($fallbackUrl)
+                ->withInput($request->except(['photos', 'tech_sheet']))
+                ->withErrors([
+                    'media_upload' => ProductUploadLimits::totalSizeExceededMessage(),
+                ]);
         });
 
         // Cuando el token CSRF expira (sesion vencida), redirigir al login en lugar de mostrar 419.

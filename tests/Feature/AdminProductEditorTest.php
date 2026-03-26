@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Modules\Catalog\Models\Product;
+use App\Modules\Catalog\Support\ProductUploadLimits;
 use App\Modules\Categories\Models\Category;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Exceptions\PostTooLargeException;
@@ -327,13 +328,13 @@ class AdminProductEditorTest extends TestCase
         $response = $this->actingAs($admin)
             ->from('/admin/products/create')
             ->post('/admin/products', array_merge($this->validProductPayload($category), [
-                'tech_sheet' => UploadedFile::fake()->create('ficha-tecnica.pdf', 5201, 'application/pdf'),
+                'tech_sheet' => UploadedFile::fake()->create('ficha-tecnica.pdf', ProductUploadLimits::techSheetMaxSizeKb() + 1, 'application/pdf'),
             ]));
 
         $response
             ->assertRedirect('/admin/products/create')
             ->assertSessionHasErrors([
-                'tech_sheet' => 'La ficha tecnica debe pesar como maximo 5 MB.',
+                'tech_sheet' => 'La ficha tecnica debe pesar como maximo '.ProductUploadLimits::techSheetMaxSizeLabel().'.',
             ]);
     }
 
@@ -346,14 +347,14 @@ class AdminProductEditorTest extends TestCase
             ->from('/admin/products/create')
             ->post('/admin/products', array_merge($this->validProductPayload($category), [
                 'photos' => [
-                    UploadedFile::fake()->create('producto-grande.jpg', 3073, 'image/jpeg'),
+                    UploadedFile::fake()->create('producto-grande.jpg', ProductUploadLimits::photoMaxSizeKb() + 1, 'image/jpeg'),
                 ],
             ]));
 
         $response
             ->assertRedirect('/admin/products/create')
             ->assertSessionHasErrors([
-                'photos.0' => 'Cada foto debe pesar como maximo 3 MB.',
+                'photos.0' => 'Cada foto debe pesar como maximo '.ProductUploadLimits::photoMaxSizeLabel().'.',
             ]);
     }
 
@@ -372,7 +373,55 @@ class AdminProductEditorTest extends TestCase
         $response
             ->assertRedirect('/admin/products/create')
             ->assertSessionHasErrors([
-                'media_upload' => 'Los archivos seleccionados superan el tamano maximo permitido para la carga total. Reduce la cantidad o el peso de fotos y documentos e intentalo nuevamente.',
+                'media_upload' => ProductUploadLimits::totalSizeExceededMessage(),
+            ]);
+    }
+
+    public function test_store_product_shows_clear_error_when_photo_upload_is_rejected_by_php_limit(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+
+        $response = $this->actingAs($admin)
+            ->from('/admin/products/create')
+            ->post('/admin/products', array_merge($this->validProductPayload($category), [
+                'photos' => [
+                    $this->invalidUploadedFile('producto-servidor.jpg', 'image/jpeg', UPLOAD_ERR_INI_SIZE),
+                ],
+            ]));
+
+        $response
+            ->assertRedirect('/admin/products/create')
+            ->assertSessionHasErrors([
+                'photos.0' => ProductUploadLimits::photoUploadFailedMessage(),
+            ]);
+    }
+
+    public function test_post_too_large_without_referer_uses_safe_fallback_and_preserves_old_input(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+
+        Route::middleware('web')->post('/test-post-too-large-fallback', function () {
+            throw new PostTooLargeException();
+        });
+
+        $payload = array_merge($this->validProductPayload($category), [
+            'description' => 'Producto que debe volver al formulario con datos previos.',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->post('/test-post-too-large-fallback', $payload);
+
+        $response
+            ->assertRedirect(route('admin.products.create'))
+            ->assertSessionHasErrors([
+                'media_upload' => ProductUploadLimits::totalSizeExceededMessage(),
+            ])
+            ->assertSessionHasInput([
+                'name' => $payload['name'],
+                'brand' => $payload['brand'],
+                'sku' => $payload['sku'],
             ]);
     }
 
@@ -412,5 +461,18 @@ class AdminProductEditorTest extends TestCase
             'stock' => 12,
             'is_active' => 1,
         ];
+    }
+
+    private function invalidUploadedFile(string $filename, string $mimeType, int $error): UploadedFile
+    {
+        $tempPath = tempnam(sys_get_temp_dir(), 'product-upload-');
+
+        if ($tempPath === false) {
+            throw new \RuntimeException('No fue posible crear un archivo temporal para la prueba.');
+        }
+
+        file_put_contents($tempPath, 'temporary-upload');
+
+        return new UploadedFile($tempPath, $filename, $mimeType, $error, true);
     }
 }

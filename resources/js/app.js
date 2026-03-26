@@ -484,6 +484,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (typeof form.codexBeforeSubmit === 'function' && form.codexBeforeSubmit(event) === false) {
+                event.preventDefault();
+                return;
+            }
+
             if (form.dataset.formSubmitting === 'true') {
                 event.preventDefault();
                 return;
@@ -801,6 +806,20 @@ document.addEventListener('DOMContentLoaded', () => {
             return parsed.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         };
 
+        const formatFileSize = (bytes) => {
+            if (!Number.isFinite(bytes) || bytes <= 0) {
+                return '0 MB';
+            }
+
+            const megabytes = bytes / (1024 * 1024);
+            const decimals = Math.abs(megabytes - Math.round(megabytes)) < 0.05 ? 0 : 1;
+
+            return `${megabytes.toLocaleString('es-CO', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals,
+            })} MB`;
+        };
+
         const priceInput = productForm.querySelector('[data-live-price]');
         const stockInput = productForm.querySelector('[data-live-stock]');
         const priceOutputs = productForm.querySelectorAll('[data-live-price-output], [data-live-price-output-sidebar]');
@@ -813,6 +832,106 @@ document.addEventListener('DOMContentLoaded', () => {
         const previewBrandOutput = productForm.querySelector('[data-preview-brand-output]');
         const previewCategoryOutput = productForm.querySelector('[data-preview-category-output]');
         const previewDescriptionOutput = productForm.querySelector('[data-preview-description-output]');
+        const mediaSection = document.getElementById('media-documentos');
+        const uploadFeedback = productForm.querySelector('[data-upload-feedback]');
+        const uploadFeedbackMessage = productForm.querySelector('[data-upload-feedback-message]');
+        const photosInput = productForm.querySelector('#photos');
+        const techSheetInput = productForm.querySelector('#tech_sheet');
+        const totalMaxKb = Number(productForm.dataset.totalMaxKb || 0);
+        const totalMaxText = productForm.dataset.totalMaxText || `${totalMaxKb / 1024} MB`;
+
+        const hideUploadFeedback = () => {
+            if (!uploadFeedback) {
+                return;
+            }
+
+            uploadFeedback.classList.add('hidden');
+
+            if (uploadFeedbackMessage) {
+                uploadFeedbackMessage.textContent = '';
+            }
+        };
+
+        const showUploadFeedback = (message, input, { notify = false } = {}) => {
+            if (uploadFeedback) {
+                uploadFeedback.classList.remove('hidden');
+            }
+
+            if (uploadFeedbackMessage) {
+                uploadFeedbackMessage.textContent = message;
+            }
+
+            if (notify) {
+                showInlineToast(message, 'error');
+            }
+
+            if (mediaSection && notify) {
+                mediaSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
+            if (uploadFeedback && notify) {
+                window.setTimeout(() => uploadFeedback.focus(), 50);
+            } else if (input && notify && typeof input.focus === 'function') {
+                window.setTimeout(() => input.focus(), 50);
+            }
+        };
+
+        const validateProductUploads = ({ notify = false } = {}) => {
+            hideUploadFeedback();
+
+            const photoFiles = photosInput?.files ? Array.from(photosInput.files) : [];
+            const techSheetFiles = techSheetInput?.files ? Array.from(techSheetInput.files) : [];
+            const photoMaxFiles = Number(photosInput?.dataset.maxFiles || 0);
+            const photoMaxSizeKb = Number(photosInput?.dataset.maxSizeKb || 0);
+            const photoMaxSizeText = photosInput?.dataset.maxSizeText || `${photoMaxSizeKb / 1024} MB`;
+            const photoLabel = photosInput?.dataset.uploadLabel || 'fotos del producto';
+            const techSheetMaxSizeKb = Number(techSheetInput?.dataset.maxSizeKb || 0);
+            const techSheetMaxSizeText = techSheetInput?.dataset.maxSizeText || `${techSheetMaxSizeKb / 1024} MB`;
+            const techSheetLabel = techSheetInput?.dataset.uploadLabel || 'ficha tecnica';
+
+            if (photoMaxFiles > 0 && photoFiles.length > photoMaxFiles) {
+                showUploadFeedback(
+                    `Solo puedes seleccionar hasta ${photoMaxFiles} ${photoLabel}. Reduce la cantidad de archivos e intentalo nuevamente.`,
+                    photosInput,
+                    { notify },
+                );
+                return false;
+            }
+
+            const oversizedPhoto = photoFiles.find((file) => file.size > photoMaxSizeKb * 1024);
+            if (oversizedPhoto) {
+                showUploadFeedback(
+                    `La foto "${oversizedPhoto.name}" supera el maximo permitido de ${photoMaxSizeText}. Reduce su peso antes de guardarla.`,
+                    photosInput,
+                    { notify },
+                );
+                return false;
+            }
+
+            const oversizedTechSheet = techSheetFiles.find((file) => file.size > techSheetMaxSizeKb * 1024);
+            if (oversizedTechSheet) {
+                showUploadFeedback(
+                    `La ${techSheetLabel} supera el maximo permitido de ${techSheetMaxSizeText}. Reduce el PDF antes de guardarlo.`,
+                    techSheetInput,
+                    { notify },
+                );
+                return false;
+            }
+
+            const totalSelectedBytes = [...photoFiles, ...techSheetFiles]
+                .reduce((sum, file) => sum + (Number.isFinite(file.size) ? file.size : 0), 0);
+
+            if (totalMaxKb > 0 && totalSelectedBytes > totalMaxKb * 1024) {
+                showUploadFeedback(
+                    `La carga actual pesa ${formatFileSize(totalSelectedBytes)} y el formulario permite hasta ${totalMaxText} en total. Reduce la cantidad o el peso de fotos y documentos.`,
+                    photosInput || techSheetInput,
+                    { notify },
+                );
+                return false;
+            }
+
+            return true;
+        };
 
         const refreshProductPreview = () => {
             const currentPrice = priceInput?.value ?? '';
@@ -856,6 +975,15 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
         refreshProductPreview();
+        productForm.codexBeforeSubmit = () => validateProductUploads({ notify: true });
+
+        photosInput?.addEventListener('change', () => {
+            validateProductUploads();
+        });
+
+        techSheetInput?.addEventListener('change', () => {
+            validateProductUploads();
+        });
 
         const variantToggle = productForm.querySelector('input[name="has_variants"][value="1"]');
         const variantSection = productForm.querySelector('[data-variant-section]');
