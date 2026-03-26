@@ -6,6 +6,8 @@ use App\Modules\Catalog\Models\ProductDocument;
 use App\Modules\Orders\Models\Order;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
+use League\Flysystem\UnableToCheckExistence;
+use Throwable;
 
 class MigrateProtectedMedia extends Command
 {
@@ -104,7 +106,9 @@ class MigrateProtectedMedia extends Command
 
         $copied = false;
         $deletedPublic = false;
-        $missing = ! $targetDisk->exists($path) && ! $legacyDisk->exists($path);
+        $targetExists = $this->pathExists($targetDisk, $path);
+        $legacyExists = $this->pathExists($legacyDisk, $path);
+        $missing = ! $targetExists && ! $legacyExists;
 
         if ($missing) {
             return [
@@ -114,15 +118,16 @@ class MigrateProtectedMedia extends Command
             ];
         }
 
-        if (! $targetDisk->exists($path) && $legacyDisk->exists($path)) {
+        if (! $targetExists && $legacyExists) {
             $written = $targetDisk->put($path, (string) $legacyDisk->get($path));
 
             if ($written !== false) {
                 $copied = true;
+                $targetExists = true;
             }
         }
 
-        if (! $keepPublic && $legacyDisk->exists($path) && $targetDisk->exists($path)) {
+        if (! $keepPublic && $legacyExists && $targetExists) {
             $legacyDisk->delete($path);
             $deletedPublic = true;
         }
@@ -132,5 +137,37 @@ class MigrateProtectedMedia extends Command
             'deleted_public' => $deletedPublic,
             'missing' => false,
         ];
+    }
+
+    private function pathExists($disk, string $path): bool
+    {
+        try {
+            return $disk->exists($path);
+        } catch (UnableToCheckExistence $exception) {
+            if ($this->wasMissingObjectReportedAsCheckFailure($exception)) {
+                return false;
+            }
+
+            throw $exception;
+        }
+    }
+
+    private function wasMissingObjectReportedAsCheckFailure(Throwable $exception): bool
+    {
+        do {
+            $message = $exception->getMessage();
+
+            if (
+                str_contains($message, 'NoSuchKey')
+                || str_contains($message, '404 Not Found')
+                || str_contains($message, 'The specified key does not exist')
+            ) {
+                return true;
+            }
+
+            $exception = $exception->getPrevious();
+        } while ($exception instanceof Throwable);
+
+        return false;
     }
 }
