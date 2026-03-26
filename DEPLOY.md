@@ -591,6 +591,8 @@ curl -s -o /dev/null -w "%{http_code}" https://tu-dominio.com/
 # Debe retornar 200 o 302
 ```
 
+`/up` no está expuesto públicamente. Si se necesita un health check dedicado para balanceador o monitoreo, publícalo solo detrás de red interna o restricción por IP.
+
 ### Tareas programadas (si se agregan en el futuro)
 
 Si el proyecto agrega `schedule:run` en el futuro, agregar al cron de `www-data`:
