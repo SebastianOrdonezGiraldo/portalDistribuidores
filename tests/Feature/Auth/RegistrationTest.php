@@ -28,4 +28,17 @@ class RegistrationTest extends TestCase
         $this->assertAuthenticated();
         $response->assertRedirect(route('dashboard', absolute: false));
     }
+
+    public function test_registration_can_be_disabled_by_configuration(): void
+    {
+        config()->set('auth.allow_public_registration', false);
+
+        $this->get('/register')->assertNotFound();
+        $this->post('/register', [
+            'name' => 'Blocked User',
+            'email' => 'blocked@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ])->assertNotFound();
+    }
 }

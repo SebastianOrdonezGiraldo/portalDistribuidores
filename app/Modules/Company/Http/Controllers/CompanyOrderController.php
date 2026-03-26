@@ -3,6 +3,7 @@
 namespace App\Modules\Company\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Orders\Jobs\GenerateOrderPdfJob;
@@ -23,13 +24,13 @@ class CompanyOrderController extends Controller
     {
         $this->authorize('viewAny', Order::class);
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         $statusOptions = array_map(fn (OrderStatus $s) => $s->value, OrderStatus::cases());
 
         $filters = $request->validate([
-            'q'      => ['nullable', 'string', 'max:120'],
+            'q' => ['nullable', 'string', 'max:120'],
             'status' => ['nullable', 'string', Rule::in($statusOptions)],
         ]);
 
@@ -62,16 +63,16 @@ class CompanyOrderController extends Controller
             ->mapWithKeys(fn (OrderStatus $s) => [$s->value => (int) ($statusCounts[$s->value] ?? 0)]);
 
         $metrics = [
-            'total'   => (clone $baseQuery)->count(),
-            'amount'  => (float) (clone $baseQuery)->sum('total_amount'),
+            'total' => (clone $baseQuery)->count(),
+            'amount' => (float) (clone $baseQuery)->sum('total_amount'),
         ];
 
         return view('empresa.orders.index', [
-            'orders'        => $orders,
-            'filters'       => $filters,
+            'orders' => $orders,
+            'filters' => $filters,
             'statusOptions' => $statusOptions,
             'statusSummary' => $statusSummary,
-            'metrics'       => $metrics,
+            'metrics' => $metrics,
         ]);
     }
 
@@ -81,19 +82,19 @@ class CompanyOrderController extends Controller
 
         $order->load('items', 'distributor', 'user');
 
-        $items  = $order->items;
+        $items = $order->items;
         $totals = [
-            'items_count'        => $items->count(),
-            'units_total'        => (float) $items->sum('qty'),
-            'subtotals_total'    => (float) $items->sum('subtotal'),
+            'items_count' => $items->count(),
+            'units_total' => (float) $items->sum('qty'),
+            'subtotals_total' => (float) $items->sum('subtotal'),
             'average_unit_price' => $items->isNotEmpty() ? (float) $items->avg('price_each') : 0.0,
         ];
 
         $hasFinancialGap = abs($totals['subtotals_total'] - (float) $order->total_amount) > 0.01;
 
         return view('empresa.orders.show', [
-            'order'           => $order,
-            'totals'          => $totals,
+            'order' => $order,
+            'totals' => $totals,
             'hasFinancialGap' => $hasFinancialGap,
         ]);
     }
@@ -108,20 +109,22 @@ class CompanyOrderController extends Controller
             $order->update(['pdf_path' => $path]);
         }
 
-        if (! Storage::disk('public')->exists($path)) {
+        $disk = Storage::disk(OrderPdfGenerator::diskName());
+
+        if (! $disk->exists($path)) {
             GenerateOrderPdfJob::dispatch($order->id);
 
             return back()->withErrors('PDF en generación. Intenta nuevamente en unos segundos.');
         }
 
-        return Storage::disk('public')->download($path, $order->oc_number.'.pdf');
+        return $disk->download($path, $order->oc_number.'.pdf');
     }
 
     public function reorder(Order $order, CartService $cartService): RedirectResponse
     {
         $this->authorize('view', $order);
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         abort_unless($user->canReorder(), 403, 'Tu rol no permite reordenar.');
@@ -155,7 +158,7 @@ class CompanyOrderController extends Controller
             ? ProductVariant::active()->whereIn('id', $variantIds)->get()->keyBy('id')
             : collect();
 
-        $added   = 0;
+        $added = 0;
         $skipped = [];
 
         foreach ($order->items as $item) {
@@ -163,6 +166,7 @@ class CompanyOrderController extends Controller
 
             if (! $product) {
                 $skipped[] = $item->product_name_snapshot.' (no disponible)';
+
                 continue;
             }
 
@@ -173,10 +177,12 @@ class CompanyOrderController extends Controller
 
                 if (! $variant) {
                     $skipped[] = $item->product_name_snapshot.' (variante no disponible)';
+
                     continue;
                 }
             } elseif ($product->hasConfigurableVariants()) {
                 $skipped[] = $item->product_name_snapshot.' (requiere elegir variante)';
+
                 continue;
             }
 

@@ -23,6 +23,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::get('products/import/template', [ProductImportController::class, 'downloadTemplate'])->name('products.import.template');
         Route::post('products/import', [ProductImportController::class, 'import'])->name('products.import');
         Route::patch('products/{product}/status', [ProductAdminController::class, 'setStatus'])->name('products.status');
+        Route::get('products/{product}/documents/{document}/download', [ProductMediaController::class, 'downloadDocument'])->name('products.documents.download');
         Route::delete('products/{product}/photos/{photo}', [ProductMediaController::class, 'destroyPhoto'])->name('products.photos.destroy');
         Route::delete('products/{product}/documents/{document}', [ProductMediaController::class, 'destroyDocument'])->name('products.documents.destroy');
         Route::delete('products/{product}/videos/{video}', [ProductMediaController::class, 'destroyVideo'])->name('products.videos.destroy');

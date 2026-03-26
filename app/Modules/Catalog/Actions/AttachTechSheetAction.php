@@ -11,7 +11,7 @@ class AttachTechSheetAction
 {
     public function execute(Product $product, UploadedFile $file): ProductDocument
     {
-        $path = $file->store('products/documents', 'public');
+        $path = $file->store('products/documents', (string) config('filesystems.tech_sheets_disk', 'private'));
 
         return $product->documents()->create([
             'type' => DocumentType::TechSheet,
@@ -20,4 +20,3 @@ class AttachTechSheetAction
         ]);
     }
 }
-

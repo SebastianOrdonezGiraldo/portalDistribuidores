@@ -3,18 +3,19 @@
 namespace App\Models;
 
 use App\Modules\AuthAccess\Models\Distributor;
+use App\Modules\Orders\Models\Order;
 use App\Modules\Shared\Enums\CompanyRole;
 use App\Modules\Shared\Enums\UserRole;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use App\Modules\Orders\Models\Order;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
     /**
@@ -28,6 +29,7 @@ class User extends Authenticatable
         'role',
         'company_role',
         'distributor_id',
+        'is_active',
         'password',
     ];
 
@@ -50,6 +52,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'is_active' => 'boolean',
             'password' => 'hashed',
             'role' => UserRole::class,
             'company_role' => CompanyRole::class,
@@ -81,6 +84,11 @@ class User extends Authenticatable
         return $this->company_role;
     }
 
+    public function isActive(): bool
+    {
+        return (bool) $this->is_active;
+    }
+
     public function isCompanyAdmin(): bool
     {
         return $this->isDistributor() && $this->company_role === CompanyRole::AdminEmpresa;
@@ -88,6 +96,10 @@ class User extends Authenticatable
 
     public function canCreateOrders(): bool
     {
+        if (! $this->isActive()) {
+            return false;
+        }
+
         if ($this->isAdmin()) {
             return true;
         }
@@ -105,6 +117,10 @@ class User extends Authenticatable
 
     public function canManageCompanyUsers(): bool
     {
+        if (! $this->isActive()) {
+            return false;
+        }
+
         return $this->isDistributor()
             && $this->company_role !== null
             && $this->company_role->canManageUsers();
@@ -112,6 +128,10 @@ class User extends Authenticatable
 
     public function canEditCompany(): bool
     {
+        if (! $this->isActive()) {
+            return false;
+        }
+
         return $this->isDistributor()
             && $this->company_role !== null
             && $this->company_role->canEditCompany();
@@ -119,6 +139,10 @@ class User extends Authenticatable
 
     public function canReorder(): bool
     {
+        if (! $this->isActive()) {
+            return false;
+        }
+
         if ($this->isAdmin()) {
             return true;
         }
@@ -137,6 +161,10 @@ class User extends Authenticatable
 
     public function canManageLists(): bool
     {
+        if (! $this->isActive()) {
+            return false;
+        }
+
         if ($this->isAdmin()) {
             return true;
         }
@@ -154,6 +182,10 @@ class User extends Authenticatable
 
     public function canManageBranches(): bool
     {
+        if (! $this->isActive()) {
+            return false;
+        }
+
         return $this->isDistributor()
             && $this->company_role !== null
             && $this->company_role->canManageBranches();
@@ -161,6 +193,10 @@ class User extends Authenticatable
 
     public function canApproveOrders(): bool
     {
+        if (! $this->isActive()) {
+            return false;
+        }
+
         return $this->isDistributor()
             && $this->company_role !== null
             && $this->company_role->canApproveOrders();
@@ -168,6 +204,10 @@ class User extends Authenticatable
 
     public function orderRequiresApproval(): bool
     {
+        if (! $this->isActive()) {
+            return false;
+        }
+
         if (! $this->isDistributor()) {
             return false;
         }

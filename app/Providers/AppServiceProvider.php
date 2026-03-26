@@ -6,13 +6,13 @@ use App\Models\User;
 use App\Modules\Admin\Policies\DistributorPolicy;
 use App\Modules\Admin\Policies\UserPolicy;
 use App\Modules\AuthAccess\Models\Distributor;
-use App\Modules\Company\Policies\CompanyPolicy;
 use App\Modules\Catalog\Models\Product;
+use App\Modules\Catalog\Models\ProductDocument;
 use App\Modules\Catalog\Policies\ProductPolicy;
 use App\Modules\Catalog\Queries\PostgresSearchEngine;
 use App\Modules\Categories\Models\Category;
 use App\Modules\Categories\Policies\CategoryPolicy;
-use App\Modules\Catalog\Models\ProductDocument;
+use App\Modules\Company\Policies\CompanyPolicy;
 use App\Modules\Documents\Policies\ProductDocumentPolicy;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Policies\OrderPolicy;
@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -33,8 +34,13 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Forzar HTTPS en producción (Railway usa proxy SSL)
-        if (app()->isProduction()) {
+        if (! app()->environment(['local', 'testing'])) {
+            $this->assertSecureRuntimeConfiguration();
+            URL::forceRootUrl(rtrim((string) config('app.url'), '/'));
+        }
+
+        $configuredScheme = strtolower((string) parse_url((string) config('app.url'), PHP_URL_SCHEME));
+        if ($configuredScheme === 'https' || app()->isProduction()) {
             URL::forceScheme('https');
         }
 
@@ -49,24 +55,28 @@ class AppServiceProvider extends ServiceProvider
             if ($user->isAdmin()) {
                 return true;
             }
+
             return (new CompanyPolicy)->editCompany($user);
         });
         Gate::define('manageUsers', function (User $user) {
             if ($user->isAdmin()) {
                 return true;
             }
+
             return (new CompanyPolicy)->manageUsers($user);
         });
         Gate::define('manageBranches', function (User $user) {
             if ($user->isAdmin()) {
                 return true;
             }
+
             return $user->canManageBranches();
         });
         Gate::define('approveOrders', function (User $user) {
             if ($user->isAdmin()) {
                 return true;
             }
+
             return $user->canApproveOrders();
         });
 
@@ -82,10 +92,75 @@ class AppServiceProvider extends ServiceProvider
             );
 
             $view->with([
-                'navCartCount'        => $count,
-                'cartCount'           => $count,
+                'navCartCount' => $count,
+                'cartCount' => $count,
                 'footerTopCategories' => $footerTopCategories,
             ]);
         });
+    }
+
+    private function assertSecureRuntimeConfiguration(): void
+    {
+        if ((bool) config('app.debug')) {
+            throw new RuntimeException('APP_DEBUG debe estar deshabilitado fuera de local/testing.');
+        }
+
+        if (config('session.secure') !== true) {
+            throw new RuntimeException('SESSION_SECURE_COOKIE debe ser true fuera de local/testing.');
+        }
+
+        if (! $this->hasCanonicalAppUrl((string) config('app.url'))) {
+            throw new RuntimeException('APP_URL debe apuntar a un host canonico fuera de local/testing.');
+        }
+
+        if (! $this->usesSecureDatabaseTransport()) {
+            throw new RuntimeException('DB_SSLMODE debe ser require, verify-ca o verify-full fuera de local/testing.');
+        }
+
+        if ((string) config('filesystems.order_pdfs_disk', 'private') === 'public') {
+            throw new RuntimeException('Los PDFs de pedidos no pueden usar el disco public fuera de local/testing.');
+        }
+
+        if ((string) config('filesystems.tech_sheets_disk', 'private') === 'public') {
+            throw new RuntimeException('Las fichas tecnicas no pueden usar el disco public fuera de local/testing.');
+        }
+    }
+
+    private function hasCanonicalAppUrl(string $appUrl): bool
+    {
+        $host = parse_url($appUrl, PHP_URL_HOST);
+
+        if (! is_string($host) || $host === '') {
+            return false;
+        }
+
+        $host = strtolower($host);
+
+        if (in_array($host, ['localhost', '127.0.0.1', '::1'], true)) {
+            return false;
+        }
+
+        foreach (['.test', '.localhost', '.invalid', '.example', '.ngrok.io', '.ngrok-free.dev'] as $suffix) {
+            if (str_ends_with($host, $suffix)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function usesSecureDatabaseTransport(): bool
+    {
+        $defaultConnection = (string) config('database.default');
+        $connection = config("database.connections.{$defaultConnection}", []);
+        $driver = strtolower((string) ($connection['driver'] ?? ''));
+
+        if ($driver !== 'pgsql') {
+            return true;
+        }
+
+        $sslMode = strtolower((string) ($connection['sslmode'] ?? ''));
+
+        return in_array($sslMode, ['require', 'verify-ca', 'verify-full'], true);
     }
 }

@@ -3,6 +3,8 @@
 **Plataforma:** Hostinger VPS · Ubuntu 24.04 LTS  
 **Stack:** Nginx · PHP 8.3-FPM · PostgreSQL 16 · Node.js 20 · Laravel 12
 
+> Para la separacion completa entre `staging` y `production`, revisa tambien [`STAGING.md`](./STAGING.md).
+
 ---
 
 ## Tabla de contenidos
@@ -19,7 +21,7 @@
 10. [Configurar el worker de colas](#10-configurar-el-worker-de-colas)
 11. [Validaciones finales](#11-validaciones-finales)
 12. [Actualizaciones futuras con deploy.sh](#12-actualizaciones-futuras-con-deploysh)
-13. [Cloudflare R2 — disco público](#13-cloudflare-r2--disco-público)
+13. [Cloudflare R2 — discos público y privado](#13-cloudflare-r2--discos-público-y-privado)
 14. [Correo SMTP (Hostinger)](#14-correo-smtp-hostinger)
 15. [Notas de seguridad y optimización](#15-notas-de-seguridad-y-optimización)
 
@@ -184,22 +186,38 @@ DB_PASSWORD=CAMBIA_ESTA_CONTRASENA_SEGURA
 # ── SESIONES, COLAS Y CACHÉ ───────────────────────────────────────────────────
 SESSION_DRIVER=database
 SESSION_LIFETIME=120
+SESSION_SECURE_COOKIE=true
 QUEUE_CONNECTION=database
 CACHE_STORE=database
+AUTH_ALLOW_PUBLIC_REGISTRATION=false
 
 # ── ALMACENAMIENTO ────────────────────────────────────────────────────────────
 FILESYSTEM_DISK=local
-PUBLIC_DISK_DRIVER=s3               # Fuerza R2 para el disco público
+PUBLIC_DISK_DRIVER=s3               # Fotos y assets realmente públicos
+PRIVATE_DISK_DRIVER=s3              # PDFs de pedidos y fichas técnicas
 PUBLIC_MEDIA_SIGNED_URL_TTL=20
+ORDER_PDFS_DISK=private
+TECH_SHEETS_DISK=private
 
-# ── CLOUDFLARE R2 ─────────────────────────────────────────────────────────────
+# ── CLOUDFLARE R2: DISCO PÚBLICO ──────────────────────────────────────────────
 AWS_ACCESS_KEY_ID=TU_R2_ACCESS_KEY_ID
 AWS_SECRET_ACCESS_KEY=TU_R2_SECRET_ACCESS_KEY
 AWS_DEFAULT_REGION=auto
-AWS_BUCKET=portal-distribuidores
+AWS_BUCKET=portal-distribuidores-public
 AWS_URL=https://pub-XXXX.r2.dev             # URL pública del bucket R2
 AWS_ENDPOINT=https://ACCOUNT_ID.r2.cloudflarestorage.com
 AWS_USE_PATH_STYLE_ENDPOINT=true
+
+# ── CLOUDFLARE R2: DISCO PRIVADO ──────────────────────────────────────────────
+PRIVATE_ACCESS_KEY_ID=TU_R2_PRIVATE_ACCESS_KEY_ID
+PRIVATE_SECRET_ACCESS_KEY=TU_R2_PRIVATE_SECRET_ACCESS_KEY
+PRIVATE_DEFAULT_REGION=auto
+PRIVATE_BUCKET=portal-distribuidores-private
+PRIVATE_ENDPOINT=https://ACCOUNT_ID.r2.cloudflarestorage.com
+PRIVATE_USE_PATH_STYLE_ENDPOINT=true
+
+# ── BD SEGURA ─────────────────────────────────────────────────────────────────
+DB_SSLMODE=require
 
 # ── CORREO SMTP (Hostinger) ───────────────────────────────────────────────────
 MAIL_MAILER=smtp
@@ -244,6 +262,9 @@ sudo -u www-data composer install --no-dev --optimize-autoloader --no-interactio
 
 # Migraciones (crea todas las tablas, incluyendo jobs y sessions)
 sudo -u www-data php artisan migrate --force
+
+# Migrar PDFs de pedidos y fichas técnicas legacy desde public hacia private
+sudo -u www-data php artisan protected-media:migrate --no-interaction
 
 # Enlace simbólico de storage (solo para disco local; con R2 no es estrictamente necesario)
 sudo -u www-data php artisan storage:link
@@ -393,6 +414,10 @@ sudo -u www-data php artisan db:show
 sudo -u www-data php artisan tinker
 >>> Storage::disk('public')->exists('test.txt') ? 'R2 OK' : 'Verificar credenciales R2';
 
+# 5.1 Verificar storage privado y migración de media protegida
+sudo -u www-data php artisan tinker
+>>> Storage::disk('private')->exists('products/documents') ? 'Private OK' : 'Verificar PRIVATE_*';
+
 # 6. Verificar que el correo SMTP funciona
 sudo -u www-data php artisan tinker
 >>> Mail::raw('Test desde producción', fn($m) => $m->to('tu@email.com')->subject('Test'));
@@ -410,6 +435,8 @@ ls -la /var/www/portal-distribuidores/bootstrap/cache/
 - [ ] La app carga en `https://tu-dominio.com` sin errores
 - [ ] El login funciona correctamente
 - [ ] Se puede subir una imagen/documento (va a R2)
+- [ ] Las fotos públicas siguen cargando desde el disco/bucket público
+- [ ] Los PDFs de pedidos y fichas técnicas ya no quedan expuestos en el bucket público
 - [ ] Una foto > 3 MB muestra un mensaje claro en el formulario
 - [ ] Un PDF > 5 MB muestra un mensaje claro en el formulario
 - [ ] Una carga total excesiva muestra un mensaje claro o la pagina 413 amigable
@@ -440,41 +467,59 @@ El script hace automáticamente: `git pull` → `composer install` → `migrate`
 
 ---
 
-## 13. Cloudflare R2 — disco público
+## 13. Cloudflare R2 — discos público y privado
 
-Este proyecto usa **auto-detección** del disco público en `config/filesystems.php`:
+Este proyecto usa dos discos separados en `config/filesystems.php`:
 
-- Si `APP_ENV=production` y `AWS_BUCKET` tiene valor → el disco `public` usa **Cloudflare R2**
-- Si `PUBLIC_DISK_DRIVER=s3` → fuerza R2 sin importar el entorno
-- Si `PUBLIC_DISK_DRIVER=local` → fuerza disco local (para pruebas)
+- `public`: fotos y assets realmente públicos del catálogo
+- `private`: PDFs de pedidos y fichas técnicas, servidos solo por Laravel
 
-En producción VPS con R2, **no se necesita** `storage:link` para los archivos del disco público,  
-porque todas las URLs apuntan directamente a R2. El enlace simbólico solo aplica al disco local.
+En producción VPS con R2:
 
-### Crear el bucket en Cloudflare R2
+- `PUBLIC_DISK_DRIVER=s3` publica solo media no sensible
+- `PRIVATE_DISK_DRIVER=s3` mantiene media protegida fuera de acceso directo
+- `ORDER_PDFS_DISK=private` y `TECH_SHEETS_DISK=private` son obligatorios
+- `storage:link` solo aplica si mantienes un disco local para desarrollo o fallback
+
+### Crear los buckets en Cloudflare R2
 
 1. Ir a [Cloudflare Dashboard](https://dash.cloudflare.com) → R2 → Create Bucket
-2. Nombre del bucket: `portal-distribuidores`
-3. En **Settings** → **Public access**: habilitar "Allow Public Access"
+2. Crear un bucket público, por ejemplo `portal-distribuidores-public`
+3. En **Settings** del bucket público → **Public access**: habilitar "Allow Public Access"
 4. Copiar la **Public bucket URL** (`https://pub-XXXX.r2.dev`) → `AWS_URL`
-5. Ir a **R2 Overview** → **Manage R2 API Tokens** → Create Token
-6. Permisos: `Object Read & Write` sobre el bucket `portal-distribuidores`
-7. Copiar Access Key ID → `AWS_ACCESS_KEY_ID`
-8. Copiar Secret Access Key → `AWS_SECRET_ACCESS_KEY`
-9. Copiar Account ID endpoint → `AWS_ENDPOINT` (`https://ACCOUNT_ID.r2.cloudflarestorage.com`)
+5. Crear un bucket privado, por ejemplo `portal-distribuidores-private`
+6. En el bucket privado, **no** habilitar acceso público
+7. Ir a **R2 Overview** → **Manage R2 API Tokens** → Create Token
+8. Permisos mínimos: `Object Read & Write` solo sobre los buckets usados por la app
+9. Copiar credenciales del bucket público → `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`
+10. Copiar credenciales del bucket privado → `PRIVATE_ACCESS_KEY_ID` / `PRIVATE_SECRET_ACCESS_KEY`
+11. Copiar Account ID endpoint → `AWS_ENDPOINT` y `PRIVATE_ENDPOINT`
 
 ### Variables R2 en .env de producción
 
 ```dotenv
 PUBLIC_DISK_DRIVER=s3
+PRIVATE_DISK_DRIVER=s3
+ORDER_PDFS_DISK=private
+TECH_SHEETS_DISK=private
+
 AWS_ACCESS_KEY_ID=<tu-access-key-id>
 AWS_SECRET_ACCESS_KEY=<tu-secret-access-key>
 AWS_DEFAULT_REGION=auto
-AWS_BUCKET=portal-distribuidores
+AWS_BUCKET=portal-distribuidores-public
 AWS_URL=https://pub-XXXX.r2.dev
 AWS_ENDPOINT=https://ACCOUNT_ID.r2.cloudflarestorage.com
 AWS_USE_PATH_STYLE_ENDPOINT=true
+
+PRIVATE_ACCESS_KEY_ID=<tu-private-access-key-id>
+PRIVATE_SECRET_ACCESS_KEY=<tu-private-secret-access-key>
+PRIVATE_DEFAULT_REGION=auto
+PRIVATE_BUCKET=portal-distribuidores-private
+PRIVATE_ENDPOINT=https://ACCOUNT_ID.r2.cloudflarestorage.com
+PRIVATE_USE_PATH_STYLE_ENDPOINT=true
 ```
+
+> No uses el bucket/disco `public` para PDFs de pedidos ni fichas técnicas. El deploy aborta si detecta esa configuración.
 
 ---
 
@@ -515,6 +560,8 @@ requiere worker activo). En producción se recomienda `queue`.
 ### Seguridad
 
 - Confirmar `APP_DEBUG=false` en producción — evita exponer stack traces
+- Confirmar `SESSION_SECURE_COOKIE=true` y `DB_SSLMODE=require`
+- Confirmar `AUTH_ALLOW_PUBLIC_REGISTRATION=false` salvo que negocio pida auto-registro explícito
 - `APP_KEY` nunca debe compartirse ni subirse a Git
 - El archivo `.env` tiene permisos `640`: `chmod 640 .env && chown www-data:www-data .env`
 - Configurar firewall: `ufw allow 22 && ufw allow 80 && ufw allow 443 && ufw enable`
@@ -577,5 +624,14 @@ crontab -u www-data -e
 ```
 
 ---
+
+## Recursos relacionados
+
+- [`STAGING.md`](./STAGING.md) - flujo de ramas `develop`/`master`, hosts reales, bucket `portal-distribuidores-staging` y refresco seguro de datos.
+- [`deploy/nginx.production.conf`](./deploy/nginx.production.conf) - plantilla Nginx para `pedidos.importcorporalmedical.com`.
+- [`deploy/nginx.staging.conf`](./deploy/nginx.staging.conf) - plantilla Nginx para `staging-pedidos.importcorporalmedical.com`.
+- [`deploy/laravel-queue-prod.service`](./deploy/laravel-queue-prod.service) - worker systemd para produccion.
+- [`deploy/laravel-queue-staging.service`](./deploy/laravel-queue-staging.service) - worker systemd para staging.
+- [`deploy/refresh-staging.sh`](./deploy/refresh-staging.sh) - script de copia y sanitizacion de datos hacia staging.
 
 *Generado para el despliegue de Portal Distribuidores — Import Corporal Medical SAS*

@@ -35,9 +35,9 @@ class CompanyOrderControllerTest extends TestCase
     private function makeDistributorWithUser(?CompanyRole $role = null): array
     {
         $distributor = Distributor::factory()->create();
-        $user        = User::factory()->create([
+        $user = User::factory()->create([
             'distributor_id' => $distributor->id,
-            'company_role'   => $role,
+            'company_role' => $role,
         ]);
 
         return [$distributor, $user];
@@ -45,18 +45,18 @@ class CompanyOrderControllerTest extends TestCase
 
     private function makeOrderWithItem(Distributor $distributor, array $orderOverrides = []): Order
     {
-        $order   = Order::factory()->forDistributor($distributor)->create($orderOverrides);
+        $order = Order::factory()->forDistributor($distributor)->create($orderOverrides);
         $product = Product::factory()->create(['price' => 5000]);
 
         OrderItem::factory()->create([
-            'order_id'              => $order->id,
-            'product_id'            => $product->id,
+            'order_id' => $order->id,
+            'product_id' => $product->id,
             'product_name_snapshot' => $product->name,
-            'sku_snapshot'          => $product->sku,
-            'qty'                   => 2,
-            'unit_label'            => 'unidades',
-            'price_each'            => 5000,
-            'subtotal'              => 10000,
+            'sku_snapshot' => $product->sku,
+            'qty' => 2,
+            'unit_label' => 'unidades',
+            'price_each' => 5000,
+            'subtotal' => 10000,
         ]);
 
         return $order;
@@ -69,7 +69,7 @@ class CompanyOrderControllerTest extends TestCase
     public function test_index_shows_only_own_distributor_orders(): void
     {
         [$distA, $userA] = $this->makeDistributorWithUser();
-        [$distB]         = $this->makeDistributorWithUser();
+        [$distB] = $this->makeDistributorWithUser();
 
         Order::factory()->forDistributor($distA)->count(3)->create();
         Order::factory()->forDistributor($distB)->count(2)->create();
@@ -136,7 +136,7 @@ class CompanyOrderControllerTest extends TestCase
 
     public function test_show_forbids_other_distributors_order(): void
     {
-        [$distA]   = $this->makeDistributorWithUser();
+        [$distA] = $this->makeDistributorWithUser();
         [, $userB] = $this->makeDistributorWithUser();
 
         $order = Order::factory()->forDistributor($distA)->create();
@@ -153,13 +153,14 @@ class CompanyOrderControllerTest extends TestCase
     public function test_download_pdf_streams_file_when_exists(): void
     {
         Storage::fake('public');
+        Storage::fake('private');
         Queue::fake();
 
         [$distA, $userA] = $this->makeDistributorWithUser();
-        $order    = Order::factory()->forDistributor($distA)->create();
+        $order = Order::factory()->forDistributor($distA)->create();
         $fakePath = 'orders/'.$order->oc_number.'.pdf';
 
-        Storage::disk('public')->put($fakePath, '%PDF-1.4 fake');
+        Storage::disk('private')->put($fakePath, '%PDF-1.4 fake');
 
         $generator = $this->createMock(OrderPdfGenerator::class);
         $generator->method('generate')->willReturn($fakePath);
@@ -176,10 +177,11 @@ class CompanyOrderControllerTest extends TestCase
     public function test_download_pdf_dispatches_job_and_returns_error_message_when_not_on_disk(): void
     {
         Storage::fake('public');
+        Storage::fake('private');
         Queue::fake();
 
         [$distA, $userA] = $this->makeDistributorWithUser();
-        $order    = Order::factory()->forDistributor($distA)->create();
+        $order = Order::factory()->forDistributor($distA)->create();
         $fakePath = 'orders/'.$order->oc_number.'.pdf';
 
         // El generador devuelve ruta pero no existe en disco
@@ -200,10 +202,11 @@ class CompanyOrderControllerTest extends TestCase
     public function test_download_pdf_forbidden_for_other_distributor(): void
     {
         Storage::fake('public');
+        Storage::fake('private');
 
-        [$distA]   = $this->makeDistributorWithUser();
+        [$distA] = $this->makeDistributorWithUser();
         [, $userB] = $this->makeDistributorWithUser();
-        $order           = Order::factory()->forDistributor($distA)->create();
+        $order = Order::factory()->forDistributor($distA)->create();
 
         $this->actingAs($userB)
             ->get(route('empresa.orders.pdf', $order))
@@ -239,18 +242,18 @@ class CompanyOrderControllerTest extends TestCase
     public function test_reorder_adds_active_products_to_cart(): void
     {
         [$distA, $userA] = $this->makeDistributorWithUser();
-        $product         = Product::factory()->create(['price' => 8000, 'is_active' => true]);
-        $order           = Order::factory()->forDistributor($distA)->create();
+        $product = Product::factory()->create(['price' => 8000, 'is_active' => true]);
+        $order = Order::factory()->forDistributor($distA)->create();
 
         OrderItem::factory()->create([
-            'order_id'              => $order->id,
-            'product_id'            => $product->id,
+            'order_id' => $order->id,
+            'product_id' => $product->id,
             'product_name_snapshot' => $product->name,
-            'sku_snapshot'          => $product->sku,
-            'qty'                   => 3,
-            'unit_label'            => 'unidades',
-            'price_each'            => 8000,
-            'subtotal'              => 24000,
+            'sku_snapshot' => $product->sku,
+            'qty' => 3,
+            'unit_label' => 'unidades',
+            'price_each' => 8000,
+            'subtotal' => 24000,
         ]);
 
         $this->actingAs($userA)
@@ -266,20 +269,20 @@ class CompanyOrderControllerTest extends TestCase
     public function test_reorder_skips_inactive_products_and_reports_them(): void
     {
         [$distA, $userA] = $this->makeDistributorWithUser();
-        $activeProduct   = Product::factory()->create(['price' => 5000, 'is_active' => true]);
+        $activeProduct = Product::factory()->create(['price' => 5000, 'is_active' => true]);
         $inactiveProduct = Product::factory()->inactive()->create();
-        $order           = Order::factory()->forDistributor($distA)->create();
+        $order = Order::factory()->forDistributor($distA)->create();
 
         foreach ([$activeProduct, $inactiveProduct] as $p) {
             OrderItem::factory()->create([
-                'order_id'              => $order->id,
-                'product_id'            => $p->id,
+                'order_id' => $order->id,
+                'product_id' => $p->id,
                 'product_name_snapshot' => $p->name,
-                'sku_snapshot'          => $p->sku,
-                'qty'                   => 1,
-                'unit_label'            => 'unidades',
-                'price_each'            => $p->price,
-                'subtotal'              => $p->price,
+                'sku_snapshot' => $p->sku,
+                'qty' => 1,
+                'unit_label' => 'unidades',
+                'price_each' => $p->price,
+                'subtotal' => $p->price,
             ]);
         }
 
@@ -299,17 +302,17 @@ class CompanyOrderControllerTest extends TestCase
     {
         [$distA, $userA] = $this->makeDistributorWithUser();
         $inactiveProduct = Product::factory()->inactive()->create();
-        $order           = Order::factory()->forDistributor($distA)->create();
+        $order = Order::factory()->forDistributor($distA)->create();
 
         OrderItem::factory()->create([
-            'order_id'              => $order->id,
-            'product_id'            => $inactiveProduct->id,
+            'order_id' => $order->id,
+            'product_id' => $inactiveProduct->id,
             'product_name_snapshot' => $inactiveProduct->name,
-            'sku_snapshot'          => $inactiveProduct->sku,
-            'qty'                   => 2,
-            'unit_label'            => 'unidades',
-            'price_each'            => $inactiveProduct->price,
-            'subtotal'              => $inactiveProduct->price * 2,
+            'sku_snapshot' => $inactiveProduct->sku,
+            'qty' => 2,
+            'unit_label' => 'unidades',
+            'price_each' => $inactiveProduct->price,
+            'subtotal' => $inactiveProduct->price * 2,
         ]);
 
         $this->actingAs($userA)
@@ -321,20 +324,20 @@ class CompanyOrderControllerTest extends TestCase
     public function test_reorder_skips_inactive_variant_and_reports_it(): void
     {
         [$distA, $userA] = $this->makeDistributorWithUser();
-        $product         = Product::factory()->create(['price' => 6000, 'is_active' => true]);
+        $product = Product::factory()->create(['price' => 6000, 'is_active' => true]);
         $inactiveVariant = ProductVariant::factory()->forProduct($product)->inactive()->create();
-        $order           = Order::factory()->forDistributor($distA)->create();
+        $order = Order::factory()->forDistributor($distA)->create();
 
         OrderItem::factory()->create([
-            'order_id'               => $order->id,
-            'product_id'             => $product->id,
-            'product_variant_id'     => $inactiveVariant->id,
-            'product_name_snapshot'  => $product->name,
-            'sku_snapshot'           => $product->sku,
-            'qty'                    => 1,
-            'unit_label'             => 'unidades',
-            'price_each'             => $inactiveVariant->price,
-            'subtotal'               => $inactiveVariant->price,
+            'order_id' => $order->id,
+            'product_id' => $product->id,
+            'product_variant_id' => $inactiveVariant->id,
+            'product_name_snapshot' => $product->name,
+            'sku_snapshot' => $product->sku,
+            'qty' => 1,
+            'unit_label' => 'unidades',
+            'price_each' => $inactiveVariant->price,
+            'subtotal' => $inactiveVariant->price,
         ]);
 
         $response = $this->actingAs($userA)
@@ -349,21 +352,21 @@ class CompanyOrderControllerTest extends TestCase
         // El producto tiene variante activa pero el item original no tenía variant_id.
         // El reorder detecta hasConfigurableVariants() y lo omite.
         [$distA, $userA] = $this->makeDistributorWithUser();
-        $product         = Product::factory()->create(['price' => 4000, 'is_active' => true]);
+        $product = Product::factory()->create(['price' => 4000, 'is_active' => true]);
         ProductVariant::factory()->forProduct($product)->create(['is_active' => true]);
 
         $order = Order::factory()->forDistributor($distA)->create();
 
         OrderItem::factory()->create([
-            'order_id'              => $order->id,
-            'product_id'            => $product->id,
-            'product_variant_id'    => null,
+            'order_id' => $order->id,
+            'product_id' => $product->id,
+            'product_variant_id' => null,
             'product_name_snapshot' => $product->name,
-            'sku_snapshot'          => $product->sku,
-            'qty'                   => 1,
-            'unit_label'            => 'unidades',
-            'price_each'            => 4000,
-            'subtotal'              => 4000,
+            'sku_snapshot' => $product->sku,
+            'qty' => 1,
+            'unit_label' => 'unidades',
+            'price_each' => 4000,
+            'subtotal' => 4000,
         ]);
 
         $this->actingAs($userA)
@@ -375,18 +378,18 @@ class CompanyOrderControllerTest extends TestCase
     public function test_reorder_with_all_added_redirects_to_cart_without_warning(): void
     {
         [$distA, $userA] = $this->makeDistributorWithUser();
-        $product         = Product::factory()->create(['price' => 3000, 'is_active' => true]);
-        $order           = Order::factory()->forDistributor($distA)->create();
+        $product = Product::factory()->create(['price' => 3000, 'is_active' => true]);
+        $order = Order::factory()->forDistributor($distA)->create();
 
         OrderItem::factory()->create([
-            'order_id'              => $order->id,
-            'product_id'            => $product->id,
+            'order_id' => $order->id,
+            'product_id' => $product->id,
             'product_name_snapshot' => $product->name,
-            'sku_snapshot'          => $product->sku,
-            'qty'                   => 1,
-            'unit_label'            => 'unidades',
-            'price_each'            => 3000,
-            'subtotal'              => 3000,
+            'sku_snapshot' => $product->sku,
+            'qty' => 1,
+            'unit_label' => 'unidades',
+            'price_each' => 3000,
+            'subtotal' => 3000,
         ]);
 
         $this->actingAs($userA)

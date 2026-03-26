@@ -1,0 +1,32 @@
+# =============================================================================
+# laravel-queue-staging.service
+# Worker de colas para staging
+# =============================================================================
+
+[Unit]
+Description=Laravel Queue Worker - Portal Distribuidores (staging)
+Documentation=https://laravel.com/docs/queues
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/portalDistribuidores-staging
+ExecStart=/usr/bin/php artisan queue:work \
+    --sleep=3 \
+    --tries=3 \
+    --max-time=3600 \
+    --queue=default
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=5
+TimeoutStopSec=3700
+KillMode=mixed
+KillSignal=SIGTERM
+StandardOutput=append:/var/log/laravel/queue-staging.log
+StandardError=append:/var/log/laravel/queue-staging-error.log
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

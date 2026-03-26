@@ -28,6 +28,7 @@ class TechSheetDownloadLimitTest extends TestCase
     public function test_guest_can_download_active_tech_sheet(): void
     {
         Storage::fake('public');
+        Storage::fake('private');
 
         ['document' => $document] = $this->createTechSheetDocument();
 
@@ -39,6 +40,7 @@ class TechSheetDownloadLimitTest extends TestCase
     public function test_distributor_can_download_a_tech_sheet_two_times_per_month(): void
     {
         Storage::fake('public');
+        Storage::fake('private');
 
         CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-03-15 10:00:00', 'UTC'));
 
@@ -59,6 +61,7 @@ class TechSheetDownloadLimitTest extends TestCase
     public function test_distributor_cannot_download_more_than_two_times_per_month(): void
     {
         Storage::fake('public');
+        Storage::fake('private');
 
         CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-03-20 08:00:00', 'UTC'));
 
@@ -86,6 +89,7 @@ class TechSheetDownloadLimitTest extends TestCase
     public function test_distributor_download_limit_resets_when_a_new_month_starts_in_bogota(): void
     {
         Storage::fake('public');
+        Storage::fake('private');
 
         config([
             'documents.tech_sheet_monthly_limit' => 2,
@@ -121,6 +125,7 @@ class TechSheetDownloadLimitTest extends TestCase
     public function test_admin_can_download_without_consuming_quota(): void
     {
         Storage::fake('public');
+        Storage::fake('private');
 
         $admin = User::factory()->create([
             'role' => UserRole::Admin,
@@ -140,6 +145,7 @@ class TechSheetDownloadLimitTest extends TestCase
     public function test_product_page_shows_the_configured_monthly_limit(): void
     {
         Storage::fake('public');
+        Storage::fake('private');
 
         config(['documents.tech_sheet_monthly_limit' => 2]);
 
@@ -173,7 +179,7 @@ class TechSheetDownloadLimitTest extends TestCase
             'is_active' => true,
         ]);
 
-        Storage::disk('public')->put('products/documents/a.pdf', 'PDF');
+        Storage::disk('private')->put('products/documents/a.pdf', 'PDF');
         $document = ProductDocument::create([
             'product_id' => $product->id,
             'type' => 'tech_sheet',

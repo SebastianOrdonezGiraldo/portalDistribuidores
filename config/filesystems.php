@@ -1,9 +1,13 @@
 <?php
 
 $publicDiskDriver = env('PUBLIC_DISK_DRIVER');
+$privateDiskDriver = env('PRIVATE_DISK_DRIVER');
 $hasS3Bucket = trim((string) env('AWS_BUCKET', '')) !== '';
+$hasPrivateS3Bucket = trim((string) env('PRIVATE_BUCKET', '')) !== '';
 $useS3ForPublicDisk = $publicDiskDriver === 's3'
     || ($publicDiskDriver !== 'local' && env('APP_ENV') === 'production' && $hasS3Bucket);
+$useS3ForPrivateDisk = $privateDiskDriver === 's3'
+    || ($privateDiskDriver !== 'local' && env('APP_ENV') === 'production' && $hasPrivateS3Bucket);
 
 return [
 
@@ -43,27 +47,48 @@ return [
             'report' => false,
         ],
 
-        'public' => $useS3ForPublicDisk
+        'private' => $useS3ForPrivateDisk
             ? [
-                'driver'                  => 's3',
-                'key'                     => env('AWS_ACCESS_KEY_ID'),
-                'secret'                  => env('AWS_SECRET_ACCESS_KEY'),
-                'region'                  => env('AWS_DEFAULT_REGION', 'auto'),
-                'bucket'                  => env('AWS_BUCKET'),
-                'url'                     => env('AWS_URL'),
-                'endpoint'                => env('AWS_ENDPOINT'),
-                'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', true),
-                'visibility'              => 'public',
-                'throw'                   => false,
-                'report'                  => false,
+                'driver' => 's3',
+                'key' => env('PRIVATE_ACCESS_KEY_ID', env('AWS_ACCESS_KEY_ID')),
+                'secret' => env('PRIVATE_SECRET_ACCESS_KEY', env('AWS_SECRET_ACCESS_KEY')),
+                'region' => env('PRIVATE_DEFAULT_REGION', env('AWS_DEFAULT_REGION', 'auto')),
+                'bucket' => env('PRIVATE_BUCKET'),
+                'endpoint' => env('PRIVATE_ENDPOINT', env('AWS_ENDPOINT')),
+                'use_path_style_endpoint' => env('PRIVATE_USE_PATH_STYLE_ENDPOINT', env('AWS_USE_PATH_STYLE_ENDPOINT', true)),
+                'visibility' => 'private',
+                'throw' => false,
+                'report' => false,
             ]
             : [
-                'driver'     => 'local',
-                'root'       => storage_path('app/public'),
-                'url'        => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
+                'driver' => 'local',
+                'root' => storage_path('app/private'),
+                'visibility' => 'private',
+                'throw' => false,
+                'report' => false,
+            ],
+
+        'public' => $useS3ForPublicDisk
+            ? [
+                'driver' => 's3',
+                'key' => env('AWS_ACCESS_KEY_ID'),
+                'secret' => env('AWS_SECRET_ACCESS_KEY'),
+                'region' => env('AWS_DEFAULT_REGION', 'auto'),
+                'bucket' => env('AWS_BUCKET'),
+                'url' => env('AWS_URL'),
+                'endpoint' => env('AWS_ENDPOINT'),
+                'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', true),
                 'visibility' => 'public',
-                'throw'      => false,
-                'report'     => false,
+                'throw' => false,
+                'report' => false,
+            ]
+            : [
+                'driver' => 'local',
+                'root' => storage_path('app/public'),
+                'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
+                'visibility' => 'public',
+                'throw' => false,
+                'report' => false,
             ],
 
         's3' => [
@@ -82,6 +107,8 @@ return [
     ],
 
     'public_media_signed_url_ttl' => (int) env('PUBLIC_MEDIA_SIGNED_URL_TTL', 20),
+    'order_pdfs_disk' => env('ORDER_PDFS_DISK', 'private'),
+    'tech_sheets_disk' => env('TECH_SHEETS_DISK', 'private'),
 
     /*
     |--------------------------------------------------------------------------
