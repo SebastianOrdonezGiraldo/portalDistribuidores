@@ -103,7 +103,7 @@
                     <li>Podrá iniciar sesión con el email y contraseña indicados.</li>
                     <li>Puedes activar o desactivar el acceso desde el listado de usuarios.</li>
                     @if($isEdit)
-                        <li class="font-semibold text-slate-800">Estado actual: {{ $user->email_verified_at ? 'Activo' : 'Inactivo' }}</li>
+                        <li class="font-semibold text-slate-800">Estado actual: {{ $user->is_active ? 'Activo' : 'Inactivo' }}</li>
                     @endif
                 </ul>
             </x-ui.card>

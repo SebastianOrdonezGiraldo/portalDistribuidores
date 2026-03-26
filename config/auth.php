@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\User;
+
 return [
 
     /*
@@ -62,7 +64,7 @@ return [
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', App\Models\User::class),
+            'model' => env('AUTH_MODEL', User::class),
         ],
 
         // 'users' => [
@@ -111,5 +113,24 @@ return [
     */
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Public Registration
+    |--------------------------------------------------------------------------
+    |
+    | Self-registration stays enabled in local/testing by default so developer
+    | workflows keep working, but it is disabled elsewhere unless explicitly
+    | turned back on.
+    |
+    */
+
+    'allow_public_registration' => filter_var(
+        env(
+            'AUTH_ALLOW_PUBLIC_REGISTRATION',
+            in_array(env('APP_ENV', 'production'), ['local', 'testing'], true) ? 'true' : 'false',
+        ),
+        FILTER_VALIDATE_BOOL,
+    ),
 
 ];

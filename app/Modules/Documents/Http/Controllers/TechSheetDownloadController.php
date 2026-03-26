@@ -41,6 +41,42 @@ class TechSheetDownloadController extends Controller
             $downloadService->registerDownload($distributor, $productDocument, $now);
         }
 
-        return Storage::disk('public')->download($productDocument->path, $productDocument->filename);
+        $disk = Storage::disk($productDocument->storageDisk());
+
+        if (! $disk->exists($productDocument->path)) {
+            $this->migrateFromLegacyPublicDisk($productDocument);
+        }
+
+        if (! $disk->exists($productDocument->path)) {
+            if (Storage::disk('public')->exists($productDocument->path)) {
+                return Storage::disk('public')->download($productDocument->path, $productDocument->filename);
+            }
+
+            return back()->withErrors('No fue posible recuperar la ficha tecnica solicitada.');
+        }
+
+        return $disk->download($productDocument->path, $productDocument->filename);
+    }
+
+    private function migrateFromLegacyPublicDisk(ProductDocument $productDocument): void
+    {
+        $targetDiskName = $productDocument->storageDisk();
+
+        if ($targetDiskName === 'public') {
+            return;
+        }
+
+        $targetDisk = Storage::disk($targetDiskName);
+        $legacyDisk = Storage::disk('public');
+
+        if ($targetDisk->exists($productDocument->path) || ! $legacyDisk->exists($productDocument->path)) {
+            return;
+        }
+
+        $written = $targetDisk->put($productDocument->path, (string) $legacyDisk->get($productDocument->path));
+
+        if ($written !== false) {
+            $legacyDisk->delete($productDocument->path);
+        }
     }
 }

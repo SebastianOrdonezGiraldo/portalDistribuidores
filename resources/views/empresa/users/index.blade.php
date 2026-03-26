@@ -4,7 +4,7 @@
             <x-slot name="meta">
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="stat-pill">Total: {{ $users->count() }}</span>
-                    <span class="stat-pill">Activos: {{ $users->whereNotNull('email_verified_at')->count() }}</span>
+                    <span class="stat-pill">Activos: {{ $users->where('is_active', true)->count() }}</span>
                 </div>
             </x-slot>
             <x-slot name="actions">
@@ -52,7 +52,7 @@
                                 @endif
                             </td>
                             <td data-label="Estado">
-                                @if($user->email_verified_at)
+                                @if($user->is_active)
                                     <x-ui.badge variant="success">Activo</x-ui.badge>
                                 @else
                                     <x-ui.badge variant="warning">Inactivo</x-ui.badge>
@@ -65,8 +65,8 @@
                                         <form method="POST" action="{{ route('empresa.users.toggle-active', $user) }}" class="inline">
                                             @csrf
                                             @method('PATCH')
-                                            <button type="submit" class="btn btn-ghost !px-2 !py-1 text-xs {{ $user->email_verified_at ? 'text-rose-600' : 'text-emerald-600' }}">
-                                                {{ $user->email_verified_at ? 'Desactivar' : 'Activar' }}
+                                            <button type="submit" class="btn btn-ghost !px-2 !py-1 text-xs {{ $user->is_active ? 'text-rose-600' : 'text-emerald-600' }}">
+                                                {{ $user->is_active ? 'Desactivar' : 'Activar' }}
                                             </button>
                                         </form>
                                     @endif

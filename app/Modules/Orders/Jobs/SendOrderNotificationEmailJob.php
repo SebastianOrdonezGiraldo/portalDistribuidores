@@ -37,12 +37,13 @@ class SendOrderNotificationEmailJob implements ShouldQueue
     public function handle(OrderPdfGenerator $pdfGenerator): void
     {
         $order = Order::query()->with(['items', 'distributor', 'user'])->find($this->orderId);
+        $disk = Storage::disk(OrderPdfGenerator::diskName());
 
         if (! $order) {
             return;
         }
 
-        if (! $order->pdf_path || ! Storage::disk('public')->exists($order->pdf_path)) {
+        if (! $order->pdf_path || ! $disk->exists($order->pdf_path)) {
             $path = $pdfGenerator->generate($order);
 
             if ($order->pdf_path !== $path) {
@@ -51,7 +52,7 @@ class SendOrderNotificationEmailJob implements ShouldQueue
             }
         }
 
-        if (! $order->pdf_path || ! Storage::disk('public')->exists($order->pdf_path)) {
+        if (! $order->pdf_path || ! $disk->exists($order->pdf_path)) {
             Log::error('order.email.skipped.pdf_missing', [
                 'order_id' => $order->id,
                 'oc_number' => $order->oc_number,
@@ -61,7 +62,7 @@ class SendOrderNotificationEmailJob implements ShouldQueue
             return;
         }
 
-        $pdfContents = (string) Storage::disk('public')->get($order->pdf_path);
+        $pdfContents = (string) $disk->get($order->pdf_path);
 
         // Send both emails independently so that a failure in one does not prevent the other.
         $internalFailed = null;
@@ -72,7 +73,7 @@ class SendOrderNotificationEmailJob implements ShouldQueue
             Log::error('order.email.internal.failed', [
                 'order_id' => $order->id,
                 'oc_number' => $order->oc_number,
-                'error'     => $exception->getMessage(),
+                'error' => $exception->getMessage(),
             ]);
         }
 
@@ -82,7 +83,7 @@ class SendOrderNotificationEmailJob implements ShouldQueue
             Log::error('order.email.customer.failed', [
                 'order_id' => $order->id,
                 'oc_number' => $order->oc_number,
-                'error'     => $exception->getMessage(),
+                'error' => $exception->getMessage(),
             ]);
 
             throw $exception;
@@ -132,13 +133,13 @@ class SendOrderNotificationEmailJob implements ShouldQueue
 
         [$local, $domain] = explode('@', $email, 2);
 
-        $maskedLocal  = substr($local, 0, min(2, strlen($local))) . '***';
+        $maskedLocal = substr($local, 0, min(2, strlen($local))).'***';
 
-        $domainParts  = explode('.', $domain, 2);
-        $maskedDomain = substr($domainParts[0], 0, min(3, strlen($domainParts[0]))) . '***'
-            . (isset($domainParts[1]) ? '.' . $domainParts[1] : '');
+        $domainParts = explode('.', $domain, 2);
+        $maskedDomain = substr($domainParts[0], 0, min(3, strlen($domainParts[0]))).'***'
+            .(isset($domainParts[1]) ? '.'.$domainParts[1] : '');
 
-        return $maskedLocal . '@' . $maskedDomain;
+        return $maskedLocal.'@'.$maskedDomain;
     }
 
     private function sendCustomerQuotation(Order $order, string $pdfContents): void

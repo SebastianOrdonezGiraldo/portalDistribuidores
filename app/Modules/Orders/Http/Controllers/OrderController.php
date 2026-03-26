@@ -3,6 +3,7 @@
 namespace App\Modules\Orders\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Modules\Orders\Actions\CreateOrderAction;
 use App\Modules\Orders\DTOs\CreateOrderData;
 use App\Modules\Orders\Http\Requests\StoreOrderRequest;
@@ -25,7 +26,7 @@ class OrderController extends Controller
         CartService $cartService,
         CreateOrderAction $createOrderAction,
     ): RedirectResponse {
-        /** @var \App\Models\User|null $user */
+        /** @var User|null $user */
         $user = $request->user();
 
         if ($user && ! $user->canCreateOrders()) {
@@ -47,7 +48,7 @@ class OrderController extends Controller
         }
 
         $data = CreateOrderData::fromArray(array_merge($request->validated(), [
-            'items'             => $items,
+            'items' => $items,
             'requires_approval' => $requiresApproval,
         ]));
 
@@ -100,11 +101,13 @@ class OrderController extends Controller
             $order->update(['pdf_path' => $path]);
         }
 
-        if (! Storage::disk('public')->exists($path)) {
+        $disk = Storage::disk(OrderPdfGenerator::diskName());
+
+        if (! $disk->exists($path)) {
             return back()->withErrors('No fue posible generar el PDF de la cotización.');
         }
 
-        return Storage::disk('public')->download($path, $order->oc_number.'.pdf');
+        return $disk->download($path, $order->oc_number.'.pdf');
     }
 
     private function canAccessOrder(Order $order): bool

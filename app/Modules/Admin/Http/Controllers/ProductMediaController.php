@@ -9,6 +9,7 @@ use App\Modules\Catalog\Models\ProductPhoto;
 use App\Modules\Catalog\Models\ProductVideo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProductMediaController extends Controller
 {
@@ -49,11 +50,43 @@ class ProductMediaController extends Controller
         $path = $document->path;
         $document->delete();
 
-        if ($path && Storage::disk('public')->exists($path)) {
-            Storage::disk('public')->delete($path);
+        foreach (collect([$document->storageDisk(), 'public'])->unique() as $diskName) {
+            if ($path && Storage::disk($diskName)->exists($path)) {
+                Storage::disk($diskName)->delete($path);
+            }
         }
 
         return back()->with('status', 'Documento eliminado.');
+    }
+
+    public function downloadDocument(Product $product, ProductDocument $document): StreamedResponse|RedirectResponse
+    {
+        $this->authorize('update', $product);
+
+        if ($document->product_id !== $product->id) {
+            abort(404);
+        }
+
+        $diskName = $document->storageDisk();
+        $disk = Storage::disk($diskName);
+
+        if (! $disk->exists($document->path) && $diskName !== 'public' && Storage::disk('public')->exists($document->path)) {
+            $written = $disk->put($document->path, (string) Storage::disk('public')->get($document->path));
+
+            if ($written !== false) {
+                Storage::disk('public')->delete($document->path);
+            }
+        }
+
+        if (! $disk->exists($document->path)) {
+            if (Storage::disk('public')->exists($document->path)) {
+                return Storage::disk('public')->download($document->path, $document->filename);
+            }
+
+            return back()->with('error', 'No fue posible recuperar el documento solicitado.');
+        }
+
+        return $disk->download($document->path, $document->filename);
     }
 
     public function destroyVideo(Product $product, ProductVideo $video): RedirectResponse

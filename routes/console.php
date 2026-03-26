@@ -9,6 +9,12 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Artisan::command('mail:diagnose {--to=}', function () {
+    if (! app()->environment(['local', 'staging'])) {
+        $this->error('mail:diagnose solo esta disponible en local o staging.');
+
+        return 1;
+    }
+
     $target = trim((string) ($this->option('to') ?: config('mail.order_notification_to')));
 
     $this->line('Mail config:');
@@ -33,10 +39,13 @@ Artisan::command('mail:diagnose {--to=}', function () {
         Mail::raw('Diagnóstico SMTP desde Railway', function ($message) use ($target): void {
             $message->to($target)->subject('Diagnóstico SMTP');
         });
-    } catch (\Throwable $exception) {
+    } catch (Throwable $exception) {
         $this->error('SMTP ERROR: '.get_class($exception).' :: '.$exception->getMessage());
-        $this->line('Stack:');
-        $this->line($exception->getTraceAsString());
+
+        if ((bool) config('app.debug')) {
+            $this->line('Stack:');
+            $this->line($exception->getTraceAsString());
+        }
 
         return 1;
     }
