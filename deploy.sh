@@ -213,7 +213,7 @@ load_deploy_config() {
     esac
 
     [[ "${APP_DEBUG_VALUE,,}" != "true" ]] || fail "APP_DEBUG no puede estar habilitado en ${DEPLOY_ENV_NAME}."
-    bool_true "${SESSION_SECURE_COOKIE_VALUE:-false}" || fail "SESSION_SECURE_COOKIE debe ser true en ${DEPLOY_ENV_NAME}."
+    bool_true "${SESSION_SECURE_COOKIE_VALUE:-false}" || fail "SESSION_SECURE_COOKIE debe ser true en ${DEPLOY_ENV_NAME}. Corrige el .env del servidor antes de desplegar."
 
     local app_url_host
     app_url_host="$(extract_url_host "$APP_URL_VALUE")"

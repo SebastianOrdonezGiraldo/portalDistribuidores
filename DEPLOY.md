@@ -465,6 +465,40 @@ sudo bash deploy.sh
 El script hace automáticamente: `git pull` → `composer install` → `migrate` →  
 `config/route/view:cache` → `npm ci` → `npm run build` → reinicio del worker.
 
+### Smoke check después del deploy
+
+Los workflows de GitHub Actions para `staging` y `production` hacen un smoke check HTTP
+al terminar el SSH deploy. La validación consulta la URL canónica del entorno y acepta
+`200`, `301` o `302`.
+
+Si el smoke check falla:
+
+1. Revisar el log del job de deploy en GitHub Actions
+2. Revisar logs del VPS:
+   - `tail -f storage/logs/laravel.log`
+   - `systemctl status laravel-queue-staging` o `systemctl status laravel-queue-prod`
+   - `systemctl status php8.3-fpm`
+3. Confirmar respuesta manual:
+   - `curl -I https://staging-pedidos.importcorporalmedical.com`
+   - `curl -I https://pedidos.importcorporalmedical.com`
+
+### Rollback operativo recomendado
+
+Rollback normal de aplicación:
+
+1. Identificar el commit o merge problemático en GitHub
+2. Hacer `git revert` del cambio en la rama objetivo
+3. Hacer merge del revert
+4. Dejar que el mismo pipeline vuelva a desplegar
+
+Limitación importante:
+
+- El `deploy.sh` siempre sincroniza contra `origin/<branch>`, así que hoy no existe un rollback seguro de "un clic" a un commit viejo directamente desde el VPS.
+- Si una migración en producción deja el sistema inconsistente, la ruta segura es:
+  - revertir el código en GitHub,
+  - desplegar el revert,
+  - y evaluar restaurar el backup de PostgreSQL creado por `deploy.sh` en `/var/backups/portal-distribuidores/production` solo como operación manual de incidente.
+
 ---
 
 ## 13. Cloudflare R2 — discos público y privado

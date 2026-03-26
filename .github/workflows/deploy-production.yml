@@ -24,27 +24,51 @@ jobs:
         github.event.workflow_run.head_branch == 'master'
       }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
+    env:
+      DEPLOY_URL: https://pedidos.importcorporalmedical.com
+      SSH_HOST: ${{ secrets.VPS_HOST_PRODUCTION || secrets.VPS_HOST }}
+      SSH_PORT: ${{ secrets.VPS_SSH_PORT_PRODUCTION || secrets.VPS_SSH_PORT || '22' }}
+      SSH_USER: ${{ secrets.VPS_USER_PRODUCTION || secrets.VPS_USER }}
+      SSH_KEY: ${{ secrets.VPS_SSH_KEY_PRODUCTION || secrets.VPS_SSH_KEY }}
+      SSH_PASSPHRASE: ${{ secrets.VPS_SSH_PASSPHRASE_PRODUCTION || secrets.VPS_SSH_PASSPHRASE }}
+      SSH_FINGERPRINT: SHA256:Nn8HNB6eIEZqkk2+eYcbJ3vmnIdeWS+3+87t/EI0rUo
 
     steps:
       - name: Check SSH port reachability
-        env:
-          HOST: ${{ secrets.VPS_HOST }}
-          PORT: ${{ secrets.VPS_SSH_PORT }}
         run: |
-          PORT="${PORT:-22}"
-          echo "Probando conectividad TCP a ${HOST}:${PORT}..."
-          nc -vz -w 10 "$HOST" "$PORT"
+          echo "Probando conectividad TCP a ${SSH_HOST}:${SSH_PORT}..."
+          nc -vz -w 10 "$SSH_HOST" "$SSH_PORT"
 
       - name: Deploy production on VPS
         uses: appleboy/ssh-action@v1.2.1
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
-          port: ${{ secrets.VPS_SSH_PORT != '' && secrets.VPS_SSH_PORT || '22' }}
-          script_stop: true
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ env.SSH_KEY }}
+          passphrase: ${{ env.SSH_PASSPHRASE }}
+          port: ${{ env.SSH_PORT }}
+          fingerprint: ${{ env.SSH_FINGERPRINT }}
+          command_timeout: 25m
           script: |
+            set -e
             cd /var/www/portalDistribuidores
             sudo bash deploy.sh
+
+      - name: Smoke check production
+        run: |
+          for attempt in 1 2 3 4 5; do
+            status_code="$(curl --silent --show-error --output /dev/null --write-out "%{http_code}" --max-time 20 "$DEPLOY_URL" || true)"
+            echo "Intento ${attempt}: HTTP ${status_code}"
+
+            case "$status_code" in
+              200|301|302)
+                exit 0
+                ;;
+            esac
+
+            sleep 5
+          done
+
+          echo "Smoke check fallido para ${DEPLOY_URL}"
+          exit 1

@@ -55,6 +55,38 @@ Flujo esperado:
 7. CI valida otra vez
 8. Merge a `master` despliega produccion
 
+Notas operativas:
+
+- `CI` reutiliza cache de Composer y cache de npm para reducir tiempo y dependencia de red.
+- Los deploys por SSH usan `command_timeout` explicito y `set -e` en el shell remoto para cortar antes ante fallos parciales fuera de `deploy.sh`.
+- Cada deploy termina con un smoke check HTTP con reintentos contra la URL canonica del entorno; si la app no responde con `200`, `301` o `302`, el workflow falla.
+- Los workflows aceptan secretos dedicados por entorno con fallback a los secretos legacy `VPS_*`, para no romper el flujo actual mientras separas accesos.
+- Los deploys por SSH validan el fingerprint del host del VPS. Si regeneras las host keys del servidor, debes actualizar el fingerprint en los workflows antes del siguiente deploy.
+
+## Secretos por entorno en GitHub
+
+Secretos opcionales para staging:
+
+- `VPS_HOST_STAGING`
+- `VPS_SSH_PORT_STAGING`
+- `VPS_USER_STAGING`
+- `VPS_SSH_KEY_STAGING`
+- `VPS_SSH_PASSPHRASE_STAGING`
+
+Secretos opcionales para produccion:
+
+- `VPS_HOST_PRODUCTION`
+- `VPS_SSH_PORT_PRODUCTION`
+- `VPS_USER_PRODUCTION`
+- `VPS_SSH_KEY_PRODUCTION`
+- `VPS_SSH_PASSPHRASE_PRODUCTION`
+
+Comportamiento actual:
+
+- Si defines los secretos dedicados por entorno, cada workflow usa esos valores.
+- Si no existen, staging y produccion siguen usando los secretos legacy `VPS_HOST`, `VPS_SSH_PORT`, `VPS_USER`, `VPS_SSH_KEY` y `VPS_SSH_PASSPHRASE`.
+- Cuando quieras endurecer mas el control, puedes mover esta misma separacion a GitHub Environments `staging` y `production` sin cambiar el flujo de ramas.
+
 ## Branch protection
 
 Esto no se puede forzar solo con archivos del repo. Configuralo manualmente en GitHub:
@@ -80,14 +112,17 @@ Para staging:
 APP_ENV=staging
 APP_URL=https://staging-pedidos.importcorporalmedical.com
 SESSION_DOMAIN=staging-pedidos.importcorporalmedical.com
+SESSION_SECURE_COOKIE=true
 
 DB_DATABASE=portal_distribuidores_staging
+DB_SSLMODE=require
 
 PUBLIC_DISK_DRIVER=s3
 AWS_BUCKET=portal-distribuidores-staging
 
 MAIL_MAILER=log
 ORDER_NOTIFICATION_EMAIL_DISPATCH=queue
+AUTH_ALLOW_PUBLIC_REGISTRATION=false
 
 DEPLOY_ENV_NAME=staging
 DEPLOY_QUEUE_SERVICE=laravel-queue-staging
