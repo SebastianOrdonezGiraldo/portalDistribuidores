@@ -58,6 +58,7 @@ class CreateOrderAction
                 'oc_number'       => Order::OC_PREFIX.'TMP-'.Str::upper(Str::random(8)),
                 'contact_name'    => $data->contactName,
                 'contact_email'   => $data->contactEmail,
+                'phone'           => $data->phone,
                 'company_name'    => $data->companyName,
                 'company_nit'     => $data->companyNit,
                 'company_address' => $data->companyAddress,

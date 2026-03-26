@@ -25,6 +25,7 @@ class OrderControllerTest extends TestCase
     private array $validPayload = [
         'contact_name' => 'Juan Comprador',
         'contact_email' => 'juan@empresa.com',
+        'phone' => '3001234567',
         'company_name' => 'Empresa Demo',
         'company_nit' => '900000001-1',
         'company_address' => 'Cra 10 #20-30',
@@ -103,6 +104,10 @@ class OrderControllerTest extends TestCase
 
         $this->assertDatabaseCount('orders', 1);
         $this->assertDatabaseCount('order_items', 1);
+        $this->assertDatabaseHas('orders', [
+            'contact_email' => 'juan@empresa.com',
+            'phone' => '3001234567',
+        ]);
 
         // El carrito debe estar vacío tras crear la orden
         $cartItems = $this->actingAs($user)
@@ -193,6 +198,7 @@ class OrderControllerTest extends TestCase
             ->assertSessionHasErrors([
                 'contact_name',
                 'contact_email',
+                'phone',
                 'company_name',
                 'company_nit',
                 'company_address',

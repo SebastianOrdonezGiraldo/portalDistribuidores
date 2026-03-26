@@ -126,6 +126,7 @@ class ProductVariantsFlowTest extends TestCase
         $response = $this->post(route('orders.store'), [
             'contact_name' => 'Cliente Test',
             'contact_email' => 'cliente@test.com',
+            'phone' => '3008889999',
             'company_name' => 'Empresa Variant',
             'company_nit' => '900999111',
             'company_address' => 'Calle 10 #20-30',
