@@ -72,6 +72,7 @@ Secretos opcionales para staging:
 - `VPS_USER_STAGING`
 - `VPS_SSH_KEY_STAGING`
 - `VPS_SSH_PASSPHRASE_STAGING`
+- `VPS_SSH_FINGERPRINT_STAGING`
 
 Secretos opcionales para produccion:
 
@@ -80,12 +81,26 @@ Secretos opcionales para produccion:
 - `VPS_USER_PRODUCTION`
 - `VPS_SSH_KEY_PRODUCTION`
 - `VPS_SSH_PASSPHRASE_PRODUCTION`
+- `VPS_SSH_FINGERPRINT_PRODUCTION`
+
+Secreto legacy opcional compartido:
+
+- `VPS_SSH_FINGERPRINT`
 
 Comportamiento actual:
 
 - Si defines los secretos dedicados por entorno, cada workflow usa esos valores.
-- Si no existen, staging y produccion siguen usando los secretos legacy `VPS_HOST`, `VPS_SSH_PORT`, `VPS_USER`, `VPS_SSH_KEY` y `VPS_SSH_PASSPHRASE`.
+- Si no existen, staging y produccion siguen usando los secretos legacy `VPS_HOST`, `VPS_SSH_PORT`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_SSH_PASSPHRASE` y `VPS_SSH_FINGERPRINT`.
 - Cuando quieras endurecer mas el control, puedes mover esta misma separacion a GitHub Environments `staging` y `production` sin cambiar el flujo de ramas.
+
+Si cambia la host key del VPS, recalcula el fingerprint antes del siguiente deploy y actualiza el secret correspondiente en GitHub:
+
+```bash
+ssh-keyscan -p 22 pedidos.importcorporalmedical.com | ssh-keygen -l -E sha256 -f -
+ssh-keyscan -p 22 staging-pedidos.importcorporalmedical.com | ssh-keygen -l -E sha256 -f -
+```
+
+Del resultado guarda solo el valor `SHA256:...` en el secret.
 
 ## Branch protection
 
