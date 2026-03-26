@@ -31,13 +31,7 @@ class RegistrationTest extends TestCase
 
     public function test_registration_can_be_disabled_by_configuration(): void
     {
-        $previous = getenv('AUTH_ALLOW_PUBLIC_REGISTRATION');
-
-        putenv('AUTH_ALLOW_PUBLIC_REGISTRATION=false');
-        $_ENV['AUTH_ALLOW_PUBLIC_REGISTRATION'] = 'false';
-        $_SERVER['AUTH_ALLOW_PUBLIC_REGISTRATION'] = 'false';
-
-        $this->refreshApplication();
+        config()->set('auth.allow_public_registration', false);
 
         $this->get('/register')->assertNotFound();
         $this->post('/register', [
@@ -46,16 +40,5 @@ class RegistrationTest extends TestCase
             'password' => 'password',
             'password_confirmation' => 'password',
         ])->assertNotFound();
-
-        if ($previous === false) {
-            putenv('AUTH_ALLOW_PUBLIC_REGISTRATION');
-            unset($_ENV['AUTH_ALLOW_PUBLIC_REGISTRATION'], $_SERVER['AUTH_ALLOW_PUBLIC_REGISTRATION']);
-        } else {
-            putenv("AUTH_ALLOW_PUBLIC_REGISTRATION={$previous}");
-            $_ENV['AUTH_ALLOW_PUBLIC_REGISTRATION'] = $previous;
-            $_SERVER['AUTH_ALLOW_PUBLIC_REGISTRATION'] = $previous;
-        }
-
-        $this->refreshApplication();
     }
 }
