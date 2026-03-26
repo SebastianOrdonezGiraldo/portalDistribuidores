@@ -32,7 +32,7 @@ jobs:
       SSH_USER: ${{ secrets.VPS_USER_STAGING || secrets.VPS_USER }}
       SSH_KEY: ${{ secrets.VPS_SSH_KEY_STAGING || secrets.VPS_SSH_KEY }}
       SSH_PASSPHRASE: ${{ secrets.VPS_SSH_PASSPHRASE_STAGING || secrets.VPS_SSH_PASSPHRASE }}
-      SSH_FINGERPRINT: SHA256:Nn8HNB6eIEZqkk2+eYcbJ3vmnIdeWS+3+87t/EI0rUo
+      SSH_FINGERPRINT: ${{ secrets.VPS_SSH_FINGERPRINT_STAGING || secrets.VPS_SSH_FINGERPRINT || 'SHA256:Nn8HNB6eIEZqkk2+eYcbJ3vmnIdeWS+3+87t/EI0rUo' }}
 
     steps:
       - name: Check SSH port reachability
