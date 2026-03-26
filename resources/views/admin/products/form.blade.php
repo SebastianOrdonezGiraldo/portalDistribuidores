@@ -361,7 +361,7 @@
                         <div class="mt-3 space-y-2">
                             @foreach($product->documents as $document)
                                 <div class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                                    <a href="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($document->path) }}" target="_blank" rel="noopener" class="font-medium text-slate-900 hover:underline">{{ $document->filename }}</a>
+                                    <a href="{{ $document->isTechSheet() ? route('admin.products.documents.download', [$product, $document]) : \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($document->path) }}" target="_blank" rel="noopener" class="font-medium text-slate-900 hover:underline">{{ $document->filename }}</a>
                                     <x-ui.delete-media-button
                                         :action="route('admin.products.documents.destroy', [$product, $document])"
                                         confirm="¿Eliminar este documento del producto?"

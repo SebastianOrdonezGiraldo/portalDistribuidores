@@ -2,12 +2,13 @@
 
 namespace Database\Factories;
 
+use App\Models\User;
 use App\Modules\Shared\Enums\UserRole;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
+ * @extends Factory<User>
  */
 class UserFactory extends Factory
 {
@@ -23,6 +24,7 @@ class UserFactory extends Factory
             'email' => fake()->unique()->safeEmail(),
             'role' => UserRole::Distributor,
             'distributor_id' => null,
+            'is_active' => true,
             'email_verified_at' => now(),
             // Let the model cast hash this plain password consistently.
             'password' => 'password',
@@ -45,6 +47,13 @@ class UserFactory extends Factory
         return $this->state(fn () => [
             'role' => UserRole::Admin,
             'distributor_id' => null,
+        ]);
+    }
+
+    public function inactive(): static
+    {
+        return $this->state(fn () => [
+            'is_active' => false,
         ]);
     }
 }

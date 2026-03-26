@@ -54,7 +54,7 @@ class PortalSeeder extends Seeder
     }
 
     /**
-     * @param array<string, Category> $categories
+     * @param  array<string, Category>  $categories
      */
     private function seedProducts(array $categories): void
     {
@@ -72,7 +72,7 @@ class PortalSeeder extends Seeder
         ];
 
         Storage::disk('public')->makeDirectory('products/photos');
-        Storage::disk('public')->makeDirectory('products/documents');
+        Storage::disk('private')->makeDirectory('products/documents');
 
         $pdfSeeded = 0;
 
@@ -104,7 +104,7 @@ class PortalSeeder extends Seeder
 
             if ($pdfSeeded < 5) {
                 $documentPath = "products/documents/techsheet-{$sku}.pdf";
-                Storage::disk('public')->put($documentPath, $this->dummyPdf($name));
+                Storage::disk('private')->put($documentPath, $this->dummyPdf($name));
                 $product->documents()->updateOrCreate(
                     ['type' => 'tech_sheet', 'path' => $documentPath],
                     ['filename' => "Ficha-{$sku}.pdf"],

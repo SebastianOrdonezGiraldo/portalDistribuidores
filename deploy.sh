@@ -32,6 +32,13 @@ DB_PORT_VALUE=""
 DB_DATABASE_VALUE=""
 DB_USERNAME_VALUE=""
 DB_PASSWORD_VALUE=""
+APP_URL_VALUE=""
+SESSION_SECURE_COOKIE_VALUE=""
+DB_SSLMODE_VALUE=""
+PRIVATE_DISK_DRIVER_VALUE=""
+PRIVATE_BUCKET_VALUE=""
+ORDER_PDFS_DISK_VALUE=""
+TECH_SHEETS_DISK_VALUE=""
 
 APP_HOME=""
 PHP_BIN=""
@@ -64,6 +71,28 @@ bool_true() {
     case "${1,,}" in
         1|true|yes|on) return 0 ;;
         *) return 1 ;;
+    esac
+}
+
+extract_url_host() {
+    local url="$1"
+    local host="${url#http://}"
+    host="${host#https://}"
+    host="${host%%/*}"
+    host="${host%%:*}"
+    printf '%s' "$host"
+}
+
+is_non_canonical_host() {
+    local host="${1,,}"
+
+    case "$host" in
+        ""|localhost|127.0.0.1|::1|*.test|*.localhost|*.invalid|*.example|*.ngrok.io|*.ngrok-free.dev)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
     esac
 }
 
@@ -141,6 +170,13 @@ load_deploy_config() {
     DB_DATABASE_VALUE="$(read_env_value DB_DATABASE)"
     DB_USERNAME_VALUE="$(read_env_value DB_USERNAME)"
     DB_PASSWORD_VALUE="$(read_env_value DB_PASSWORD)"
+    APP_URL_VALUE="$(read_env_value APP_URL)"
+    SESSION_SECURE_COOKIE_VALUE="$(read_env_value SESSION_SECURE_COOKIE)"
+    DB_SSLMODE_VALUE="$(read_env_value DB_SSLMODE)"
+    PRIVATE_DISK_DRIVER_VALUE="$(read_env_value PRIVATE_DISK_DRIVER)"
+    PRIVATE_BUCKET_VALUE="$(read_env_value PRIVATE_BUCKET)"
+    ORDER_PDFS_DISK_VALUE="$(read_env_value ORDER_PDFS_DISK)"
+    TECH_SHEETS_DISK_VALUE="$(read_env_value TECH_SHEETS_DISK)"
 
     DEPLOY_ENV_NAME="$(read_env_value DEPLOY_ENV_NAME)"
     QUEUE_SERVICE="$(read_env_value DEPLOY_QUEUE_SERVICE)"
@@ -149,6 +185,7 @@ load_deploy_config() {
     DEPLOY_DB_BACKUP_DIR="$(read_env_value DEPLOY_DB_BACKUP_DIR)"
 
     [[ -n "$APP_ENV_VALUE" ]] || fail "APP_ENV no esta definido en .env"
+    [[ -n "$APP_URL_VALUE" ]] || fail "APP_URL no esta definido en .env"
     [[ -n "$DB_DATABASE_VALUE" ]] || fail "DB_DATABASE no esta definido en .env"
     [[ -n "$DB_USERNAME_VALUE" ]] || fail "DB_USERNAME no esta definido en .env"
 
@@ -175,8 +212,27 @@ load_deploy_config() {
             ;;
     esac
 
-    if [[ "$DEPLOY_ENV_NAME" == "production" && "$APP_DEBUG_VALUE" == "true" ]]; then
-        log_warn "APP_DEBUG=true en produccion. Corrigelo en .env."
+    [[ "${APP_DEBUG_VALUE,,}" != "true" ]] || fail "APP_DEBUG no puede estar habilitado en ${DEPLOY_ENV_NAME}."
+    bool_true "${SESSION_SECURE_COOKIE_VALUE:-false}" || fail "SESSION_SECURE_COOKIE debe ser true en ${DEPLOY_ENV_NAME}."
+
+    local app_url_host
+    app_url_host="$(extract_url_host "$APP_URL_VALUE")"
+    if is_non_canonical_host "$app_url_host"; then
+        fail "APP_URL debe usar un host canonico en ${DEPLOY_ENV_NAME}. Valor actual: $APP_URL_VALUE"
+    fi
+
+    case "${DB_SSLMODE_VALUE,,}" in
+        require|verify-ca|verify-full) ;;
+        *)
+            fail "DB_SSLMODE debe ser require, verify-ca o verify-full en ${DEPLOY_ENV_NAME}. Valor actual: ${DB_SSLMODE_VALUE:-vacio}"
+            ;;
+    esac
+
+    [[ "${ORDER_PDFS_DISK_VALUE:-private}" != "public" ]] || fail "ORDER_PDFS_DISK no puede apuntar a public."
+    [[ "${TECH_SHEETS_DISK_VALUE:-private}" != "public" ]] || fail "TECH_SHEETS_DISK no puede apuntar a public."
+
+    if [[ "${PRIVATE_DISK_DRIVER_VALUE,,}" == "s3" && -z "$PRIVATE_BUCKET_VALUE" ]]; then
+        fail "PRIVATE_DISK_DRIVER=s3 exige PRIVATE_BUCKET en .env."
     fi
 
     if bool_true "$DEPLOY_CREATE_DB_BACKUP"; then
@@ -358,6 +414,10 @@ log_ok "Caches limpiados"
 log_step "Ejecutando migraciones no destructivas..."
 run_as_app "\"$PHP_BIN\" artisan migrate --force"
 log_ok "Migraciones completadas"
+
+log_step "Migrando media protegida fuera del disco public..."
+run_as_app "\"$PHP_BIN\" artisan protected-media:migrate --no-interaction"
+log_ok "Media protegida migrada"
 
 log_step "Regenerando caches de Laravel..."
 run_as_app "\"$PHP_BIN\" artisan config:cache"

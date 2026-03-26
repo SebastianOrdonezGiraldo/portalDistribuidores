@@ -144,13 +144,15 @@ class OrderAdminController extends Controller
             $order->update(['pdf_path' => $path]);
         }
 
-        if (! Storage::disk('public')->exists($path)) {
+        $disk = Storage::disk(OrderPdfGenerator::diskName());
+
+        if (! $disk->exists($path)) {
             GenerateOrderPdfJob::dispatch($order->id);
 
             return back()->withErrors('PDF en generación. Intenta nuevamente en unos segundos.');
         }
 
-        return Storage::disk('public')->download($path, $order->oc_number.'.pdf');
+        return $disk->download($path, $order->oc_number.'.pdf');
     }
 
     public function destroy(Order $order): RedirectResponse
@@ -177,8 +179,10 @@ class OrderAdminController extends Controller
         }
 
         foreach ($pathsToDelete as $path) {
-            if (Storage::disk('public')->exists($path)) {
-                Storage::disk('public')->delete($path);
+            foreach (collect([OrderPdfGenerator::diskName(), 'public'])->unique() as $diskName) {
+                if (Storage::disk($diskName)->exists($path)) {
+                    Storage::disk($diskName)->delete($path);
+                }
             }
         }
 

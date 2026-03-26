@@ -1,8 +1,8 @@
 <?php
 
-use App\Modules\Catalog\Support\ProductUploadLimits;
+use App\Http\Middleware\EnsureActiveUser;
 use App\Modules\AuthAccess\Middleware\RoleMiddleware;
-use App\Modules\AuthAccess\Middleware\UseRequestHostForUrls;
+use App\Modules\Catalog\Support\ProductUploadLimits;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -22,7 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->web(append: [
-            UseRequestHostForUrls::class,
+            EnsureActiveUser::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
