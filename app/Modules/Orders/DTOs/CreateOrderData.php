@@ -10,6 +10,7 @@ final readonly class CreateOrderData
     public function __construct(
         public string $contactName,
         public string $contactEmail,
+        public string $phone,
         public string $companyName,
         public string $companyNit,
         public string $companyAddress,
@@ -25,6 +26,7 @@ final readonly class CreateOrderData
         return new self(
             contactName:      $payload['contact_name'],
             contactEmail:     $payload['contact_email'],
+            phone:            $payload['phone'],
             companyName:      $payload['company_name'],
             companyNit:       $payload['company_nit'],
             companyAddress:   $payload['company_address'],

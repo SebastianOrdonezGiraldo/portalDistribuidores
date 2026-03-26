@@ -55,6 +55,7 @@ class CreateOrderFeatureTest extends TestCase
         $response = $this->actingAs($user)->post(route('orders.store'), [
             'contact_name' => 'Comprador Test',
             'contact_email' => 'comprador@test.com',
+            'phone' => '3005550000',
             'company_name' => 'Empresa Test',
             'company_nit' => '900123456-7',
             'company_address' => 'Calle 123 #45-67',
@@ -72,6 +73,7 @@ class CreateOrderFeatureTest extends TestCase
             'company_nit' => '900123456-7',
             'company_address' => 'Calle 123 #45-67',
             'contact_email' => 'comprador@test.com',
+            'phone' => '3005550000',
             'city' => 'Bogotá',
         ]);
         Mail::assertSent(OrderCreatedNotificationMail::class);
