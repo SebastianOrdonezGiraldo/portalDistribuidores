@@ -27,7 +27,7 @@ class OrderControllerTest extends TestCase
         'contact_email' => 'juan@empresa.com',
         'phone' => '3001234567',
         'company_name' => 'Empresa Demo',
-        'company_nit' => '900000001-1',
+        'company_nit' => '9000000011',
         'company_address' => 'Cra 10 #20-30',
         'city' => 'Medellín',
         'notes' => null,
