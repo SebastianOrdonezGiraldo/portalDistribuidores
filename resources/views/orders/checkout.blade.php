@@ -44,7 +44,16 @@
                 </div>
                 <div>
                     <label class="form-label" for="company_nit">NIT / Cédula *</label>
-                    <x-ui.input id="company_nit" name="company_nit" :value="old('company_nit', $distributor?->nit)" required />
+                    <x-ui.input
+                        id="company_nit"
+                        name="company_nit"
+                        :value="old('company_nit', $distributor?->nit)"
+                        inputmode="numeric"
+                        pattern="[0-9]+"
+                        placeholder="9001234567"
+                        required
+                    />
+                    <p class="form-help">Ingresa solo números, sin puntos, espacios ni guiones.</p>
                     <x-input-error :messages="$errors->get('company_nit')" />
                 </div>
                 <div>

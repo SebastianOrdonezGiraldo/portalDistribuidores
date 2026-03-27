@@ -190,7 +190,7 @@
               "urlencoded": [
                 { "key": "_token", "value": "{{csrf_token}}", "type": "text" },
                 { "key": "company_name", "value": "Distribuidor Demo SAS", "type": "text" },
-                { "key": "company_nit", "value": "900123456-7", "type": "text" },
+                { "key": "company_nit", "value": "9001234567", "type": "text" },
                 { "key": "contact_email", "value": "compras@distribuidor-demo.com", "type": "text" },
                 { "key": "contact_name", "value": "Maria Perez", "type": "text" },
                 { "key": "company_address", "value": "Calle 123 # 45-67", "type": "text" },

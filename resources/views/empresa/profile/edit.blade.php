@@ -31,7 +31,15 @@
                     </div>
                     <div>
                         <label class="form-label" for="company-nit">NIT / Identificación</label>
-                        <x-ui.input id="company-nit" name="nit" :value="old('nit', $distributor->nit)" placeholder="900.000.000-1" />
+                        <x-ui.input
+                            id="company-nit"
+                            name="nit"
+                            :value="old('nit', $distributor->nit)"
+                            inputmode="numeric"
+                            pattern="[0-9]*"
+                            placeholder="9001234567"
+                        />
+                        <p class="form-help">Ingresa solo números, sin puntos, espacios ni guiones.</p>
                         <x-input-error :messages="$errors->get('nit')" />
                     </div>
                     <div>
