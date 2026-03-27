@@ -222,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!container) {
             container = document.createElement('div');
             container.dataset.inlineToastStack = 'true';
-            container.className = 'pointer-events-none fixed inset-x-3 top-3 z-[85] space-y-2 sm:inset-x-auto sm:right-4 sm:top-4 sm:w-[22rem]';
+            container.className = 'pointer-events-none fixed inset-x-3 bottom-3 z-[100] space-y-2 sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-[22rem]';
             document.body.append(container);
         }
 
