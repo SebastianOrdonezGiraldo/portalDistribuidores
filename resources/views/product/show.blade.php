@@ -53,17 +53,15 @@
         {{-- ──────────────────────────────────────────────────────────────
              HERO: imagen (izquierda) + info + compra (derecha)
         ────────────────────────────────────────────────────────────────── --}}
-        <section class="relative overflow-hidden rounded-3xl border border-slate-200/90 bg-gradient-to-br from-white via-slate-50/70 to-sky-50/50 shadow-[0_20px_60px_rgba(15,23,42,0.12)] lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(21rem,25rem)] xl:grid-cols-[minmax(0,1.15fr)_minmax(23rem,27rem)]">
-            <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_15%,rgba(56,189,248,0.12),transparent_45%),radial-gradient(circle_at_88%_90%,rgba(15,23,42,0.06),transparent_40%)]"></div>
+        <section class="relative overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.12)] lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(21rem,25rem)] xl:grid-cols-[minmax(0,1.15fr)_minmax(23rem,27rem)]">
 
             {{-- Columna imagen --}}
-            <div class="relative flex flex-col border-b border-slate-200/90 bg-transparent lg:border-b-0 lg:border-r">
-                <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_24%_20%,rgba(54,177,187,0.13),transparent_46%),radial-gradient(circle_at_78%_88%,rgba(15,23,42,0.08),transparent_42%)]"></div>
+            <div class="relative flex flex-col border-b border-slate-200/90 bg-slate-50/60 lg:border-b-0 lg:border-r">
 
                 {{-- Imagen principal --}}
                 <div class="group/img relative flex min-h-[20rem] flex-1 items-center justify-center overflow-hidden px-5 py-6 sm:min-h-[27rem] sm:px-10 sm:py-10 lg:min-h-[34rem] lg:px-12 lg:py-12">
                     @if($mainPhoto)
-                        <div class="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-white/80 bg-white/80 px-4 py-5 shadow-[0_22px_40px_rgba(15,23,42,0.16)] backdrop-blur sm:px-7 sm:py-7">
+                        <div class="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-200 bg-white px-4 py-5 shadow-[0_20px_34px_rgba(15,23,42,0.14)] sm:px-7 sm:py-7">
                             <img
                                 data-product-main-image
                                 src="{{ $mainPhotoUrl }}"
@@ -96,7 +94,7 @@
 
                 {{-- Galería de miniaturas --}}
                 @if($galleryPhotos->count() > 1)
-                    <div class="relative border-t border-slate-200/90 bg-white/80 px-4 py-4 sm:px-6" data-product-gallery>
+                    <div class="relative border-t border-slate-200/90 bg-white px-4 py-4 sm:px-6" data-product-gallery>
                         <div class="flex gap-2.5 overflow-x-auto pb-0.5" style="scrollbar-width: thin;">
                             @foreach($galleryPhotos as $photo)
                                 @php
