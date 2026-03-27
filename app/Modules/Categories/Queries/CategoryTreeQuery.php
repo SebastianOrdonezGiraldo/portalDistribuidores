@@ -4,10 +4,48 @@ namespace App\Modules\Categories\Queries;
 
 use App\Modules\Categories\Models\Category;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 class CategoryTreeQuery
 {
+    private const CATALOG_TREE_CACHE_KEY = 'catalog_category_tree';
+    private const CATALOG_TREE_CACHE_TTL_SECONDS = 3600;
+
     public function execute(bool $activeOnly = true, array $filters = []): Collection
+    {
+        if ($this->canUseCatalogCache($activeOnly, $filters)) {
+            return Cache::remember(
+                self::CATALOG_TREE_CACHE_KEY,
+                self::CATALOG_TREE_CACHE_TTL_SECONDS,
+                fn () => $this->buildTree($activeOnly, $filters)
+            );
+        }
+
+        return $this->buildTree($activeOnly, $filters);
+    }
+
+    public static function forgetCatalogCache(): void
+    {
+        Cache::forget(self::CATALOG_TREE_CACHE_KEY);
+    }
+
+    private function canUseCatalogCache(bool $activeOnly, array $filters): bool
+    {
+        if (! $activeOnly) {
+            return false;
+        }
+
+        return $this->normalizeFilters($filters) === [];
+    }
+
+    private function normalizeFilters(array $filters): array
+    {
+        return collect($filters)
+            ->filter(static fn ($value) => ! is_null($value) && $value !== '')
+            ->all();
+    }
+
+    private function buildTree(bool $activeOnly, array $filters): Collection
     {
         $categories = Category::query()
             ->with('synonyms')

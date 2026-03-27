@@ -3,6 +3,7 @@
 namespace App\Modules\Categories\Actions;
 
 use App\Modules\Categories\Models\Category;
+use App\Modules\Categories\Queries\CategoryTreeQuery;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
@@ -15,8 +16,8 @@ class CreateCategoryAction
         $category = Category::create($payload);
 
         Cache::forget('footer_top_categories');
+        CategoryTreeQuery::forgetCatalogCache();
 
         return $category;
     }
 }
-

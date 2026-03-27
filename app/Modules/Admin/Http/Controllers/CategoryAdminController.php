@@ -158,6 +158,9 @@ class CategoryAdminController extends Controller
             throw $exception;
         }
 
+        \App\Modules\Categories\Queries\CategoryTreeQuery::forgetCatalogCache();
+        \Illuminate\Support\Facades\Cache::forget('footer_top_categories');
+
         return redirect()->route('admin.categories.index')->with('status', 'Categoría eliminada.');
     }
 
@@ -171,6 +174,8 @@ class CategoryAdminController extends Controller
 
         $isActive = (bool) $payload['is_active'];
         $category->update(['is_active' => $isActive]);
+        \App\Modules\Categories\Queries\CategoryTreeQuery::forgetCatalogCache();
+        \Illuminate\Support\Facades\Cache::forget('footer_top_categories');
 
         return back()->with('status', $isActive ? 'Categoría activada.' : 'Categoría desactivada.');
     }
@@ -188,6 +193,8 @@ class CategoryAdminController extends Controller
         foreach ($terms as $term) {
             $category->synonyms()->create(['term' => $term]);
         }
+
+        \App\Modules\Categories\Queries\CategoryTreeQuery::forgetCatalogCache();
     }
 
     private function isDescendantOf(int $categoryId, int $candidateParentId): bool
