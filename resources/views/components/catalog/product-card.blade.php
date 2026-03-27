@@ -25,6 +25,11 @@
     $coverPhotoSrcset = null;
     $coverPhotoSizes = '(min-width: 1280px) 25vw, (min-width: 640px) 50vw, 100vw';
     $isLcpImage = (bool) $isLcpCandidate;
+    $hasStock = is_numeric($product->stock ?? null) && (float) $product->stock > 0;
+    $stockLabel = $hasStock ? 'En stock' : 'Agotado';
+    $stockLabelClasses = $hasStock
+        ? 'text-emerald-700'
+        : 'text-red-700';
 @endphp
 
 <article class="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-panel">
@@ -91,6 +96,7 @@
 
         <div class="relative z-10 mt-2.5 flex items-end justify-between gap-2">
             <div>
+                <p class="text-sm font-semibold {{ $stockLabelClasses }}">{{ $stockLabel }}</p>
                 @if($isRangePrice)
                     <p class="text-lg font-semibold tabular-nums tracking-tight text-slate-950 sm:text-xl">
                         ${{ number_format($minPrice, 0, ',', '.') }} – ${{ number_format($maxPrice, 0, ',', '.') }}
@@ -108,6 +114,10 @@
                     <a href="{{ $detailUrl }}" class="relative z-10 inline-flex h-10 items-center justify-center rounded-lg border border-brand-primary bg-brand-primary px-3 text-xs font-semibold text-white transition hover:bg-brand-hover focus-ring">
                         Elegir
                     </a>
+                @elseif(! $hasStock)
+                    <span class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-3 text-xs font-semibold text-slate-500">
+                        No disponible
+                    </span>
                 @else
                     <form action="{{ route('cart.store') }}" method="POST" class="relative z-10">
                         @csrf

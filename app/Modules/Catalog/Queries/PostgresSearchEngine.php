@@ -41,6 +41,7 @@ class PostgresSearchEngine implements SearchEngineInterface
             $paginator = $this
                 ->baseQuery($query)
                 ->with(['category', 'primaryPhoto', 'photos', 'variantAttribute', 'variants.attributeValue'])
+                ->orderByRaw($this->inStockFirstOrderExpression())
                 ->orderBy('products.name')
                 ->orderBy('products.id')
                 ->paginate($query->perPage, ['products.*'], 'page', $query->page)
@@ -167,6 +168,7 @@ class PostgresSearchEngine implements SearchEngineInterface
             ->filter(fn (array $row) => $row['score'] > 0)
             ->sortBy([
                 ['score', 'desc'],
+                [fn (array $row) => $this->inStockSortValue($row['product']), 'asc'],
                 [fn (array $row) => $row['product']->name, 'asc'],
             ])
             ->values()
@@ -259,5 +261,15 @@ class PostgresSearchEngine implements SearchEngineInterface
         }
 
         AddServerTiming::addMetric($request, $name, $durationMs, $description);
+    }
+
+    private function inStockSortValue(Product $product): int
+    {
+        return is_numeric($product->stock) && (float) $product->stock > 0.0 ? 0 : 1;
+    }
+
+    private function inStockFirstOrderExpression(): string
+    {
+        return 'CASE WHEN products.stock > 0 THEN 0 ELSE 1 END';
     }
 }
