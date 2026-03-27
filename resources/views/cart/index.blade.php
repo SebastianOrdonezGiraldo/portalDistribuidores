@@ -54,6 +54,9 @@
 
                                     <div class="min-w-0">
                                         <p class="truncate text-sm font-semibold text-slate-900">{{ $product->name }}</p>
+                                        @if(isset($item['available_qty']) && $item['available_qty'] !== null)
+                                            <p class="text-xs text-slate-500">Stock disponible: {{ number_format((int) $item['available_qty']) }}</p>
+                                        @endif
                                         <p class="text-xs text-slate-500">SKU: {{ $product->sku }}</p>
                                         @if($item['variant_label'])
                                             <p class="text-xs text-slate-500">{{ $item['variant_label'] }}</p>
