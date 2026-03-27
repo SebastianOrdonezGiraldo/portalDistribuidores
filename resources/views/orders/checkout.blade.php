@@ -73,7 +73,7 @@
                 </div>
                 <div>
                     <label class="form-label" for="phone">Teléfono *</label>
-                    <x-ui.input id="phone" type="tel" name="phone" :value="old('phone', $distributor?->phone)" placeholder="+57 300 000 0000" required />
+                    <x-ui.input id="phone" type="tel" name="phone" :value="old('phone', $distributor?->phone)" placeholder="300 000 0000" required />
                     <x-input-error :messages="$errors->get('phone')" />
                 </div>
                 <div>
