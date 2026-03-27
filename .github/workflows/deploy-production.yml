@@ -24,7 +24,7 @@ jobs:
         github.event.workflow_run.head_branch == 'master'
       }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 25
     env:
       DEPLOY_URL: https://pedidos.importcorporalmedical.com
       SSH_HOST: ${{ secrets.VPS_HOST_PRODUCTION || secrets.VPS_HOST }}
