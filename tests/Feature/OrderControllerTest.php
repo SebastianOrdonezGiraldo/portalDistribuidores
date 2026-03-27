@@ -57,6 +57,13 @@ class OrderControllerTest extends TestCase
 
     private function addProductToCart(User $user, Product $product, int $qty = 1): void
     {
+        if ((int) $product->stock < $qty || ! (bool) $product->is_active) {
+            $product->forceFill([
+                'stock' => max($qty, 1),
+                'is_active' => true,
+            ])->save();
+        }
+
         $this->actingAs($user)->post(route('cart.store'), ['product_id' => $product->id, 'qty' => $qty]);
     }
 
