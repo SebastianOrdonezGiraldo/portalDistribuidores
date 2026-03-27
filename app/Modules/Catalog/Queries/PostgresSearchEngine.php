@@ -64,14 +64,18 @@ class PostgresSearchEngine implements SearchEngineInterface
             })
             ->select('products.*')
             ->distinct()
-            ->with(['category.synonyms', 'primaryPhoto', 'photos', 'variantAttribute', 'variants.attributeValue'])
+            // Para ranking solo se requiere categoria/sinonimos.
+            // Las relaciones pesadas (fotos/variantes) se cargan solo para la pagina actual.
+            ->with(['category.synonyms'])
             ->get();
 
         $ranked = $this->rank($candidates, $query);
 
         $total  = $ranked->count();
         $offset = ($query->page - 1) * $query->perPage;
-        $items  = $ranked->slice($offset, $query->perPage)->values();
+        $items  = $this->hydratePageItems(
+            $ranked->slice($offset, $query->perPage)->values()
+        );
 
         $paginationPath  = $query->paginationUrl  !== '' ? $query->paginationUrl  : request()->url();
         $paginationQuery = $query->paginationQuery !== '' ? $query->paginationQuery : request()->query();
@@ -83,6 +87,26 @@ class PostgresSearchEngine implements SearchEngineInterface
             $query->page,
             ['path' => $paginationPath, 'query' => $paginationQuery],
         );
+    }
+
+    private function hydratePageItems(Collection $items): Collection
+    {
+        if ($items->isEmpty()) {
+            return collect();
+        }
+
+        $ids = $items->pluck('id')->values();
+
+        $productsById = Product::query()
+            ->whereIn('id', $ids->all())
+            ->with(['category', 'primaryPhoto', 'photos', 'variantAttribute', 'variants.attributeValue'])
+            ->get()
+            ->keyBy('id');
+
+        return $ids
+            ->map(static fn ($id) => $productsById->get($id))
+            ->filter()
+            ->values();
     }
 
     private function baseQuery(ProductSearchQuery $query): Builder
