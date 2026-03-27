@@ -32,13 +32,22 @@ jobs:
       SSH_USER: ${{ secrets.VPS_USER_PRODUCTION || secrets.VPS_USER }}
       SSH_KEY: ${{ secrets.VPS_SSH_KEY_PRODUCTION || secrets.VPS_SSH_KEY }}
       SSH_PASSPHRASE: ${{ secrets.VPS_SSH_PASSPHRASE_PRODUCTION || secrets.VPS_SSH_PASSPHRASE }}
-      SSH_FINGERPRINT: SHA256:Nn8HNB6eIEZqkk2+eYcbJ3vmnIdeWS+3+87t/EI0rUo
+      SSH_FINGERPRINT: ${{ secrets.VPS_SSH_FINGERPRINT_PRODUCTION || secrets.VPS_SSH_FINGERPRINT || 'SHA256:Nn8HNB6eIEZqkk2+eYcbJ3vmnIdeWS+3+87t/EI0rUo' }}
 
     steps:
       - name: Check SSH port reachability
         run: |
+          set -euo pipefail
+          echo "Resolviendo ${SSH_HOST}..."
+          getent ahostsv4 "$SSH_HOST" || getent ahosts "$SSH_HOST" || true
+
           echo "Probando conectividad TCP a ${SSH_HOST}:${SSH_PORT}..."
-          nc -vz -w 10 "$SSH_HOST" "$SSH_PORT"
+          if nc -vz -w 10 "$SSH_HOST" "$SSH_PORT"; then
+            exit 0
+          fi
+
+          echo "::error title=SSH no accesible::No se pudo abrir TCP a ${SSH_HOST}:${SSH_PORT}. Verifica los secretos VPS_HOST_PRODUCTION/VPS_HOST y VPS_SSH_PORT_PRODUCTION/VPS_SSH_PORT, que sshd escuche en ese puerto y que el firewall o fail2ban permitan conexiones desde GitHub-hosted runners." >&2
+          exit 1
 
       - name: Deploy production on VPS
         uses: appleboy/ssh-action@v1.2.1

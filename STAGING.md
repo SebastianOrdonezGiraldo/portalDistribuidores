@@ -63,6 +63,13 @@ Notas operativas:
 - Los workflows aceptan secretos dedicados por entorno con fallback a los secretos legacy `VPS_*`, para no romper el flujo actual mientras separas accesos.
 - Los deploys por SSH validan el fingerprint del host del VPS. Si regeneras las host keys del servidor, debes actualizar el fingerprint en los workflows antes del siguiente deploy.
 
+Si el job falla en `Check SSH port reachability`:
+
+- la conexion TCP nunca llego a abrirse; todavia no es un problema de llave SSH ni de fingerprint
+- revisar `VPS_HOST_*` y `VPS_SSH_PORT_*` en GitHub Secrets
+- verificar en el VPS que `sshd` siga escuchando en ese puerto
+- verificar `ufw`, reglas del proveedor y `fail2ban`, porque GitHub-hosted runners pueden quedar bloqueados aunque el puerto funcione desde tu red local
+
 ## Secretos por entorno en GitHub
 
 Secretos opcionales para staging:
