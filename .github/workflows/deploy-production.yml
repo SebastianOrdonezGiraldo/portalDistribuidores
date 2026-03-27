@@ -28,7 +28,7 @@ jobs:
     env:
       DEPLOY_URL: https://pedidos.importcorporalmedical.com
       SSH_HOST: ${{ secrets.VPS_HOST_PRODUCTION || secrets.VPS_HOST }}
-      SSH_PORT: ${{ secrets.VPS_SSH_PORT_PRODUCTION || secrets.VPS_SSH_PORT || '22' }}
+      SSH_PORT: ${{ secrets.VPS_SSH_PORT_PRODUCTION != '' && secrets.VPS_SSH_PORT_PRODUCTION || secrets.VPS_SSH_PORT != '' && secrets.VPS_SSH_PORT || '22' }}
       SSH_USER: ${{ secrets.VPS_USER_PRODUCTION || secrets.VPS_USER }}
       SSH_KEY: ${{ secrets.VPS_SSH_KEY_PRODUCTION || secrets.VPS_SSH_KEY }}
       SSH_PASSPHRASE: ${{ secrets.VPS_SSH_PASSPHRASE_PRODUCTION || secrets.VPS_SSH_PASSPHRASE }}
