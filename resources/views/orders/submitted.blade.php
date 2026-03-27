@@ -41,7 +41,7 @@
 
                 <p class="text-xs text-slate-500">
                     Si la descarga del PDF no inicia automáticamente,
-                    <a href="{{ route('orders.pdf', $order) }}" class="font-semibold text-brand-dark hover:underline">descárgalo aquí</a>.
+                    <a href="{{ route('orders.pdf', $order) }}" class="font-semibold text-brand-primary hover:underline">descárgalo aquí</a>.
                 </p>
             </div>
         </x-ui.card>

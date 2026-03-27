@@ -1,8 +1,4 @@
-@props([
-    'product',
-    'imageLoading' => 'lazy',
-    'fetchpriority' => null,
-])
+@props(['product'])
 
 @php
     $activeVariants = $product->activeVariantsCollection();
@@ -13,11 +9,6 @@
     $detailUrl = route('products.show', $product);
     $coverPhoto = $product->primaryPhoto
         ?? ($product->relationLoaded('photos') ? $product->photos->first() : null);
-    $coverSrcSet = $coverPhoto?->webpSrcSet() ?? '';
-    $coverUrl = $coverPhoto?->publicUrl() ?? '';
-    $coverWidth = $coverPhoto?->intrinsicWidth(1080) ?? 1080;
-    $coverHeight = $coverPhoto?->intrinsicHeight(1080) ?? 1080;
-    $imageSizes = '(min-width: 1280px) 22vw, (min-width: 640px) 44vw, 92vw';
 @endphp
 
 <article class="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-panel">
@@ -29,21 +20,13 @@
         </div>
 
         @if($coverPhoto)
-            <picture class="flex h-full w-full items-center justify-center">
-                @if($coverSrcSet !== '')
-                    <source type="image/webp" srcset="{{ $coverSrcSet }}" sizes="{{ $imageSizes }}">
-                @endif
-                <img
-                    src="{{ $coverUrl }}"
-                    alt="{{ $product->name }}"
-                    loading="{{ $imageLoading }}"
-                    @if($fetchpriority) fetchpriority="{{ $fetchpriority }}" @endif
-                    decoding="async"
-                    width="{{ $coverWidth }}"
-                    height="{{ $coverHeight }}"
-                    class="h-full w-full object-contain object-center transition duration-300 group-hover:scale-[1.03]"
-                >
-            </picture>
+            <img
+                src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($coverPhoto->path) }}"
+                alt="{{ $product->name }}"
+                loading="lazy"
+                decoding="async"
+                class="h-full w-full object-contain object-center transition duration-300 group-hover:scale-[1.03]"
+            >
         @else
             <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-50 to-slate-200">
                 <div class="rounded-full border border-slate-300 bg-white p-4 shadow-soft">
@@ -97,7 +80,7 @@
 
             <div class="relative z-10 flex items-center gap-2">
                 @if($hasVariants)
-                    <a href="{{ $detailUrl }}" class="relative z-10 inline-flex h-10 items-center justify-center rounded-lg border border-brand-primary bg-brand-primary px-3 text-xs font-semibold text-slate-950 transition hover:bg-brand-hover focus-ring">
+                    <a href="{{ $detailUrl }}" class="relative z-10 inline-flex h-10 items-center justify-center rounded-lg border border-brand-primary bg-brand-primary px-3 text-xs font-semibold text-white transition hover:bg-brand-hover focus-ring">
                         Elegir
                     </a>
                 @else
@@ -108,7 +91,7 @@
                         <input type="hidden" name="qty" value="1">
                         <button
                             type="submit"
-                            class="inline-flex h-10 w-10 min-h-[2.5rem] min-w-[2.5rem] items-center justify-center rounded-lg border border-brand-primary bg-brand-primary text-slate-950 transition hover:bg-brand-hover focus-ring"
+                            class="inline-flex h-10 w-10 min-h-[2.5rem] min-w-[2.5rem] items-center justify-center rounded-lg border border-brand-primary bg-brand-primary text-white transition hover:bg-brand-hover focus-ring"
                             aria-label="Agregar {{ $product->name }} al carrito"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">

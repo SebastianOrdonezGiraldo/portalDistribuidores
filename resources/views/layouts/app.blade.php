@@ -8,15 +8,12 @@
     <title>{{ config('app.name', 'Portal de Distribuidores') }}</title>
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
+
     @stack('head')
-    @php
-        $isAuthenticatedForAssets = auth()->check();
-        $isCommerceRoute = request()->routeIs('catalog.*', 'products.show', 'cart.*', 'checkout.*', 'orders.*');
-        $viteEntries = $isAuthenticatedForAssets && ! $isCommerceRoute
-            ? ['resources/css/backoffice.css', 'resources/js/core-public.js', 'resources/js/backoffice.js']
-            : ['resources/css/public.css', 'resources/js/core-public.js', 'resources/js/catalog-product.js'];
-    @endphp
-    @vite($viteEntries)
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
 @php
@@ -35,7 +32,7 @@
         <aside id="app-sidebar" data-sidebar aria-hidden="true" class="fixed inset-y-0 left-0 z-50 flex w-60 max-w-[calc(100vw-2rem)] -translate-x-full flex-col border-r border-slate-200 bg-white shadow-panel transition-transform duration-200 ease-out lg:translate-x-0">
         <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
             <a href="{{ route('dashboard') }}" class="flex min-w-0 items-center gap-3 focus-ring rounded-lg">
-                <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" width="447" height="191" class="h-9 w-auto">
+                <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-9 w-auto">
                 <div class="min-w-0">
                     <p class="truncate text-sm font-semibold leading-tight text-slate-900">Portal Distribuidores</p>
                     <p class="truncate text-xs text-slate-500">Import Corporal Medical SAS</p>
@@ -202,12 +199,12 @@
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M3 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4A1 1 0 0 1 3 5Zm0 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm1 4a1 1 0 1 0 0 2h12a1 1 0 1 0 0-2H4Z" /></svg>
                         </button>
                         <a href="{{ route('dashboard') }}" class="hidden min-w-0 items-center gap-2 rounded-lg focus-ring lg:flex">
-                            <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" width="447" height="191" class="h-8 w-auto">
+                            <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-8 w-auto">
                             <span class="truncate text-sm font-semibold text-slate-900">Portal Distribuidores</span>
                         </a>
                     @else
                         <a href="{{ route('catalog.index') }}" class="flex min-w-0 items-center gap-2 rounded-lg focus-ring">
-                            <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" width="447" height="191" class="h-8 w-auto">
+                            <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-8 w-auto">
                             <span class="hidden text-sm font-semibold text-slate-900 sm:inline">Portal Distribuidores</span>
                         </a>
                     @endif
@@ -220,9 +217,8 @@
                                     class="btn btn-ghost !min-h-10 !px-2"
                                     @click="profileMenuOpen = !profileMenuOpen"
                                     x-bind:aria-expanded="profileMenuOpen"
-                                    aria-haspopup="true"
+                                    aria-haspopup="menu"
                                     aria-controls="profile-menu-panel"
-                                    aria-label="Abrir acciones de cuenta"
                                 >
                                     <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary/15 text-sm font-semibold text-brand-dark">
                                         {{ strtoupper(substr($user->name, 0, 1)) }}
@@ -239,13 +235,13 @@
                                     x-transition:leave-start="opacity-100 scale-100 translate-y-0"
                                     x-transition:leave-end="opacity-0 scale-95 translate-y-1"
                                     @click.outside="profileMenuOpen = false"
-                                    aria-label="Acciones de cuenta"
+                                    role="menu"
                                     class="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-panel"
                                 >
-                                    <a href="{{ route('profile.edit') }}" class="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-ring">Perfil</a>
+                                    <a href="{{ route('profile.edit') }}" role="menuitem" class="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-ring">Perfil</a>
                                     <form method="POST" action="{{ route('logout') }}" class="mt-1 border-t border-slate-100 pt-1">
                                         @csrf
-                                        <button type="submit" class="block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 focus-ring">Cerrar sesión</button>
+                                        <button type="submit" role="menuitem" class="block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 focus-ring">Cerrar sesión</button>
                                     </form>
                                 </div>
                             </div>
@@ -307,6 +303,5 @@
         <x-ui.button type="button" variant="danger" class="w-full justify-center sm:w-auto" data-confirm-approve>Confirmar</x-ui.button>
     </div>
 </x-ui.modal>
-@stack('scripts')
 </body>
 </html>

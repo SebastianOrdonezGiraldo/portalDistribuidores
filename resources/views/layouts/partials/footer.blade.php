@@ -8,7 +8,7 @@
             <section>
                 <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Import Corporal Medical SAS</p>
                 <div class="mt-3 flex items-start gap-3">
-                    <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" width="447" height="191" class="h-12 w-auto">
+                    <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-12 w-auto">
                     <p class="text-sm text-slate-600">Distribuidores mayoristas de productos de fisioterapia.</p>
                 </div>
             </section>
@@ -17,13 +17,13 @@
                 <h2 class="text-sm font-semibold text-slate-900">Accesos Directos</h2>
                 <ul class="mt-3 space-y-2">
                     <li>
-                        <a href="{{ route('catalog.index') }}" class="text-sm text-slate-600 transition hover:text-brand-dark">Catalogo</a>
+                        <a href="{{ route('catalog.index') }}" class="text-sm text-slate-600 transition hover:text-brand-primary">Catalogo</a>
                     </li>
                     <li>
-                        <a href="{{ route('cart.index') }}" class="text-sm text-slate-600 transition hover:text-brand-dark">Carrito</a>
+                        <a href="{{ route('cart.index') }}" class="text-sm text-slate-600 transition hover:text-brand-primary">Carrito</a>
                     </li>
                     <li>
-                        <a href="{{ route('login') }}" class="text-sm text-slate-600 transition hover:text-brand-dark">Iniciar sesion</a>
+                        <a href="{{ route('login') }}" class="text-sm text-slate-600 transition hover:text-brand-primary">Iniciar sesion</a>
                     </li>
                 </ul>
             </section>
@@ -33,7 +33,7 @@
                 <ul class="mt-3 space-y-2">
                     @forelse($footerCategories as $category)
                         <li>
-                            <a href="{{ route('catalog.index', ['category_id' => $category->id]) }}" class="text-sm text-slate-600 transition hover:text-brand-dark">{{ $category->name }}</a>
+                            <a href="{{ route('catalog.index', ['category_id' => $category->id]) }}" class="text-sm text-slate-600 transition hover:text-brand-primary">{{ $category->name }}</a>
                         </li>
                     @empty
                         <li class="text-sm text-slate-500">Sin categorias destacadas</li>
@@ -45,10 +45,10 @@
                 <h2 class="text-sm font-semibold text-slate-900">Contacto</h2>
                 <ul class="mt-3 space-y-2 text-sm text-slate-600">
                     <li>
-                        <a href="https://wa.me/573117479607" target="_blank" rel="noopener noreferrer" class="transition hover:text-brand-dark">+57 311 7479607</a>
+                        <a href="https://wa.me/573117479607" target="_blank" rel="noopener noreferrer" class="transition hover:text-brand-primary">+57 311 7479607</a>
                     </li>
                     <li>
-                        <a href="mailto:ventas@importcorporalmedical.com" class="transition hover:text-brand-dark">ventas@importcorporalmedical.com</a>
+                        <a href="mailto:ventas@importcorporalmedical.com" class="transition hover:text-brand-primary">ventas@importcorporalmedical.com</a>
                     </li>
                     <li>Armenia, Quindio</li>
                 </ul>

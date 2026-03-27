@@ -313,14 +313,9 @@
                             data-upload-label="fotos del producto"
                             data-max-files="{{ $uploadLimits['photo_max_files'] }}"
                         />
-                        <input id="generated_photo_variants" type="file" name="generated_photo_variants[]" accept="image/webp" multiple hidden>
-                        <input id="generated_photo_variants_manifest" type="hidden" name="generated_photo_variants_manifest" value="{{ old('generated_photo_variants_manifest', '') }}">
                         <p class="form-help">JPG/PNG hasta {{ $uploadLimits['photo_max_size_label'] }} por imagen. Puedes seleccionar varias a la vez.</p>
                         <x-input-error :messages="$errors->get('photos')" />
                         <x-input-error :messages="$errors->get('photos.*')" />
-                        <x-input-error :messages="$errors->get('generated_photo_variants')" />
-                        <x-input-error :messages="$errors->get('generated_photo_variants.*')" />
-                        <x-input-error :messages="$errors->get('generated_photo_variants_manifest')" />
                     </div>
                     <div>
                         <label class="form-label" for="tech_sheet">Ficha técnica (PDF)</label>
@@ -353,7 +348,7 @@
                                             confirm="¿Eliminar esta foto del producto?"
                                         />
                                     </div>
-                                    <img src="{{ $photo->publicUrl() }}" alt="Foto {{ $loop->iteration }}" width="{{ $photo->intrinsicWidth() }}" height="{{ $photo->intrinsicHeight() }}" class="mt-2 h-28 w-full rounded-xl border border-slate-200 object-cover">
+                                    <img src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($photo->path) }}" alt="Foto {{ $loop->iteration }}" class="mt-2 h-28 w-full rounded-xl border border-slate-200 object-cover">
                                 </div>
                             @endforeach
                         </div>

@@ -52,7 +52,6 @@
                 id="catalog-results"
                 :products="$products"
                 list-key="catalog"
-                :priority-count="4"
             />
         @endif
     </section>

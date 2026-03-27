@@ -16,7 +16,6 @@ use App\Modules\Catalog\Services\ProductVariantSyncService;
 use App\Modules\Categories\Models\Category;
 use App\Modules\Shared\Enums\DocumentType;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -219,17 +218,8 @@ class ProductAdminController extends Controller
     ): void {
         if ($request->hasFile('photos')) {
             $existingSortOrder = $product->photos()->max('sort_order') ?? -1;
-            $generatedFiles = $this->generatedPhotoFiles($request);
-            $manifestEntries = $this->generatedPhotoManifest($request);
-
             foreach ($request->file('photos') as $index => $photo) {
-                $uploadPhotoAction->execute(
-                    $product,
-                    $photo,
-                    $existingSortOrder + $index + 1,
-                    $manifestEntries[$index] ?? [],
-                    $generatedFiles,
-                );
+                $uploadPhotoAction->execute($product, $photo, $existingSortOrder + $index + 1);
             }
         }
 
@@ -240,39 +230,6 @@ class ProductAdminController extends Controller
         if ($request->hasFile('tech_sheet')) {
             $attachTechSheetAction->execute($product, $request->file('tech_sheet'));
         }
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function generatedPhotoManifest(StoreProductRequest|UpdateProductRequest $request): array
-    {
-        $rawManifest = (string) $request->input('generated_photo_variants_manifest', '');
-
-        if ($rawManifest === '') {
-            return [];
-        }
-
-        $decoded = json_decode($rawManifest, true);
-        if (! is_array($decoded)) {
-            return [];
-        }
-
-        return collect($decoded)
-            ->filter(fn ($entry) => is_array($entry) && isset($entry['source_index']) && is_numeric($entry['source_index']))
-            ->mapWithKeys(fn (array $entry) => [(int) $entry['source_index'] => $entry])
-            ->all();
-    }
-
-    /**
-     * @return array<string, UploadedFile>
-     */
-    private function generatedPhotoFiles(StoreProductRequest|UpdateProductRequest $request): array
-    {
-        return collect($request->file('generated_photo_variants', []))
-            ->filter(fn ($file) => $file instanceof UploadedFile)
-            ->mapWithKeys(fn (UploadedFile $file) => [$file->getClientOriginalName() => $file])
-            ->all();
     }
 
     private function redirectAfterSave(Request $request, Product $product, bool $created): RedirectResponse

@@ -7,18 +7,13 @@ use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductDocument;
 use App\Modules\Catalog\Models\ProductPhoto;
 use App\Modules\Catalog\Models\ProductVideo;
-use App\Modules\Catalog\Services\ProductPhotoVariantService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProductMediaController extends Controller
 {
-    public function destroyPhoto(
-        Product $product,
-        ProductPhoto $photo,
-        ProductPhotoVariantService $productPhotoVariantService,
-    ): RedirectResponse
+    public function destroyPhoto(Product $product, ProductPhoto $photo): RedirectResponse
     {
         $this->authorize('update', $product);
 
@@ -28,7 +23,6 @@ class ProductMediaController extends Controller
 
         $path = $photo->path;
         $wasPrimary = $photo->is_primary;
-        $productPhotoVariantService->deleteVariants($photo);
         $photo->delete();
 
         if ($path && Storage::disk('public')->exists($path)) {

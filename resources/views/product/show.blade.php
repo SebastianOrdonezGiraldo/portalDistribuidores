@@ -1,17 +1,6 @@
-@php
-    $mainPhotoUrl = $mainPhoto?->publicUrl() ?? '';
-    $mainPhotoSrcSet = $mainPhoto?->webpSrcSet() ?? '';
-    $mainPhotoWidth = $mainPhoto?->intrinsicWidth(1080) ?? 1080;
-    $mainPhotoHeight = $mainPhoto?->intrinsicHeight(1080) ?? 1080;
-    $mainPhotoSizes = '(min-width: 1280px) 52vw, (min-width: 1024px) 48vw, 100vw';
-@endphp
-
 @push('head')
     <link rel="canonical" href="{{ $canonicalUrl }}">
     <meta name="robots" content="index,follow">
-    @if($mainPhoto)
-        <link rel="preload" as="image" href="{{ $mainPhotoUrl }}" @if($mainPhotoSrcSet !== '') imagesrcset="{{ $mainPhotoSrcSet }}" imagesizes="{{ $mainPhotoSizes }}" @endif fetchpriority="high">
-    @endif
 @endpush
 
 <x-app-layout>
@@ -66,22 +55,14 @@
                 {{-- Imagen principal --}}
                 <div class="group/img relative flex min-h-[18rem] flex-1 items-center justify-center overflow-hidden px-6 py-8 sm:min-h-[24rem] sm:px-10 sm:py-12">
                     @if($mainPhoto)
-                        <picture class="flex h-full w-full items-center justify-center">
-                            @if($mainPhotoSrcSet !== '')
-                                <source data-product-main-source type="image/webp" srcset="{{ $mainPhotoSrcSet }}" sizes="{{ $mainPhotoSizes }}">
-                            @endif
-                            <img
-                                data-product-main-image
-                                src="{{ $mainPhotoUrl }}"
-                                alt="{{ $product->name }}"
-                                loading="eager"
-                                fetchpriority="high"
-                                decoding="async"
-                                width="{{ $mainPhotoWidth }}"
-                                height="{{ $mainPhotoHeight }}"
-                                class="h-full max-h-[28rem] w-full object-contain object-center drop-shadow-[0_20px_28px_rgba(15,23,42,0.18)] transition duration-500 ease-out will-change-transform group-hover/img:scale-[1.06]"
-                            >
-                        </picture>
+                        <img
+                            data-product-main-image
+                            src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($mainPhoto->path) }}"
+                            alt="{{ $product->name }}"
+                            loading="eager"
+                            decoding="async"
+                            class="h-full max-h-[28rem] w-full object-contain object-center drop-shadow-[0_20px_28px_rgba(15,23,42,0.18)] transition duration-500 ease-out will-change-transform group-hover/img:scale-[1.06]"
+                        >
                     @else
                         <div class="flex flex-col items-center justify-center gap-3 text-center">
                             <div class="rounded-2xl border border-slate-200 bg-white p-8 shadow-soft">
@@ -91,7 +72,7 @@
                                     <circle cx="9" cy="9" r="1.2"/>
                                 </svg>
                             </div>
-                            <p class="text-xs font-medium text-slate-600">Sin imagen disponible</p>
+                            <p class="text-xs font-medium text-slate-400">Sin imagen disponible</p>
                         </div>
                     @endif
                 </div>
@@ -101,30 +82,17 @@
                     <div class="relative border-t border-slate-200 bg-white/80 px-4 py-3 sm:px-5" data-product-gallery>
                         <div class="flex gap-2 overflow-x-auto pb-0.5" style="scrollbar-width: thin;">
                             @foreach($galleryPhotos as $photo)
-                                @php
-                                    $thumbSrcSet = $photo->webpSrcSet();
-                                    $thumbUrl = $photo->publicUrl();
-                                    $thumbWidth = $photo->intrinsicWidth(1080);
-                                    $thumbHeight = $photo->intrinsicHeight(1080);
-                                @endphp
                                 <button
                                     type="button"
                                     data-product-thumb
-                                    data-src="{{ $thumbUrl }}"
-                                    data-srcset="{{ $thumbSrcSet }}"
-                                    data-width="{{ $thumbWidth }}"
-                                    data-height="{{ $thumbHeight }}"
+                                    data-src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($photo->path) }}"
                                     data-alt="{{ $product->name }}"
                                     class="group/thumb h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-white transition focus-ring {{ $loop->first ? 'border-brand-primary shadow-sm' : 'border-slate-200 hover:border-slate-300' }}"
                                     aria-label="Ver imagen {{ $loop->iteration }}"
                                 >
                                     <img
-                                        src="{{ $thumbUrl }}"
+                                        src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($photo->path) }}"
                                         alt="{{ $product->name }}"
-                                        width="{{ $thumbWidth }}"
-                                        height="{{ $thumbHeight }}"
-                                        loading="lazy"
-                                        decoding="async"
                                         class="h-full w-full object-contain p-1 transition duration-200 group-hover/thumb:scale-105"
                                     >
                                 </button>
@@ -160,7 +128,7 @@
                     </div>
 
                     {{-- Categoría como overline --}}
-                    <p class="mt-3 text-xs font-semibold uppercase tracking-[0.14em] text-brand-dark">
+                    <p class="mt-3 text-xs font-semibold uppercase tracking-[0.14em] text-brand-primary">
                         {{ $categoryName }}
                     </p>
 
@@ -176,7 +144,7 @@
                                 <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
                                 <line x1="7" y1="7" x2="7.01" y2="7"/>
                             </svg>
-                            <span class="text-slate-600">Marca</span>
+                            <span class="text-slate-500">Marca</span>
                             <span class="font-semibold text-slate-900">{{ $brand }}</span>
                         </div>
 
@@ -187,7 +155,7 @@
                                 <rect x="9" y="9" width="13" height="13" rx="2"/>
                                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                             </svg>
-                            <span class="text-slate-600">SKU</span>
+                            <span class="text-slate-500">SKU</span>
                             <span class="font-mono font-semibold text-slate-900">{{ $product->sku }}</span>
                             <button
                                 type="button"
@@ -209,7 +177,7 @@
                     @if(! blank($product->description))
                         <div class="mt-5 border-t border-slate-100 pt-5">
                             <p class="line-clamp-3 text-sm leading-relaxed text-slate-600">{{ $product->description }}</p>
-                            <a href="#descripcion" data-scroll-link class="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-brand-dark transition hover:underline focus-ring rounded">
+                            <a href="#descripcion" data-scroll-link class="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-brand-primary transition hover:underline focus-ring rounded">
                                 Ver descripción completa
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                     <path d="m9 18 6-6-6-6"/>
@@ -217,7 +185,7 @@
                             </a>
                         </div>
                     @else
-                        <p class="mt-4 text-sm leading-relaxed text-slate-600">{{ $availability['helper'] }}</p>
+                        <p class="mt-4 text-sm leading-relaxed text-slate-500">{{ $availability['helper'] }}</p>
                     @endif
                 </div>
 
@@ -236,33 +204,33 @@
 
                     {{-- Precio principal --}}
                     <div class="mb-5">
-                        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">Precio</p>
+                        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Precio</p>
                         <div class="mt-1 flex flex-wrap items-baseline gap-2">
                             <span
                                 class="text-4xl font-bold tabular-nums tracking-tight text-slate-950"
                                 data-variant-price-target
                                 data-default-value="{{ $formattedPrice }}"
                             >{{ $formattedPrice }}</span>
-                            <span class="text-sm text-slate-600">
+                            <span class="text-sm text-slate-500">
                                 / {{ $unitLabelLower }}
                                 @if(! $hasVariants) · IVA incluido @endif
                             </span>
                         </div>
                         @if($hasVariants)
-                            <p class="mt-1 text-xs text-slate-600">El precio varía según la variante seleccionada</p>
+                            <p class="mt-1 text-xs text-slate-400">El precio varía según la variante seleccionada</p>
                         @endif
                     </div>
 
                     {{-- Disponibilidad + stock --}}
                     <div class="mb-5 grid gap-3 sm:grid-cols-2">
                         <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                            <p class="mb-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Disponibilidad</p>
+                            <p class="mb-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Disponibilidad</p>
                             <x-ui.badge :variant="$availability['badge']" class="!normal-case !tracking-normal">
                                 {{ $availability['label'] }}
                             </x-ui.badge>
                         </div>
                         <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                            <p class="mb-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Stock</p>
+                            <p class="mb-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Stock</p>
                             <p
                                 class="text-sm font-semibold text-slate-900"
                                 data-variant-stock-target
@@ -297,7 +265,6 @@
                                     name="variant_id"
                                     required
                                     data-variant-select
-                                    data-unit-label="{{ $unitLabel }}"
                                     :disabled="! $canBuy"
                                 >
                                     <option value="">— Seleccionar {{ \Illuminate\Support\Str::lower($variantAttributeName) }} —</option>
@@ -385,7 +352,7 @@
 
                             {{-- Indicadores de múltiplo y no disponible --}}
                             @if($minMultiple > 1)
-                                <p class="mt-2 flex items-center gap-1 text-xs text-slate-600">
+                                <p class="mt-2 flex items-center gap-1 text-xs text-slate-400">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                                     </svg>
@@ -412,7 +379,7 @@
                     @if($leadTimeLabel || $etaLabel)
                         <div class="mt-5 space-y-2 border-t border-slate-200 pt-4">
                             @if($leadTimeLabel)
-                                <div class="flex items-center gap-2 text-xs text-slate-600">
+                                <div class="flex items-center gap-2 text-xs text-slate-500">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                                     </svg>
@@ -420,7 +387,7 @@
                                 </div>
                             @endif
                             @if($etaLabel)
-                                <div class="flex items-center gap-2 text-xs text-slate-600">
+                                <div class="flex items-center gap-2 text-xs text-slate-500">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                                         <polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/>
@@ -470,7 +437,7 @@
                         </svg>
                         <div>
                             <p class="text-sm font-semibold text-slate-700">Sin descripción comercial</p>
-                            <p class="mt-0.5 text-sm text-slate-600">
+                            <p class="mt-0.5 text-sm text-slate-500">
                                 Usa las especificaciones técnicas y los documentos adjuntos para validar la compra, o contacta a tu asesor comercial.
                             </p>
                         </div>
@@ -489,14 +456,14 @@
         <section id="especificaciones" class="scroll-mt-32 card overflow-hidden">
             <div class="border-b border-slate-100 px-6 py-4 sm:px-7">
                 <h2 class="text-lg font-bold text-slate-950">Especificaciones técnicas</h2>
-                <p class="mt-0.5 text-xs text-slate-600">Información comercial y de identificación del producto</p>
+                <p class="mt-0.5 text-xs text-slate-500">Información comercial y de identificación del producto</p>
             </div>
             <div class="px-6 py-5 sm:px-7 sm:py-6">
                 @if(count($specRows) > 0)
                     <dl class="divide-y divide-slate-100">
                         @foreach($specRows as $index => $row)
                             <div class="grid gap-1.5 py-3 sm:grid-cols-[200px_1fr] sm:items-baseline sm:gap-4 {{ $index === 0 ? 'pt-0' : '' }} {{ $index === count($specRows) - 1 ? 'pb-0' : '' }}">
-                                <dt class="text-xs font-semibold uppercase tracking-[0.1em] text-slate-600">{{ $row['label'] }}</dt>
+                                <dt class="text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">{{ $row['label'] }}</dt>
                                 <dd class="text-sm font-medium text-slate-800">{{ $row['value'] ?? '—' }}</dd>
                             </div>
                         @endforeach
@@ -506,7 +473,7 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="mt-0.5 h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                         </svg>
-                        <p class="text-sm text-slate-600">No hay especificaciones cargadas para este producto.</p>
+                        <p class="text-sm text-slate-500">No hay especificaciones cargadas para este producto.</p>
                     </div>
                 @endif
             </div>
@@ -521,7 +488,7 @@
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4 sm:px-7">
                 <div>
                     <h2 class="text-lg font-bold text-slate-950">Documentos</h2>
-                    <p class="mt-0.5 text-xs text-slate-600">Fichas técnicas, catálogos y certificados descargables</p>
+                    <p class="mt-0.5 text-xs text-slate-500">Fichas técnicas, catálogos y certificados descargables</p>
                 </div>
                 @if(! is_null($remainingDownloads))
                     <div class="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
@@ -549,7 +516,7 @@
                         </svg>
                         <div>
                             <p class="text-sm font-semibold text-slate-700">Sin documentos disponibles</p>
-                            <p class="mt-0.5 text-sm text-slate-600">Solicita la ficha técnica o documentos a tu asesor comercial.</p>
+                            <p class="mt-0.5 text-sm text-slate-500">Solicita la ficha técnica o documentos a tu asesor comercial.</p>
                         </div>
                     </div>
                 @else
@@ -570,15 +537,15 @@
                                 <div class="min-w-0 flex-1">
                                     <div class="flex items-center gap-2">
                                         <p class="font-semibold text-slate-900">Ficha técnica</p>
-                                        <span class="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-slate-600">PDF</span>
+                                        <span class="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-slate-500">PDF</span>
                                     </div>
-                                    <p class="mt-0.5 text-xs text-slate-600">Documento principal para validación técnica y comercial</p>
+                                    <p class="mt-0.5 text-xs text-slate-500">Documento principal para validación técnica y comercial</p>
 
                                     <div class="mt-3">
                                         @if($techSheet)
                                             <a
                                                 href="{{ route('documents.tech-sheet.download', $techSheet) }}"
-                                                class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-brand-primary/40 bg-white px-3.5 py-2 text-sm font-semibold text-brand-dark shadow-sm transition hover:bg-brand-primary/5 hover:border-brand-primary focus-ring sm:w-auto"
+                                                class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-brand-primary/40 bg-white px-3.5 py-2 text-sm font-semibold text-brand-primary shadow-sm transition hover:bg-brand-primary/5 hover:border-brand-primary focus-ring sm:w-auto"
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -587,7 +554,7 @@
                                                 Descargar ficha técnica
                                             </a>
                                         @else
-                                            <p class="text-xs text-slate-600">No disponible — solicítala a tu asesor</p>
+                                            <p class="text-xs text-slate-400">No disponible — solicítala a tu asesor</p>
                                         @endif
                                     </div>
                                 </div>
@@ -606,9 +573,9 @@
                                 <div class="min-w-0 flex-1">
                                     <div class="flex items-center gap-2">
                                         <p class="font-semibold text-slate-900">Video de apoyo</p>
-                                        <span class="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-slate-600">Video</span>
+                                        <span class="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-slate-400">Video</span>
                                     </div>
-                                    <p class="mt-0.5 text-xs text-slate-600">Demostración y guía de uso del producto</p>
+                                    <p class="mt-0.5 text-xs text-slate-500">Demostración y guía de uso del producto</p>
 
                                     <div class="mt-3">
                                         @if($productVideo)
@@ -628,7 +595,7 @@
                                                 </svg>
                                             </a>
                                         @else
-                                            <p class="text-xs text-slate-600">Sin video disponible para este producto</p>
+                                            <p class="text-xs text-slate-400">Sin video disponible para este producto</p>
                                         @endif
                                     </div>
                                 </div>
@@ -654,10 +621,10 @@
                                             <td data-label="Tipo" class="font-medium text-slate-700">
                                                 {{ $documentTypeLabels[$document->type] ?? ucfirst($document->type) }}
                                             </td>
-                                            <td data-label="Archivo" data-full="true" class="text-slate-600" title="{{ $document->filename }}">
+                                            <td data-label="Archivo" data-full="true" class="text-slate-500" title="{{ $document->filename }}">
                                                 <span class="block truncate">{{ $document->filename }}</span>
                                             </td>
-                                            <td data-label="Acceso" class="text-right text-xs text-slate-600">
+                                            <td data-label="Acceso" class="text-right text-xs text-slate-400">
                                                 Solicitar a soporte comercial
                                             </td>
                                         </tr>
@@ -704,7 +671,7 @@
                     data-variant-mobile-price-target
                     data-default-value="{{ $formattedPrice }}"
                 >{{ $formattedPrice }}</p>
-                <p class="truncate text-xs text-slate-600">por {{ $unitLabelLower }}</p>
+                <p class="truncate text-xs text-slate-500">por {{ $unitLabelLower }}</p>
             </div>
 
             @if($canBuy)
@@ -753,4 +720,185 @@
         </div>
     </div>
 
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // ── Galería de imágenes ──────────────────────────────────────
+            const galleryThumbs = Array.from(document.querySelectorAll('[data-product-thumb]'));
+            const mainImage = document.querySelector('[data-product-main-image]');
+
+            galleryThumbs.forEach((thumb) => {
+                thumb.addEventListener('click', () => {
+                    if (mainImage) {
+                        mainImage.src = thumb.dataset.src || mainImage.src;
+                        mainImage.alt = thumb.dataset.alt || mainImage.alt;
+                    }
+
+                    galleryThumbs.forEach((item) => {
+                        item.classList.remove('border-brand-primary', 'shadow-sm');
+                        item.classList.add('border-slate-200');
+                    });
+
+                    thumb.classList.remove('border-slate-200');
+                    thumb.classList.add('border-brand-primary', 'shadow-sm');
+                });
+            });
+
+            // ── Variantes: precio y stock dinámicos ──────────────────────
+            const variantSelect = document.querySelector('[data-variant-select]');
+            const priceTarget = document.querySelector('[data-variant-price-target]');
+            const mobilePriceTarget = document.querySelector('[data-variant-mobile-price-target]');
+            const stockTarget = document.querySelector('[data-variant-stock-target]');
+            const unitLabel = @json($unitLabel);
+
+            const formatMoney = (value) => `$${Number(value).toLocaleString('es-CO', { maximumFractionDigits: 0 })}`;
+            const formatStock = (value) => {
+                const parsed = Number(value);
+                if (!Number.isFinite(parsed)) return 'Stock a confirmar';
+                return `${parsed.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${unitLabel}`;
+            };
+
+            const refreshVariantSummary = () => {
+                if (!variantSelect) return;
+
+                const selected = variantSelect.selectedOptions[0];
+                const hasSelection = selected && selected.value;
+
+                if (!hasSelection) {
+                    if (priceTarget) priceTarget.textContent = priceTarget?.dataset.defaultValue || '';
+                    if (mobilePriceTarget) mobilePriceTarget.textContent = mobilePriceTarget?.dataset.defaultValue || '';
+                    if (stockTarget) stockTarget.textContent = stockTarget?.dataset.defaultValue || '';
+                    return;
+                }
+
+                const price = Number(selected.dataset.price || 0);
+                const stock = selected.dataset.stock;
+                const stockText = stock === '' || stock === undefined ? 'Stock a confirmar' : formatStock(stock);
+                const formattedPrice = formatMoney(price);
+
+                if (priceTarget) priceTarget.textContent = formattedPrice;
+                if (mobilePriceTarget) mobilePriceTarget.textContent = formattedPrice;
+                if (stockTarget) stockTarget.textContent = stockText;
+            };
+
+            variantSelect?.addEventListener('change', refreshVariantSummary);
+            refreshVariantSummary();
+
+            // ── Control de cantidad ──────────────────────────────────────
+            const qtyRoots = Array.from(document.querySelectorAll('[data-qty-control]'));
+            const sharedInputs = Array.from(document.querySelectorAll('[data-shared-qty]'));
+
+            const parseValue = (rawValue, fallback = 1) => {
+                const normalized = String(rawValue ?? '').replace(',', '.');
+                const value = Number(normalized);
+                return Number.isFinite(value) ? value : fallback;
+            };
+
+            const formatQtyVal = (value) => String(Math.max(1, Math.round(value)));
+
+            const normalizeQty = (value, minValue, multiple) => {
+                if (!Number.isFinite(value) || value <= 0) return minValue;
+                const base = Math.max(minValue, value);
+                return Math.ceil(base / multiple) * multiple;
+            };
+
+            const syncQtyInputs = (value) => {
+                sharedInputs.forEach((input) => { input.value = formatQtyVal(value); });
+            };
+
+            const applyQty = (requestedValue, root) => {
+                const input = root.querySelector('[data-qty-input]');
+                if (!input || input.disabled) return;
+                const multiple = Math.max(1, Math.round(parseValue(root.dataset.minMultiple, 1)));
+                const minValue = Math.max(multiple, parseValue(input.min || multiple, multiple));
+                syncQtyInputs(normalizeQty(requestedValue, minValue, multiple));
+            };
+
+            qtyRoots.forEach((root) => {
+                const input = root.querySelector('[data-qty-input]');
+                if (!input || input.disabled) return;
+
+                root.querySelectorAll('[data-qty-step]').forEach((button) => {
+                    button.addEventListener('click', () => {
+                        const currentValue = parseValue(input.value, parseValue(input.min, 1));
+                        const direction = Number(button.dataset.qtyStep || 0);
+                        const multiple = Math.max(1, Math.round(parseValue(root.dataset.minMultiple, 1)));
+                        applyQty(currentValue + (direction * multiple), root);
+                    });
+                });
+
+                input.addEventListener('change', () => applyQty(parseValue(input.value, parseValue(input.min, 1)), root));
+                input.addEventListener('blur', () => applyQty(parseValue(input.value, parseValue(input.min, 1)), root));
+            });
+
+            const primaryQtyInput = document.querySelector('[data-primary-qty]');
+            if (primaryQtyInput) {
+                const primaryRoot = primaryQtyInput.closest('[data-qty-control]');
+                if (primaryRoot) applyQty(parseValue(primaryQtyInput.value, parseValue(primaryQtyInput.min, 1)), primaryRoot);
+            }
+
+            // ── Scroll suave a secciones ─────────────────────────────────
+            document.querySelectorAll('[data-scroll-link]').forEach((link) => {
+                link.addEventListener('click', (event) => {
+                    const href = link.getAttribute('href');
+                    if (!href || !href.startsWith('#')) return;
+                    const target = document.querySelector(href);
+                    if (!target) return;
+                    event.preventDefault();
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+            });
+
+            // ── Navegación activa por IntersectionObserver ────────────────
+            const navLinks = Array.from(document.querySelectorAll('[data-nav-link]'));
+            const sectionIds = navLinks.map((link) => link.dataset.navLink).filter(Boolean);
+
+            const setActiveNav = (id) => {
+                navLinks.forEach((link) => {
+                    const isActive = link.dataset.navLink === id;
+                    link.classList.toggle('border-brand-primary', isActive);
+                    link.classList.toggle('text-brand-primary', isActive);
+                    link.classList.toggle('border-transparent', !isActive);
+                    link.classList.toggle('text-slate-500', !isActive);
+                    link.classList.toggle('text-slate-900', isActive);
+                });
+            };
+
+            if (sectionIds.length > 0 && 'IntersectionObserver' in window) {
+                const observer = new IntersectionObserver(
+                    (entries) => {
+                        entries.forEach((entry) => {
+                            if (entry.isIntersecting) setActiveNav(entry.target.id);
+                        });
+                    },
+                    { rootMargin: '-20% 0px -70% 0px', threshold: 0 }
+                );
+                sectionIds.forEach((id) => {
+                    const el = document.getElementById(id);
+                    if (el) observer.observe(el);
+                });
+            }
+
+            // ── Copiar SKU al portapapeles ────────────────────────────────
+            const copySkuBtn = document.querySelector('[data-copy-sku]');
+            if (copySkuBtn) {
+                const iconCopy = `<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+                const iconCheck = `<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
+                copySkuBtn.addEventListener('click', async () => {
+                    const value = copySkuBtn.dataset.value || '';
+                    try {
+                        await navigator.clipboard.writeText(value);
+                        copySkuBtn.innerHTML = iconCheck;
+                        copySkuBtn.classList.add('border-emerald-300', 'bg-emerald-50');
+                        setTimeout(() => {
+                            copySkuBtn.innerHTML = iconCopy;
+                            copySkuBtn.classList.remove('border-emerald-300', 'bg-emerald-50');
+                        }, 1800);
+                    } catch {
+                        // portapapeles no disponible, falla silenciosa
+                    }
+                });
+            }
+        });
+    </script>
 </x-app-layout>

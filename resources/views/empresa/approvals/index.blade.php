@@ -98,7 +98,7 @@
                             </td>
                             <td data-label="Fecha" class="text-sm text-slate-500">{{ $order->updated_at->format('d/m/Y') }}</td>
                             <td data-label="Acciones">
-                                <a href="{{ route('empresa.orders.show', $order) }}" class="text-sm text-brand-dark hover:underline">Ver</a>
+                                <a href="{{ route('empresa.orders.show', $order) }}" class="text-sm text-brand-primary hover:underline">Ver</a>
                             </td>
                         </tr>
                     @endforeach

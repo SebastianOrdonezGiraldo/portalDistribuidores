@@ -1,6 +1,0 @@
-@config "../../tailwind.public.config.js";
-@import "./core.css";
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;

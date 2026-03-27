@@ -5,8 +5,6 @@
     'products',
     'emptyMessage' => 'No hay productos disponibles.',
     'listKey' => null,
-    'priorityCount' => 0,
-    'hiddenHeading' => 'Resultados del catálogo',
 ])
 
 @php
@@ -23,14 +21,14 @@
     @if($title || $subtitle)
         <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div>
-                <h2 @class(['text-lg font-bold text-slate-950' => filled($title), 'sr-only' => blank($title)])>{{ $title ?: $hiddenHeading }}</h2>
+                @if($title)
+                    <h2 class="text-lg font-bold text-slate-950">{{ $title }}</h2>
+                @endif
                 @if($subtitle)
                     <p class="mt-0.5 text-sm text-slate-500">{{ $subtitle }}</p>
                 @endif
             </div>
         </div>
-    @else
-        <h2 class="sr-only">{{ $hiddenHeading }}</h2>
     @endif
 
     @if($products->count() > 0)
@@ -45,7 +43,7 @@
             data-base-query="{{ http_build_query($baseQuery) }}"
         >
             <div data-product-grid class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                @include('catalog._products-partial', ['products' => $products, 'priorityCount' => (int) $priorityCount])
+                @include('catalog._products-partial', ['products' => $products])
             </div>
 
             <div data-product-list-controls class="mt-6 space-y-4">
