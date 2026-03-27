@@ -118,6 +118,7 @@
                     </div>
 
                     <div class="mt-4 space-y-2">
+                        <a href="{{ route('catalog.index') }}" class="btn btn-ghost w-full justify-center">Seguir comprando</a>
                         <x-ui.button type="submit" variant="secondary" class="w-full justify-center" data-loading-label="Actualizando...">Actualizar carrito</x-ui.button>
                         <a href="{{ route('checkout.show') }}" class="btn btn-primary w-full justify-center">Continuar al checkout</a>
                     </div>
