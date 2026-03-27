@@ -53,30 +53,33 @@
         {{-- ──────────────────────────────────────────────────────────────
              HERO: imagen (izquierda) + info + compra (derecha)
         ────────────────────────────────────────────────────────────────── --}}
-        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] xl:grid-cols-[minmax(0,1.15fr)_minmax(22rem,26rem)]">
+        <section class="relative overflow-hidden rounded-3xl border border-slate-200/90 bg-gradient-to-br from-white via-slate-50/70 to-sky-50/50 shadow-[0_20px_60px_rgba(15,23,42,0.12)] lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(21rem,25rem)] xl:grid-cols-[minmax(0,1.15fr)_minmax(23rem,27rem)]">
+            <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_15%,rgba(56,189,248,0.12),transparent_45%),radial-gradient(circle_at_88%_90%,rgba(15,23,42,0.06),transparent_40%)]"></div>
 
             {{-- Columna imagen --}}
-            <div class="relative flex flex-col border-b border-slate-200 bg-slate-50/80 lg:border-b-0 lg:border-r">
-                <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(54,177,187,0.15),transparent_45%),radial-gradient(circle_at_82%_88%,rgba(15,23,42,0.07),transparent_40%)]"></div>
+            <div class="relative flex flex-col border-b border-slate-200/90 bg-transparent lg:border-b-0 lg:border-r">
+                <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_24%_20%,rgba(54,177,187,0.13),transparent_46%),radial-gradient(circle_at_78%_88%,rgba(15,23,42,0.08),transparent_42%)]"></div>
 
                 {{-- Imagen principal --}}
-                <div class="group/img relative flex min-h-[18rem] flex-1 items-center justify-center overflow-hidden px-6 py-8 sm:min-h-[24rem] sm:px-10 sm:py-12">
+                <div class="group/img relative flex min-h-[20rem] flex-1 items-center justify-center overflow-hidden px-5 py-6 sm:min-h-[27rem] sm:px-10 sm:py-10 lg:min-h-[34rem] lg:px-12 lg:py-12">
                     @if($mainPhoto)
-                        <img
-                            data-product-main-image
-                            src="{{ $mainPhotoUrl }}"
-                            alt="{{ $product->name }}"
-                            width="{{ $mainPhotoDimensions['width'] }}"
-                            height="{{ $mainPhotoDimensions['height'] }}"
-                            loading="eager"
-                            fetchpriority="high"
-                            decoding="sync"
-                            @if($mainPhotoSrcset)
-                                srcset="{{ $mainPhotoSrcset }}"
-                                sizes="{{ $mainPhotoSizes }}"
-                            @endif
-                            class="h-full max-h-[28rem] w-full object-contain object-center drop-shadow-[0_20px_28px_rgba(15,23,42,0.18)] transition duration-500 ease-out will-change-transform group-hover/img:scale-[1.06]"
-                        >
+                        <div class="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-white/80 bg-white/80 px-4 py-5 shadow-[0_22px_40px_rgba(15,23,42,0.16)] backdrop-blur sm:px-7 sm:py-7">
+                            <img
+                                data-product-main-image
+                                src="{{ $mainPhotoUrl }}"
+                                alt="{{ $product->name }}"
+                                width="{{ $mainPhotoDimensions['width'] }}"
+                                height="{{ $mainPhotoDimensions['height'] }}"
+                                loading="eager"
+                                fetchpriority="high"
+                                decoding="sync"
+                                @if($mainPhotoSrcset)
+                                    srcset="{{ $mainPhotoSrcset }}"
+                                    sizes="{{ $mainPhotoSizes }}"
+                                @endif
+                                class="h-full max-h-[31rem] w-full object-contain object-center drop-shadow-[0_24px_32px_rgba(15,23,42,0.2)] transition duration-500 ease-out will-change-transform group-hover/img:scale-[1.05]"
+                            >
+                        </div>
                     @else
                         <div class="flex flex-col items-center justify-center gap-3 text-center">
                             <div class="rounded-2xl border border-slate-200 bg-white p-8 shadow-soft">
@@ -93,8 +96,8 @@
 
                 {{-- Galería de miniaturas --}}
                 @if($galleryPhotos->count() > 1)
-                    <div class="relative border-t border-slate-200 bg-white/80 px-4 py-3 sm:px-5" data-product-gallery>
-                        <div class="flex gap-2 overflow-x-auto pb-0.5" style="scrollbar-width: thin;">
+                    <div class="relative border-t border-slate-200/90 bg-white/80 px-4 py-4 sm:px-6" data-product-gallery>
+                        <div class="flex gap-2.5 overflow-x-auto pb-0.5" style="scrollbar-width: thin;">
                             @foreach($galleryPhotos as $photo)
                                 @php
                                     $thumbUrl = \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($photo->path);
@@ -112,7 +115,7 @@
                                         data-srcset="{{ $thumbSrcset }}"
                                         data-sizes="{{ $mainPhotoSizes }}"
                                     @endif
-                                    class="group/thumb h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-white transition focus-ring {{ $loop->first ? 'border-brand-primary shadow-sm' : 'border-slate-200 hover:border-slate-300' }}"
+                                    class="group/thumb h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-white/95 shadow-sm transition focus-ring {{ $loop->first ? 'border-brand-primary shadow-[0_6px_18px_rgba(37,99,235,0.2)]' : 'border-slate-200 hover:border-slate-300 hover:shadow-md' }}"
                                     aria-label="Ver imagen {{ $loop->iteration }}"
                                 >
                                     <img
@@ -136,10 +139,10 @@
             </div>
 
             {{-- Columna info + compra (scrollable en desktop si el contenido es largo) --}}
-            <div class="flex flex-col divide-y divide-slate-100">
+            <div class="relative flex flex-col bg-white/90">
 
                 {{-- Bloque: información del producto --}}
-                <div class="p-6 sm:p-7">
+                <div class="border-b border-slate-100 p-6 sm:p-7">
 
                     {{-- Badges de estado --}}
                     <div class="flex flex-wrap items-center gap-2">
@@ -161,35 +164,37 @@
                     </div>
 
                     {{-- Categoría como overline --}}
-                    <p class="mt-3 text-xs font-semibold uppercase tracking-[0.14em] text-brand-primary">
+                    <p class="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-brand-primary">
                         {{ $categoryName }}
                     </p>
 
                     {{-- Nombre del producto --}}
-                    <h1 class="mt-1.5 text-balance text-2xl font-bold leading-snug text-slate-950 sm:text-[1.65rem]">
+                    <h1 class="mt-1.5 text-balance text-2xl font-bold leading-tight text-slate-950 sm:text-[1.72rem]">
                         {{ $product->name }}
                     </h1>
 
-                    {{-- Marca + SKU en línea --}}
-                    <div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-                        <div class="flex items-center gap-1.5">
+                    {{-- Marca + SKU en tarjetas --}}
+                    <div class="mt-4 grid gap-2.5 text-sm sm:grid-cols-2">
+                        <div class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
                                 <line x1="7" y1="7" x2="7.01" y2="7"/>
                             </svg>
-                            <span class="text-slate-500">Marca</span>
-                            <span class="font-semibold text-slate-900">{{ $brand }}</span>
+                            <p class="min-w-0">
+                                <span class="block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Marca</span>
+                                <span class="block truncate font-semibold text-slate-900">{{ $brand }}</span>
+                            </p>
                         </div>
 
-                        <div class="h-3.5 w-px bg-slate-200" aria-hidden="true"></div>
-
-                        <div class="flex items-center gap-1.5">
+                        <div class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <rect x="9" y="9" width="13" height="13" rx="2"/>
                                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                             </svg>
-                            <span class="text-slate-500">SKU</span>
-                            <span class="font-mono font-semibold text-slate-900">{{ $product->sku }}</span>
+                            <p class="min-w-0 flex-1">
+                                <span class="block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">SKU</span>
+                                <span class="block truncate font-mono font-semibold text-slate-900">{{ $product->sku }}</span>
+                            </p>
                             <button
                                 type="button"
                                 data-copy-sku
@@ -208,7 +213,7 @@
 
                     {{-- Descripción resumida --}}
                     @if(! blank($product->description))
-                        <div class="mt-5 border-t border-slate-100 pt-5">
+                        <div class="mt-5 border-t border-slate-100 pt-4">
                             <p class="line-clamp-3 text-sm leading-relaxed text-slate-600">{{ $product->description }}</p>
                             <a href="#descripcion" data-scroll-link class="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-brand-primary transition hover:underline focus-ring rounded">
                                 Ver descripción completa
@@ -220,10 +225,16 @@
                     @else
                         <p class="mt-4 text-sm leading-relaxed text-slate-500">{{ $availability['helper'] }}</p>
                     @endif
+
+                    <div class="mt-5 grid gap-2 text-xs text-slate-500 sm:grid-cols-3">
+                        <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">Cotización rápida para compras B2B</div>
+                        <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">Soporte técnico y comercial especializado</div>
+                        <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">Facturación empresarial y trazabilidad</div>
+                    </div>
                 </div>
 
                 {{-- Bloque: precio y acción de compra --}}
-                <div class="bg-slate-50/60 p-6 sm:p-7">
+                <div class="space-y-5 bg-slate-950/[0.02] p-6 sm:p-7">
 
                     {{-- Promo --}}
                     @if($promoLabel)
@@ -236,34 +247,34 @@
                     @endif
 
                     {{-- Precio principal --}}
-                    <div class="mb-5">
-                        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Precio</p>
-                        <div class="mt-1 flex flex-wrap items-baseline gap-2">
+                    <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+                        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Precio de referencia</p>
+                        <div class="mt-1.5 flex flex-wrap items-baseline gap-2">
                             <span
-                                class="text-4xl font-bold tabular-nums tracking-tight text-slate-950"
+                                class="text-[2.15rem] font-bold tabular-nums tracking-tight text-slate-950 sm:text-[2.35rem]"
                                 data-variant-price-target
                                 data-default-value="{{ $formattedPrice }}"
                             >{{ $formattedPrice }}</span>
-                            <span class="text-sm text-slate-500">
+                            <span class="text-sm font-medium text-slate-500">
                                 / {{ $unitLabelLower }}
                                 @if(! $hasVariants) · IVA incluido @endif
                             </span>
                         </div>
                         @if($hasVariants)
-                            <p class="mt-1 text-xs text-slate-400">El precio varía según la variante seleccionada</p>
+                            <p class="mt-1.5 text-xs text-slate-400">El precio final se actualiza según la variante seleccionada</p>
                         @endif
                     </div>
 
                     {{-- Disponibilidad + stock --}}
-                    <div class="mb-5 grid gap-3 sm:grid-cols-2">
-                        <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                            <p class="mb-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Disponibilidad</p>
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <div class="rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm">
+                            <p class="mb-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Disponibilidad inmediata</p>
                             <x-ui.badge :variant="$availability['badge']" class="!normal-case !tracking-normal">
                                 {{ $availability['label'] }}
                             </x-ui.badge>
                         </div>
-                        <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                            <p class="mb-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Stock</p>
+                        <div class="rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm">
+                            <p class="mb-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Stock comercial</p>
                             <p
                                 class="text-sm font-semibold text-slate-900"
                                 data-variant-stock-target
@@ -280,7 +291,7 @@
                         data-loading-form
                         data-qty-control
                         data-min-multiple="{{ $stepValue }}"
-                        class="space-y-4"
+                        class="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                     >
                         @csrf
                         <input type="hidden" name="product_id" value="{{ $product->id }}">
@@ -289,7 +300,7 @@
                         {{-- Selector de variante --}}
                         @if($hasVariants)
                             <div>
-                                <label class="form-label" for="purchase-variant">
+                                <label class="form-label text-slate-700" for="purchase-variant">
                                     Selecciona {{ \Illuminate\Support\Str::lower($variantAttributeName) }}
                                     <span class="text-red-500" aria-hidden="true">*</span>
                                 </label>
@@ -367,7 +378,7 @@
                                 {{-- Botón principal CTA --}}
                                 <button
                                     type="submit"
-                                    class="btn btn-primary h-11 w-full justify-center gap-2 text-sm font-semibold sm:flex-1"
+                                    class="btn btn-primary h-11 w-full justify-center gap-2 text-sm font-semibold shadow-[0_10px_22px_rgba(37,99,235,0.28)] transition hover:-translate-y-0.5 sm:flex-1"
                                     data-loading-label="Agregando..."
                                     @disabled(! $canBuy)
                                 >
@@ -385,7 +396,7 @@
 
                             {{-- Indicadores de múltiplo y no disponible --}}
                             @if($minMultiple > 1)
-                                <p class="mt-2 flex items-center gap-1 text-xs text-slate-400">
+                                <p class="mt-2 flex items-center gap-1 text-xs text-slate-500">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                                     </svg>
@@ -410,7 +421,9 @@
 
                     {{-- Info comercial: entrega --}}
                     @if($leadTimeLabel || $etaLabel)
-                        <div class="mt-5 space-y-2 border-t border-slate-200 pt-4">
+                        <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                            <p class="mb-2 text-xs font-semibold uppercase tracking-[0.13em] text-slate-400">Condiciones comerciales</p>
+                            <div class="space-y-2">
                             @if($leadTimeLabel)
                                 <div class="flex items-center gap-2 text-xs text-slate-500">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -428,6 +441,7 @@
                                     <span>{{ $etaLabel }}</span>
                                 </div>
                             @endif
+                            </div>
                         </div>
                     @endif
                 </div>
@@ -438,16 +452,16 @@
              Navegación de secciones (sticky, estilo underline)
         ────────────────────────────────────────────────────────────────── --}}
         <nav
-            class="-mx-4 overflow-x-auto border-y border-slate-200 bg-white/95 backdrop-blur md:sticky md:top-[4.5rem] md:z-20 sm:-mx-6 lg:-mx-8"
+            class="-mx-4 overflow-x-auto border-y border-slate-200 bg-white/90 shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur md:sticky md:top-[4.5rem] md:z-20 sm:-mx-6 lg:-mx-8"
             aria-label="Secciones del producto"
         >
-            <div class="flex min-w-max items-center px-4 sm:px-6 lg:px-8" data-section-nav>
+            <div class="flex min-w-max items-center px-4 py-0.5 sm:px-6 lg:px-8" data-section-nav>
                 @foreach($sections as $section)
                     <a
                         href="#{{ $section['id'] }}"
                         data-scroll-link
                         data-nav-link="{{ $section['id'] }}"
-                        class="inline-flex items-center border-b-2 border-transparent px-4 py-3.5 text-sm font-semibold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 focus-ring rounded-t"
+                        class="inline-flex items-center border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 focus-ring rounded-t"
                     >
                         {{ $section['label'] }}
                     </a>
@@ -458,8 +472,8 @@
         {{-- ──────────────────────────────────────────────────────────────
              Sección: Descripción
         ────────────────────────────────────────────────────────────────── --}}
-        <section id="descripcion" class="scroll-mt-32 card overflow-hidden">
-            <div class="border-b border-slate-100 px-6 py-4 sm:px-7">
+        <section id="descripcion" class="scroll-mt-32 card overflow-hidden border border-slate-200/90 bg-white/95 shadow-soft">
+            <div class="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-4 sm:px-7">
                 <h2 class="text-lg font-bold text-slate-950">Descripción del producto</h2>
             </div>
             <div class="px-6 py-5 sm:px-7 sm:py-6">
@@ -486,8 +500,8 @@
         {{-- ──────────────────────────────────────────────────────────────
              Sección: Especificaciones técnicas
         ────────────────────────────────────────────────────────────────── --}}
-        <section id="especificaciones" class="scroll-mt-32 card overflow-hidden">
-            <div class="border-b border-slate-100 px-6 py-4 sm:px-7">
+        <section id="especificaciones" class="scroll-mt-32 card overflow-hidden border border-slate-200/90 bg-white/95 shadow-soft">
+            <div class="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-4 sm:px-7">
                 <h2 class="text-lg font-bold text-slate-950">Especificaciones técnicas</h2>
                 <p class="mt-0.5 text-xs text-slate-500">Información comercial y de identificación del producto</p>
             </div>
@@ -517,8 +531,8 @@
              Si se modifica la ruta route('documents.tech-sheet.download')
              también se debe actualizar el controlador de documentos.
         ────────────────────────────────────────────────────────────────── --}}
-        <section id="documentos" class="scroll-mt-32 card overflow-hidden">
-            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4 sm:px-7">
+        <section id="documentos" class="scroll-mt-32 card overflow-hidden border border-slate-200/90 bg-white/95 shadow-soft">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-4 sm:px-7">
                 <div>
                     <h2 class="text-lg font-bold text-slate-950">Documentos</h2>
                     <p class="mt-0.5 text-xs text-slate-500">Fichas técnicas, catálogos y certificados descargables</p>
@@ -696,7 +710,7 @@
     {{-- ──────────────────────────────────────────────────────────────
          Barra de compra fija en mobile
     ────────────────────────────────────────────────────────────────── --}}
-    <div class="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+    <div class="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-8px_26px_rgba(15,23,42,0.12)] backdrop-blur lg:hidden">
         <div class="mx-auto flex max-w-xl flex-wrap items-center gap-2 sm:gap-3">
             <div class="w-full min-w-0 sm:flex-1">
                 <p
@@ -709,7 +723,7 @@
 
             @if($canBuy)
                 <div
-                    class="inline-flex shrink-0 items-center rounded-xl border border-slate-300 bg-white"
+                    class="inline-flex shrink-0 items-center rounded-xl border border-slate-300 bg-white shadow-sm"
                     data-qty-control
                     data-min-multiple="{{ $stepValue }}"
                 >
@@ -741,7 +755,7 @@
                 <button
                     type="submit"
                     form="product-purchase-form"
-                    class="btn btn-primary h-10 w-full justify-center px-5 text-sm sm:w-auto"
+                    class="btn btn-primary h-10 w-full justify-center px-5 text-sm shadow-[0_8px_20px_rgba(37,99,235,0.28)] sm:w-auto"
                 >
                     Agregar
                 </button>
