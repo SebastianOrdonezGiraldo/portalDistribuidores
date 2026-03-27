@@ -1,4 +1,9 @@
 <x-app-layout>
+    @php
+        $defaultContactName = $distributor?->contact_name ?: auth()->user()?->name;
+        $defaultContactEmail = $distributor?->contact_email ?: auth()->user()?->email;
+    @endphp
+
     <x-slot name="header">
         <x-ui.page-header title="Confirmar Pedido" subtitle="Verifica datos de contacto, dirección y observaciones antes de enviar la CTC.">
             <x-slot name="actions">
@@ -39,7 +44,7 @@
             <div class="mt-4 grid gap-4 sm:grid-cols-2">
                 <div>
                     <label class="form-label" for="company_name">Razón social *</label>
-                    <x-ui.input id="company_name" name="company_name" :value="old('company_name', auth()->user()?->distributor?->name)" required />
+                    <x-ui.input id="company_name" name="company_name" :value="old('company_name', $distributor?->name)" required />
                     <x-input-error :messages="$errors->get('company_name')" />
                 </div>
                 <div>
@@ -58,12 +63,12 @@
                 </div>
                 <div>
                     <label class="form-label" for="contact_name">Nombre de contacto *</label>
-                    <x-ui.input id="contact_name" name="contact_name" :value="old('contact_name', auth()->user()?->name)" required />
+                    <x-ui.input id="contact_name" name="contact_name" :value="old('contact_name', $defaultContactName)" required />
                     <x-input-error :messages="$errors->get('contact_name')" />
                 </div>
                 <div>
                     <label class="form-label" for="contact_email">Correo de contacto *</label>
-                    <x-ui.input id="contact_email" type="email" name="contact_email" :value="old('contact_email', auth()->user()?->email)" required />
+                    <x-ui.input id="contact_email" type="email" name="contact_email" :value="old('contact_email', $defaultContactEmail)" required />
                     <x-input-error :messages="$errors->get('contact_email')" />
                 </div>
                 <div>

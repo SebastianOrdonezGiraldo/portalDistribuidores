@@ -15,12 +15,12 @@ class UpdateCompanyProfileRequest extends FormRequest
     {
         return [
             'name'          => ['required', 'string', 'max:120'],
-            'nit'           => ['nullable', 'string', 'max:40', 'regex:/^\d+$/'],
-            'address'       => ['nullable', 'string', 'max:180'],
-            'city'          => ['nullable', 'string', 'max:120'],
-            'phone'         => ['nullable', 'string', 'max:40'],
-            'contact_email' => ['nullable', 'email', 'max:160'],
-            'contact_name'  => ['nullable', 'string', 'max:120'],
+            'nit'           => ['required', 'string', 'max:40', 'regex:/^\d+$/'],
+            'address'       => ['required', 'string', 'max:180'],
+            'city'          => ['required', 'string', 'max:120'],
+            'phone'         => ['required', 'string', 'max:40'],
+            'contact_email' => ['required', 'string', 'email', 'max:120'],
+            'contact_name'  => ['required', 'string', 'max:120'],
         ];
     }
 

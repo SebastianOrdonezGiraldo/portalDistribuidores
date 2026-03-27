@@ -206,6 +206,112 @@ class OrderControllerTest extends TestCase
             ]);
     }
 
+    public function test_checkout_prefills_master_company_data_from_distributor(): void
+    {
+        $distributor = Distributor::factory()->create([
+            'name' => 'Empresa Maestra',
+            'nit' => '9001234567',
+            'address' => 'Calle 100 #10-20',
+            'city' => 'Bogotá',
+            'phone' => '3005551111',
+            'contact_name' => 'Laura Compras',
+            'contact_email' => 'compras@empresa.test',
+        ]);
+        $user = User::factory()->create([
+            'distributor_id' => $distributor->id,
+        ]);
+        $product = Product::factory()->create(['price' => 5000]);
+        $this->addProductToCart($user, $product);
+
+        $this->actingAs($user)
+            ->get(route('checkout.show'))
+            ->assertOk()
+            ->assertSee('value="Empresa Maestra"', false)
+            ->assertSee('value="9001234567"', false)
+            ->assertSee('value="Laura Compras"', false)
+            ->assertSee('value="compras@empresa.test"', false)
+            ->assertSee('value="3005551111"', false)
+            ->assertSee('value="Calle 100 #10-20"', false)
+            ->assertSee('value="Bogotá"', false);
+    }
+
+    public function test_checkout_falls_back_to_user_contact_data_when_distributor_contact_fields_are_missing(): void
+    {
+        $distributor = Distributor::factory()->create([
+            'contact_name' => null,
+            'contact_email' => null,
+        ]);
+        $user = User::factory()->create([
+            'name' => 'Usuario Checkout',
+            'email' => 'usuario.checkout@test.com',
+            'distributor_id' => $distributor->id,
+        ]);
+        $product = Product::factory()->create(['price' => 5000]);
+        $this->addProductToCart($user, $product);
+
+        $this->actingAs($user)
+            ->get(route('checkout.show'))
+            ->assertOk()
+            ->assertSee('value="Usuario Checkout"', false)
+            ->assertSee('value="usuario.checkout@test.com"', false);
+    }
+
+    public function test_store_keeps_distributor_master_data_unchanged_when_checkout_data_is_edited(): void
+    {
+        Mail::fake();
+
+        $distributor = Distributor::factory()->create([
+            'name' => 'Empresa Maestra',
+            'nit' => '9001234567',
+            'address' => 'Calle 100 #10-20',
+            'city' => 'Bogotá',
+            'phone' => '3005551111',
+            'contact_name' => 'Laura Compras',
+            'contact_email' => 'compras@empresa.test',
+        ]);
+        $user = User::factory()->create([
+            'distributor_id' => $distributor->id,
+        ]);
+        $product = Product::factory()->create(['price' => 5000]);
+        $this->addProductToCart($user, $product);
+
+        $payload = [
+            'contact_name' => 'Nombre Pedido',
+            'contact_email' => 'pedido@empresa.test',
+            'phone' => '3009990000',
+            'company_name' => 'Empresa Pedido',
+            'company_nit' => '8000000001',
+            'company_address' => 'Cra 20 #30-40',
+            'city' => 'Medellín',
+            'notes' => 'Cambios solo para esta orden',
+        ];
+
+        $this->actingAs($user)
+            ->post(route('orders.store'), $payload)
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('orders', [
+            'contact_name' => 'Nombre Pedido',
+            'contact_email' => 'pedido@empresa.test',
+            'phone' => '3009990000',
+            'company_name' => 'Empresa Pedido',
+            'company_nit' => '8000000001',
+            'company_address' => 'Cra 20 #30-40',
+            'city' => 'Medellín',
+        ]);
+
+        $this->assertDatabaseHas('distributors', [
+            'id' => $distributor->id,
+            'name' => 'Empresa Maestra',
+            'nit' => '9001234567',
+            'address' => 'Calle 100 #10-20',
+            'city' => 'Bogotá',
+            'phone' => '3005551111',
+            'contact_name' => 'Laura Compras',
+            'contact_email' => 'compras@empresa.test',
+        ]);
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // submitted / show – acceso a orden
     // ──────────────────────────────────────────────────────────────────────────

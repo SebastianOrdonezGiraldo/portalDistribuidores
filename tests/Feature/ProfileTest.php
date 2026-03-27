@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Modules\AuthAccess\Models\Distributor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -19,6 +20,20 @@ class ProfileTest extends TestCase
             ->get('/profile');
 
         $response->assertOk();
+    }
+
+    public function test_distributor_profile_page_shows_link_to_company_profile(): void
+    {
+        $distributor = Distributor::factory()->create();
+        $user = User::factory()->create([
+            'distributor_id' => $distributor->id,
+        ]);
+
+        $this->actingAs($user)
+            ->get('/profile')
+            ->assertOk()
+            ->assertSee('Datos de empresa')
+            ->assertSee(route('empresa.profile.edit'), false);
     }
 
     public function test_profile_information_can_be_updated(): void
