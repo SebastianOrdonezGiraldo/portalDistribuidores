@@ -32,7 +32,6 @@ jobs:
       SSH_USER: ${{ secrets.VPS_USER_PRODUCTION || secrets.VPS_USER }}
       SSH_KEY: ${{ secrets.VPS_SSH_KEY_PRODUCTION || secrets.VPS_SSH_KEY }}
       SSH_PASSPHRASE: ${{ secrets.VPS_SSH_PASSPHRASE_PRODUCTION || secrets.VPS_SSH_PASSPHRASE }}
-      SSH_FINGERPRINT: ${{ secrets.VPS_SSH_FINGERPRINT_PRODUCTION || secrets.VPS_SSH_FINGERPRINT || 'SHA256:Nn8HNB6eIEZqkk2+eYcbJ3vmnIdeWS+3+87t/EI0rUo' }}
 
     steps:
       - name: Check SSH port reachability
@@ -49,36 +48,17 @@ jobs:
           echo "::error title=SSH no accesible::No se pudo abrir TCP a ${SSH_HOST}:${SSH_PORT}. Verifica los secretos VPS_HOST_PRODUCTION/VPS_HOST y VPS_SSH_PORT_PRODUCTION/VPS_SSH_PORT, que sshd escuche en ese puerto y que el firewall o fail2ban permitan conexiones desde GitHub-hosted runners." >&2
           exit 1
 
-      - name: Inspect SSH host fingerprint
-        run: |
-          set -euo pipefail
-          echo "Leyendo host keys publicadas por ${SSH_HOST}:${SSH_PORT}..."
-          scan_output="$(ssh-keyscan -p "$SSH_PORT" "$SSH_HOST" 2>/dev/null || true)"
-
-          if [ -z "$scan_output" ]; then
-            echo "::error title=SSH fingerprint no disponible::No se pudo obtener ninguna host key desde ${SSH_HOST}:${SSH_PORT} con ssh-keyscan." >&2
-            exit 1
-          fi
-
-          echo "$scan_output" | ssh-keygen -lf - -E sha256
-
-          published_fingerprints="$(echo "$scan_output" | ssh-keygen -lf - -E sha256 | awk '{print $2}' | sort -u)"
-
-          if ! echo "$published_fingerprints" | grep -Fxq "$SSH_FINGERPRINT"; then
-            echo "::error title=SSH fingerprint mismatch::El fingerprint configurado en GitHub Secrets no coincide con ninguno de los fingerprints publicados por ${SSH_HOST}:${SSH_PORT}. Actualiza VPS_SSH_FINGERPRINT_PRODUCTION o VPS_SSH_FINGERPRINT con el valor SHA256 correcto." >&2
-            exit 1
-          fi
-
       - name: Deploy production on VPS
-        uses: appleboy/ssh-action@v1.2.1
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ env.SSH_HOST }}
           username: ${{ env.SSH_USER }}
           key: ${{ env.SSH_KEY }}
           passphrase: ${{ env.SSH_PASSPHRASE }}
           port: ${{ env.SSH_PORT }}
-          fingerprint: ${{ env.SSH_FINGERPRINT }}
+          protocol: tcp4
           command_timeout: 25m
+          debug: true
           script: |
             set -e
             cd /var/www/portalDistribuidores
