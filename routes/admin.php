@@ -22,6 +22,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::get('products/check-sku', [ProductAdminController::class, 'checkSku'])->name('products.check-sku');
         Route::get('products/import/template', [ProductImportController::class, 'downloadTemplate'])->name('products.import.template');
         Route::post('products/import', [ProductImportController::class, 'import'])->name('products.import');
+        Route::post('products/bulk-action', [ProductAdminController::class, 'bulkAction'])->name('products.bulk-action');
         Route::patch('products/{product}/status', [ProductAdminController::class, 'setStatus'])->name('products.status');
         Route::get('products/{product}/documents/{document}/download', [ProductMediaController::class, 'downloadDocument'])->name('products.documents.download');
         Route::delete('products/{product}/photos/{photo}', [ProductMediaController::class, 'destroyPhoto'])->name('products.photos.destroy');

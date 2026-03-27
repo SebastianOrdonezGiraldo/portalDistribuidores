@@ -209,6 +209,69 @@ class ProductAdminController extends Controller
         return back()->with('status', $isActive ? 'Producto activado.' : 'Producto desactivado.');
     }
 
+    public function bulkAction(Request $request): RedirectResponse
+    {
+        $this->authorize('viewAny', Product::class);
+
+        $indexOptions = $this->indexFilterOptions();
+        $payload = $request->validate([
+            'action' => ['required', 'string', Rule::in(['activate', 'deactivate', 'delete'])],
+            'product_ids' => ['required', 'array', 'min:1'],
+            'product_ids.*' => ['required', 'integer', 'distinct', 'exists:products,id'],
+        ]);
+
+        $indexContextInput = (array) $request->input('index_context', []);
+        $indexContext = $this->resolveIndexContext($indexContextInput, true, $indexOptions);
+        $indexContextQuery = $this->resolveIndexQuery($indexContextInput, true, $indexOptions);
+
+        $action = (string) $payload['action'];
+        $productIds = collect($payload['product_ids'])
+            ->map(fn (mixed $id): int => (int) $id)
+            ->unique()
+            ->values();
+
+        $products = Product::query()->whereKey($productIds)->get();
+
+        if ($products->count() !== $productIds->count()) {
+            return redirect()
+                ->route('admin.products.index', $indexContextQuery)
+                ->with('status', 'Algunos productos seleccionados ya no existen. Intenta nuevamente.');
+        }
+
+        $ability = $action === 'delete' ? 'delete' : 'update';
+        $products->each(fn (Product $product) => $this->authorize($ability, $product));
+
+        $affectedRows = 0;
+        DB::transaction(function () use ($action, $productIds, &$affectedRows): void {
+            if ($action === 'activate') {
+                $affectedRows = Product::query()->whereKey($productIds)->update(['is_active' => true]);
+
+                return;
+            }
+
+            if ($action === 'deactivate') {
+                $affectedRows = Product::query()->whereKey($productIds)->update(['is_active' => false]);
+
+                return;
+            }
+
+            $affectedRows = Product::query()->whereKey($productIds)->delete();
+        });
+
+        $indexQuery = $action === 'delete'
+            ? $this->resolveDeleteIndexQuery($indexContext, $indexContextQuery)
+            : $indexContextQuery;
+
+        $noun = $affectedRows === 1 ? 'producto' : 'productos';
+        $status = match ($action) {
+            'activate' => "{$affectedRows} {$noun} activado(s).",
+            'deactivate' => "{$affectedRows} {$noun} desactivado(s).",
+            default => "{$affectedRows} {$noun} eliminado(s).",
+        };
+
+        return redirect()->route('admin.products.index', $indexQuery)->with('status', $status);
+    }
+
     private function attachMedia(
         StoreProductRequest|UpdateProductRequest $request,
         Product $product,
