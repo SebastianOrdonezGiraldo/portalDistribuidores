@@ -9,7 +9,7 @@
         $mainPhotoUrl = $mainPhoto ? \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($mainPhoto->path) : null;
         $mainPhotoDimensions = $mainPhoto?->resolvedDimensions() ?? ['width' => 1200, 'height' => 1200];
         $mainPhotoSrcset = $mainPhoto?->responsiveSrcsetFromKnownVariants();
-        $mainPhotoSizes = '(min-width: 1280px) 52vw, (min-width: 1024px) 48vw, 100vw';
+        $mainPhotoSizes = '(min-width: 1280px) 43vw, (min-width: 1024px) 50vw, 100vw';
         $thumbSizes = '64px';
     @endphp
 
@@ -53,14 +53,14 @@
         {{-- ──────────────────────────────────────────────────────────────
              HERO: imagen (izquierda) + info + compra (derecha)
         ────────────────────────────────────────────────────────────────── --}}
-        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] xl:grid-cols-[minmax(0,1.15fr)_minmax(22rem,26rem)]">
+        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft lg:grid lg:items-start lg:grid-cols-[minmax(0,0.95fr)_minmax(20rem,24rem)] xl:grid-cols-[minmax(0,1fr)_minmax(22rem,26rem)]">
 
             {{-- Columna imagen --}}
             <div class="relative flex flex-col border-b border-slate-200 bg-slate-50/80 lg:border-b-0 lg:border-r">
                 <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(54,177,187,0.15),transparent_45%),radial-gradient(circle_at_82%_88%,rgba(15,23,42,0.07),transparent_40%)]"></div>
 
                 {{-- Imagen principal --}}
-                <div class="group/img relative flex min-h-[18rem] flex-1 items-center justify-center overflow-hidden px-6 py-8 sm:min-h-[24rem] sm:px-10 sm:py-12">
+                <div class="group/img relative flex aspect-[4/3] min-h-[18rem] max-h-[35rem] w-full items-center justify-center overflow-hidden px-6 py-8 sm:min-h-[24rem] sm:px-10 sm:py-12">
                     @if($mainPhoto)
                         <img
                             data-product-main-image
@@ -75,7 +75,7 @@
                                 srcset="{{ $mainPhotoSrcset }}"
                                 sizes="{{ $mainPhotoSizes }}"
                             @endif
-                            class="h-full max-h-[28rem] w-full object-contain object-center drop-shadow-[0_20px_28px_rgba(15,23,42,0.18)] transition duration-500 ease-out will-change-transform group-hover/img:scale-[1.06]"
+                            class="h-full max-h-[29rem] w-full scale-[1.05] object-contain object-center drop-shadow-[0_24px_34px_rgba(15,23,42,0.2)] transition duration-500 ease-out will-change-transform group-hover/img:scale-[1.1]"
                         >
                     @else
                         <div class="flex flex-col items-center justify-center gap-3 text-center">
