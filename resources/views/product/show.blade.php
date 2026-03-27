@@ -355,7 +355,7 @@
                                         data-qty-input
                                         data-primary-qty
                                         data-shared-qty
-                                        class="w-14 border-0 bg-transparent text-center text-base font-bold text-slate-900 focus:ring-0 disabled:opacity-50"
+                                        class="no-number-spinner w-14 border-0 bg-transparent text-center text-base font-bold text-slate-900 focus:ring-0 disabled:opacity-50"
                                         @disabled(! $canBuy)
                                         aria-label="Cantidad"
                                     >
@@ -733,7 +733,7 @@
                         inputmode="numeric"
                         data-qty-input
                         data-shared-qty
-                        class="w-12 border-0 bg-transparent text-center text-sm font-bold text-slate-900 focus:ring-0"
+                        class="no-number-spinner w-12 border-0 bg-transparent text-center text-sm font-bold text-slate-900 focus:ring-0"
                         aria-label="Cantidad"
                     >
                     <button

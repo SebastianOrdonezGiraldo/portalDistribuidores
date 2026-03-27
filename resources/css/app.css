@@ -105,6 +105,16 @@
         @apply h-4 w-4 rounded border-slate-300 text-brand-primary focus:ring-brand-primary;
     }
 
+    .no-number-spinner {
+        -moz-appearance: textfield;
+    }
+
+    .no-number-spinner::-webkit-outer-spin-button,
+    .no-number-spinner::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
     .form-error {
         @apply mt-1.5 text-xs font-medium text-red-600;
     }

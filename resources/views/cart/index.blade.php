@@ -76,7 +76,7 @@
                                             step="1"
                                             value="{{ (int) $item['qty'] }}"
                                             @if(isset($item['available_qty']) && $item['available_qty'] !== null) max="{{ (int) $item['available_qty'] }}" @endif
-                                            class="w-14 border-0 bg-transparent text-center text-sm font-semibold text-slate-900 focus:ring-0"
+                                            class="no-number-spinner w-14 border-0 bg-transparent text-center text-sm font-semibold text-slate-900 focus:ring-0"
                                             data-cart-qty
                                         >
                                         <button type="button" data-cart-step="1" data-cart-target="{{ $inputId }}" class="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-700 transition hover:bg-slate-100 focus-ring" aria-label="Aumentar cantidad">+</button>
