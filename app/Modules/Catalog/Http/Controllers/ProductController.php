@@ -324,8 +324,10 @@ class ProductController extends Controller
 
     private function buildProductListPayload(LengthAwarePaginator $products): array
     {
+        $listKey = request()->string('list')->toString();
+
         return [
-            'html' => view('catalog._products-partial', compact('products'))->render(),
+            'html' => view('catalog._products-partial', compact('products', 'listKey'))->render(),
             'controlsHtml' => view('catalog._product-list-controls', compact('products'))->render(),
             'hasMore' => $products->hasMorePages(),
             'currentPage' => $products->currentPage(),

@@ -4,7 +4,14 @@
 @endpush
 
 <x-app-layout>
-    @php $defaultQty = $stepValue; @endphp
+    @php
+        $defaultQty = $stepValue;
+        $mainPhotoUrl = $mainPhoto ? \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($mainPhoto->path) : null;
+        $mainPhotoDimensions = $mainPhoto?->resolvedDimensions() ?? ['width' => 1200, 'height' => 1200];
+        $mainPhotoSrcset = $mainPhoto?->responsiveSrcsetFromKnownVariants();
+        $mainPhotoSizes = '(min-width: 1280px) 52vw, (min-width: 1024px) 48vw, 100vw';
+        $thumbSizes = '64px';
+    @endphp
 
     {{-- ──────────────────────────────────────────────────────────────
          Header: breadcrumb + acceso rápido al carrito
@@ -57,10 +64,17 @@
                     @if($mainPhoto)
                         <img
                             data-product-main-image
-                            src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($mainPhoto->path) }}"
+                            src="{{ $mainPhotoUrl }}"
                             alt="{{ $product->name }}"
+                            width="{{ $mainPhotoDimensions['width'] }}"
+                            height="{{ $mainPhotoDimensions['height'] }}"
                             loading="eager"
-                            decoding="async"
+                            fetchpriority="high"
+                            decoding="sync"
+                            @if($mainPhotoSrcset)
+                                srcset="{{ $mainPhotoSrcset }}"
+                                sizes="{{ $mainPhotoSizes }}"
+                            @endif
                             class="h-full max-h-[28rem] w-full object-contain object-center drop-shadow-[0_20px_28px_rgba(15,23,42,0.18)] transition duration-500 ease-out will-change-transform group-hover/img:scale-[1.06]"
                         >
                     @else
@@ -82,17 +96,36 @@
                     <div class="relative border-t border-slate-200 bg-white/80 px-4 py-3 sm:px-5" data-product-gallery>
                         <div class="flex gap-2 overflow-x-auto pb-0.5" style="scrollbar-width: thin;">
                             @foreach($galleryPhotos as $photo)
+                                @php
+                                    $thumbUrl = \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($photo->path);
+                                    $thumbDimensions = $photo->resolvedDimensions();
+                                    $thumbSrcset = $photo->responsiveSrcsetFromKnownVariants();
+                                @endphp
                                 <button
                                     type="button"
                                     data-product-thumb
-                                    data-src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($photo->path) }}"
+                                    data-src="{{ $thumbUrl }}"
                                     data-alt="{{ $product->name }}"
+                                    data-width="{{ $thumbDimensions['width'] }}"
+                                    data-height="{{ $thumbDimensions['height'] }}"
+                                    @if($thumbSrcset)
+                                        data-srcset="{{ $thumbSrcset }}"
+                                        data-sizes="{{ $mainPhotoSizes }}"
+                                    @endif
                                     class="group/thumb h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-white transition focus-ring {{ $loop->first ? 'border-brand-primary shadow-sm' : 'border-slate-200 hover:border-slate-300' }}"
                                     aria-label="Ver imagen {{ $loop->iteration }}"
                                 >
                                     <img
-                                        src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($photo->path) }}"
+                                        src="{{ $thumbUrl }}"
                                         alt="{{ $product->name }}"
+                                        width="{{ $thumbDimensions['width'] }}"
+                                        height="{{ $thumbDimensions['height'] }}"
+                                        loading="{{ $loop->first ? 'eager' : 'lazy' }}"
+                                        decoding="async"
+                                        @if($thumbSrcset)
+                                            srcset="{{ $thumbSrcset }}"
+                                            sizes="{{ $thumbSizes }}"
+                                        @endif
                                         class="h-full w-full object-contain p-1 transition duration-200 group-hover/thumb:scale-105"
                                     >
                                 </button>
@@ -731,6 +764,16 @@
                     if (mainImage) {
                         mainImage.src = thumb.dataset.src || mainImage.src;
                         mainImage.alt = thumb.dataset.alt || mainImage.alt;
+                        mainImage.width = Number(thumb.dataset.width || mainImage.width || 0);
+                        mainImage.height = Number(thumb.dataset.height || mainImage.height || 0);
+
+                        if (thumb.dataset.srcset) {
+                            mainImage.srcset = thumb.dataset.srcset;
+                            mainImage.sizes = thumb.dataset.sizes || '';
+                        } else {
+                            mainImage.removeAttribute('srcset');
+                            mainImage.removeAttribute('sizes');
+                        }
                     }
 
                     galleryThumbs.forEach((item) => {

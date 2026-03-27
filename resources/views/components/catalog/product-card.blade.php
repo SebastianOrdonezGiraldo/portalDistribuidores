@@ -1,4 +1,7 @@
-@props(['product'])
+@props([
+    'product',
+    'isLcpCandidate' => false,
+])
 
 @php
     $activeVariants = $product->activeVariantsCollection();
@@ -9,6 +12,13 @@
     $detailUrl = route('products.show', $product);
     $coverPhoto = $product->primaryPhoto
         ?? ($product->relationLoaded('photos') ? $product->photos->first() : null);
+    $coverPhotoUrl = $coverPhoto
+        ? \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($coverPhoto->path)
+        : null;
+    $coverPhotoDimensions = $coverPhoto?->resolvedDimensions() ?? ['width' => 1200, 'height' => 1200];
+    $coverPhotoSrcset = $coverPhoto?->responsiveSrcsetFromKnownVariants();
+    $coverPhotoSizes = '(min-width: 1280px) 25vw, (min-width: 640px) 50vw, 100vw';
+    $isLcpImage = (bool) $isLcpCandidate;
 @endphp
 
 <article class="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-panel">
@@ -21,10 +31,19 @@
 
         @if($coverPhoto)
             <img
-                src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($coverPhoto->path) }}"
+                src="{{ $coverPhotoUrl }}"
                 alt="{{ $product->name }}"
-                loading="lazy"
-                decoding="async"
+                width="{{ $coverPhotoDimensions['width'] }}"
+                height="{{ $coverPhotoDimensions['height'] }}"
+                loading="{{ $isLcpImage ? 'eager' : 'lazy' }}"
+                decoding="{{ $isLcpImage ? 'sync' : 'async' }}"
+                @if($isLcpImage)
+                    fetchpriority="high"
+                @endif
+                @if($coverPhotoSrcset)
+                    srcset="{{ $coverPhotoSrcset }}"
+                    sizes="{{ $coverPhotoSizes }}"
+                @endif
                 class="h-full w-full object-contain object-center transition duration-300 group-hover:scale-[1.03]"
             >
         @else
