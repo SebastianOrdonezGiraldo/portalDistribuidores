@@ -80,16 +80,6 @@
             @endif
 
             @if($isDistributor)
-                @php
-                    $pendingApprovalCount = 0;
-                    if ($user?->canApproveOrders()) {
-                        $pendingApprovalCount = \App\Modules\Orders\Models\Order::query()
-                            ->where('distributor_id', $user->distributor_id)
-                            ->where('status', \App\Modules\Shared\Enums\OrderStatus::PendingApproval)
-                            ->count();
-                    }
-                @endphp
-
                 <p class="sidebar-section-label">Mi Empresa</p>
                 <div class="mt-2 space-y-0.5">
                     <x-ui.sidebar-link :href="route('empresa.dashboard')" :active="request()->routeIs('empresa.dashboard')">
