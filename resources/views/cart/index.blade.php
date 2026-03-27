@@ -33,7 +33,6 @@
             <x-ui.card class="p-4 sm:p-5">
                 <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
                     <h2 class="card-title">Productos agregados</h2>
-                    <p class="text-xs text-slate-500">Tip: usa cantidad 0 para quitar un producto.</p>
                 </div>
 
                 <div class="mt-4 space-y-3">
