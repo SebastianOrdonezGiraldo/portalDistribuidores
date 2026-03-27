@@ -193,6 +193,20 @@ class CartService
         return max(0, $totalQty);
     }
 
+    public function sessionCount(): int
+    {
+        $totalQty = 0;
+
+        foreach ($this->rawItems() as $item) {
+            $qty = isset($item['qty']) ? (int) $item['qty'] : 0;
+            if ($qty > 0) {
+                $totalQty += $qty;
+            }
+        }
+
+        return max(0, $totalQty);
+    }
+
     /**
      * @return array<string, array{product_id:int, variant_id:int|null, qty:int, unit_label:string}>
      */

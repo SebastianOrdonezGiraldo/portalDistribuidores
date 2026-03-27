@@ -87,7 +87,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         View::composer('layouts.app', function ($view): void {
-            $count = app(CartService::class)->count();
+            $count = app(CartService::class)->sessionCount();
             $footerTopCategories = Cache::remember('footer_top_categories', 3600, fn () => Category::active()
                 ->withCount('products')
                 ->orderByDesc('products_count')
