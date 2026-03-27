@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AddServerTiming;
 use App\Http\Middleware\EnsureActiveUser;
 use App\Modules\AuthAccess\Middleware\RoleMiddleware;
 use App\Modules\Catalog\Support\ProductUploadLimits;
@@ -21,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->web(append: [
+            AddServerTiming::class,
             EnsureActiveUser::class,
         ]);
     })

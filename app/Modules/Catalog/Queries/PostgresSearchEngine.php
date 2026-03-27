@@ -2,6 +2,7 @@
 
 namespace App\Modules\Catalog\Queries;
 
+use App\Http\Middleware\AddServerTiming;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Categories\Queries\CategoryDescendantsQuery;
 use App\Modules\Shared\Contracts\SearchEngineInterface;
@@ -32,22 +33,29 @@ class PostgresSearchEngine implements SearchEngineInterface
 
     public function search(ProductSearchQuery $query): LengthAwarePaginator
     {
+        $searchStartedAt = microtime(true);
         $normalizedTerm = $query->normalizedTerm();
 
         if ($normalizedTerm === '') {
-            return $this
+            $dbStartedAt = microtime(true);
+            $paginator = $this
                 ->baseQuery($query)
                 ->with(['category', 'primaryPhoto', 'photos', 'variantAttribute', 'variants.attributeValue'])
                 ->orderBy('products.name')
                 ->orderBy('products.id')
                 ->paginate($query->perPage, ['products.*'], 'page', $query->page)
                 ->withQueryString();
+            $this->recordTiming('catalog_db', (microtime(true) - $dbStartedAt) * 1000, 'Catalog DB query');
+            $this->recordTiming('catalog_search', (microtime(true) - $searchStartedAt) * 1000, 'Catalog search total');
+
+            return $paginator;
         }
 
         // Pre-filtrar en SQL: solo traer productos que contengan al menos
         // un token en nombre, marca, descripción, categoría o sinónimos.
         // El scoring detallado (pesos, strong-match, etc.) se mantiene en PHP
         // pero solo se ejecuta sobre este subconjunto reducido de candidatos.
+        $candidatesStartedAt = microtime(true);
         $candidates = $this
             ->baseQuery($query)
             ->leftJoin('categories as _fcat', 'products.category_id', '=', '_fcat.id')
@@ -68,25 +76,34 @@ class PostgresSearchEngine implements SearchEngineInterface
             // Las relaciones pesadas (fotos/variantes) se cargan solo para la pagina actual.
             ->with(['category.synonyms'])
             ->get();
+        $this->recordTiming('catalog_candidates', (microtime(true) - $candidatesStartedAt) * 1000, 'Search candidates query');
 
+        $rankStartedAt = microtime(true);
         $ranked = $this->rank($candidates, $query);
+        $this->recordTiming('catalog_rank', (microtime(true) - $rankStartedAt) * 1000, 'In-memory ranking');
 
         $total  = $ranked->count();
         $offset = ($query->page - 1) * $query->perPage;
+        $hydrateStartedAt = microtime(true);
         $items  = $this->hydratePageItems(
             $ranked->slice($offset, $query->perPage)->values()
         );
+        $this->recordTiming('catalog_hydrate', (microtime(true) - $hydrateStartedAt) * 1000, 'Hydrate current page');
 
         $paginationPath  = $query->paginationUrl  !== '' ? $query->paginationUrl  : request()->url();
         $paginationQuery = $query->paginationQuery !== '' ? $query->paginationQuery : request()->query();
 
-        return new Paginator(
+        $paginator = new Paginator(
             $items,
             $total,
             $query->perPage,
             $query->page,
             ['path' => $paginationPath, 'query' => $paginationQuery],
         );
+
+        $this->recordTiming('catalog_search', (microtime(true) - $searchStartedAt) * 1000, 'Catalog search total');
+
+        return $paginator;
     }
 
     private function hydratePageItems(Collection $items): Collection
@@ -232,5 +249,15 @@ class PostgresSearchEngine implements SearchEngineInterface
         }
 
         return true;
+    }
+
+    private function recordTiming(string $name, float $durationMs, string $description): void
+    {
+        $request = request();
+        if (! $request instanceof \Illuminate\Http\Request) {
+            return;
+        }
+
+        AddServerTiming::addMetric($request, $name, $durationMs, $description);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Modules\Catalog\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\AddServerTiming;
 use App\Modules\Catalog\Http\Requests\ProductSearchRequest;
 use App\Modules\Shared\ValueObjects\ProductSearchQuery;
 use App\Modules\Categories\Queries\CategoryTreeQuery;
@@ -18,14 +19,35 @@ class CatalogController extends Controller
         SearchEngineInterface $searchEngine,
         CategoryTreeQuery $categoryTreeQuery,
     ): View|JsonResponse {
+        $controllerStartedAt = microtime(true);
         $searchQuery = ProductSearchQuery::fromArray($request->validated());
         $products = $searchEngine->search($searchQuery);
 
         if ($request->ajax()) {
+            AddServerTiming::addMetric(
+                $request,
+                'catalog_controller',
+                (microtime(true) - $controllerStartedAt) * 1000,
+                'Catalog controller total'
+            );
+
             return response()->json($this->buildProductListPayload($products));
         }
 
+        $treeStartedAt = microtime(true);
         $categories = $categoryTreeQuery->execute();
+        AddServerTiming::addMetric(
+            $request,
+            'catalog_category_tree',
+            (microtime(true) - $treeStartedAt) * 1000,
+            'Category tree query'
+        );
+        AddServerTiming::addMetric(
+            $request,
+            'catalog_controller',
+            (microtime(true) - $controllerStartedAt) * 1000,
+            'Catalog controller total'
+        );
 
         return view('catalog.index', [
             'products'   => $products,
