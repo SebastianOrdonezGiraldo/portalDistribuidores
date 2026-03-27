@@ -28,29 +28,54 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebarToggles = Array.from(document.querySelectorAll('[data-sidebar-toggle]'));
     const isDesktopViewport = () => typeof window.matchMedia === 'function'
         && window.matchMedia('(min-width: 1024px)').matches;
+    const focusableSelector = [
+        'a[href]',
+        'button:not([disabled])',
+        'input:not([disabled])',
+        'select:not([disabled])',
+        'textarea:not([disabled])',
+        '[tabindex]:not([tabindex="-1"])',
+    ].join(', ');
+    let lastSidebarTrigger = null;
 
-    const syncSidebarA11y = (expanded) => {
+    const setSidebarExpanded = (expanded) => {
         sidebarToggles.forEach((button) => {
             button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
         });
+    };
 
+    const setSidebarInteractivity = (enabled) => {
         if (!sidebar) {
             return;
         }
 
-        const isVisible = expanded || isDesktopViewport();
-        sidebar.setAttribute('aria-hidden', isVisible ? 'false' : 'true');
+        if (enabled) {
+            sidebar.classList.remove('pointer-events-none');
+            sidebar.removeAttribute('inert');
+            return;
+        }
+
+        sidebar.classList.add('pointer-events-none');
+        sidebar.setAttribute('inert', '');
     };
 
-    const showSidebar = () => {
+    const showSidebar = (triggerButton = null) => {
         if (!sidebar || isDesktopViewport()) {
             return;
         }
 
+        lastSidebarTrigger = triggerButton instanceof HTMLElement
+            ? triggerButton
+            : (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+
         sidebar?.classList.remove('-translate-x-full');
         sidebarOverlay?.classList.remove('hidden');
         document.body.classList.add('sidebar-open');
-        syncSidebarA11y(true);
+        setSidebarInteractivity(true);
+        setSidebarExpanded(true);
+
+        const firstFocusable = sidebar.querySelector('[data-sidebar-close]') || sidebar.querySelector(focusableSelector);
+        firstFocusable?.focus();
     };
 
     const hideSidebar = () => {
@@ -58,13 +83,28 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (!isDesktopViewport()) {
+        const mobileViewport = !isDesktopViewport();
+        const shouldRestoreFocus = mobileViewport && sidebar.contains(document.activeElement);
+
+        if (mobileViewport) {
             sidebar.classList.add('-translate-x-full');
+            setSidebarInteractivity(false);
+        } else {
+            setSidebarInteractivity(true);
         }
 
         sidebarOverlay?.classList.add('hidden');
         document.body.classList.remove('sidebar-open');
-        syncSidebarA11y(false);
+        setSidebarExpanded(false);
+
+        if (shouldRestoreFocus) {
+            const fallbackToggle = sidebarToggles[0];
+            const focusTarget = lastSidebarTrigger && document.contains(lastSidebarTrigger)
+                ? lastSidebarTrigger
+                : fallbackToggle;
+
+            focusTarget?.focus();
+        }
     };
 
     const syncSidebarLayout = () => {
@@ -76,18 +116,22 @@ document.addEventListener('DOMContentLoaded', () => {
             sidebar.classList.remove('-translate-x-full');
             sidebarOverlay?.classList.add('hidden');
             document.body.classList.remove('sidebar-open');
-            syncSidebarA11y(false);
+            setSidebarInteractivity(true);
+            setSidebarExpanded(false);
             return;
         }
 
         sidebar.classList.add('-translate-x-full');
         sidebarOverlay?.classList.add('hidden');
         document.body.classList.remove('sidebar-open');
-        syncSidebarA11y(false);
+        setSidebarInteractivity(false);
+        setSidebarExpanded(false);
     };
 
     sidebarToggles.forEach((button) => {
-        button.addEventListener('click', showSidebar);
+        button.addEventListener('click', () => {
+            showSidebar(button);
+        });
     });
 
     document.querySelectorAll('[data-sidebar-close], [data-sidebar-overlay]').forEach((button) => {
