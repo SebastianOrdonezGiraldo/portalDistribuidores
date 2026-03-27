@@ -15,8 +15,14 @@
     $coverPhotoUrl = $coverPhoto
         ? \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($coverPhoto->path)
         : null;
-    $coverPhotoDimensions = $coverPhoto?->resolvedDimensions() ?? ['width' => 1200, 'height' => 1200];
-    $coverPhotoSrcset = $coverPhoto?->responsiveSrcsetFromKnownVariants();
+    // En listado de catalogo evitamos I/O de storage por tarjeta durante SSR.
+    // Solo usamos dimensiones persistidas; si no existen, aplicamos fallback seguro.
+    $coverPhotoWidth = (int) ($coverPhoto?->photo_width ?? 0);
+    $coverPhotoHeight = (int) ($coverPhoto?->photo_height ?? 0);
+    $coverPhotoDimensions = ($coverPhotoWidth > 0 && $coverPhotoHeight > 0)
+        ? ['width' => $coverPhotoWidth, 'height' => $coverPhotoHeight]
+        : ['width' => 1200, 'height' => 1200];
+    $coverPhotoSrcset = null;
     $coverPhotoSizes = '(min-width: 1280px) 25vw, (min-width: 640px) 50vw, 100vw';
     $isLcpImage = (bool) $isLcpCandidate;
 @endphp
