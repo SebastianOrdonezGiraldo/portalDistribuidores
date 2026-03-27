@@ -61,7 +61,13 @@ class StoreProductRequest extends FormRequest
                 'min:0',
                 'max:9999999',
             ],
-            'variants.*.stock' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
+            'variants.*.stock' => [
+                Rule::requiredIf(fn () => $this->boolean('has_variants') && $this->boolean('is_active')),
+                'nullable',
+                'numeric',
+                'min:0',
+                'max:9999999',
+            ],
             'price' => [
                 Rule::requiredIf(fn () => ! $this->boolean('has_variants')),
                 'nullable',
@@ -69,7 +75,13 @@ class StoreProductRequest extends FormRequest
                 'min:0',
                 'max:9999999',
             ],
-            'stock' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
+            'stock' => [
+                Rule::requiredIf(fn () => ! $this->boolean('has_variants') && $this->boolean('is_active')),
+                'nullable',
+                'numeric',
+                'min:0',
+                'max:9999999',
+            ],
             'is_active' => ['nullable', 'boolean'],
             'video_url' => ['nullable', 'url', 'max:255'],
         ], $this->productUploadRules());
@@ -77,7 +89,10 @@ class StoreProductRequest extends FormRequest
 
     public function messages(): array
     {
-        return $this->productUploadMessages();
+        return array_merge($this->productUploadMessages(), [
+            'stock.required' => 'El stock es obligatorio para publicar el producto.',
+            'variants.*.stock.required' => 'El stock de cada variante es obligatorio para publicar el producto.',
+        ]);
     }
 
     public function withValidator(Validator $validator): void

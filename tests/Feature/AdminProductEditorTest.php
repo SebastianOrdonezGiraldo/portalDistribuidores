@@ -397,6 +397,56 @@ class AdminProductEditorTest extends TestCase
             ]);
     }
 
+    public function test_store_product_requires_stock_when_product_is_published(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+
+        $payload = $this->validProductPayload($category);
+        unset($payload['stock']);
+        $payload['sku'] = 'SKU-NEW-NO-STOCK-001';
+        $payload['is_active'] = 1;
+
+        $response = $this->actingAs($admin)
+            ->from('/admin/products/create')
+            ->post('/admin/products', $payload);
+
+        $response
+            ->assertRedirect('/admin/products/create')
+            ->assertSessionHasErrors([
+                'stock' => 'El stock es obligatorio para publicar el producto.',
+            ]);
+    }
+
+    public function test_store_product_requires_variant_stock_when_product_with_variants_is_published(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+
+        $response = $this->actingAs($admin)
+            ->from('/admin/products/create')
+            ->post('/admin/products', [
+                'name' => 'Producto Variante sin Stock',
+                'brand' => 'Marca Variante',
+                'sku' => 'SKU-VAR-NO-STOCK-001',
+                'description' => 'Producto con variante sin stock',
+                'category_id' => $category->id,
+                'has_variants' => 1,
+                'new_variant_attribute_name' => 'Color',
+                'variants' => [
+                    ['value' => 'Rojo', 'price' => 18000, 'stock' => 5],
+                    ['value' => 'Azul', 'price' => 21000, 'stock' => ''],
+                ],
+                'is_active' => 1,
+            ]);
+
+        $response
+            ->assertRedirect('/admin/products/create')
+            ->assertSessionHasErrors([
+                'variants.1.stock' => 'El stock de cada variante es obligatorio para publicar el producto.',
+            ]);
+    }
+
     public function test_post_too_large_without_referer_uses_safe_fallback_and_preserves_old_input(): void
     {
         $admin = User::factory()->admin()->create();
