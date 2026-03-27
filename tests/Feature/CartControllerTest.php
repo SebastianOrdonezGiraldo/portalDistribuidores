@@ -129,6 +129,30 @@ class CartControllerTest extends TestCase
             ->assertJson(['ok' => true]);
     }
 
+    public function test_adding_product_above_stock_is_rejected(): void
+    {
+        $product = Product::factory()->create(['stock' => 5]);
+
+        $this->postJson(route('cart.store'), ['product_id' => $product->id, 'qty' => 6])
+            ->assertStatus(422)
+            ->assertJson([
+                'ok' => false,
+                'message' => 'Solo hay 5 unidades disponibles para este producto.',
+            ]);
+    }
+
+    public function test_adding_same_product_multiple_times_cannot_exceed_stock(): void
+    {
+        $product = Product::factory()->create(['stock' => 5]);
+
+        $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 4])
+            ->assertRedirect();
+
+        $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 2])
+            ->assertRedirect()
+            ->assertSessionHasErrors();
+    }
+
     public function test_adding_inactive_product_returns_error_redirect(): void
     {
         $product = Product::factory()->inactive()->create();
@@ -198,6 +222,26 @@ class CartControllerTest extends TestCase
             ->assertJson(['ok' => true]);
     }
 
+    public function test_adding_product_with_variant_above_variant_stock_is_rejected(): void
+    {
+        $product = Product::factory()->create(['stock' => 999]);
+        $variant = ProductVariant::factory()->forProduct($product)->create([
+            'is_active' => true,
+            'stock' => 2,
+        ]);
+
+        $this->postJson(route('cart.store'), [
+            'product_id' => $product->id,
+            'variant_id' => $variant->id,
+            'qty' => 3,
+        ])
+            ->assertStatus(422)
+            ->assertJson([
+                'ok' => false,
+                'message' => 'Solo hay 2 unidades disponibles para este producto.',
+            ]);
+    }
+
     public function test_adding_inactive_variant_is_rejected(): void
     {
         $product = Product::factory()->create();
@@ -230,6 +274,22 @@ class CartControllerTest extends TestCase
         $this->patch(route('cart.update'), ['quantities' => [$lineKey => 5]])
             ->assertRedirect()
             ->assertSessionHas('status', 'Carrito actualizado.');
+    }
+
+    public function test_update_cart_quantities_above_stock_returns_error(): void
+    {
+        $product = Product::factory()->create([
+            'price' => 5000,
+            'stock' => 3,
+        ]);
+
+        $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 1]);
+
+        $lineKey = $product->id.'-0';
+
+        $this->patch(route('cart.update'), ['quantities' => [$lineKey => 4]])
+            ->assertRedirect()
+            ->assertSessionHasErrors();
     }
 
     public function test_update_cart_quantities_accepts_put_method(): void

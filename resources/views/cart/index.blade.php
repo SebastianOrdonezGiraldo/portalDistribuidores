@@ -46,6 +46,7 @@
                             class="rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4"
                             data-cart-item
                             data-unit-price="{{ (float) $item['unit_price'] }}"
+                            data-stock-limit="{{ $item['available_qty'] ?? '' }}"
                         >
                             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div class="flex min-w-0 items-center gap-3">
@@ -74,6 +75,7 @@
                                             min="0"
                                             step="1"
                                             value="{{ (int) $item['qty'] }}"
+                                            @if(isset($item['available_qty']) && $item['available_qty'] !== null) max="{{ (int) $item['available_qty'] }}" @endif
                                             class="w-14 border-0 bg-transparent text-center text-sm font-semibold text-slate-900 focus:ring-0"
                                             data-cart-qty
                                         >
@@ -141,6 +143,19 @@
                 return Math.max(0, Math.round(parsed));
             };
 
+            const parseStockLimit = (value) => {
+                if (value === '' || value === null || value === undefined) {
+                    return null;
+                }
+
+                const parsed = Number(value);
+                if (!Number.isFinite(parsed)) {
+                    return null;
+                }
+
+                return Math.max(0, Math.floor(parsed));
+            };
+
             const numberFormatter = new Intl.NumberFormat('es-CO', {
                 maximumFractionDigits: 0,
             });
@@ -160,14 +175,16 @@
                     }
 
                     const qty = parseQty(qtyInput.value);
-                    qtyInput.value = String(qty);
+                    const stockLimit = parseStockLimit(item.dataset.stockLimit);
+                    const normalizedQty = stockLimit === null ? qty : Math.min(qty, stockLimit);
+                    qtyInput.value = String(normalizedQty);
 
                     const unitPrice = Number(item.dataset.unitPrice || 0);
-                    const subtotal = qty * unitPrice;
+                    const subtotal = normalizedQty * unitPrice;
 
                     total += subtotal;
-                    units += qty;
-                    if (qty > 0) {
+                    units += normalizedQty;
+                    if (normalizedQty > 0) {
                         products += 1;
                     }
 
@@ -201,7 +218,10 @@
 
                     const direction = Number(button.dataset.cartStep || 0);
                     const current = parseQty(input.value);
-                    input.value = String(Math.max(0, current + direction));
+                    const item = input.closest('[data-cart-item]');
+                    const stockLimit = parseStockLimit(item?.dataset.stockLimit);
+                    const nextValue = Math.max(0, current + direction);
+                    input.value = String(stockLimit === null ? nextValue : Math.min(nextValue, stockLimit));
                     refreshCartSummary();
                 });
             });

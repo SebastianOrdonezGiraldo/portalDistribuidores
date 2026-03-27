@@ -6,6 +6,7 @@
 <x-app-layout>
     @php
         $defaultQty = $stepValue;
+        $defaultStockLimit = is_numeric($stock ?? null) ? max(0, (int) floor((float) $stock)) : null;
         $mainPhotoUrl = $mainPhoto ? \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($mainPhoto->path) : null;
         $mainPhotoDimensions = $mainPhoto?->resolvedDimensions() ?? ['width' => 1200, 'height' => 1200];
         $mainPhotoSrcset = $mainPhoto?->responsiveSrcsetFromKnownVariants();
@@ -280,6 +281,7 @@
                         data-loading-form
                         data-qty-control
                         data-min-multiple="{{ $stepValue }}"
+                        data-default-stock="{{ $defaultStockLimit ?? '' }}"
                         class="space-y-4"
                     >
                         @csrf
@@ -314,6 +316,7 @@
                                             value="{{ $variant->id }}"
                                             data-price="{{ $variantPrice }}"
                                             data-stock="{{ $variantStock ?? '' }}"
+                                            data-stock-max="{{ is_null($variantStock) ? '' : max(0, (int) floor((float) $variantStock)) }}"
                                             @selected((string) old('variant_id') === (string) $variant->id)
                                         >
                                             {{ $variantValue }} — ${{ number_format($variantPrice, 0, ',', '.') }} · {{ $variantStockLabel }}
@@ -347,6 +350,7 @@
                                         value="{{ $defaultQty }}"
                                         min="{{ $stepValue }}"
                                         step="{{ $stepValue }}"
+                                        @if($defaultStockLimit !== null) max="{{ $defaultStockLimit }}" @endif
                                         inputmode="numeric"
                                         data-qty-input
                                         data-primary-qty
@@ -712,6 +716,7 @@
                     class="inline-flex shrink-0 items-center rounded-xl border border-slate-300 bg-white"
                     data-qty-control
                     data-min-multiple="{{ $stepValue }}"
+                    data-default-stock="{{ $defaultStockLimit ?? '' }}"
                 >
                     <button
                         type="button"
@@ -724,6 +729,7 @@
                         value="{{ $defaultQty }}"
                         min="{{ $stepValue }}"
                         step="{{ $stepValue }}"
+                        @if($defaultStockLimit !== null) max="{{ $defaultStockLimit }}" @endif
                         inputmode="numeric"
                         data-qty-input
                         data-shared-qty
@@ -823,9 +829,6 @@
                 if (stockTarget) stockTarget.textContent = stockText;
             };
 
-            variantSelect?.addEventListener('change', refreshVariantSummary);
-            refreshVariantSummary();
-
             // ── Control de cantidad ──────────────────────────────────────
             const qtyRoots = Array.from(document.querySelectorAll('[data-qty-control]'));
             const sharedInputs = Array.from(document.querySelectorAll('[data-shared-qty]'));
@@ -844,6 +847,36 @@
                 return Math.ceil(base / multiple) * multiple;
             };
 
+            const parseStockLimit = (value) => {
+                if (value === '' || value === null || value === undefined) return null;
+                const parsed = Number(value);
+                if (!Number.isFinite(parsed)) return null;
+                return Math.max(0, Math.floor(parsed));
+            };
+
+            const activeStockLimit = () => {
+                if (variantSelect) {
+                    const selected = variantSelect.selectedOptions[0];
+                    if (selected && selected.value) {
+                        return parseStockLimit(selected.dataset.stockMax);
+                    }
+                }
+
+                const primaryRoot = qtyRoots[0];
+                return parseStockLimit(primaryRoot?.dataset.defaultStock);
+            };
+
+            const syncMaxAttributes = (limit) => {
+                sharedInputs.forEach((input) => {
+                    if (limit === null) {
+                        input.removeAttribute('max');
+                        return;
+                    }
+
+                    input.max = String(limit);
+                });
+            };
+
             const syncQtyInputs = (value) => {
                 sharedInputs.forEach((input) => { input.value = formatQtyVal(value); });
             };
@@ -853,8 +886,27 @@
                 if (!input || input.disabled) return;
                 const multiple = Math.max(1, Math.round(parseValue(root.dataset.minMultiple, 1)));
                 const minValue = Math.max(multiple, parseValue(input.min || multiple, multiple));
-                syncQtyInputs(normalizeQty(requestedValue, minValue, multiple));
+                const stockLimit = activeStockLimit();
+                syncMaxAttributes(stockLimit);
+
+                let normalizedValue = normalizeQty(requestedValue, minValue, multiple);
+                if (stockLimit !== null) {
+                    normalizedValue = Math.min(normalizedValue, stockLimit);
+                }
+
+                syncQtyInputs(normalizedValue);
             };
+
+            variantSelect?.addEventListener('change', () => {
+                refreshVariantSummary();
+
+                const primaryRoot = qtyRoots[0];
+                if (!primaryRoot) return;
+
+                const primaryInput = primaryRoot.querySelector('[data-qty-input]');
+                applyQty(parseValue(primaryInput?.value, parseValue(primaryInput?.min, 1)), primaryRoot);
+            });
+            refreshVariantSummary();
 
             qtyRoots.forEach((root) => {
                 const input = root.querySelector('[data-qty-input]');
