@@ -185,4 +185,17 @@ class AdminUsersTest extends TestCase
 
         $this->assertDatabaseHas('users', ['id' => $admin->id]);
     }
+
+    public function test_admin_can_delete_another_user(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->create();
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->delete('/admin/users/'.$user->id, ['_token' => 'test-token'])
+            ->assertRedirect('/admin/users');
+
+        $this->assertDatabaseMissing('users', ['id' => $user->id]);
+    }
 }
