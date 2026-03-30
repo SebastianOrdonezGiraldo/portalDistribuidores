@@ -162,6 +162,32 @@ class PublicProductPaginationTest extends TestCase
         $response->assertJsonStructure(['html', 'controlsHtml']);
     }
 
+    public function test_product_detail_related_cards_fall_back_to_first_photo_when_primary_missing(): void
+    {
+        $category = $this->createCategory('Photo Category');
+
+        $product = $this->createProduct($category, 'Main Product', 'MAIN-PHOTO');
+        $relatedProduct = $this->createProduct($category, 'Related Product', 'REL-PHOTO');
+
+        $fallbackPhoto = $relatedProduct->photos()->create([
+            'path' => 'products/photos/related-fallback.jpg',
+            'is_primary' => false,
+            'sort_order' => 1,
+        ]);
+
+        $relatedProduct->photos()->create([
+            'path' => 'products/photos/related-second.jpg',
+            'is_primary' => false,
+            'sort_order' => 2,
+        ]);
+
+        $response = $this->get(route('products.show', $product));
+
+        $response->assertOk();
+        $response->assertSee('Related Product');
+        $response->assertSee($fallbackPhoto->path);
+    }
+
     private function createCategory(?string $name = null): Category
     {
         $sequence = $this->categorySequence++;

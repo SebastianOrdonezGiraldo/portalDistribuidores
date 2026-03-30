@@ -295,7 +295,7 @@ class ProductController extends Controller
             ->where('is_active', true)
             ->where('category_id', $product->category_id)
             ->whereKeyNot($product->id)
-            ->with(['category', 'primaryPhoto', 'variantAttribute', 'variants.attributeValue'])
+            ->with(['category', 'primaryPhoto', 'photos', 'variantAttribute', 'variants.attributeValue'])
             ->latest('id')
             ->paginate(20, ['*'], 'related_page', $request->integer('related_page', 1))
             ->withQueryString();
@@ -306,7 +306,7 @@ class ProductController extends Controller
         $query = Product::query()
             ->where('is_active', true)
             ->whereKeyNot($product->id)
-            ->with(['category', 'primaryPhoto', 'variantAttribute', 'variants.attributeValue'])
+            ->with(['category', 'primaryPhoto', 'photos', 'variantAttribute', 'variants.attributeValue'])
             ->latest('id');
 
         if ($product->category_id) {
