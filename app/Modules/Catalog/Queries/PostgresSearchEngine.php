@@ -44,8 +44,8 @@ class PostgresSearchEngine implements SearchEngineInterface
                 ->orderByRaw($this->inStockFirstOrderExpression())
                 ->orderBy('products.name')
                 ->orderBy('products.id')
-                ->paginate($query->perPage, ['products.*'], 'page', $query->page)
-                ->withQueryString();
+                ->paginate($query->perPage, ['products.*'], 'page', $query->page);
+            $paginator->appends($this->safePaginationQuery($query));
             $this->recordTiming('catalog_db', (microtime(true) - $dbStartedAt) * 1000, 'Catalog DB query');
             $this->recordTiming('catalog_search', (microtime(true) - $searchStartedAt) * 1000, 'Catalog search total');
 
@@ -91,15 +91,12 @@ class PostgresSearchEngine implements SearchEngineInterface
         );
         $this->recordTiming('catalog_hydrate', (microtime(true) - $hydrateStartedAt) * 1000, 'Hydrate current page');
 
-        $paginationPath  = $query->paginationUrl  !== '' ? $query->paginationUrl  : request()->url();
-        $paginationQuery = $query->paginationQuery !== '' ? $query->paginationQuery : request()->query();
-
         $paginator = new Paginator(
             $items,
             $total,
             $query->perPage,
             $query->page,
-            ['path' => $paginationPath, 'query' => $paginationQuery],
+            ['path' => route('catalog.index'), 'query' => $this->safePaginationQuery($query)],
         );
 
         $this->recordTiming('catalog_search', (microtime(true) - $searchStartedAt) * 1000, 'Catalog search total');
@@ -271,5 +268,31 @@ class PostgresSearchEngine implements SearchEngineInterface
     private function inStockFirstOrderExpression(): string
     {
         return 'CASE WHEN products.stock > 0 THEN 0 ELSE 1 END';
+    }
+
+    /**
+     * @return array<string, int|string>
+     */
+    private function safePaginationQuery(ProductSearchQuery $query): array
+    {
+        $params = [];
+
+        if (filled($query->term)) {
+            $params['term'] = $query->term;
+        }
+
+        if ($query->categoryId !== null) {
+            $params['category_id'] = $query->categoryId;
+        }
+
+        if (! $query->includeChildren) {
+            $params['include_children'] = 0;
+        }
+
+        if ($query->perPage !== 20) {
+            $params['per_page'] = $query->perPage;
+        }
+
+        return $params;
     }
 }

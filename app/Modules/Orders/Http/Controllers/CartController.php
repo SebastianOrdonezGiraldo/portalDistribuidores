@@ -103,6 +103,10 @@ class CartController extends Controller
 
     public function destroy(string $lineKey, CartService $cartService): RedirectResponse
     {
+        if (preg_match('/^\d+-\d+$/', $lineKey) !== 1) {
+            return back()->withErrors('Formato de línea de carrito inválido.');
+        }
+
         $cartService->remove($lineKey);
 
         return back()->with('status', 'Línea eliminada del carrito.');

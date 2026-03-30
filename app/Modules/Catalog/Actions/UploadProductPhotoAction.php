@@ -4,16 +4,20 @@ namespace App\Modules\Catalog\Actions;
 
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductPhoto;
+use App\Modules\Catalog\Security\SafeUploadValidator;
 use Illuminate\Http\UploadedFile;
 
 class UploadProductPhotoAction
 {
     public function __construct(
         private readonly SetPrimaryPhotoAction $setPrimaryPhotoAction,
+        private readonly SafeUploadValidator $safeUploadValidator,
     ) {}
 
     public function execute(Product $product, UploadedFile $file, int $sortOrder = 0): ProductPhoto
     {
+        $this->safeUploadValidator->assertSafeImage($file, 'photos');
+
         $isFirst = $product->photos()->doesntExist();
         [$photoWidth, $photoHeight] = $this->extractDimensions($file);
 

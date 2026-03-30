@@ -31,7 +31,7 @@ class CatalogController extends Controller
                 'Catalog controller total'
             );
 
-            return response()->json($this->buildProductListPayload($products));
+            return response()->json($this->buildProductListPayload($products, $searchQuery));
         }
 
         $treeStartedAt = microtime(true);
@@ -58,7 +58,7 @@ class CatalogController extends Controller
         ]);
     }
 
-    private function buildProductListPayload(LengthAwarePaginator $products): array
+    private function buildProductListPayload(LengthAwarePaginator $products, ProductSearchQuery $searchQuery): array
     {
         $listKey = 'catalog';
 
@@ -68,7 +68,7 @@ class CatalogController extends Controller
             'hasMore' => $products->hasMorePages(),
             'currentPage' => $products->currentPage(),
             'nextPage' => $products->currentPage() + 1,
-            'pushUrl' => $this->pushUrl($products),
+            'pushUrl' => $this->pushUrl($products, $searchQuery),
         ];
     }
 
@@ -100,9 +100,25 @@ class CatalogController extends Controller
         return $isBaseCatalog ? 'index,follow' : 'noindex,follow';
     }
 
-    private function pushUrl(LengthAwarePaginator $products): string
+    private function pushUrl(LengthAwarePaginator $products, ProductSearchQuery $searchQuery): string
     {
-        $query = request()->except('list');
+        $query = [];
+
+        if (filled($searchQuery->term)) {
+            $query['term'] = $searchQuery->term;
+        }
+
+        if ($searchQuery->categoryId !== null) {
+            $query['category_id'] = $searchQuery->categoryId;
+        }
+
+        if (! $searchQuery->includeChildren) {
+            $query['include_children'] = 0;
+        }
+
+        if ($searchQuery->perPage !== 20) {
+            $query['per_page'] = $searchQuery->perPage;
+        }
 
         if ($products->currentPage() <= 1) {
             unset($query[$products->getPageName()]);
@@ -118,7 +134,7 @@ class CatalogController extends Controller
         $queryString = http_build_query($query);
 
         return $queryString === ''
-            ? request()->url()
-            : request()->url() . '?' . $queryString;
+            ? route('catalog.index')
+            : route('catalog.index').'?'.$queryString;
     }
 }
