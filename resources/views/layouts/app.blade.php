@@ -294,6 +294,10 @@
     </div>
 </x-ui.modal>
 
+@if(!$isAdmin && view()->exists('layouts.partials.whatsapp-float'))
+    @include('layouts.partials.whatsapp-float')
+@endif
+
 @include('layouts.partials.cookie-banner')
 </body>
 </html>
