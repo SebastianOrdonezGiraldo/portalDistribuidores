@@ -293,5 +293,7 @@
         <x-ui.button type="button" variant="danger" class="w-full justify-center sm:w-auto" data-confirm-approve>Confirmar</x-ui.button>
     </div>
 </x-ui.modal>
+
+@include('layouts.partials.cookie-banner')
 </body>
 </html>

@@ -78,5 +78,6 @@
         </div>
     </div>
 </div>
+@include('layouts.partials.cookie-banner')
 </body>
 </html>
