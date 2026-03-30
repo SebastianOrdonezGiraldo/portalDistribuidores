@@ -3,6 +3,8 @@
 use App\Http\Middleware\AddServerTiming;
 use App\Http\Middleware\EnsureActiveUser;
 use App\Http\Middleware\NormalizeAndValidateInput;
+use App\Http\Middleware\ThrottleAiGenerationRequests;
+use App\Http\Middleware\ThrottleSuspiciousAutomation;
 use App\Modules\AuthAccess\Middleware\RoleMiddleware;
 use App\Modules\Catalog\Support\ProductUploadLimits;
 use Illuminate\Foundation\Application;
@@ -20,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'role' => RoleMiddleware::class,
+            'suspicious_automation' => ThrottleSuspiciousAutomation::class,
         ]);
 
         $middleware->web(prepend: [
@@ -29,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             AddServerTiming::class,
             EnsureActiveUser::class,
+            ThrottleAiGenerationRequests::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

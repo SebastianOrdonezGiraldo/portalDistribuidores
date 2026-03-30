@@ -19,7 +19,9 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::patch('categories/{category}/status', [CategoryAdminController::class, 'setStatus'])->name('categories.status');
         Route::resource('categories', CategoryAdminController::class)->except('show');
 
-        Route::get('products/check-sku', [ProductAdminController::class, 'checkSku'])->name('products.check-sku');
+        Route::get('products/check-sku', [ProductAdminController::class, 'checkSku'])
+            ->middleware(['throttle:api-endpoints', 'suspicious_automation'])
+            ->name('products.check-sku');
         Route::get('products/import/template', [ProductImportController::class, 'downloadTemplate'])->name('products.import.template');
         Route::post('products/import', [ProductImportController::class, 'import'])->name('products.import');
         Route::post('products/bulk-action', [ProductAdminController::class, 'bulkAction'])->name('products.bulk-action');
