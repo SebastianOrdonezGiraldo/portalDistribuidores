@@ -12,7 +12,7 @@
                 </div>
             </x-slot>
             <x-slot name="actions">
-                <a href="{{ route('empresa.dashboard') }}" class="btn btn-secondary">Dashboard</a>
+                <a href="{{ route('empresa.dashboard') }}" class="btn btn-secondary">Inicio</a>
             </x-slot>
         </x-ui.page-header>
     </x-slot>

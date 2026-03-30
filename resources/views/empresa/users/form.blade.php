@@ -35,7 +35,7 @@
                         <x-input-error :messages="$errors->get('name')" />
                     </div>
                     <div>
-                        <label class="form-label" for="user-email">Email *</label>
+                        <label class="form-label" for="user-email">Correo electrónico *</label>
                         <x-ui.input id="user-email" name="email" type="email" :value="old('email', $user->email)" required />
                         <x-input-error :messages="$errors->get('email')" />
                     </div>
@@ -100,7 +100,7 @@
                 <h2 class="card-title">Información</h2>
                 <ul class="mt-3 space-y-2 text-sm text-slate-600">
                     <li>Este usuario quedará asociado a tu empresa automáticamente.</li>
-                    <li>Podrá iniciar sesión con el email y contraseña indicados.</li>
+                    <li>Podrá iniciar sesión con el correo y la contraseña indicados.</li>
                     <li>Puedes activar o desactivar el acceso desde el listado de usuarios.</li>
                     @if($isEdit)
                         <li class="font-semibold text-slate-800">Estado actual: {{ $user->is_active ? 'Activo' : 'Inactivo' }}</li>

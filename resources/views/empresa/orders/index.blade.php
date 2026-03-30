@@ -14,7 +14,7 @@
                 </div>
             </x-slot>
             <x-slot name="actions">
-                <a href="{{ route('empresa.dashboard') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Dashboard</a>
+                <a href="{{ route('empresa.dashboard') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Inicio</a>
                 <a href="{{ route('checkout.show') }}" class="btn btn-primary w-full justify-center sm:w-auto">Nuevo pedido</a>
             </x-slot>
         </x-ui.page-header>

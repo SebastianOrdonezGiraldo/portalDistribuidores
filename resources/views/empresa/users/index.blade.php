@@ -8,7 +8,7 @@
                 </div>
             </x-slot>
             <x-slot name="actions">
-                <a href="{{ route('empresa.dashboard') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Dashboard</a>
+                <a href="{{ route('empresa.dashboard') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Inicio</a>
                 <a href="{{ route('empresa.users.create') }}" class="btn btn-primary w-full justify-center sm:w-auto">Nuevo usuario</a>
             </x-slot>
         </x-ui.page-header>
@@ -28,7 +28,7 @@
                 <thead>
                     <tr>
                         <th>Nombre</th>
-                        <th>Email</th>
+                        <th>Correo electrónico</th>
                         <th>Rol en empresa</th>
                         <th>Estado</th>
                         <th class="text-right">Acciones</th>
@@ -43,7 +43,7 @@
                                     <p class="text-xs text-brand-dark font-semibold">Tú</p>
                                 @endif
                             </td>
-                            <td data-label="Email" class="text-sm text-slate-600">{{ $user->email }}</td>
+                            <td data-label="Correo electrónico" class="text-sm text-slate-600">{{ $user->email }}</td>
                             <td data-label="Rol en empresa">
                                 @if($user->company_role)
                                     <x-ui.badge variant="info">{{ $user->company_role->label() }}</x-ui.badge>

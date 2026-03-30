@@ -57,7 +57,7 @@ class AdminDashboardTest extends TestCase
             ->get('/admin');
 
         $response->assertOk();
-        $response->assertSee('Dashboard Operativo');
+        $response->assertSee('Panel operativo');
         $response->assertSee('Pedidos Recientes');
         $response->assertSee('Pedido '.$order->oc_number);
     }

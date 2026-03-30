@@ -589,7 +589,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isIconButton) {
                 submitButton.innerHTML = makeCrossSvg();
             } else {
-                submitButton.innerHTML = `${makeCrossSvg()} Error`;
+                submitButton.innerHTML = `${makeCrossSvg()} Ups`;
             }
             submitButton.classList.add('!bg-red-500', '!border-red-500');
             shakeCartButton(submitButton);

@@ -1,6 +1,6 @@
 <x-app-layout>
     <x-slot name="header">
-        <x-ui.page-header title="Dashboard Operativo" subtitle="Visión consolidada de pedidos, catálogo y alertas para la operación B2B diaria.">
+        <x-ui.page-header title="Panel operativo" subtitle="Visión consolidada de pedidos, catálogo y alertas para la operación B2B diaria.">
             <x-slot name="meta">
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="stat-pill">Periodo: {{ $monthRangeLabel }}</span>
