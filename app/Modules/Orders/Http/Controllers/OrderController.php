@@ -11,6 +11,7 @@ use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\Cart\CartService;
 use App\Modules\Orders\Services\OrderPdfGenerator;
 use App\Modules\Shared\Exceptions\DomainException;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -110,6 +111,7 @@ class OrderController extends Controller
             $order->update(['pdf_path' => $path]);
         }
 
+        /** @var FilesystemAdapter $disk */
         $disk = Storage::disk(OrderPdfGenerator::diskName());
 
         if (! $disk->exists($path)) {

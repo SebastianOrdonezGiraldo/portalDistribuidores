@@ -31,7 +31,7 @@
     </p>
 
     <p style="margin: 0;">
-        Equipo comercial<br>
+        Equipo comercial Distribuidor<br>
         Import Corporal Medical SAS
     </p>
 </body>
