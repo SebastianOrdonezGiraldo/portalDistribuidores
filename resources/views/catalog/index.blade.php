@@ -180,7 +180,7 @@
                     <button
                         type="button"
                         class="btn btn-secondary catalog-mobile-filter-toggle"
-                        @click="filtersOpen = true"
+                        @click="filtersOpen = !filtersOpen"
                         x-bind:aria-expanded="filtersOpen.toString()"
                         aria-controls="catalog-filters-panel"
                     >
@@ -211,7 +211,7 @@
                 <button
                     type="button"
                     class="btn btn-secondary catalog-filter-toggle"
-                    @click="filtersOpen = true"
+                    @click="filtersOpen = !filtersOpen"
                     x-bind:aria-expanded="filtersOpen.toString()"
                     aria-controls="catalog-filters-panel"
                 >
