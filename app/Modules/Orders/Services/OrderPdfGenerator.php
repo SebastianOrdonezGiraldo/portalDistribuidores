@@ -4,6 +4,7 @@ namespace App\Modules\Orders\Services;
 
 use App\Modules\Orders\Models\Order;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 
 class OrderPdfGenerator
@@ -18,11 +19,13 @@ class OrderPdfGenerator
         $path = 'orders/'.$order->oc_number.'.pdf';
         $this->migrateLegacyPdf($path);
 
-        if (! $this->shouldRegenerate($path)) {
+        // Siempre refrescamos relaciones para evitar usar una colección de ítems
+        // cacheada en memoria que pueda estar desactualizada.
+        $order->load('items', 'distributor', 'user');
+
+        if (! $this->shouldRegenerate($path, $order)) {
             return $path;
         }
-
-        $order->loadMissing('items', 'distributor', 'user');
 
         $pdf = Pdf::loadView('orders.pdf', $this->buildViewData($order))
             ->setPaper('a4', 'portrait');
@@ -70,7 +73,7 @@ class OrderPdfGenerator
         ];
     }
 
-    private function shouldRegenerate(string $path): bool
+    private function shouldRegenerate(string $path, Order $order): bool
     {
         $disk = $this->disk();
 
@@ -86,8 +89,22 @@ class OrderPdfGenerator
 
         $templateLastModified = filemtime($templatePath) ?: 0;
         $pdfLastModified = $disk->lastModified($path);
+        $orderLastModified = $this->latestOrderDataTimestamp($order);
 
-        return $templateLastModified > $pdfLastModified;
+        return max($templateLastModified, $orderLastModified) > $pdfLastModified;
+    }
+
+    private function latestOrderDataTimestamp(Order $order): int
+    {
+        $orderTimestamp = $order->updated_at?->getTimestamp() ?? 0;
+
+        /** @var Collection<int, \App\Modules\Orders\Models\OrderItem> $items */
+        $items = $order->items;
+        $itemsTimestamp = (int) $items
+            ->map(fn ($item) => $item->updated_at?->getTimestamp() ?? 0)
+            ->max();
+
+        return max($orderTimestamp, $itemsTimestamp);
     }
 
     private function migrateLegacyPdf(string $path): void
