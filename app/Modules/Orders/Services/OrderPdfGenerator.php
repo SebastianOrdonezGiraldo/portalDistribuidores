@@ -4,8 +4,9 @@ namespace App\Modules\Orders\Services;
 
 use App\Modules\Orders\Models\Order;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 class OrderPdfGenerator
 {
@@ -22,15 +23,28 @@ class OrderPdfGenerator
         // Siempre refrescamos relaciones para evitar usar una colección de ítems
         // cacheada en memoria que pueda estar desactualizada.
         $order->load('items', 'distributor', 'user');
-
-        if (! $this->shouldRegenerate($path, $order)) {
-            return $path;
-        }
+        Log::debug('order.pdf.generating', [
+            'order_id' => $order->id,
+            'oc_number' => $order->oc_number,
+            'items_count' => $order->items->count(),
+            'items' => $order->items->map(fn ($item) => [
+                'order_item_id' => $item->id,
+                'product_id' => $item->product_id,
+                'variant_id' => $item->product_variant_id,
+                'sku' => $item->sku_snapshot,
+                'product_name' => $item->product_name_snapshot,
+                'variant_value' => $item->variant_value_snapshot,
+                'qty' => (float) $item->qty,
+            ])->values()->all(),
+        ]);
 
         $pdf = Pdf::loadView('orders.pdf', $this->buildViewData($order))
             ->setPaper('a4', 'portrait');
 
-        $this->disk()->put($path, $pdf->output());
+        $written = $this->disk()->put($path, $pdf->output());
+        if ($written === false) {
+            throw new RuntimeException("No fue posible guardar el PDF de la orden {$order->id}.");
+        }
 
         Storage::disk('public')->delete($path);
 
@@ -71,40 +85,6 @@ class OrderPdfGenerator
             'totalFinal' => $totalFinal,
             'vatRate' => $vatRate,
         ];
-    }
-
-    private function shouldRegenerate(string $path, Order $order): bool
-    {
-        $disk = $this->disk();
-
-        if (! $disk->exists($path)) {
-            return true;
-        }
-
-        $templatePath = resource_path('views/orders/pdf.blade.php');
-
-        if (! is_file($templatePath)) {
-            return false;
-        }
-
-        $templateLastModified = filemtime($templatePath) ?: 0;
-        $pdfLastModified = $disk->lastModified($path);
-        $orderLastModified = $this->latestOrderDataTimestamp($order);
-
-        return max($templateLastModified, $orderLastModified) > $pdfLastModified;
-    }
-
-    private function latestOrderDataTimestamp(Order $order): int
-    {
-        $orderTimestamp = $order->updated_at?->getTimestamp() ?? 0;
-
-        /** @var Collection<int, \App\Modules\Orders\Models\OrderItem> $items */
-        $items = $order->items;
-        $itemsTimestamp = (int) $items
-            ->map(fn ($item) => $item->updated_at?->getTimestamp() ?? 0)
-            ->max();
-
-        return max($orderTimestamp, $itemsTimestamp);
     }
 
     private function migrateLegacyPdf(string $path): void
