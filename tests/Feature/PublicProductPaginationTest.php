@@ -98,6 +98,10 @@ class PublicProductPaginationTest extends TestCase
         $baseResponse = $this->get(route('products.show', $product));
 
         $baseResponse->assertOk();
+        $baseResponse->assertSee(
+            'href="' . route('catalog.index', ['category_id' => $mainCategory->id]) . '"',
+            false,
+        );
         $baseResponse->assertSee('Related Product 25');
         $baseResponse->assertSee('Related Product 06');
         $baseResponse->assertDontSee('Related Product 05');

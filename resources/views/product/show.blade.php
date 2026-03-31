@@ -32,7 +32,16 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <path d="m9 18 6-6-6-6"/>
                 </svg>
-                <span class="shrink-0 text-slate-500">{{ $categoryName }}</span>
+                @if($product->category_id)
+                    <a
+                        href="{{ route('catalog.index', ['category_id' => $product->category_id]) }}"
+                        class="inline-flex shrink-0 items-center rounded text-slate-500 transition hover:text-slate-900 focus-ring"
+                    >
+                        {{ $categoryName }}
+                    </a>
+                @else
+                    <span class="shrink-0 text-slate-500">{{ $categoryName }}</span>
+                @endif
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <path d="m9 18 6-6-6-6"/>
                 </svg>
