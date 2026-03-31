@@ -26,11 +26,11 @@
             </x-slot>
         </x-ui.empty-state>
     @else
-        <form id="cart-update-form" action="{{ route('cart.update') }}" method="POST" data-loading-form data-cart-form class="grid gap-4 lg:grid-cols-[1.8fr_1fr]">
+        <form id="cart-update-form" action="{{ route('cart.update') }}" method="POST" data-loading-form data-cart-form class="grid min-w-0 gap-4 lg:grid-cols-[1.8fr_1fr]">
             @csrf
             @method('PATCH')
 
-            <x-ui.card class="p-4 sm:p-5">
+            <x-ui.card class="min-w-0 p-4 sm:p-5">
                 <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
                     <h2 class="card-title">Productos agregados</h2>
                 </div>
@@ -48,7 +48,7 @@
                             data-unit-price="{{ (float) $item['unit_price'] }}"
                             data-stock-limit="{{ $item['available_qty'] ?? '' }}"
                         >
-                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div class="flex min-w-0 items-center gap-3">
                                     <x-ui.product-thumb :product="$product" size="md" />
 
@@ -68,8 +68,8 @@
                                     </div>
                                 </div>
 
-                                <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                                    <div class="inline-flex items-center rounded-xl border border-slate-300 bg-white p-1">
+                                <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+                                    <div class="inline-flex w-full max-w-[11rem] items-center rounded-xl border border-slate-300 bg-white p-1 sm:w-auto sm:max-w-none">
                                         <button type="button" data-cart-step="-1" data-cart-target="{{ $inputId }}" class="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-700 transition hover:bg-slate-100 focus-ring" aria-label="Disminuir cantidad">-</button>
                                         <input
                                             id="{{ $inputId }}"
@@ -100,24 +100,24 @@
                 </div>
             </x-ui.card>
 
-            <aside class="space-y-4 lg:sticky lg:top-24 lg:h-fit">
-                <x-ui.card class="p-5">
+            <aside class="min-w-0 max-w-full space-y-4 lg:sticky lg:top-24 lg:h-fit">
+                <x-ui.card class="min-w-0 p-5">
                     <h2 class="card-title">Resumen comercial</h2>
 
                     <div class="mt-4 space-y-2 text-sm">
-                        <div class="flex items-center justify-between">
-                            <span class="text-slate-500">Productos distintos</span>
-                            <span class="font-medium text-slate-900" data-cart-products-count>{{ number_format($itemsCount) }}</span>
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="min-w-0 text-slate-500">Productos distintos</span>
+                            <span class="shrink-0 text-right font-medium text-slate-900" data-cart-products-count>{{ number_format($itemsCount) }}</span>
                         </div>
-                        <div class="flex items-center justify-between">
-                            <span class="text-slate-500">Unidades totales</span>
-                            <span class="font-medium text-slate-900" data-cart-units-count>{{ number_format($unitsCount) }}</span>
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="min-w-0 text-slate-500">Unidades totales</span>
+                            <span class="shrink-0 text-right font-medium text-slate-900" data-cart-units-count>{{ number_format($unitsCount) }}</span>
                         </div>
                     </div>
 
                     <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total estimado</p>
-                        <p class="mt-1 text-3xl font-semibold tracking-tight text-slate-950" data-cart-total-amount>${{ number_format((float) $total, 0, ',', '.') }}</p>
+                        <p class="mt-1 break-words text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl" data-cart-total-amount>${{ number_format((float) $total, 0, ',', '.') }}</p>
                     </div>
 
                     <div class="mt-4 space-y-2">
