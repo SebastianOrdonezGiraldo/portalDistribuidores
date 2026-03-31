@@ -49,7 +49,7 @@
                 <option value="">Todos los estados</option>
                 @foreach($statusOptions as $statusValue)
                     <option value="{{ $statusValue }}" @selected($filters['status'] === $statusValue)>
-                        {{ ucfirst($statusValue) }}
+                        {{ \App\Modules\Shared\Enums\OrderStatus::tryFrom($statusValue)?->label() ?? ucfirst($statusValue) }}
                     </option>
                 @endforeach
             </x-ui.select>

@@ -167,9 +167,9 @@ class DashboardDataService
             ],
             [
                 'variant'     => 'info',
-                'title'       => 'Pedidos en procesamiento',
-                'description' => 'Pedidos en transición operativa pendientes de envío final.',
-                'count'       => (int) ($statusCounts[OrderStatus::Sending->value] ?? 0),
+                'title'       => 'Pedidos en gestión comercial',
+                'description' => 'Cotizaciones vendidas o despachadas aún sin cierre final.',
+                'count'       => (int) (($statusCounts[OrderStatus::Sold->value] ?? 0) + ($statusCounts[OrderStatus::Dispatched->value] ?? 0)),
             ],
         ])->filter(fn (array $alert) => $alert['count'] > 0)->values();
     }

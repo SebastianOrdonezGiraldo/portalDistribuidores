@@ -6,8 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Modules\Company\Http\Requests\RejectOrderRequest;
 use App\Modules\Orders\Events\OrderPlaced;
 use App\Modules\Orders\Models\Order;
-use App\Modules\Orders\Services\OrderPdfGenerator;
+use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Shared\Enums\OrderStatus;
+use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -38,15 +39,31 @@ class CompanyApprovalController extends Controller
         return view('empresa.approvals.index', compact('pending', 'rejected'));
     }
 
-    public function approve(Order $order, OrderPdfGenerator $pdfGenerator): RedirectResponse
+    public function approve(
+        Order $order,
+        OrderStatusTransitionService $transitionService,
+    ): RedirectResponse
     {
         $this->authorize('approveOrders');
         $this->authorizeOrderBelongsToCompany($order);
 
         abort_unless($order->status->canBeApproved(), 422, 'Este pedido no puede ser aprobado en su estado actual.');
 
+        /** @var \App\Models\User $actor */
+        $actor = auth()->user();
+
+        try {
+            $order = $transitionService->transition(
+                $order,
+                OrderStatus::Submitted,
+                $actor,
+                'Aprobación interna de empresa.'
+            );
+        } catch (DomainException $exception) {
+            return back()->withErrors($exception->getMessage());
+        }
+
         $order->update([
-            'status'        => OrderStatus::Submitted,
             'approval_note' => null,
         ]);
 
@@ -57,16 +74,34 @@ class CompanyApprovalController extends Controller
             ->with('status', "Pedido {$order->oc_number} aprobado. Se está procesando la cotización.");
     }
 
-    public function reject(RejectOrderRequest $request, Order $order): RedirectResponse
+    public function reject(
+        RejectOrderRequest $request,
+        Order $order,
+        OrderStatusTransitionService $transitionService,
+    ): RedirectResponse
     {
         $this->authorize('approveOrders');
         $this->authorizeOrderBelongsToCompany($order);
 
         abort_unless($order->status->canBeApproved(), 422, 'Este pedido no puede ser rechazado en su estado actual.');
 
+        /** @var \App\Models\User $actor */
+        $actor = auth()->user();
+        $note = $request->validated('approval_note');
+
+        try {
+            $order = $transitionService->transition(
+                $order,
+                OrderStatus::Rejected,
+                $actor,
+                $note
+            );
+        } catch (DomainException $exception) {
+            return back()->withErrors($exception->getMessage());
+        }
+
         $order->update([
-            'status'        => OrderStatus::Rejected,
-            'approval_note' => $request->validated('approval_note'),
+            'approval_note' => $note,
         ]);
 
         return redirect()->route('empresa.approvals.index')

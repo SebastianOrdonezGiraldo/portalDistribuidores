@@ -38,6 +38,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])
 
         Route::get('orders', [OrderAdminController::class, 'index'])->name('orders.index');
         Route::get('orders/{order}', [OrderAdminController::class, 'show'])->name('orders.show');
+        Route::patch('orders/{order}/status', [OrderAdminController::class, 'updateStatus'])->name('orders.status');
         Route::get('orders/{order}/pdf', [OrderAdminController::class, 'downloadPdf'])->name('orders.pdf');
         Route::delete('orders/{order}', [OrderAdminController::class, 'destroy'])->name('orders.destroy');
     });

@@ -48,6 +48,51 @@ class AdminOrderShowTest extends TestCase
         $response->assertSee('Checklist Operativo');
     }
 
+    public function test_admin_can_transition_status_and_history_is_recorded(): void
+    {
+        $order = $this->createOrderWithItem();
+        $admin = User::query()->findOrFail($order->user_id);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.orders.status', $order), [
+                'status' => OrderStatus::Sold->value,
+                'note' => 'Venta confirmada por telefono.',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => OrderStatus::Sold->value,
+        ]);
+
+        $this->assertDatabaseHas('order_status_histories', [
+            'order_id' => $order->id,
+            'from_status' => OrderStatus::Submitted->value,
+            'to_status' => OrderStatus::Sold->value,
+            'changed_by_user_id' => $admin->id,
+            'note' => 'Venta confirmada por telefono.',
+        ]);
+    }
+
+    public function test_admin_transition_to_sold_requires_note(): void
+    {
+        $order = $this->createOrderWithItem();
+        $admin = User::query()->findOrFail($order->user_id);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.orders.status', $order), [
+                'status' => OrderStatus::Sold->value,
+                'note' => '',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasErrors();
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => OrderStatus::Submitted->value,
+        ]);
+    }
+
     private function createOrderWithItem(): Order
     {
         $admin = User::factory()->admin()->create();

@@ -7,7 +7,9 @@ use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Orders\Jobs\GenerateOrderPdfJob;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\OrderPdfGenerator;
+use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Shared\Enums\OrderStatus;
+use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -84,7 +86,7 @@ class OrderAdminController extends Controller
             'total_orders' => (clone $filteredQuery)->count(),
             'total_amount' => (float) (clone $filteredQuery)->sum('total_amount'),
             'pending_pdf' => (clone $filteredQuery)->whereNull('pdf_path')->count(),
-            'sending' => (int) ($statusSummary[OrderStatus::Sending->value] ?? 0),
+            'in_progress' => (int) (($statusSummary[OrderStatus::Sold->value] ?? 0) + ($statusSummary[OrderStatus::Dispatched->value] ?? 0)),
         ];
 
         $activeFiltersCount = collect([
@@ -112,7 +114,7 @@ class OrderAdminController extends Controller
     {
         $this->authorize('view', $order);
 
-        $order->load('items', 'distributor', 'user');
+        $order->load('items', 'distributor', 'user', 'statusHistory.actor');
 
         $items = $order->items;
 
@@ -126,12 +128,53 @@ class OrderAdminController extends Controller
         ];
 
         $hasFinancialGap = abs($totals['subtotals_total'] - (float) $order->total_amount) > 0.01;
+        $nextStatuses = collect($order->status->nextAllowedStatuses())
+            ->map(fn (OrderStatus $status) => [
+                'value' => $status->value,
+                'label' => $status->label(),
+                'requires_note' => $status->requiresTransitionNote(),
+            ])
+            ->values();
 
         return view('admin.orders.show', [
             'order' => $order,
             'totals' => $totals,
             'hasFinancialGap' => $hasFinancialGap,
+            'nextStatuses' => $nextStatuses,
         ]);
+    }
+
+    public function updateStatus(
+        Request $request,
+        Order $order,
+        OrderStatusTransitionService $transitionService,
+    ): RedirectResponse {
+        $this->authorize('update', $order);
+
+        $payload = $request->validate([
+            'status' => ['required', 'string', Rule::in(array_map(fn (OrderStatus $status) => $status->value, OrderStatus::cases()))],
+            'note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $targetStatus = OrderStatus::from($payload['status']);
+
+        /** @var \App\Models\User $actor */
+        $actor = $request->user();
+
+        try {
+            $transitionService->transition(
+                $order,
+                $targetStatus,
+                $actor,
+                $payload['note'] ?? null
+            );
+        } catch (DomainException $exception) {
+            return back()
+                ->withInput()
+                ->withErrors($exception->getMessage());
+        }
+
+        return back()->with('status', "Pedido {$order->oc_number} actualizado a {$targetStatus->label()}.");
     }
 
     public function downloadPdf(Order $order, OrderPdfGenerator $pdfGenerator): StreamedResponse|RedirectResponse

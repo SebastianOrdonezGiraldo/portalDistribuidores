@@ -80,7 +80,7 @@ class CompanyOrderController extends Controller
     {
         $this->authorize('view', $order);
 
-        $order->load('items', 'distributor', 'user');
+        $order->load('items', 'distributor', 'user', 'statusHistory.actor');
 
         $items = $order->items;
         $totals = [

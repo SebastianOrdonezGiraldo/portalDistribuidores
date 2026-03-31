@@ -1,25 +1,39 @@
 <x-app-layout>
     @php
-        $timeline = collect([
-            [
-                'title' => 'Pedido recibido',
-                'description' => 'Tu CTC fue registrada correctamente en el sistema.',
-                'status' => 'approved',
-                'at' => $order->created_at,
-            ],
-            [
-                'title' => 'Estado actual: '.strtoupper($order->status->value),
-                'description' => 'Seguimiento de validación y despacho.',
-                'status' => $order->status,
-                'at' => $order->updated_at,
-            ],
-            $order->pdf_path ? [
+        $timeline = $order->statusHistory
+            ->map(function ($event) {
+                $status = \App\Modules\Shared\Enums\OrderStatus::tryFrom((string) $event->to_status);
+
+                return [
+                    'title' => 'Estado: '.($status?->label() ?? strtoupper((string) $event->to_status)),
+                    'description' => $event->note ?: 'Cambio de estado registrado.',
+                    'status' => $event->to_status,
+                    'at' => $event->created_at,
+                ];
+            })
+            ->values();
+
+        if ($timeline->isEmpty()) {
+            $timeline = collect([
+                [
+                    'title' => 'Pedido recibido',
+                    'description' => 'Tu CTC fue registrada correctamente en el sistema.',
+                    'status' => $order->status,
+                    'at' => $order->created_at,
+                ],
+            ]);
+        }
+
+        if ($order->pdf_path) {
+            $timeline->push([
                 'title' => 'Documento disponible',
                 'description' => 'El PDF del pedido ya puede descargarse.',
-                'status' => 'sent',
+                'status' => 'info',
                 'at' => $order->updated_at,
-            ] : null,
-        ])->filter()->sortByDesc('at')->values();
+            ]);
+        }
+
+        $timeline = $timeline->sortByDesc('at')->values();
     @endphp
 
     <x-slot name="header">

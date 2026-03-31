@@ -93,7 +93,7 @@ class OrderController extends Controller
             return $this->unauthorizedOrderAccessResponse();
         }
 
-        $order->loadMissing('items', 'distributor', 'user');
+        $order->loadMissing('items', 'distributor', 'user', 'statusHistory.actor');
 
         return view('orders.show', ['order' => $order]);
     }

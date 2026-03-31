@@ -7,37 +7,48 @@
             return number_format($number, $isInteger ? 0 : 2, ',', '.');
         };
 
-        $timeline = collect([
-            [
-                'title' => 'Pedido creado',
-                'description' => 'Registro inicial de la CTC en el portal.',
-                'status' => 'submitted',
-                'at' => $order->created_at,
-            ],
-            [
-                'title' => 'Estado operativo: '.strtoupper($order->status->value),
-                'description' => 'Seguimiento del proceso logístico/comercial.',
-                'status' => $order->status,
-                'at' => $order->updated_at,
-            ],
-            [
-                'title' => 'Última actualización',
-                'description' => 'Cambio más reciente en datos o estado del pedido.',
-                'status' => 'info',
-                'at' => $order->updated_at,
-            ],
-            $order->pdf_path ? [
-                'title' => 'PDF disponible',
-                'description' => 'Documento generado y listo para descarga.',
-                'status' => 'sent',
-                'at' => $order->updated_at,
-            ] : [
-                'title' => 'PDF pendiente',
-                'description' => 'Aún no se encuentra un documento generado.',
-                'status' => 'pending',
-                'at' => $order->updated_at,
-            ],
-        ])->filter()->sortByDesc('at')->values();
+        $timeline = $order->statusHistory
+            ->map(function ($event) {
+                $status = \App\Modules\Shared\Enums\OrderStatus::tryFrom((string) $event->to_status);
+                $actor = $event->actor?->name ? ' por '.$event->actor->name : ' por sistema';
+
+                return [
+                    'title' => 'Estado: '.($status?->label() ?? strtoupper((string) $event->to_status)),
+                    'description' => $event->note ?: 'Cambio registrado'.$actor.'.',
+                    'status' => $event->to_status,
+                    'at' => $event->created_at,
+                ];
+            })
+            ->values();
+
+        if ($timeline->isEmpty()) {
+            $timeline = collect([
+                [
+                    'title' => 'Pedido creado',
+                    'description' => 'Registro inicial de la CTC en el portal.',
+                    'status' => $order->status,
+                    'at' => $order->created_at,
+                ],
+            ]);
+        }
+
+        $timeline->push(
+            $order->pdf_path
+                ? [
+                    'title' => 'PDF disponible',
+                    'description' => 'Documento generado y listo para descarga.',
+                    'status' => 'info',
+                    'at' => $order->updated_at,
+                ]
+                : [
+                    'title' => 'PDF pendiente',
+                    'description' => 'Aún no se encuentra un documento generado.',
+                    'status' => 'pending',
+                    'at' => $order->updated_at,
+                ]
+        );
+
+        $timeline = $timeline->sortByDesc('at')->values();
     @endphp
 
     <x-slot name="header">
@@ -227,6 +238,32 @@
                         </x-ui.alert>
                     @endif
                 </div>
+
+                @if($nextStatuses->isNotEmpty())
+                    <form action="{{ route('admin.orders.status', $order) }}" method="POST" class="mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        @csrf
+                        @method('PATCH')
+                        <div>
+                            <label class="form-label" for="order-status-next">Cambiar estado</label>
+                            <x-ui.select id="order-status-next" name="status" required>
+                                <option value="">Selecciona un estado</option>
+                                @foreach($nextStatuses as $statusOption)
+                                    <option value="{{ $statusOption['value'] }}" @selected(old('status') === $statusOption['value'])>
+                                        {{ $statusOption['label'] }}
+                                    </option>
+                                @endforeach
+                            </x-ui.select>
+                            <x-input-error :messages="$errors->get('status')" />
+                        </div>
+                        <div>
+                            <label class="form-label" for="order-status-note">Nota de trazabilidad</label>
+                            <x-ui.textarea id="order-status-note" name="note" rows="3" placeholder="Obligatoria para vendido y despachado...">{{ old('note') }}</x-ui.textarea>
+                            <x-input-error :messages="$errors->get('note')" />
+                            <p class="mt-1 text-xs text-slate-500">Requerida al marcar como vendido o despachado.</p>
+                        </div>
+                        <x-ui.button type="submit" variant="primary" class="w-full justify-center sm:w-auto">Actualizar estado</x-ui.button>
+                    </form>
+                @endif
 
                 <div class="mt-4 flex flex-wrap gap-2">
                     <a href="{{ route('admin.orders.pdf', $order) }}" class="btn btn-primary w-full justify-center sm:w-auto">Descargar PDF</a>

@@ -8,6 +8,7 @@ use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Orders\DTOs\CreateOrderData;
 use App\Modules\Orders\Events\OrderPlaced;
 use App\Modules\Orders\Models\Order;
+use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +16,11 @@ use Illuminate\Support\Str;
 
 class CreateOrderAction
 {
+    public function __construct(
+        private readonly OrderStatusTransitionService $orderStatusTransitionService,
+    ) {
+    }
+
     public function execute(?User $user, CreateOrderData $data): Order
     {
         $productIds = collect($data->items)->pluck('product_id')->map(fn ($id) => (int) $id)->unique()->all();
@@ -116,6 +122,12 @@ class CreateOrderAction
 
             return $order->refresh();
         });
+
+        $this->orderStatusTransitionService->recordInitialStatus(
+            $order,
+            $user,
+            'Estado inicial registrado al crear la cotización.'
+        );
 
         // Solo disparar el evento si la orden no requiere aprobación interna previa
         if (! $data->requiresApproval) {
