@@ -130,6 +130,40 @@ class AdminOrderShowTest extends TestCase
         $this->assertEquals(1.0, (float) $product->fresh()->stock);
     }
 
+    public function test_admin_transition_from_submitted_to_cancelled_restores_stock(): void
+    {
+        [$order, $product, $admin] = $this->createSubmittedOrderWithProductStock(3, 2);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.orders.status', $order), [
+                'status' => OrderStatus::Cancelled->value,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => OrderStatus::Cancelled->value,
+        ]);
+        $this->assertEquals(5.0, (float) $product->fresh()->stock);
+    }
+
+    public function test_admin_transition_from_pending_approval_to_cancelled_does_not_restore_stock(): void
+    {
+        [$order, $product, $admin] = $this->createPendingApprovalOrderWithProductStock(5, 2);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.orders.status', $order), [
+                'status' => OrderStatus::Cancelled->value,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => OrderStatus::Cancelled->value,
+        ]);
+        $this->assertEquals(5.0, (float) $product->fresh()->stock);
+    }
+
     /**
      * @return array{0: Order, 1: Product, 2: User}
      */
@@ -150,6 +184,43 @@ class AdminOrderShowTest extends TestCase
             ->forDistributor($distributor)
             ->pendingApproval()
             ->create([
+                'user_id' => $admin->id,
+            ]);
+
+        OrderItem::create([
+            'order_id' => $order->id,
+            'product_id' => $product->id,
+            'product_name_snapshot' => $product->name,
+            'sku_snapshot' => $product->sku,
+            'qty' => $qty,
+            'unit_label' => 'caja',
+            'price_each' => 60000,
+            'subtotal' => 60000 * $qty,
+        ]);
+
+        return [$order, $product, $admin];
+    }
+
+    /**
+     * @return array{0: Order, 1: Product, 2: User}
+     */
+    private function createSubmittedOrderWithProductStock(float $stock, int $qty): array
+    {
+        $admin = User::factory()->admin()->create();
+        $distributor = Distributor::create([
+            'name' => 'Distribuidor Submitted Test',
+            'status' => 'active',
+        ]);
+        $product = Product::factory()->create([
+            'price' => 60000,
+            'stock' => $stock,
+            'is_active' => true,
+        ]);
+
+        $order = Order::factory()
+            ->forDistributor($distributor)
+            ->create([
+                'status' => OrderStatus::Submitted,
                 'user_id' => $admin->id,
             ]);
 

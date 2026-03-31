@@ -49,8 +49,12 @@ class OrderStatusTransitionService
                 'note' => $normalizedNote,
             ]);
 
-            if ($toStatus === OrderStatus::Submitted) {
+            if (! $this->statusConsumesInventory($fromStatus) && $this->statusConsumesInventory($toStatus)) {
                 $this->orderInventoryService->decreaseForOrder($order);
+            }
+
+            if ($this->statusConsumesInventory($fromStatus) && ! $this->statusConsumesInventory($toStatus)) {
+                $this->orderInventoryService->increaseForOrder($order);
             }
 
             return $order->refresh();
@@ -76,5 +80,15 @@ class OrderStatusTransitionService
         $trimmed = trim((string) $note);
 
         return $trimmed !== '' ? $trimmed : null;
+    }
+
+    private function statusConsumesInventory(OrderStatus $status): bool
+    {
+        return in_array($status, [
+            OrderStatus::Submitted,
+            OrderStatus::Sold,
+            OrderStatus::Dispatched,
+            OrderStatus::Delivered,
+        ], true);
     }
 }

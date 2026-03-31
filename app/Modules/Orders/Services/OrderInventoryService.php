@@ -24,6 +24,19 @@ class OrderInventoryService
         $this->decreaseProductStock($items);
     }
 
+    public function increaseForOrder(Order $order): void
+    {
+        /** @var Collection<int, OrderItem> $items */
+        $items = $order->items()->get();
+
+        if ($items->isEmpty()) {
+            return;
+        }
+
+        $this->increaseVariantStock($items);
+        $this->increaseProductStock($items);
+    }
+
     /**
      * @param Collection<int, OrderItem> $items
      */
@@ -109,5 +122,72 @@ class OrderInventoryService
             $product->save();
         }
     }
-}
 
+    /**
+     * @param Collection<int, OrderItem> $items
+     */
+    private function increaseVariantStock(Collection $items): void
+    {
+        $requiredByVariant = $items
+            ->filter(fn (OrderItem $item) => $item->product_variant_id !== null)
+            ->groupBy(fn (OrderItem $item) => (int) $item->product_variant_id)
+            ->map(fn (Collection $group) => (int) $group->sum(fn (OrderItem $item) => max(0, (int) $item->qty)))
+            ->filter(fn (int $qty) => $qty > 0);
+
+        if ($requiredByVariant->isEmpty()) {
+            return;
+        }
+
+        $variants = ProductVariant::query()
+            ->whereIn('id', $requiredByVariant->keys()->all())
+            ->lockForUpdate()
+            ->get()
+            ->keyBy('id');
+
+        foreach ($requiredByVariant as $variantId => $qty) {
+            /** @var ProductVariant|null $variant */
+            $variant = $variants->get((int) $variantId);
+
+            if (! $variant || ! is_numeric($variant->stock)) {
+                continue;
+            }
+
+            $variant->stock = round(((float) $variant->stock) + $qty, 2);
+            $variant->save();
+        }
+    }
+
+    /**
+     * @param Collection<int, OrderItem> $items
+     */
+    private function increaseProductStock(Collection $items): void
+    {
+        $requiredByProduct = $items
+            ->filter(fn (OrderItem $item) => $item->product_variant_id === null && $item->product_id !== null)
+            ->groupBy(fn (OrderItem $item) => (int) $item->product_id)
+            ->map(fn (Collection $group) => (int) $group->sum(fn (OrderItem $item) => max(0, (int) $item->qty)))
+            ->filter(fn (int $qty) => $qty > 0);
+
+        if ($requiredByProduct->isEmpty()) {
+            return;
+        }
+
+        $products = Product::query()
+            ->whereIn('id', $requiredByProduct->keys()->all())
+            ->lockForUpdate()
+            ->get()
+            ->keyBy('id');
+
+        foreach ($requiredByProduct as $productId => $qty) {
+            /** @var Product|null $product */
+            $product = $products->get((int) $productId);
+
+            if (! $product || ! is_numeric($product->stock)) {
+                continue;
+            }
+
+            $product->stock = round(((float) $product->stock) + $qty, 2);
+            $product->save();
+        }
+    }
+}
