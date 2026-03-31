@@ -88,6 +88,14 @@ class CatalogController extends Controller
             $query['include_children'] = 0;
         }
 
+        if ($searchQuery->sort !== ProductSearchQuery::SORT_RELEVANCE) {
+            $query['sort'] = $searchQuery->sort;
+        }
+
+        if ($searchQuery->perPage !== 20) {
+            $query['per_page'] = $searchQuery->perPage;
+        }
+
         return route('catalog.index', $query);
     }
 
@@ -95,6 +103,9 @@ class CatalogController extends Controller
     {
         $isBaseCatalog = blank($searchQuery->term)
             && $searchQuery->categoryId === null
+            && $searchQuery->includeChildren
+            && $searchQuery->sort === ProductSearchQuery::SORT_RELEVANCE
+            && $searchQuery->perPage === 20
             && $searchQuery->page === 1;
 
         return $isBaseCatalog ? 'index,follow' : 'noindex,follow';
@@ -114,6 +125,10 @@ class CatalogController extends Controller
 
         if (! $searchQuery->includeChildren) {
             $query['include_children'] = 0;
+        }
+
+        if ($searchQuery->sort !== ProductSearchQuery::SORT_RELEVANCE) {
+            $query['sort'] = $searchQuery->sort;
         }
 
         if ($searchQuery->perPage !== 20) {

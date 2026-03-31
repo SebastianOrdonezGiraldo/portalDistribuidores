@@ -39,11 +39,8 @@ class PostgresSearchEngine implements SearchEngineInterface
         if ($normalizedTerm === '') {
             $dbStartedAt = microtime(true);
             $paginator = $this
-                ->baseQuery($query)
+                ->applySort($this->baseQuery($query), $query)
                 ->with(['category', 'primaryPhoto', 'photos', 'variantAttribute', 'variants.attributeValue'])
-                ->orderByRaw($this->inStockFirstOrderExpression())
-                ->orderBy('products.name')
-                ->orderBy('products.id')
                 ->paginate($query->perPage, ['products.*'], 'page', $query->page);
             $paginator->appends($this->safePaginationQuery($query));
             $this->recordTiming('catalog_db', (microtime(true) - $dbStartedAt) * 1000, 'Catalog DB query');
@@ -163,11 +160,7 @@ class PostgresSearchEngine implements SearchEngineInterface
                 return ['product' => $product, 'score' => $score];
             })
             ->filter(fn (array $row) => $row['score'] > 0)
-            ->sortBy([
-                ['score', 'desc'],
-                [fn (array $row) => $this->inStockSortValue($row['product']), 'asc'],
-                [fn (array $row) => $row['product']->name, 'asc'],
-            ])
+            ->pipe(fn (Collection $rows) => $this->sortRankedRows($rows, $query))
             ->values()
             ->map(fn (array $row) => $row['product']);
     }
@@ -250,6 +243,52 @@ class PostgresSearchEngine implements SearchEngineInterface
         return true;
     }
 
+    private function applySort(Builder $builder, ProductSearchQuery $query): Builder
+    {
+        return match ($query->sort) {
+            ProductSearchQuery::SORT_NAME_ASC => $builder
+                ->orderBy('products.name')
+                ->orderBy('products.id'),
+            ProductSearchQuery::SORT_NAME_DESC => $builder
+                ->orderByDesc('products.name')
+                ->orderByDesc('products.id'),
+            ProductSearchQuery::SORT_STOCK_DESC => $builder
+                ->orderByRaw('CASE WHEN products.stock IS NULL THEN 1 ELSE 0 END')
+                ->orderByDesc('products.stock')
+                ->orderBy('products.name')
+                ->orderBy('products.id'),
+            default => $builder
+                ->orderByRaw($this->inStockFirstOrderExpression())
+                ->orderBy('products.name')
+                ->orderBy('products.id'),
+        };
+    }
+
+    private function sortRankedRows(Collection $rows, ProductSearchQuery $query): Collection
+    {
+        return match ($query->sort) {
+            ProductSearchQuery::SORT_NAME_ASC => $rows->sortBy([
+                [fn (array $row) => TextNormalizer::normalize($row['product']->name), 'asc'],
+                [fn (array $row) => $row['product']->id, 'asc'],
+            ]),
+            ProductSearchQuery::SORT_NAME_DESC => $rows->sortBy([
+                [fn (array $row) => TextNormalizer::normalize($row['product']->name), 'desc'],
+                [fn (array $row) => $row['product']->id, 'desc'],
+            ]),
+            ProductSearchQuery::SORT_STOCK_DESC => $rows->sortBy([
+                [fn (array $row) => $this->stockNullSortValue($row['product']), 'asc'],
+                [fn (array $row) => $this->stockSortValue($row['product']), 'desc'],
+                [fn (array $row) => TextNormalizer::normalize($row['product']->name), 'asc'],
+                [fn (array $row) => $row['product']->id, 'asc'],
+            ]),
+            default => $rows->sortBy([
+                ['score', 'desc'],
+                [fn (array $row) => $this->inStockSortValue($row['product']), 'asc'],
+                [fn (array $row) => TextNormalizer::normalize($row['product']->name), 'asc'],
+            ]),
+        };
+    }
+
     private function recordTiming(string $name, float $durationMs, string $description): void
     {
         $request = request();
@@ -263,6 +302,16 @@ class PostgresSearchEngine implements SearchEngineInterface
     private function inStockSortValue(Product $product): int
     {
         return is_numeric($product->stock) && (float) $product->stock > 0.0 ? 0 : 1;
+    }
+
+    private function stockNullSortValue(Product $product): int
+    {
+        return is_numeric($product->stock) ? 0 : 1;
+    }
+
+    private function stockSortValue(Product $product): float
+    {
+        return is_numeric($product->stock) ? (float) $product->stock : -1.0;
     }
 
     private function inStockFirstOrderExpression(): string
@@ -287,6 +336,10 @@ class PostgresSearchEngine implements SearchEngineInterface
 
         if (! $query->includeChildren) {
             $params['include_children'] = 0;
+        }
+
+        if ($query->sort !== ProductSearchQuery::SORT_RELEVANCE) {
+            $params['sort'] = $query->sort;
         }
 
         if ($query->perPage !== 20) {

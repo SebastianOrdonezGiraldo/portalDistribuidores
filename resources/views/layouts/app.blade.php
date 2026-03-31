@@ -250,7 +250,11 @@
                     </div>
                 </div>
 
-                @if($isAdmin)
+                @isset($catalogToolbar)
+                    <div class="border-t border-slate-200/80 pt-3">
+                        {{ $catalogToolbar }}
+                    </div>
+                @elseif($isAdmin)
                     <form method="GET" action="{{ route('admin.orders.index') }}" class="relative w-full lg:mx-auto lg:max-w-2xl">
                         <label class="sr-only" for="top-search-admin">Buscar pedido</label>
                         <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
