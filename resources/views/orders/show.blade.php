@@ -34,6 +34,12 @@
         }
 
         $timeline = $timeline->sortByDesc('at')->values();
+        $quotationReference = (string) ($order->oc_number ?: $order->id);
+        $advisorWhatsappMessage = sprintf(
+            'Hola, quiero hablar con un asesor sobre la cotización ##%s',
+            $quotationReference
+        );
+        $advisorWhatsappUrl = 'https://wa.me/573117479607?text='.rawurlencode($advisorWhatsappMessage);
     @endphp
 
     <x-slot name="header">
@@ -159,6 +165,16 @@
                             El documento aún no está disponible. Intenta más tarde.
                         </x-ui.alert>
                     @endif
+
+                    <a href="{{ $advisorWhatsappUrl }}" target="_blank" rel="noopener noreferrer" class="btn-whatsapp-advisor">
+                        <span class="relative z-10 inline-flex items-center gap-2">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" class="h-5 w-5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12a9.75 9.75 0 0014.59 8.47l4.66 1.24-1.24-4.66A9.75 9.75 0 102.25 12z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 9.75h.008v.008H8.25V9.75zm3.75 0h.008v.008H12V9.75zm3.75 0h.008v.008h-.008V9.75z" />
+                            </svg>
+                            Hablar con un asesor
+                        </span>
+                    </a>
                 </div>
             </x-ui.card>
         </div>
