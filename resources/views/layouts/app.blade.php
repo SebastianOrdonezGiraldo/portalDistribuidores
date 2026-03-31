@@ -251,7 +251,7 @@
                 </div>
 
                 @isset($catalogToolbar)
-                    <div class="pt-2">
+                    <div class="border-t border-slate-200/80 pt-3">
                         {{ $catalogToolbar }}
                     </div>
                 @elseif($isAdmin)
