@@ -28,7 +28,10 @@ class CartControllerTest extends TestCase
 
     public function test_cart_shows_added_product(): void
     {
-        $product = Product::factory()->create(['price' => 10000]);
+        $product = Product::factory()->create([
+            'price' => 10000,
+            'stock' => 20,
+        ]);
 
         $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 2])
             ->assertRedirect();
@@ -43,7 +46,10 @@ class CartControllerTest extends TestCase
 
     public function test_cart_product_thumb_uses_primary_photo_when_available(): void
     {
-        $product = Product::factory()->create(['price' => 10000]);
+        $product = Product::factory()->create([
+            'price' => 10000,
+            'stock' => 20,
+        ]);
         $primaryPhoto = $product->photos()->create([
             'path' => 'products/photos/primary-photo.jpg',
             'is_primary' => true,
@@ -72,7 +78,10 @@ class CartControllerTest extends TestCase
 
     public function test_cart_product_thumb_falls_back_to_first_photo_when_no_primary_exists(): void
     {
-        $product = Product::factory()->create(['price' => 10000]);
+        $product = Product::factory()->create([
+            'price' => 10000,
+            'stock' => 20,
+        ]);
         $fallbackPhoto = $product->photos()->create([
             'path' => 'products/photos/fallback-photo.jpg',
             'is_primary' => false,
@@ -101,7 +110,10 @@ class CartControllerTest extends TestCase
 
     public function test_cart_product_thumb_shows_placeholder_when_product_has_no_photos(): void
     {
-        $product = Product::factory()->create(['price' => 10000]);
+        $product = Product::factory()->create([
+            'price' => 10000,
+            'stock' => 20,
+        ]);
 
         $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 1])
             ->assertRedirect();
@@ -113,7 +125,7 @@ class CartControllerTest extends TestCase
 
     public function test_adding_active_product_redirects_with_status(): void
     {
-        $product = Product::factory()->create();
+        $product = Product::factory()->create(['stock' => 20]);
 
         $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 1])
             ->assertRedirect()
@@ -122,7 +134,7 @@ class CartControllerTest extends TestCase
 
     public function test_adding_active_product_via_json_returns_ok_response(): void
     {
-        $product = Product::factory()->create();
+        $product = Product::factory()->create(['stock' => 20]);
 
         $this->postJson(route('cart.store'), ['product_id' => $product->id, 'qty' => 1])
             ->assertOk()
@@ -210,8 +222,11 @@ class CartControllerTest extends TestCase
 
     public function test_adding_product_with_valid_variant_succeeds(): void
     {
-        $product = Product::factory()->create();
-        $variant = ProductVariant::factory()->forProduct($product)->create(['is_active' => true]);
+        $product = Product::factory()->create(['stock' => 20]);
+        $variant = ProductVariant::factory()->forProduct($product)->create([
+            'is_active' => true,
+            'stock' => 20,
+        ]);
 
         $this->postJson(route('cart.store'), [
             'product_id' => $product->id,
@@ -265,7 +280,10 @@ class CartControllerTest extends TestCase
 
     public function test_update_cart_quantities_redirects_with_status(): void
     {
-        $product = Product::factory()->create(['price' => 5000]);
+        $product = Product::factory()->create([
+            'price' => 5000,
+            'stock' => 20,
+        ]);
 
         $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 1]);
 
@@ -294,7 +312,10 @@ class CartControllerTest extends TestCase
 
     public function test_update_cart_quantities_accepts_put_method(): void
     {
-        $product = Product::factory()->create(['price' => 5000]);
+        $product = Product::factory()->create([
+            'price' => 5000,
+            'stock' => 20,
+        ]);
 
         $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 1]);
 
@@ -307,7 +328,10 @@ class CartControllerTest extends TestCase
 
     public function test_update_with_zero_quantity_removes_line(): void
     {
-        $product = Product::factory()->create(['price' => 5000]);
+        $product = Product::factory()->create([
+            'price' => 5000,
+            'stock' => 20,
+        ]);
         $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 1]);
 
         $lineKey = $product->id.'-0';
@@ -319,7 +343,10 @@ class CartControllerTest extends TestCase
 
     public function test_destroy_removes_line_from_cart(): void
     {
-        $product = Product::factory()->create(['price' => 5000]);
+        $product = Product::factory()->create([
+            'price' => 5000,
+            'stock' => 20,
+        ]);
         $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 2]);
 
         $lineKey = $product->id.'-0';
