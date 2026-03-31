@@ -40,7 +40,7 @@
                 <td class="title-box" style="width: 32%;">
                     <p class="title-label">Cotizacion al cliente</p>
                     <p class="title-doc">{{ $order->oc_number }}</p>
-                    <p class="title-date">Fecha: {{ $order->created_at?->format('Y-m-d H:i') }}</p>
+                    <p class="title-date">Fecha: {{ $order->created_at?->setTimezone(config('app.timezone'))->format('Y-m-d H:i') }}</p>
                 </td>
             </tr>
         </table>
