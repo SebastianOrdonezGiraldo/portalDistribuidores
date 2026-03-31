@@ -367,12 +367,13 @@ class OrderControllerTest extends TestCase
             ->assertOk();
     }
 
-    public function test_guest_without_session_cannot_access_order(): void
+    public function test_guest_without_session_is_redirected_to_login_with_message(): void
     {
         $order = Order::factory()->create();
 
         $this->get(route('orders.submitted', $order))
-            ->assertForbidden();
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('status', 'Tu sesión expiró o ya no es válida. Inicia sesión para continuar con tu pedido.');
     }
 
     // ──────────────────────────────────────────────────────────────────────────

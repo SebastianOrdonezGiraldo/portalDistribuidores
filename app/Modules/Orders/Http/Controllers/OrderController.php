@@ -20,6 +20,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class OrderController extends Controller
 {
     private const GUEST_ORDERS_SESSION_KEY = 'orders.guest_access';
+    private const SESSION_EXPIRED_MESSAGE = 'Tu sesión expiró o ya no es válida. Inicia sesión para continuar con tu pedido.';
 
     public function store(
         StoreOrderRequest $request,
@@ -75,17 +76,23 @@ class OrderController extends Controller
             ->with('status', 'Orden creada correctamente. Estamos procesando la cotización.');
     }
 
-    public function submitted(Order $order): View
+    public function submitted(Order $order): View|RedirectResponse
     {
-        abort_unless($this->canAccessOrder($order), 403);
+        if (! $this->canAccessOrder($order)) {
+            return $this->unauthorizedOrderAccessResponse();
+        }
+
         $order->loadMissing('items');
 
         return view('orders.submitted', ['order' => $order]);
     }
 
-    public function show(Order $order): View
+    public function show(Order $order): View|RedirectResponse
     {
-        abort_unless($this->canAccessOrder($order), 403);
+        if (! $this->canAccessOrder($order)) {
+            return $this->unauthorizedOrderAccessResponse();
+        }
+
         $order->loadMissing('items', 'distributor', 'user');
 
         return view('orders.show', ['order' => $order]);
@@ -93,7 +100,9 @@ class OrderController extends Controller
 
     public function downloadPdf(Order $order, OrderPdfGenerator $pdfGenerator): StreamedResponse|RedirectResponse
     {
-        abort_unless($this->canAccessOrder($order), 403);
+        if (! $this->canAccessOrder($order)) {
+            return $this->unauthorizedOrderAccessResponse();
+        }
 
         $path = $pdfGenerator->generate($order);
 
@@ -131,6 +140,15 @@ class OrderController extends Controller
             ->all();
 
         return in_array((int) $order->id, $guestOrderIds, true);
+    }
+
+    private function unauthorizedOrderAccessResponse(): RedirectResponse
+    {
+        if (! Auth::check()) {
+            return redirect()->guest(route('login'))->with('status', self::SESSION_EXPIRED_MESSAGE);
+        }
+
+        abort(403);
     }
 
     private function rememberGuestOrder(Order $order): void
