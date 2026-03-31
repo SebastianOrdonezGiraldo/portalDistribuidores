@@ -90,6 +90,16 @@
                         required />
                     <x-input-error :messages="$errors->get('city')" />
                 </div>
+                <div>
+                    <label class="form-label" for="department">Departamento *</label>
+                    <x-ui.select id="department" name="department" required>
+                        <option value="">Selecciona un departamento</option>
+                        @foreach($departments as $department)
+                            <option value="{{ $department }}" @selected(old('department') === $department)>{{ $department }}</option>
+                        @endforeach
+                    </x-ui.select>
+                    <x-input-error :messages="$errors->get('department')" />
+                </div>
                 <div class="sm:col-span-2">
                     <label class="form-label" for="notes">Observaciones operativas</label>
                     <x-ui.textarea id="notes" name="notes" rows="4">{{ old('notes') }}</x-ui.textarea>

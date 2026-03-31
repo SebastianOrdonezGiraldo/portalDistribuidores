@@ -83,7 +83,8 @@ class CheckoutControllerTest extends TestCase
             ->assertViewHas('items')
             ->assertViewHas('total')
             ->assertViewHas('distributor')
-            ->assertViewHas('branches');
+            ->assertViewHas('branches')
+            ->assertViewHas('departments');
 
         $this->assertEquals(45000.0, $response->viewData('total'));
     }

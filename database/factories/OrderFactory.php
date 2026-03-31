@@ -26,6 +26,7 @@ class OrderFactory extends Factory
             'company_nit'     => fake()->numerify('########-#'),
             'company_address' => fake()->streetAddress(),
             'city'            => fake()->city(),
+            'department'      => fake()->randomElement(config('locations.colombia_departments', ['Antioquia'])),
             'notes'           => null,
             'status'          => OrderStatus::Submitted,
             'total_amount'    => fake()->numberBetween(5000, 500000),

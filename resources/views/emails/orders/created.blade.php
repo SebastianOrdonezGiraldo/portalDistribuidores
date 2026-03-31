@@ -14,6 +14,7 @@
     <p style="margin: 0 0 8px 0;"><strong>Contacto:</strong> {{ $order->contact_name }}</p>
     <p style="margin: 0 0 8px 0;"><strong>Dirección:</strong> {{ $order->company_address ?? '-' }}</p>
     <p style="margin: 0 0 8px 0;"><strong>Ciudad:</strong> {{ $order->city ?? '-' }}</p>
+    <p style="margin: 0 0 8px 0;"><strong>Departamento:</strong> {{ $order->department ?? '-' }}</p>
     <p style="margin: 0 0 8px 0;"><strong>Total:</strong> ${{ number_format((float) $order->total_amount, 2, ',', '.') }}</p>
     <p style="margin: 0 0 16px 0;"><strong>Notas:</strong> {{ $order->notes ?: 'Sin notas' }}</p>
     <p style="margin: 0;">Se adjunta el PDF de la CTC.</p>

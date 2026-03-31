@@ -33,6 +33,7 @@ class Order extends Model
         'company_nit',
         'company_address',
         'city',
+        'department',
         'phone',
         'notes',
         'approval_note',

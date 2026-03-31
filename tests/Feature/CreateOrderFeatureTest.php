@@ -60,6 +60,7 @@ class CreateOrderFeatureTest extends TestCase
             'company_nit' => '9001234567',
             'company_address' => 'Calle 123 #45-67',
             'city' => 'Bogotá',
+            'department' => 'Bogotá D.C.',
             'notes' => 'nota',
         ]);
 
@@ -75,6 +76,7 @@ class CreateOrderFeatureTest extends TestCase
             'contact_email' => 'comprador@test.com',
             'phone' => '3005550000',
             'city' => 'Bogotá',
+            'department' => 'Bogotá D.C.',
         ]);
         Mail::assertSent(OrderCreatedNotificationMail::class);
         Mail::assertSent(OrderCreatedCustomerQuotationMail::class);
@@ -122,6 +124,7 @@ class CreateOrderFeatureTest extends TestCase
                 'company_nit' => '900123456-7',
                 'company_address' => 'Calle 123 #45-67',
                 'city' => 'Bogotá',
+                'department' => 'Bogotá D.C.',
                 'notes' => 'nota',
             ]);
 

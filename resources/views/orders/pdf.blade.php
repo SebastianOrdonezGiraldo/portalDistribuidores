@@ -62,8 +62,8 @@
         <tr>
             <td class="label">Dirección</td>
             <td>{{ $order->company_address ?? '-' }}</td>
-            <td class="label">Ciudad</td>
-            <td>{{ $order->city ?? '-' }}</td>
+            <td class="label">Ciudad / Depto</td>
+            <td>{{ $order->city ?? '-' }} / {{ $order->department ?? '-' }}</td>
         </tr>
     </table>
 

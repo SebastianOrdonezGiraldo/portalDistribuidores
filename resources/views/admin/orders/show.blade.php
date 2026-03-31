@@ -120,8 +120,10 @@
                         <p class="text-xs text-slate-500">{{ $order->user?->email }}</p>
                     </div>
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:col-span-2">
-                        <dt class="text-xs uppercase tracking-wide text-slate-500">Dirección y Ciudad</dt>
-                        <dd class="mt-1 font-semibold text-slate-900">{{ $order->company_address ?? '-' }} · {{ $order->city ?? '-' }}</dd>
+                        <dt class="text-xs uppercase tracking-wide text-slate-500">Dirección, Ciudad y Departamento</dt>
+                        <dd class="mt-1 font-semibold text-slate-900">
+                            {{ $order->company_address ?? '-' }} · {{ $order->city ?? '-' }} · {{ $order->department ?? '-' }}
+                        </dd>
                     </div>
                 </dl>
 
@@ -291,8 +293,8 @@
                         <x-ui.badge :variant="$order->company_nit ? 'success' : 'warning'">{{ $order->company_nit ? 'OK' : 'Falta' }}</x-ui.badge>
                     </li>
                     <li class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                        <span>Dirección y ciudad</span>
-                        <x-ui.badge :variant="($order->company_address && $order->city) ? 'success' : 'warning'">{{ ($order->company_address && $order->city) ? 'OK' : 'Incompleto' }}</x-ui.badge>
+                        <span>Dirección, ciudad y departamento</span>
+                        <x-ui.badge :variant="($order->company_address && $order->city && $order->department) ? 'success' : 'warning'">{{ ($order->company_address && $order->city && $order->department) ? 'OK' : 'Incompleto' }}</x-ui.badge>
                     </li>
                     <li class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                         <span>Documento PDF</span>

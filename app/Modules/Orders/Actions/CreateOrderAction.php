@@ -69,6 +69,7 @@ class CreateOrderAction
                 'company_nit'     => $data->companyNit,
                 'company_address' => $data->companyAddress,
                 'city'            => $data->city,
+                'department'      => $data->department,
                 'notes'           => $data->notes,
                 'status'          => $status,
                 'total_amount'    => 0,

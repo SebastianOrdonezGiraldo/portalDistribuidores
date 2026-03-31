@@ -30,6 +30,7 @@ class OrderControllerTest extends TestCase
         'company_nit' => '9000000011',
         'company_address' => 'Cra 10 #20-30',
         'city' => 'Medellín',
+        'department' => 'Antioquia',
         'notes' => null,
     ];
 
@@ -210,6 +211,7 @@ class OrderControllerTest extends TestCase
                 'company_nit',
                 'company_address',
                 'city',
+                'department',
             ]);
     }
 
@@ -290,6 +292,7 @@ class OrderControllerTest extends TestCase
             'company_nit' => '8000000001',
             'company_address' => 'Cra 20 #30-40',
             'city' => 'Medellín',
+            'department' => 'Antioquia',
             'notes' => 'Cambios solo para esta orden',
         ];
 
@@ -305,6 +308,7 @@ class OrderControllerTest extends TestCase
             'company_nit' => '8000000001',
             'company_address' => 'Cra 20 #30-40',
             'city' => 'Medellín',
+            'department' => 'Antioquia',
         ]);
 
         $this->assertDatabaseHas('distributors', [

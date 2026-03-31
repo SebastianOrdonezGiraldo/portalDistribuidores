@@ -71,7 +71,10 @@
                     </div>
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
                         <dt class="text-xs uppercase tracking-wide text-slate-500">Dirección</dt>
-                        <dd class="mt-1 font-semibold text-slate-900">{{ $order->company_address ?? '-' }} · {{ $order->city ?? '-' }}</dd>
+                        <dd class="mt-1 font-semibold text-slate-900">
+                            {{ $order->company_address ?? '-' }} · {{ $order->city ?? '-' }}
+                            @if($order->department) · {{ $order->department }} @endif
+                        </dd>
                     </div>
                 </dl>
             </x-ui.card>

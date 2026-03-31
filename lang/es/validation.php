@@ -162,6 +162,7 @@ return [
         'contact_email' => 'correo de contacto',
         'phone' => 'teléfono',
         'city' => 'ciudad',
+        'department' => 'departamento',
         'address' => 'dirección',
         'nit' => 'NIT',
         'sku' => 'SKU',

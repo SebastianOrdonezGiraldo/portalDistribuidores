@@ -131,6 +131,7 @@ class ProductVariantsFlowTest extends TestCase
             'company_nit' => '900999111',
             'company_address' => 'Calle 10 #20-30',
             'city' => 'Bogota',
+            'department' => 'Cundinamarca',
             'notes' => 'Pedido con variante',
         ]);
 
