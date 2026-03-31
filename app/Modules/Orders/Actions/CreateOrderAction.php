@@ -8,6 +8,7 @@ use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Orders\DTOs\CreateOrderData;
 use App\Modules\Orders\Events\OrderPlaced;
 use App\Modules\Orders\Models\Order;
+use App\Modules\Orders\Services\OrderInventoryService;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Exceptions\DomainException;
@@ -18,6 +19,7 @@ class CreateOrderAction
 {
     public function __construct(
         private readonly OrderStatusTransitionService $orderStatusTransitionService,
+        private readonly OrderInventoryService $orderInventoryService,
     ) {
     }
 
@@ -120,6 +122,10 @@ class CreateOrderAction
                 'total_amount' => $preTotal,
                 'oc_number'    => sprintf(Order::OC_PREFIX.'%0'.Order::OC_PADDING.'d', $order->id),
             ]);
+
+            if ($status === OrderStatus::Submitted) {
+                $this->orderInventoryService->decreaseForOrder($order);
+            }
 
             return $order->refresh();
         });

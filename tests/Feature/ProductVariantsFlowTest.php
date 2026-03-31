@@ -147,6 +147,7 @@ class ProductVariantsFlowTest extends TestCase
             'qty' => 2.00,
             'subtotal' => 30000.00,
         ]);
+        $this->assertEquals(1.0, (float) $variant->fresh()->stock);
         Mail::assertSent(OrderCreatedNotificationMail::class);
         Mail::assertSent(OrderCreatedCustomerQuotationMail::class);
     }

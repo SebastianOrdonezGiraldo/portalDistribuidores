@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
+use App\Modules\Catalog\Models\Product;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Shared\Enums\OrderStatus;
@@ -91,6 +92,79 @@ class AdminOrderShowTest extends TestCase
             'id' => $order->id,
             'status' => OrderStatus::Submitted->value,
         ]);
+    }
+
+    public function test_admin_transition_from_pending_approval_to_submitted_decreases_stock(): void
+    {
+        [$order, $product, $admin] = $this->createPendingApprovalOrderWithProductStock(5, 2);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.orders.status', $order), [
+                'status' => OrderStatus::Submitted->value,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => OrderStatus::Submitted->value,
+        ]);
+        $this->assertEquals(3.0, (float) $product->fresh()->stock);
+    }
+
+    public function test_admin_transition_from_pending_approval_to_submitted_fails_when_stock_is_insufficient(): void
+    {
+        [$order, $product, $admin] = $this->createPendingApprovalOrderWithProductStock(1, 2);
+
+        $this->from('/admin/orders/'.$order->id)
+            ->actingAs($admin)
+            ->patch(route('admin.orders.status', $order), [
+                'status' => OrderStatus::Submitted->value,
+            ])
+            ->assertRedirect('/admin/orders/'.$order->id)
+            ->assertSessionHasErrors();
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => OrderStatus::PendingApproval->value,
+        ]);
+        $this->assertEquals(1.0, (float) $product->fresh()->stock);
+    }
+
+    /**
+     * @return array{0: Order, 1: Product, 2: User}
+     */
+    private function createPendingApprovalOrderWithProductStock(float $stock, int $qty): array
+    {
+        $admin = User::factory()->admin()->create();
+        $distributor = Distributor::create([
+            'name' => 'Distribuidor Pending Test',
+            'status' => 'active',
+        ]);
+        $product = Product::factory()->create([
+            'price' => 60000,
+            'stock' => $stock,
+            'is_active' => true,
+        ]);
+
+        $order = Order::factory()
+            ->forDistributor($distributor)
+            ->pendingApproval()
+            ->create([
+                'user_id' => $admin->id,
+            ]);
+
+        OrderItem::create([
+            'order_id' => $order->id,
+            'product_id' => $product->id,
+            'product_name_snapshot' => $product->name,
+            'sku_snapshot' => $product->sku,
+            'qty' => $qty,
+            'unit_label' => 'caja',
+            'price_each' => 60000,
+            'subtotal' => 60000 * $qty,
+        ]);
+
+        return [$order, $product, $admin];
     }
 
     private function createOrderWithItem(): Order

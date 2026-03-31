@@ -125,6 +125,25 @@ class OrderControllerTest extends TestCase
         $this->assertCount(0, $cartItems);
     }
 
+    public function test_order_creation_decreases_product_stock_when_submitted(): void
+    {
+        Mail::fake();
+
+        [, $user] = $this->distributorWithUser(CompanyRole::AdminEmpresa);
+        $product = Product::factory()->create([
+            'price' => 10000,
+            'stock' => 5,
+            'is_active' => true,
+        ]);
+        $this->addProductToCart($user, $product, 2);
+
+        $this->actingAs($user)
+            ->post(route('orders.store'), $this->validPayload)
+            ->assertRedirect();
+
+        $this->assertEquals(3.0, (float) $product->fresh()->stock);
+    }
+
     public function test_order_is_created_with_submitted_status_when_no_approval_required(): void
     {
         Mail::fake();

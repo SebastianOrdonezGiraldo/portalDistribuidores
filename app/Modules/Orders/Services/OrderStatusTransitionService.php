@@ -10,6 +10,11 @@ use Illuminate\Support\Facades\DB;
 
 class OrderStatusTransitionService
 {
+    public function __construct(
+        private readonly OrderInventoryService $orderInventoryService,
+    ) {
+    }
+
     public function transition(
         Order $order,
         OrderStatus $toStatus,
@@ -44,6 +49,10 @@ class OrderStatusTransitionService
                 'note' => $normalizedNote,
             ]);
 
+            if ($toStatus === OrderStatus::Submitted) {
+                $this->orderInventoryService->decreaseForOrder($order);
+            }
+
             return $order->refresh();
         });
     }
@@ -69,4 +78,3 @@ class OrderStatusTransitionService
         return $trimmed !== '' ? $trimmed : null;
     }
 }
-
