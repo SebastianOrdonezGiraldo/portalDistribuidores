@@ -38,6 +38,17 @@
                 static fn ($value) => ! is_null($value) && $value !== ''
             )
         );
+        $categoryUrlFor = static function (int $categoryId) use ($categoryBaseQuery): string {
+            $query = array_merge($categoryBaseQuery, ['category_id' => $categoryId]);
+
+            return route(
+                'catalog.index',
+                array_filter(
+                    $query,
+                    static fn ($value) => ! is_null($value) && $value !== ''
+                )
+            );
+        };
 
         $activeFilterChips = collect();
 
@@ -105,36 +116,38 @@
                 ),
             ]);
         }
+
+        $activeFiltersCount = $activeFilterChips->count();
     @endphp
 
     <x-slot name="catalogToolbar">
         <form
             method="GET"
             action="{{ route('catalog.index') }}"
-            class="space-y-3"
-            x-data="{ filtersOpen: {{ $hasAdvancedFilters ? 'true' : 'false' }} }"
+            class="catalog-toolbar"
+            x-data="{ filtersOpen: window.matchMedia('(min-width: 768px)').matches ? {{ $hasAdvancedFilters ? 'true' : 'false' }} : false }"
         >
-            <div class="flex flex-wrap items-center justify-between gap-2">
-                <nav aria-label="Breadcrumb" class="text-xs text-slate-500">
+            <div class="catalog-toolbar-meta">
+                <nav aria-label="Breadcrumb" class="catalog-toolbar-breadcrumb">
                     <ol class="flex flex-wrap items-center gap-1">
                         <li>
-                            <a href="{{ $catalogHomeUrl }}" class="rounded px-1 py-0.5 hover:bg-slate-100 hover:text-slate-700">Inicio</a>
+                            <a href="{{ $catalogHomeUrl }}" class="catalog-toolbar-breadcrumb-link">Inicio</a>
                         </li>
                         <li aria-hidden="true">/</li>
-                        <li class="font-semibold text-slate-700">Catálogo</li>
+                        <li class="catalog-toolbar-breadcrumb-current">Catálogo</li>
                     </ol>
                 </nav>
-                <p class="text-xs text-slate-500">
-                    Mostrando
-                    <strong class="tabular-nums text-slate-900">{{ number_format($resultsTotal, 0, ',', '.') }}</strong>
-                    productos
+
+                <p class="catalog-toolbar-results">
+                    <span class="tabular-nums">{{ number_format($resultsTotal, 0, ',', '.') }}</span>
+                    resultados
                 </p>
             </div>
 
-            <div class="grid gap-2 lg:grid-cols-[minmax(0,1fr)_15rem_auto]">
-                <div class="relative">
+            <div class="catalog-toolbar-controls">
+                <div class="catalog-search-field">
                     <label class="sr-only" for="catalog-top-search">Buscar productos</label>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="catalog-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="11" cy="11" r="8" />
                         <path d="m21 21-4.35-4.35" />
                     </svg>
@@ -144,13 +157,51 @@
                         name="term"
                         value="{{ $search->term }}"
                         placeholder="Buscar producto, SKU, marca o categoría"
-                        class="form-input py-2.5 pl-9 pr-4"
+                        class="catalog-search-input"
                     >
                 </div>
 
-                <div>
-                    <label class="sr-only" for="catalog-sort">Ordenar por</label>
-                    <select id="catalog-sort" name="sort" class="form-select py-2.5" onchange="this.form.submit()">
+                <input type="hidden" name="sort" value="{{ $selectedSort }}" data-catalog-sort-hidden>
+
+                <div class="catalog-mobile-actions">
+                    <div class="catalog-mobile-sort">
+                        <label class="sr-only" for="catalog-sort-mobile">Ordenar por</label>
+                        <select
+                            id="catalog-sort-mobile"
+                            class="catalog-sort-select catalog-sort-select-mobile"
+                            onchange="this.form.querySelector('[data-catalog-sort-hidden]').value = this.value; this.form.submit()"
+                        >
+                            @foreach($sortOptions as $sortKey => $sortLabel)
+                                <option value="{{ $sortKey }}" @selected($selectedSort === $sortKey)>{{ $sortLabel }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="btn btn-secondary catalog-mobile-filter-toggle"
+                        @click="filtersOpen = true"
+                        x-bind:aria-expanded="filtersOpen.toString()"
+                        aria-controls="catalog-filters-panel"
+                    >
+                        Filtros
+                        @if($activeFiltersCount > 0)
+                            <span class="catalog-filter-count">{{ $activeFiltersCount }}</span>
+                        @endif
+                    </button>
+
+                    <p class="catalog-mobile-results">
+                        <span class="tabular-nums">{{ number_format($resultsTotal, 0, ',', '.') }}</span>
+                    </p>
+                </div>
+
+                <div class="catalog-sort-field">
+                    <label class="sr-only" for="catalog-sort-desktop">Ordenar por</label>
+                    <select
+                        id="catalog-sort-desktop"
+                        class="catalog-sort-select"
+                        onchange="this.form.querySelector('[data-catalog-sort-hidden]').value = this.value; this.form.submit()"
+                    >
                         @foreach($sortOptions as $sortKey => $sortLabel)
                             <option value="{{ $sortKey }}" @selected($selectedSort === $sortKey)>{{ $sortLabel }}</option>
                         @endforeach
@@ -159,8 +210,8 @@
 
                 <button
                     type="button"
-                    class="btn btn-secondary justify-center lg:self-end"
-                    @click="filtersOpen = !filtersOpen"
+                    class="btn btn-secondary catalog-filter-toggle"
+                    @click="filtersOpen = true"
                     x-bind:aria-expanded="filtersOpen.toString()"
                     aria-controls="catalog-filters-panel"
                 >
@@ -171,30 +222,23 @@
                 </button>
             </div>
 
-            <div class="flex gap-2 overflow-x-auto pb-1">
+            <div class="catalog-quick-categories">
                 <a
                     href="{{ $allCategoriesUrl }}"
-                    class="{{ $search->categoryId === null ? 'border-brand-primary bg-brand-primary/10 text-brand-dark' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-800' }} inline-flex shrink-0 items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition"
+                    class="catalog-category-chip {{ $search->categoryId === null ? 'is-active' : '' }}"
                 >
                     Todas
                 </a>
 
                 @foreach($quickCategories as $category)
                     @php
-                        $categoryQuery = array_merge($categoryBaseQuery, ['category_id' => $category->id]);
-                        $categoryUrl = route(
-                            'catalog.index',
-                            array_filter(
-                                $categoryQuery,
-                                static fn ($value) => ! is_null($value) && $value !== ''
-                            )
-                        );
+                        $categoryUrl = $categoryUrlFor($category->id);
                         $isActiveCategory = $search->categoryId === $category->id;
                     @endphp
 
                     <a
                         href="{{ $categoryUrl }}"
-                        class="{{ $isActiveCategory ? 'border-brand-primary bg-brand-primary/10 text-brand-dark' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-800' }} inline-flex shrink-0 items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition"
+                        class="catalog-category-chip {{ $isActiveCategory ? 'is-active' : '' }}"
                     >
                         {{ $category->name }}
                     </a>
@@ -202,20 +246,47 @@
             </div>
 
             <div
+                x-cloak
+                x-show="filtersOpen"
+                x-transition:enter="transition duration-150 ease-out"
+                x-transition:enter-start="opacity-0"
+                x-transition:enter-end="opacity-100"
+                x-transition:leave="transition duration-120 ease-in"
+                x-transition:leave-start="opacity-100"
+                x-transition:leave-end="opacity-0"
+                class="catalog-filters-overlay"
+                @click="filtersOpen = false"
+            ></div>
+
+            <div
                 id="catalog-filters-panel"
                 x-cloak
                 x-show="filtersOpen"
                 x-transition:enter="transition duration-150 ease-out"
-                x-transition:enter-start="translate-y-1 opacity-0"
+                x-transition:enter-start="translate-y-2 opacity-0"
                 x-transition:enter-end="translate-y-0 opacity-100"
                 x-transition:leave="transition duration-120 ease-in"
                 x-transition:leave-start="translate-y-0 opacity-100"
-                x-transition:leave-end="translate-y-1 opacity-0"
-                class="rounded-xl border border-slate-200 bg-slate-50/90 p-3 sm:p-4"
+                x-transition:leave-end="translate-y-2 opacity-0"
+                class="catalog-filters-panel"
             >
-                <div class="grid gap-3 lg:grid-cols-3">
+                <div class="catalog-filters-head">
                     <div>
-                        <label class="form-label" for="catalog-category">Categoria</label>
+                        <p class="catalog-filters-title">Filtros de catálogo</p>
+                        <p class="catalog-filters-subtitle">Ajusta categoría, alcance y cantidad de resultados.</p>
+                    </div>
+
+                    <button type="button" class="catalog-filters-close" @click="filtersOpen = false" aria-label="Cerrar filtros">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                            <path d="M18 6 6 18" />
+                            <path d="m6 6 12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="catalog-filters-grid">
+                    <div>
+                        <label class="form-label" for="catalog-category">Categoría</label>
                         <x-ui.select id="catalog-category" name="category_id">
                             <option value="">Todas las categorías</option>
                             @foreach($categories as $category)
@@ -243,18 +314,18 @@
                     </div>
                 </div>
 
-                <div class="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <div class="catalog-filters-actions">
                     <a href="{{ route('catalog.index') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Limpiar</a>
                     <x-ui.button type="submit" variant="primary" class="w-full justify-center sm:w-auto">Aplicar filtros</x-ui.button>
                 </div>
             </div>
 
             @if($activeFilterChips->isNotEmpty())
-                <div class="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3">
+                <div class="catalog-active-filters">
                     @foreach($activeFilterChips as $chip)
                         <a
                             href="{{ $chip['href'] }}"
-                            class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+                            class="catalog-active-chip"
                         >
                             {{ $chip['label'] }}
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -264,14 +335,45 @@
                         </a>
                     @endforeach
                 </div>
+
+                <button
+                    type="button"
+                    class="catalog-active-summary"
+                    @click="filtersOpen = true"
+                >
+                    Filtros activos: {{ $activeFiltersCount }}
+                </button>
             @endif
         </form>
     </x-slot>
 
     <section>
-        <header class="mb-4">
-            <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Catálogo de Productos</h1>
-            <p class="mt-1 max-w-2xl text-sm text-slate-600">Búsqueda rápida con filtros por categoría y carga directa al carrito de pedido.</p>
+        <div class="catalog-mobile-categories">
+            <a
+                href="{{ $allCategoriesUrl }}"
+                class="catalog-category-chip {{ $search->categoryId === null ? 'is-active' : '' }}"
+            >
+                Todas
+            </a>
+
+            @foreach($quickCategories as $category)
+                @php
+                    $categoryUrl = $categoryUrlFor($category->id);
+                    $isActiveCategory = $search->categoryId === $category->id;
+                @endphp
+
+                <a
+                    href="{{ $categoryUrl }}"
+                    class="catalog-category-chip {{ $isActiveCategory ? 'is-active' : '' }}"
+                >
+                    {{ $category->name }}
+                </a>
+            @endforeach
+        </div>
+
+        <header class="catalog-section-intro">
+            <h1 class="catalog-section-intro-title">Catálogo de Productos</h1>
+            <p class="catalog-section-intro-subtitle">Búsqueda rápida con filtros por categoría y carga directa al carrito de pedido.</p>
         </header>
 
         @if($products->isEmpty())
