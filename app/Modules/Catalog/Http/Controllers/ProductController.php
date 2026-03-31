@@ -127,10 +127,12 @@ class ProductController extends Controller
             : (is_null($stock) ? 'A confirmar' : $formatQty($stock).' '.$unitLabelLower);
 
         $documents         = $product->documents;
+        $manual            = $documents->firstWhere('type', DocumentType::Manual->value);
         $productVideo      = $product->videos->first();
         $secondaryDocuments = $documents->filter(
-            fn ($doc) => $doc->type !== DocumentType::TechSheet->value
+            fn ($doc) => ! in_array($doc->type, [DocumentType::TechSheet->value, DocumentType::Manual->value], true)
                 && (! $techSheet || $doc->id !== $techSheet->id)
+                && (! $manual || $doc->id !== $manual->id)
         );
 
         $documentTypeLabels = [
@@ -161,7 +163,7 @@ class ProductController extends Controller
             'variantAttributeName', 'minVariantPrice', 'maxVariantPrice',
             'price', 'isRangePrice', 'formattedPrice', 'stock', 'canBuy',
             'isLowStock', 'availability', 'stockLabel', 'documents',
-            'productVideo', 'secondaryDocuments', 'documentTypeLabels',
+            'manual', 'productVideo', 'secondaryDocuments', 'documentTypeLabels',
             'specRows', 'sections',
         );
     }

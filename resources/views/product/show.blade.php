@@ -552,7 +552,7 @@
 
             <div class="px-6 py-5 sm:px-7 sm:py-6">
                 @php
-                    $hasAnyDocument = $techSheet || $productVideo || $secondaryDocuments->isNotEmpty();
+                    $hasAnyDocument = $techSheet || $manual || $productVideo || $secondaryDocuments->isNotEmpty();
                 @endphp
 
                 @if(! $hasAnyDocument)
@@ -567,8 +567,8 @@
                         </div>
                     </div>
                 @else
-                    {{-- Grid principal: Ficha técnica (izq) + Video de apoyo (der) --}}
-                    <div class="grid gap-3 sm:grid-cols-2">
+                    {{-- Grid principal: Ficha técnica + Manual de usuario + Video de apoyo --}}
+                    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
 
                         {{-- Tarjeta izquierda: Ficha técnica --}}
                         <div class="group relative overflow-hidden rounded-2xl border transition {{ $techSheet ? 'border-brand-primary/30 bg-brand-primary/5 hover:border-brand-primary/50' : 'border-slate-200 bg-slate-50' }}">
@@ -602,6 +602,46 @@
                                             </a>
                                         @else
                                             <p class="text-xs text-slate-400">No disponible — solicítala a tu asesor</p>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Tarjeta central: Manual de usuario --}}
+                        <div class="group relative overflow-hidden rounded-2xl border transition {{ $manual ? 'border-amber-200 bg-amber-50/70 hover:border-amber-300' : 'border-slate-200 bg-slate-50' }}">
+                            <div class="flex items-start gap-4 p-5">
+                                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl {{ $manual ? 'bg-amber-100 text-amber-600' : 'bg-slate-200 text-slate-400' }}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                                        <path d="M6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22V4.5A2.5 2.5 0 0 1 6.5 2z"/>
+                                        <path d="M9 7h7"/>
+                                        <path d="M9 11h7"/>
+                                        <path d="M9 15h4"/>
+                                    </svg>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <p class="font-semibold text-slate-900">Manual de usuario</p>
+                                        <span class="rounded-md border border-amber-200 bg-white px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-amber-700">PDF</span>
+                                    </div>
+                                    <p class="mt-0.5 text-xs text-slate-500">Guía de uso, instalación y operación del producto</p>
+
+                                    <div class="mt-3">
+                                        @if($manual)
+                                            <a
+                                                href="{{ route('documents.manual.download', $manual) }}"
+                                                class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-amber-300 bg-white px-3.5 py-2 text-sm font-semibold text-amber-700 shadow-sm transition hover:border-amber-400 hover:bg-amber-50/70 focus-ring sm:w-auto"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M12 3v12"/>
+                                                    <path d="m7 10 5 5 5-5"/>
+                                                    <path d="M5 21h14"/>
+                                                </svg>
+                                                Descargar manual
+                                            </a>
+                                        @else
+                                            <p class="text-xs text-slate-400">No disponible por ahora</p>
                                         @endif
                                     </div>
                                 </div>

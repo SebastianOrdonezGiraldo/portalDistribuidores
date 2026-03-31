@@ -196,6 +196,7 @@ class TechSheetDownloadLimitTest extends TestCase
         $this->get(route('products.show', $product))
             ->assertOk()
             ->assertSee('Manual de usuario')
+            ->assertSeeText('Descargar manual')
             ->assertSee(route('documents.manual.download', $document), false);
     }
 
