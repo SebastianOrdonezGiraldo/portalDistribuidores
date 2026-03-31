@@ -10,6 +10,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AdminProductEditorTest extends TestCase
@@ -320,6 +321,68 @@ class AdminProductEditorTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_store_product_with_manual_document(): void
+    {
+        Storage::fake('private');
+
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+
+        $response = $this->actingAs($admin)
+            ->post('/admin/products', array_merge($this->validProductPayload($category), [
+                'manual' => $this->fakePdfUpload('manual-usuario.pdf'),
+            ]));
+
+        $product = Product::query()->where('sku', 'SKU-NEW-001')->firstOrFail();
+        $document = $product->documents()->where('type', 'manual')->first();
+
+        $response->assertRedirect('/admin/products/'.$product->id.'/edit');
+        $this->assertNotNull($document);
+        Storage::disk('private')->assertExists($document->path);
+    }
+
+    public function test_admin_update_replaces_existing_manual_document(): void
+    {
+        Storage::fake('private');
+
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProduct($category, 'SKU-MANUAL-UPDATE-001');
+
+        Storage::disk('private')->put('products/documents/manual-anterior.pdf', '%PDF-1.4 old manual');
+        $existingDocument = $product->documents()->create([
+            'type' => 'manual',
+            'path' => 'products/documents/manual-anterior.pdf',
+            'filename' => 'manual-anterior.pdf',
+        ]);
+
+        $payload = [
+            'name' => 'Producto Editor',
+            'brand' => 'Marca Manual',
+            'sku' => 'SKU-MANUAL-UPDATE-001',
+            'description' => 'Producto con manual actualizado',
+            'category_id' => $category->id,
+            'price' => 10000,
+            'stock' => 15,
+            'is_active' => 1,
+            'manual' => $this->fakePdfUpload('manual-nuevo.pdf'),
+        ];
+
+        $response = $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->put('/admin/products/'.$product->id, array_merge($payload, ['_token' => 'test-token']));
+
+        $updatedDocument = $product->fresh()->documents()->where('type', 'manual')->first();
+
+        $response->assertRedirect('/admin/products/'.$product->id.'/edit');
+        $this->assertNotNull($updatedDocument);
+        $this->assertSame($existingDocument->id, $updatedDocument->id);
+        $this->assertNotSame($existingDocument->path, $updatedDocument->path);
+        Storage::disk('private')->assertMissing($existingDocument->path);
+        Storage::disk('private')->assertExists($updatedDocument->path);
+        $this->assertSame(1, $product->fresh()->documents()->where('type', 'manual')->count());
+    }
+
     public function test_store_product_shows_clear_error_when_tech_sheet_exceeds_individual_limit(): void
     {
         $admin = User::factory()->admin()->create();
@@ -335,6 +398,24 @@ class AdminProductEditorTest extends TestCase
             ->assertRedirect('/admin/products/create')
             ->assertSessionHasErrors([
                 'tech_sheet' => 'La ficha tecnica debe pesar como maximo '.ProductUploadLimits::techSheetMaxSizeLabel().'.',
+            ]);
+    }
+
+    public function test_store_product_shows_clear_error_when_manual_exceeds_individual_limit(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+
+        $response = $this->actingAs($admin)
+            ->from('/admin/products/create')
+            ->post('/admin/products', array_merge($this->validProductPayload($category), [
+                'manual' => UploadedFile::fake()->create('manual-usuario.pdf', ProductUploadLimits::manualMaxSizeKb() + 1, 'application/pdf'),
+            ]));
+
+        $response
+            ->assertRedirect('/admin/products/create')
+            ->assertSessionHasErrors([
+                'manual' => 'El manual de usuario debe pesar como maximo '.ProductUploadLimits::manualMaxSizeLabel().'.',
             ]);
     }
 
@@ -524,5 +605,18 @@ class AdminProductEditorTest extends TestCase
         file_put_contents($tempPath, 'temporary-upload');
 
         return new UploadedFile($tempPath, $filename, $mimeType, $error, true);
+    }
+
+    private function fakePdfUpload(string $filename): UploadedFile
+    {
+        $tempPath = tempnam(sys_get_temp_dir(), 'product-manual-upload-');
+
+        if ($tempPath === false) {
+            throw new \RuntimeException('No fue posible crear un PDF temporal para la prueba.');
+        }
+
+        file_put_contents($tempPath, "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n");
+
+        return new UploadedFile($tempPath, $filename, 'application/pdf', null, true);
     }
 }

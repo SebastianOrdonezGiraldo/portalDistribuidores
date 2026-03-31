@@ -39,6 +39,9 @@ Route::get('/products/{product}', [ProductController::class, 'show'])
 Route::get('/documents/tech-sheet/{productDocument}', TechSheetDownloadController::class)
     ->middleware(['throttle:api-endpoints', 'suspicious_automation'])
     ->name('documents.tech-sheet.download');
+Route::get('/documents/manual/{productDocument}', TechSheetDownloadController::class)
+    ->middleware(['throttle:api-endpoints', 'suspicious_automation'])
+    ->name('documents.manual.download');
 
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
 Route::post('/cart', [CartController::class, 'store'])

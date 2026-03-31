@@ -35,9 +35,29 @@ class ProductDocument extends Model
         return $this->type === DocumentType::TechSheet->value;
     }
 
+    public function isManual(): bool
+    {
+        return $this->type === DocumentType::Manual->value;
+    }
+
+    public function isProtected(): bool
+    {
+        return $this->isTechSheet() || $this->isManual();
+    }
+
+    public function shouldTrackDownloads(): bool
+    {
+        return $this->isTechSheet();
+    }
+
+    public function typeLabel(): string
+    {
+        return DocumentType::tryFrom($this->type)?->label() ?? ucfirst((string) $this->type);
+    }
+
     public function storageDisk(): string
     {
-        if ($this->isTechSheet()) {
+        if ($this->isProtected()) {
             return (string) config('filesystems.tech_sheets_disk', 'private');
         }
 

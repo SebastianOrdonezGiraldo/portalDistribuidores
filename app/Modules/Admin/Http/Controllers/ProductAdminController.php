@@ -4,6 +4,7 @@ namespace App\Modules\Admin\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Catalog\Actions\AddVideoAction;
+use App\Modules\Catalog\Actions\AttachManualAction;
 use App\Modules\Catalog\Actions\AttachTechSheetAction;
 use App\Modules\Catalog\Actions\CreateProductAction;
 use App\Modules\Catalog\Actions\UpdateProductAction;
@@ -102,6 +103,7 @@ class ProductAdminController extends Controller
         ProductVariantSyncService $variantSyncService,
         UploadProductPhotoAction $uploadPhotoAction,
         AttachTechSheetAction $attachTechSheetAction,
+        AttachManualAction $attachManualAction,
         AddVideoAction $addVideoAction,
     ): RedirectResponse {
         $this->authorize('create', Product::class);
@@ -116,7 +118,7 @@ class ProductAdminController extends Controller
             return $createdProduct->refresh();
         });
 
-        $this->attachMedia($request, $product, $uploadPhotoAction, $attachTechSheetAction, $addVideoAction);
+        $this->attachMedia($request, $product, $uploadPhotoAction, $attachTechSheetAction, $attachManualAction, $addVideoAction);
 
         return $this->redirectAfterSave($request, $product, true);
     }
@@ -141,6 +143,7 @@ class ProductAdminController extends Controller
         ProductVariantSyncService $variantSyncService,
         UploadProductPhotoAction $uploadPhotoAction,
         AttachTechSheetAction $attachTechSheetAction,
+        AttachManualAction $attachManualAction,
         AddVideoAction $addVideoAction,
     ): RedirectResponse {
         $this->authorize('update', $product);
@@ -155,7 +158,7 @@ class ProductAdminController extends Controller
             return $updatedProduct->refresh();
         });
 
-        $this->attachMedia($request, $product, $uploadPhotoAction, $attachTechSheetAction, $addVideoAction);
+        $this->attachMedia($request, $product, $uploadPhotoAction, $attachTechSheetAction, $attachManualAction, $addVideoAction);
 
         return $this->redirectAfterSave($request, $product, false);
     }
@@ -277,6 +280,7 @@ class ProductAdminController extends Controller
         Product $product,
         UploadProductPhotoAction $uploadPhotoAction,
         AttachTechSheetAction $attachTechSheetAction,
+        AttachManualAction $attachManualAction,
         AddVideoAction $addVideoAction,
     ): void {
         if ($request->hasFile('photos')) {
@@ -292,6 +296,10 @@ class ProductAdminController extends Controller
 
         if ($request->hasFile('tech_sheet')) {
             $attachTechSheetAction->execute($product, $request->file('tech_sheet'));
+        }
+
+        if ($request->hasFile('manual')) {
+            $attachManualAction->execute($product, $request->file('manual'));
         }
     }
 
@@ -332,6 +340,7 @@ class ProductAdminController extends Controller
         $payload = $request->safe()->except([
             'photo',
             'tech_sheet',
+            'manual',
             'video_url',
             'has_variants',
             'variant_attribute_id',

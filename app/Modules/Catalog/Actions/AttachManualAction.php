@@ -7,7 +7,7 @@ use App\Modules\Catalog\Models\ProductDocument;
 use App\Modules\Shared\Enums\DocumentType;
 use Illuminate\Http\UploadedFile;
 
-class AttachTechSheetAction
+class AttachManualAction
 {
     public function __construct(
         private readonly AttachProtectedProductDocumentAction $attachProtectedProductDocumentAction,
@@ -18,8 +18,8 @@ class AttachTechSheetAction
         return $this->attachProtectedProductDocumentAction->execute(
             $product,
             $file,
-            DocumentType::TechSheet,
-            'tech_sheet',
+            DocumentType::Manual,
+            'manual',
         );
     }
 }

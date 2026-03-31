@@ -9,6 +9,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TechSheetDownloadController extends Controller
@@ -19,12 +20,20 @@ class TechSheetDownloadController extends Controller
         TechSheetDownloadService $downloadService,
     ): StreamedResponse|RedirectResponse {
         $productDocument->loadMissing('product');
+        if ($request->routeIs('documents.tech-sheet.download') && ! $productDocument->isTechSheet()) {
+            abort(404);
+        }
+
+        if ($request->routeIs('documents.manual.download') && ! $productDocument->isManual()) {
+            abort(404);
+        }
+
         $this->authorize('download', $productDocument);
 
         $user = $request->user();
         $now = CarbonImmutable::now();
 
-        if ($user?->isDistributor()) {
+        if ($productDocument->shouldTrackDownloads() && $user?->isDistributor()) {
             $distributor = $user->distributor;
 
             if (! $distributor) {
@@ -52,7 +61,9 @@ class TechSheetDownloadController extends Controller
                 return Storage::disk('public')->download($productDocument->path, $productDocument->filename);
             }
 
-            return back()->withErrors('No fue posible recuperar la ficha tecnica solicitada.');
+            $documentLabel = Str::lower($productDocument->typeLabel());
+
+            return back()->withErrors("No fue posible recuperar el {$documentLabel} solicitado.");
         }
 
         return $disk->download($productDocument->path, $productDocument->filename);

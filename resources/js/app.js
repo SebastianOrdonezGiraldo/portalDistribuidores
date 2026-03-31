@@ -956,6 +956,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const uploadFeedbackMessage = productForm.querySelector('[data-upload-feedback-message]');
         const photosInput = productForm.querySelector('#photos');
         const techSheetInput = productForm.querySelector('#tech_sheet');
+        const manualInput = productForm.querySelector('#manual');
         const totalMaxKb = Number(productForm.dataset.totalMaxKb || 0);
         const totalMaxText = productForm.dataset.totalMaxText || `${totalMaxKb / 1024} MB`;
 
@@ -1000,6 +1001,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const photoFiles = photosInput?.files ? Array.from(photosInput.files) : [];
             const techSheetFiles = techSheetInput?.files ? Array.from(techSheetInput.files) : [];
+            const manualFiles = manualInput?.files ? Array.from(manualInput.files) : [];
             const photoMaxFiles = Number(photosInput?.dataset.maxFiles || 0);
             const photoMaxSizeKb = Number(photosInput?.dataset.maxSizeKb || 0);
             const photoMaxSizeText = photosInput?.dataset.maxSizeText || `${photoMaxSizeKb / 1024} MB`;
@@ -1007,6 +1009,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const techSheetMaxSizeKb = Number(techSheetInput?.dataset.maxSizeKb || 0);
             const techSheetMaxSizeText = techSheetInput?.dataset.maxSizeText || `${techSheetMaxSizeKb / 1024} MB`;
             const techSheetLabel = techSheetInput?.dataset.uploadLabel || 'ficha tecnica';
+            const manualMaxSizeKb = Number(manualInput?.dataset.maxSizeKb || 0);
+            const manualMaxSizeText = manualInput?.dataset.maxSizeText || `${manualMaxSizeKb / 1024} MB`;
+            const manualLabel = manualInput?.dataset.uploadLabel || 'manual de usuario';
 
             if (photoMaxFiles > 0 && photoFiles.length > photoMaxFiles) {
                 showUploadFeedback(
@@ -1037,13 +1042,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 return false;
             }
 
-            const totalSelectedBytes = [...photoFiles, ...techSheetFiles]
+            const oversizedManual = manualFiles.find((file) => file.size > manualMaxSizeKb * 1024);
+            if (oversizedManual) {
+                showUploadFeedback(
+                    `El ${manualLabel} supera el maximo permitido de ${manualMaxSizeText}. Reduce el PDF antes de guardarlo.`,
+                    manualInput,
+                    { notify },
+                );
+                return false;
+            }
+
+            const totalSelectedBytes = [...photoFiles, ...techSheetFiles, ...manualFiles]
                 .reduce((sum, file) => sum + (Number.isFinite(file.size) ? file.size : 0), 0);
 
             if (totalMaxKb > 0 && totalSelectedBytes > totalMaxKb * 1024) {
                 showUploadFeedback(
                     `La carga actual pesa ${formatFileSize(totalSelectedBytes)} y el formulario permite hasta ${totalMaxText} en total. Reduce la cantidad o el peso de fotos y documentos.`,
-                    photosInput || techSheetInput,
+                    photosInput || techSheetInput || manualInput,
                     { notify },
                 );
                 return false;
@@ -1101,6 +1116,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         techSheetInput?.addEventListener('change', () => {
+            validateProductUploads();
+        });
+
+        manualInput?.addEventListener('change', () => {
             validateProductUploads();
         });
 

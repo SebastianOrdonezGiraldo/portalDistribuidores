@@ -46,18 +46,23 @@ class SafeUploadValidator
         }
     }
 
-    public function assertSafePdf(UploadedFile $file, string $attribute = 'tech_sheet'): void
+    public function assertSafePdf(
+        UploadedFile $file,
+        string $attribute = 'tech_sheet',
+        string $label = 'documento PDF',
+    ): void
     {
+        $normalizedLabel = trim($label) !== '' ? $label : 'documento PDF';
         $mimeType = Str::lower((string) $file->getMimeType());
 
         if (! in_array($mimeType, $this->allowedPdfMimeTypes, true)) {
-            $this->throwValidationError($attribute, 'La ficha tecnica debe estar en formato PDF.');
+            $this->throwValidationError($attribute, 'El archivo de '.$normalizedLabel.' debe estar en formato PDF.');
         }
 
         $realPath = $file->getRealPath();
 
         if (! is_string($realPath) || $realPath === '' || ! is_file($realPath)) {
-            $this->throwValidationError($attribute, 'No fue posible validar la ficha tecnica.');
+            $this->throwValidationError($attribute, 'No fue posible validar el archivo de '.$normalizedLabel.'.');
         }
 
         $signature = @file_get_contents($realPath, false, null, 0, 5);

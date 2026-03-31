@@ -526,15 +526,16 @@
         </section>
 
         {{-- ──────────────────────────────────────────────────────────────
-             Sección: Documentos — ⚠️ Afecta descargas de PDF
+             Sección: Documentos — ⚠️ Afecta descargas de PDF protegidas
              Si se modifica la ruta route('documents.tech-sheet.download')
+             o route('documents.manual.download')
              también se debe actualizar el controlador de documentos.
         ────────────────────────────────────────────────────────────────── --}}
         <section id="documentos" class="scroll-mt-32 card overflow-hidden">
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4 sm:px-7">
                 <div>
                     <h2 class="text-lg font-bold text-slate-950">Documentos</h2>
-                    <p class="mt-0.5 text-xs text-slate-500">Fichas técnicas, catálogos y certificados descargables</p>
+                    <p class="mt-0.5 text-xs text-slate-500">Fichas técnicas, manuales y documentos comerciales</p>
                 </div>
                 @if(! is_null($remainingDownloads))
                     <div class="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
@@ -671,7 +672,21 @@
                                                 <span class="block truncate">{{ $document->filename }}</span>
                                             </td>
                                             <td data-label="Acceso" class="text-right text-xs text-slate-400">
-                                                Solicitar a soporte comercial
+                                                @if($document->isManual())
+                                                    <a
+                                                        href="{{ route('documents.manual.download', $document) }}"
+                                                        class="inline-flex items-center gap-1 font-semibold text-brand-primary transition hover:underline focus-ring rounded"
+                                                    >
+                                                        Descargar PDF
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <path d="M12 3v12"/>
+                                                            <path d="m7 10 5 5 5-5"/>
+                                                            <path d="M5 21h14"/>
+                                                        </svg>
+                                                    </a>
+                                                @else
+                                                    Solicitar a soporte comercial
+                                                @endif
                                             </td>
                                         </tr>
                                     @endforeach

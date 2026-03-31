@@ -9,7 +9,7 @@ class ProductDocumentPolicy
 {
     public function download(?User $user, ProductDocument $productDocument): bool
     {
-        if ($productDocument->type !== 'tech_sheet' || ! $productDocument->product?->is_active) {
+        if (! $productDocument->isProtected() || ! $productDocument->product?->is_active) {
             return false;
         }
 

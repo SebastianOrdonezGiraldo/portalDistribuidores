@@ -19,9 +19,14 @@ class ProductUploadLimits
         return max(1, (int) config('product_uploads.tech_sheet.max_size_kb', 5120));
     }
 
+    public static function manualMaxSizeKb(): int
+    {
+        return max(1, (int) config('product_uploads.manual.max_size_kb', 20480));
+    }
+
     public static function requestMaxKb(): int
     {
-        return max(1, (int) config('product_uploads.request_max_kb', 40960));
+        return max(1, (int) config('product_uploads.request_max_kb', 61440));
     }
 
     public static function photoMaxSizeLabel(): string
@@ -32,6 +37,11 @@ class ProductUploadLimits
     public static function techSheetMaxSizeLabel(): string
     {
         return self::formatKilobytes(self::techSheetMaxSizeKb());
+    }
+
+    public static function manualMaxSizeLabel(): string
+    {
+        return self::formatKilobytes(self::manualMaxSizeKb());
     }
 
     public static function requestMaxSizeLabel(): string
@@ -58,6 +68,12 @@ class ProductUploadLimits
             .'Reduce el archivo a maximo '.self::techSheetMaxSizeLabel().' e intentalo nuevamente.';
     }
 
+    public static function manualUploadFailedMessage(): string
+    {
+        return 'El manual de usuario no se pudo cargar porque supera el limite del servidor. '
+            .'Reduce el archivo a maximo '.self::manualMaxSizeLabel().' e intentalo nuevamente.';
+    }
+
     /**
      * @return array{
      *     photo_max_files: int,
@@ -65,6 +81,8 @@ class ProductUploadLimits
      *     photo_max_size_label: string,
      *     tech_sheet_max_size_kb: int,
      *     tech_sheet_max_size_label: string,
+     *     manual_max_size_kb: int,
+     *     manual_max_size_label: string,
      *     request_max_kb: int,
      *     request_max_size_label: string
      * }
@@ -77,6 +95,8 @@ class ProductUploadLimits
             'photo_max_size_label' => self::photoMaxSizeLabel(),
             'tech_sheet_max_size_kb' => self::techSheetMaxSizeKb(),
             'tech_sheet_max_size_label' => self::techSheetMaxSizeLabel(),
+            'manual_max_size_kb' => self::manualMaxSizeKb(),
+            'manual_max_size_label' => self::manualMaxSizeLabel(),
             'request_max_kb' => self::requestMaxKb(),
             'request_max_size_label' => self::requestMaxSizeLabel(),
         ];

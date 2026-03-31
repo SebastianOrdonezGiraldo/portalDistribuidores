@@ -137,7 +137,7 @@ class ProductController extends Controller
             'tech_sheet'  => 'Ficha técnica',
             'catalog'     => 'Catálogo',
             'certificate' => 'Certificado',
-            'manual'      => 'Manual',
+            'manual'      => 'Manual de usuario',
         ];
 
         $specRows = [

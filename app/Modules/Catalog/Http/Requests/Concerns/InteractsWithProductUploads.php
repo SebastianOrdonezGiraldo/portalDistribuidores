@@ -27,6 +27,13 @@ trait InteractsWithProductUploads
                 'mimetypes:application/pdf,application/x-pdf',
                 'max:'.ProductUploadLimits::techSheetMaxSizeKb(),
             ],
+            'manual' => [
+                'nullable',
+                'file',
+                'mimes:pdf',
+                'mimetypes:application/pdf,application/x-pdf',
+                'max:'.ProductUploadLimits::manualMaxSizeKb(),
+            ],
         ];
     }
 
@@ -47,6 +54,11 @@ trait InteractsWithProductUploads
             'tech_sheet.mimes' => 'La ficha tecnica debe estar en formato PDF.',
             'tech_sheet.mimetypes' => 'La ficha tecnica debe estar en formato PDF.',
             'tech_sheet.max' => 'La ficha tecnica debe pesar como maximo '.ProductUploadLimits::techSheetMaxSizeLabel().'.',
+            'manual.file' => 'El manual de usuario debe cargarse como un archivo adjunto.',
+            'manual.uploaded' => ProductUploadLimits::manualUploadFailedMessage(),
+            'manual.mimes' => 'El manual de usuario debe estar en formato PDF.',
+            'manual.mimetypes' => 'El manual de usuario debe estar en formato PDF.',
+            'manual.max' => 'El manual de usuario debe pesar como maximo '.ProductUploadLimits::manualMaxSizeLabel().'.',
         ];
     }
 }
