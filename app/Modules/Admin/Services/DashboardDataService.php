@@ -17,28 +17,39 @@ class DashboardDataService
 
     public function getData(): array
     {
-        return Cache::remember('admin.dashboard.data', self::CACHE_TTL_SECONDS, fn () => $this->build());
+        return array_merge(
+            $this->getCachedMetrics(),
+            $this->getLiveData(),
+        );
     }
 
-    private function build(): array
+    private function getCachedMetrics(): array
     {
-        $totals = $this->getTotals();
-        $monthlyMetrics = $this->getMonthlyMetrics();
-        $orderStatusTotals = $this->getOrderStatusTotals();
+        return Cache::remember('admin.dashboard.metrics', self::CACHE_TTL_SECONDS, function () {
+            $totals = $this->getTotals();
+            $monthlyMetrics = $this->getMonthlyMetrics();
+            $orderStatusTotals = $this->getOrderStatusTotals();
 
+            return [
+                'totals'                 => $totals,
+                'kpis'                   => $this->buildKpis($totals, $monthlyMetrics),
+                'operationalSummary'     => $this->buildOperationalSummary($totals),
+                'orderStatusTotals'      => $orderStatusTotals,
+                'statusDistribution'     => $this->buildStatusDistribution($orderStatusTotals, $totals),
+                'operationalAlerts'      => $this->buildOperationalAlerts($orderStatusTotals),
+                'monthRangeLabel'        => $monthlyMetrics['range_label'],
+                'currentMonthOrders'     => $monthlyMetrics['current_orders'],
+                'latestCatalogUpdateAt'  => $this->getLatestCatalogUpdateAt(),
+            ];
+        });
+    }
+
+    private function getLiveData(): array
+    {
         return [
-            'totals'            => $totals,
-            'kpis'              => $this->buildKpis($totals, $monthlyMetrics, $orderStatusTotals),
-            'operationalSummary' => $this->buildOperationalSummary($totals),
-            'orderStatusTotals' => $orderStatusTotals,
-            'statusDistribution' => $this->buildStatusDistribution($orderStatusTotals, $totals),
-            'operationalAlerts' => $this->buildOperationalAlerts($orderStatusTotals),
-            'recentOrders'      => $this->getRecentOrders(),
-            'recentEvents'      => $this->getRecentEvents(),
-            'monthRangeLabel'   => $monthlyMetrics['range_label'],
-            'currentMonthOrders' => $monthlyMetrics['current_orders'],
-            'latestOrderAt'     => $this->getLatestOrderAt(),
-            'latestCatalogUpdateAt' => $this->getLatestCatalogUpdateAt(),
+            'recentOrders'  => $this->getRecentOrders(),
+            'recentEvents'  => $this->getRecentEvents(),
+            'latestOrderAt' => $this->getLatestOrderAt(),
         ];
     }
 
@@ -91,7 +102,7 @@ class DashboardDataService
             ->mapWithKeys(fn (OrderStatus $s) => [$s->value => (int) ($statusCounts[$s->value] ?? 0)]);
     }
 
-    private function buildKpis(array $totals, array $monthly, \Illuminate\Support\Collection $statusTotals): array
+    private function buildKpis(array $totals, array $monthly): array
     {
         return [
             [
