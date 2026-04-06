@@ -13,6 +13,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Log;
+use Scoutapm\ScoutApmAgent;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -36,6 +37,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->reportable(function (\Throwable $e): void {
+            app()->make(ScoutApmAgent::class)->recordThrowable($e);
+        });
+
         $exceptions->render(function (PostTooLargeException $e, $request) {
             $referer = (string) $request->headers->get('referer', '');
             $currentHost = $request->getHost();
