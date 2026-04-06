@@ -103,6 +103,12 @@ class AppServiceProvider extends ServiceProvider
                 ->limit(4)
                 ->get(['id', 'name'])
             );
+            $headerQuickCategories = Cache::remember('header_quick_categories', 3600, fn () => Category::active()
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->limit(8)
+                ->get(['id', 'name'])
+            );
             $pendingApprovalCount = 0;
             $user = auth()->user();
 
@@ -120,6 +126,7 @@ class AppServiceProvider extends ServiceProvider
                 'navCartCount' => $count,
                 'cartCount' => $count,
                 'footerTopCategories' => $footerTopCategories,
+                'headerQuickCategories' => $headerQuickCategories,
                 'pendingApprovalCount' => $pendingApprovalCount,
             ]);
         });
