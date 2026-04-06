@@ -194,11 +194,23 @@
                             <span class="truncate text-sm font-semibold text-slate-900">Portal Distribuidores</span>
                         </a>
                     @else
-                        <a href="{{ route('catalog.index') }}" class="flex min-w-0 items-center gap-2 rounded-lg focus-ring">
-                            <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-8 w-auto">
-                            <span class="hidden text-sm font-semibold text-slate-900 sm:inline">Portal Distribuidores</span>
+                        <a href="{{ route('catalog.index') }}" class="flex min-w-0 items-center gap-2.5 rounded-lg focus-ring">
+                            <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-9 w-auto flex-shrink-0">
+                            <div class="hidden min-w-0 flex-col sm:flex">
+                                <span class="truncate text-sm font-bold text-slate-900">Portal Distribuidores</span>
+                                <span class="truncate text-xs text-slate-500">Import Corporal Medical</span>
+                            </div>
                         </a>
                     @endif
+
+                    <div class="hidden lg:flex lg:min-w-0 lg:flex-1 lg:justify-center lg:px-6">
+                        @if(!$isAuthenticated && !request()->routeIs('login', 'register', 'password.*'))
+                            <div class="relative w-full max-w-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                                <input type="text" placeholder="Buscar productos..." class="form-input w-full bg-slate-50/50 py-2.5 pl-9 pr-4 text-sm focus:bg-white" x-data x-on:keydown.enter="window.location.href = '{{ route('catalog.index') }}?term=' + encodeURIComponent($el.value)">
+                            </div>
+                        @endif
+                    </div>
 
                     <div class="ml-auto flex shrink-0 items-center gap-2">
                         @if($isAuthenticated)
@@ -237,15 +249,13 @@
                                 </div>
                             </div>
                         @else
-                            <a href="{{ route('cart.index') }}" class="btn btn-secondary !min-h-10 !px-3 sm:!px-4">
-                                Carrito
+                            <a href="{{ route('cart.index') }}" class="btn btn-secondary !min-h-10 !px-3 sm:!px-4 group relative">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                                 @if(($navCartCount ?? 0) > 0)
-                                    <x-ui.badge variant="brand" class="ml-1" data-cart-badge>{{ $navCartCount }}</x-ui.badge>
-                                @else
-                                    <x-ui.badge variant="neutral" class="ml-1" data-cart-badge>0</x-ui.badge>
+                                    <x-ui.badge variant="brand" class="absolute -right-2 -top-2 h-5 w-5 p-0 flex items-center justify-center text-xs" data-cart-badge>{{ $navCartCount }}</x-ui.badge>
                                 @endif
                             </a>
-                            <a href="{{ route('login') }}" class="btn btn-primary !min-h-10 !px-3 sm:!px-4">Iniciar sesión</a>
+                            <a href="{{ route('login') }}" class="btn btn-primary !min-h-10 !px-4 sm:!px-5 hidden sm:inline-flex">Iniciar sesión</a>
                         @endif
                     </div>
                 </div>
@@ -254,6 +264,8 @@
                     <div class="border-t border-slate-200/80 pt-3">
                         {{ $catalogToolbar }}
                     </div>
+                @elseif(!$isAuthenticated)
+                    <x-header-categories />
                 @elseif($isAdmin)
                     <form method="GET" action="{{ route('admin.orders.index') }}" class="relative w-full lg:mx-auto lg:max-w-2xl">
                         <label class="sr-only" for="top-search-admin">Buscar pedido</label>
