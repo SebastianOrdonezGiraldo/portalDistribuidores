@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 class TechSheetDownloadController extends Controller
 {
@@ -51,14 +52,16 @@ class TechSheetDownloadController extends Controller
         }
 
         $disk = Storage::disk($productDocument->storageDisk());
+        $path = $this->normalizePath($productDocument->path);
 
-        if (! $disk->exists($productDocument->path)) {
+        if (! $this->safeExists($disk, $path)) {
             $this->migrateFromLegacyPublicDisk($productDocument);
         }
 
-        if (! $disk->exists($productDocument->path)) {
-            if (Storage::disk('public')->exists($productDocument->path)) {
-                return Storage::disk('public')->download($productDocument->path, $productDocument->filename);
+        if (! $this->safeExists($disk, $path)) {
+            $publicDisk = Storage::disk('public');
+            if ($this->safeExists($publicDisk, $path)) {
+                return $publicDisk->download($path, $productDocument->filename);
             }
 
             $documentLabel = Str::lower($productDocument->typeLabel());
@@ -66,7 +69,7 @@ class TechSheetDownloadController extends Controller
             return back()->withErrors("No fue posible recuperar el {$documentLabel} solicitado.");
         }
 
-        return $disk->download($productDocument->path, $productDocument->filename);
+        return $disk->download($path, $productDocument->filename);
     }
 
     private function migrateFromLegacyPublicDisk(ProductDocument $productDocument): void
@@ -79,15 +82,48 @@ class TechSheetDownloadController extends Controller
 
         $targetDisk = Storage::disk($targetDiskName);
         $legacyDisk = Storage::disk('public');
+        $path = $this->normalizePath($productDocument->path);
 
-        if ($targetDisk->exists($productDocument->path) || ! $legacyDisk->exists($productDocument->path)) {
+        if ($this->safeExists($targetDisk, $path) || ! $this->safeExists($legacyDisk, $path)) {
             return;
         }
 
-        $written = $targetDisk->put($productDocument->path, (string) $legacyDisk->get($productDocument->path));
+        try {
+            $contents = (string) $legacyDisk->get($path);
+            $written = $targetDisk->put($path, $contents);
+        } catch (Throwable) {
+            return;
+        }
 
         if ($written !== false) {
-            $legacyDisk->delete($productDocument->path);
+            try {
+                $legacyDisk->delete($path);
+            } catch (Throwable) {
+                // no-op
+            }
+        }
+    }
+
+    private function normalizePath(?string $path): string
+    {
+        return rtrim(ltrim(trim((string) $path), '/'), '/');
+    }
+
+    /**
+     * @param mixed $disk Typically an instance from Storage::disk()
+     */
+    private function safeExists(mixed $disk, string $path): bool
+    {
+        if ($path === '') {
+            return false;
+        }
+
+        try {
+            return is_object($disk) && method_exists($disk, 'exists')
+                ? (bool) $disk->exists($path)
+                : false;
+        } catch (Throwable) {
+            return false;
         }
     }
 }
