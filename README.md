@@ -252,6 +252,42 @@ php artisan migrate:status
 
 > **En producción, ambos jobs requieren un worker de cola activo.** Si el worker no está corriendo, los jobs quedan en la tabla `jobs` sin procesarse.
 
+### Driver de colas
+
+El proyecto soporta **dos drivers** de colas:
+
+| Driver | Entorno | Características |
+|--------|---------|---|
+| **`database`** (defecto) | Desarrollo, staging inicial | Jobs en tabla PostgreSQL; simple pero más lento; recomendado para testing |
+| **`redis`** | Producción, staging avanzado | Jobs en Redis server; ~4x más rápido; recomendado para alta concurrencia |
+
+#### Migración a Redis en Producción
+
+Para producción, se recomienda **migrar a Redis** por mejor performance y escalabilidad.
+
+**Requisitos:**
+- Redis server instalado en VPS (`sudo apt install -y redis-server redis-tools`)
+- Predis dependency en `composer.json` (`"predis/predis": "^2.2"`)
+- Variables `.env` configuradas
+
+**Cambiar driver:**
+```bash
+# En .env de staging/producción
+QUEUE_CONNECTION=redis
+REDIS_QUEUE_HOST=127.0.0.1
+REDIS_QUEUE_PORT=6379
+REDIS_QUEUE_DB=2
+```
+
+**Verificar conectividad:**
+```bash
+redis-cli ping  # Retorna: PONG
+php artisan tinker
+>>> Redis::ping()  # Retorna: 'PONG'
+```
+
+> **Guía completa:** Ver [`REDIS_MIGRATION.md`](./REDIS_MIGRATION.md) para detalles de migración desde database a Redis, testing en staging y rollback.
+
 ### Worker en desarrollo local
 
 ```bash
