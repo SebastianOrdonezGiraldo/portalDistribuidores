@@ -8,6 +8,8 @@ use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Orders\DTOs\CreateOrderData;
 use App\Modules\Orders\Events\OrderPlaced;
 use App\Modules\Orders\Models\Order;
+use App\Modules\Orders\Services\OrderInventoryService;
+use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +17,12 @@ use Illuminate\Support\Str;
 
 class CreateOrderAction
 {
+    public function __construct(
+        private readonly OrderStatusTransitionService $orderStatusTransitionService,
+        private readonly OrderInventoryService $orderInventoryService,
+    ) {
+    }
+
     public function execute(?User $user, CreateOrderData $data): Order
     {
         $productIds = collect($data->items)->pluck('product_id')->map(fn ($id) => (int) $id)->unique()->all();
@@ -63,6 +71,7 @@ class CreateOrderAction
                 'company_nit'     => $data->companyNit,
                 'company_address' => $data->companyAddress,
                 'city'            => $data->city,
+                'department'      => $data->department,
                 'notes'           => $data->notes,
                 'status'          => $status,
                 'total_amount'    => 0,
@@ -114,8 +123,18 @@ class CreateOrderAction
                 'oc_number'    => sprintf(Order::OC_PREFIX.'%0'.Order::OC_PADDING.'d', $order->id),
             ]);
 
+            if ($status === OrderStatus::Submitted) {
+                $this->orderInventoryService->decreaseForOrder($order);
+            }
+
             return $order->refresh();
         });
+
+        $this->orderStatusTransitionService->recordInitialStatus(
+            $order,
+            $user,
+            'Estado inicial registrado al crear la cotización.'
+        );
 
         // Solo disparar el evento si la orden no requiere aprobación interna previa
         if (! $data->requiresApproval) {

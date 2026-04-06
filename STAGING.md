@@ -61,11 +61,11 @@ Notas operativas:
 - Los deploys por SSH usan `command_timeout` explicito y `set -e` en el shell remoto para cortar antes ante fallos parciales fuera de `deploy.sh`.
 - Cada deploy termina con un smoke check HTTP con reintentos contra la URL canonica del entorno; si la app no responde con `200`, `301` o `302`, el workflow falla.
 - Los workflows aceptan secretos dedicados por entorno con fallback a los secretos legacy `VPS_*`, para no romper el flujo actual mientras separas accesos.
-- Los deploys por SSH validan el fingerprint del host del VPS. Si regeneras las host keys del servidor, debes actualizar el fingerprint en los workflows antes del siguiente deploy.
+- `deploy.sh` refresca en cada ejecucion las host keys de `github.com` en `~/.ssh/known_hosts` del usuario de la app para evitar fallos por claves obsoletas durante `git fetch`.
 
 Si el job falla en `Check SSH port reachability`:
 
-- la conexion TCP nunca llego a abrirse; todavia no es un problema de llave SSH ni de fingerprint
+- la conexion TCP nunca llego a abrirse; todavia no es un problema de llave SSH ni de `known_hosts`
 - revisar `VPS_HOST_*` y `VPS_SSH_PORT_*` en GitHub Secrets
 - verificar en el VPS que `sshd` siga escuchando en ese puerto
 - verificar `ufw`, reglas del proveedor y `fail2ban`, porque GitHub-hosted runners pueden quedar bloqueados aunque el puerto funcione desde tu red local
@@ -79,7 +79,6 @@ Secretos opcionales para staging:
 - `VPS_USER_STAGING`
 - `VPS_SSH_KEY_STAGING`
 - `VPS_SSH_PASSPHRASE_STAGING`
-- `VPS_SSH_FINGERPRINT_STAGING`
 
 Secretos opcionales para produccion:
 
@@ -88,26 +87,12 @@ Secretos opcionales para produccion:
 - `VPS_USER_PRODUCTION`
 - `VPS_SSH_KEY_PRODUCTION`
 - `VPS_SSH_PASSPHRASE_PRODUCTION`
-- `VPS_SSH_FINGERPRINT_PRODUCTION`
-
-Secreto legacy opcional compartido:
-
-- `VPS_SSH_FINGERPRINT`
 
 Comportamiento actual:
 
 - Si defines los secretos dedicados por entorno, cada workflow usa esos valores.
-- Si no existen, staging y produccion siguen usando los secretos legacy `VPS_HOST`, `VPS_SSH_PORT`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_SSH_PASSPHRASE` y `VPS_SSH_FINGERPRINT`.
+- Si no existen, staging y produccion siguen usando los secretos legacy `VPS_HOST`, `VPS_SSH_PORT`, `VPS_USER`, `VPS_SSH_KEY` y `VPS_SSH_PASSPHRASE`.
 - Cuando quieras endurecer mas el control, puedes mover esta misma separacion a GitHub Environments `staging` y `production` sin cambiar el flujo de ramas.
-
-Si cambia la host key del VPS, recalcula el fingerprint antes del siguiente deploy y actualiza el secret correspondiente en GitHub:
-
-```bash
-ssh-keyscan -p 22 pedidos.importcorporalmedical.com | ssh-keygen -l -E sha256 -f -
-ssh-keyscan -p 22 staging-pedidos.importcorporalmedical.com | ssh-keygen -l -E sha256 -f -
-```
-
-Del resultado guarda solo el valor `SHA256:...` en el secret.
 
 ## Branch protection
 

@@ -28,7 +28,7 @@
 @endphp
 
 @if(count($messages) > 0)
-    <div class="pointer-events-none fixed inset-x-3 top-3 z-[80] w-auto space-y-2 sm:inset-x-auto sm:right-4 sm:top-4 sm:w-[min(92vw,28rem)]">
+    <div class="pointer-events-none fixed inset-x-3 bottom-3 z-[100] w-auto space-y-2 sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-[min(92vw,28rem)]">
         @foreach($messages as $message)
             <x-ui.alert
                 :variant="$message['variant']"

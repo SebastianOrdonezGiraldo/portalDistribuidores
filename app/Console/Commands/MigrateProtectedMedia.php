@@ -13,7 +13,7 @@ class MigrateProtectedMedia extends Command
 {
     protected $signature = 'protected-media:migrate {--keep-public : Conserva las copias legacy del disco public}';
 
-    protected $description = 'Mueve fichas tecnicas y PDFs de pedidos desde el disco public hacia almacenamiento privado.';
+    protected $description = 'Mueve documentos protegidos de producto y PDFs de pedidos desde el disco public hacia almacenamiento privado.';
 
     public function handle(): int
     {
@@ -30,17 +30,17 @@ class MigrateProtectedMedia extends Command
 
         $keepPublic = (bool) $this->option('keep-public');
         $stats = [
-            'tech_sheets_copied' => 0,
-            'tech_sheets_deleted' => 0,
-            'tech_sheets_missing' => 0,
+            'product_documents_copied' => 0,
+            'product_documents_deleted' => 0,
+            'product_documents_missing' => 0,
             'order_pdfs_copied' => 0,
             'order_pdfs_deleted' => 0,
             'order_pdfs_missing' => 0,
         ];
 
-        $this->components->info('Migrando fichas tecnicas protegidas...');
+        $this->components->info('Migrando documentos protegidos de producto...');
         ProductDocument::query()
-            ->where('type', 'tech_sheet')
+            ->whereIn('type', ['tech_sheet', 'manual'])
             ->whereNotNull('path')
             ->orderBy('id')
             ->chunkById(100, function ($documents) use (&$stats, $techSheetDisk, $keepPublic): void {
@@ -48,15 +48,15 @@ class MigrateProtectedMedia extends Command
                     $result = $this->syncPath((string) $document->path, $techSheetDisk, $keepPublic);
 
                     if ($result['copied']) {
-                        $stats['tech_sheets_copied']++;
+                        $stats['product_documents_copied']++;
                     }
 
                     if ($result['deleted_public']) {
-                        $stats['tech_sheets_deleted']++;
+                        $stats['product_documents_deleted']++;
                     }
 
                     if ($result['missing']) {
-                        $stats['tech_sheets_missing']++;
+                        $stats['product_documents_missing']++;
                     }
                 }
             });
@@ -86,7 +86,7 @@ class MigrateProtectedMedia extends Command
         $this->table(
             ['Activo', 'Copiados', 'Eliminados de public', 'Faltantes'],
             [
-                ['Fichas tecnicas', $stats['tech_sheets_copied'], $stats['tech_sheets_deleted'], $stats['tech_sheets_missing']],
+                ['Documentos de producto', $stats['product_documents_copied'], $stats['product_documents_deleted'], $stats['product_documents_missing']],
                 ['PDFs de pedidos', $stats['order_pdfs_copied'], $stats['order_pdfs_deleted'], $stats['order_pdfs_missing']],
             ],
         );

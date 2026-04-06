@@ -84,11 +84,17 @@ class CompanyDashboardController extends Controller
         $maxCount = max(1, $orderStatusTotals->max() ?? 0);
 
         $statusColors = [
-            'draft'     => 'bg-amber-400',
-            'submitted' => 'bg-emerald-400',
-            'sending'   => 'bg-sky-400',
-            'sent'      => 'bg-blue-400',
-            'failed'    => 'bg-rose-400',
+            'draft'            => 'bg-amber-400',
+            'pending_approval' => 'bg-violet-400',
+            'submitted'        => 'bg-emerald-400',
+            'sold'             => 'bg-cyan-500',
+            'dispatched'       => 'bg-sky-500',
+            'delivered'        => 'bg-blue-500',
+            'rejected'         => 'bg-red-500',
+            'cancelled'        => 'bg-slate-500',
+            'sending'          => 'bg-sky-400',
+            'sent'             => 'bg-blue-400',
+            'failed'           => 'bg-rose-400',
         ];
 
         $statusDistribution = collect(OrderStatus::cases())->map(function (OrderStatus $s) use ($orderStatusTotals, $statusColors, $maxCount, $totalOrders) {

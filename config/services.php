@@ -41,4 +41,8 @@ return [
         'meilisearch_key' => env('MEILISEARCH_KEY'),
     ],
 
+    'google_analytics' => [
+        'measurement_id' => env('GOOGLE_ANALYTICS_MEASUREMENT_ID'),
+    ],
+
 ];

@@ -217,9 +217,66 @@
                 </x-slot>
             </x-ui.empty-state>
         @else
-            <x-ui.table>
+            <form
+                action="{{ route('admin.products.bulk-action') }}"
+                method="POST"
+                class="mb-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3"
+                data-bulk-form
+                data-confirm="Aplicar accion en lote a los productos seleccionados?"
+            >
+                @csrf
+                <input type="hidden" name="action" value="" data-bulk-action-input>
+                <div data-bulk-selected-inputs></div>
+                @foreach($indexContextQuery as $key => $value)
+                    <input type="hidden" name="index_context[{{ $key }}]" value="{{ $value }}">
+                @endforeach
+
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <p class="text-xs text-slate-600">
+                        Seleccionados: <strong data-bulk-count>0</strong>
+                    </p>
+                    <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                        <button
+                            type="submit"
+                            class="btn btn-secondary w-full justify-center sm:w-auto"
+                            data-bulk-action-trigger
+                            data-bulk-action-value="deactivate"
+                            data-bulk-confirm="Desactivar los productos seleccionados?"
+                            data-bulk-submit
+                            disabled
+                        >
+                            Desactivar seleccionados
+                        </button>
+                        <button
+                            type="submit"
+                            class="btn btn-secondary w-full justify-center sm:w-auto"
+                            data-bulk-action-trigger
+                            data-bulk-action-value="activate"
+                            data-bulk-confirm="Activar los productos seleccionados?"
+                            data-bulk-submit
+                            disabled
+                        >
+                            Activar seleccionados
+                        </button>
+                        <button
+                            type="submit"
+                            class="btn btn-danger w-full justify-center sm:w-auto"
+                            data-bulk-action-trigger
+                            data-bulk-action-value="delete"
+                            data-bulk-confirm="Eliminar los productos seleccionados? Esta accion no se puede deshacer."
+                            data-bulk-submit
+                            disabled
+                        >
+                            Eliminar seleccionados
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <x-ui.table data-bulk-table>
                 <thead>
                     <tr>
+                        <th class="w-10"><input type="checkbox" class="form-checkbox" data-bulk-master></th>
                         <th>Producto</th>
                         <th>Categoría</th>
                         <th>Precio</th>
@@ -230,6 +287,9 @@
                 <tbody>
                     @foreach($products as $product)
                         <tr>
+                            <td data-label="Seleccionar">
+                                <input type="checkbox" class="form-checkbox" data-bulk-row value="{{ $product->id }}">
+                            </td>
                             <td data-label="Producto" data-full="true">
                                 <div class="flex items-center gap-3">
                                     <x-ui.product-thumb :product="$product" size="sm" />

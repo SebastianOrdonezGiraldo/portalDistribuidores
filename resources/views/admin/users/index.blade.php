@@ -21,7 +21,7 @@
         <x-ui.kpi-card label="Administradores" :value="number_format($metrics['admin_users'])" hint="Acceso total al panel" />
         <x-ui.kpi-card label="Distribuidores" :value="number_format($metrics['distributor_users'])" hint="Usuarios del canal comercial" />
         <x-ui.kpi-card label="Con Distribuidor" :value="number_format($metrics['linked_distributor'])" hint="Cuenta vinculada a cliente" />
-        <x-ui.kpi-card label="Email Verificado" :value="number_format($metrics['verified_users'])" hint="Con verificación completada" />
+        <x-ui.kpi-card label="Correo verificado" :value="number_format($metrics['verified_users'])" hint="Con verificación completada" />
     </section>
 
     @php
@@ -56,7 +56,7 @@
     <x-ui.filter-bar method="GET" action="{{ route('admin.users.index') }}" class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         <div class="xl:col-span-2">
             <label class="form-label" for="users-q">Buscar</label>
-            <x-ui.input id="users-q" name="q" :value="$filters['q']" placeholder="Nombre o email" />
+            <x-ui.input id="users-q" name="q" :value="$filters['q']" placeholder="Nombre o correo" />
         </div>
 
         <div>
@@ -98,8 +98,8 @@
                         @elseif($sort === 'oldest') Más antiguos
                         @elseif($sort === 'name_asc') Nombre A-Z
                         @elseif($sort === 'name_desc') Nombre Z-A
-                        @elseif($sort === 'email_asc') Email A-Z
-                        @else Email Z-A
+                        @elseif($sort === 'email_asc') Correo A-Z
+                        @else Correo Z-A
                         @endif
                     </option>
                 @endforeach

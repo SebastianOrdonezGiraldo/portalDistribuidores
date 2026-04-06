@@ -26,31 +26,93 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebar = document.querySelector('[data-sidebar]');
     const sidebarOverlay = document.querySelector('[data-sidebar-overlay]');
     const sidebarToggles = Array.from(document.querySelectorAll('[data-sidebar-toggle]'));
+    const cookieBanner = document.querySelector('[data-cookie-banner]');
+    const cookieAcceptButton = cookieBanner?.querySelector('[data-cookie-accept]');
+    const cookieConsentKey = 'portal_cookie_consent_v1';
     const isDesktopViewport = () => typeof window.matchMedia === 'function'
         && window.matchMedia('(min-width: 1024px)').matches;
+    const focusableSelector = [
+        'a[href]',
+        'button:not([disabled])',
+        'input:not([disabled])',
+        'select:not([disabled])',
+        'textarea:not([disabled])',
+        '[tabindex]:not([tabindex="-1"])',
+    ].join(', ');
+    let lastSidebarTrigger = null;
 
-    const syncSidebarA11y = (expanded) => {
+    const hasCookieConsent = () => {
+        try {
+            if (window.localStorage.getItem(cookieConsentKey) === 'accepted') {
+                return true;
+            }
+        } catch {
+            // localStorage may be blocked in some browsers or private modes.
+        }
+
+        return document.cookie.split('; ').some((entry) => entry.startsWith(`${cookieConsentKey}=accepted`));
+    };
+
+    const persistCookieConsent = () => {
+        try {
+            window.localStorage.setItem(cookieConsentKey, 'accepted');
+        } catch {
+            // Keep working with cookie fallback if localStorage is not available.
+        }
+
+        const maxAge = 60 * 60 * 24 * 365;
+        document.cookie = `${cookieConsentKey}=accepted; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
+    };
+
+    if (cookieBanner) {
+        if (!hasCookieConsent()) {
+            cookieBanner.classList.remove('hidden');
+        }
+
+        cookieAcceptButton?.addEventListener('click', () => {
+            persistCookieConsent();
+            cookieBanner.classList.add('hidden');
+        });
+    }
+
+    const setSidebarExpanded = (expanded) => {
         sidebarToggles.forEach((button) => {
             button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
         });
+    };
 
+    const setSidebarInteractivity = (enabled) => {
         if (!sidebar) {
             return;
         }
 
-        const isVisible = expanded || isDesktopViewport();
-        sidebar.setAttribute('aria-hidden', isVisible ? 'false' : 'true');
+        if (enabled) {
+            sidebar.classList.remove('pointer-events-none');
+            sidebar.removeAttribute('inert');
+            return;
+        }
+
+        sidebar.classList.add('pointer-events-none');
+        sidebar.setAttribute('inert', '');
     };
 
-    const showSidebar = () => {
+    const showSidebar = (triggerButton = null) => {
         if (!sidebar || isDesktopViewport()) {
             return;
         }
 
+        lastSidebarTrigger = triggerButton instanceof HTMLElement
+            ? triggerButton
+            : (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+
         sidebar?.classList.remove('-translate-x-full');
         sidebarOverlay?.classList.remove('hidden');
         document.body.classList.add('sidebar-open');
-        syncSidebarA11y(true);
+        setSidebarInteractivity(true);
+        setSidebarExpanded(true);
+
+        const firstFocusable = sidebar.querySelector('[data-sidebar-close]') || sidebar.querySelector(focusableSelector);
+        firstFocusable?.focus();
     };
 
     const hideSidebar = () => {
@@ -58,13 +120,28 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (!isDesktopViewport()) {
+        const mobileViewport = !isDesktopViewport();
+        const shouldRestoreFocus = mobileViewport && sidebar.contains(document.activeElement);
+
+        if (mobileViewport) {
             sidebar.classList.add('-translate-x-full');
+            setSidebarInteractivity(false);
+        } else {
+            setSidebarInteractivity(true);
         }
 
         sidebarOverlay?.classList.add('hidden');
         document.body.classList.remove('sidebar-open');
-        syncSidebarA11y(false);
+        setSidebarExpanded(false);
+
+        if (shouldRestoreFocus) {
+            const fallbackToggle = sidebarToggles[0];
+            const focusTarget = lastSidebarTrigger && document.contains(lastSidebarTrigger)
+                ? lastSidebarTrigger
+                : fallbackToggle;
+
+            focusTarget?.focus();
+        }
     };
 
     const syncSidebarLayout = () => {
@@ -76,18 +153,22 @@ document.addEventListener('DOMContentLoaded', () => {
             sidebar.classList.remove('-translate-x-full');
             sidebarOverlay?.classList.add('hidden');
             document.body.classList.remove('sidebar-open');
-            syncSidebarA11y(false);
+            setSidebarInteractivity(true);
+            setSidebarExpanded(false);
             return;
         }
 
         sidebar.classList.add('-translate-x-full');
         sidebarOverlay?.classList.add('hidden');
         document.body.classList.remove('sidebar-open');
-        syncSidebarA11y(false);
+        setSidebarInteractivity(false);
+        setSidebarExpanded(false);
     };
 
     sidebarToggles.forEach((button) => {
-        button.addEventListener('click', showSidebar);
+        button.addEventListener('click', () => {
+            showSidebar(button);
+        });
     });
 
     document.querySelectorAll('[data-sidebar-close], [data-sidebar-overlay]').forEach((button) => {
@@ -178,7 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!container) {
             container = document.createElement('div');
             container.dataset.inlineToastStack = 'true';
-            container.className = 'pointer-events-none fixed inset-x-3 top-3 z-[85] space-y-2 sm:inset-x-auto sm:right-4 sm:top-4 sm:w-[22rem]';
+            container.className = 'pointer-events-none fixed inset-x-3 bottom-3 z-[100] space-y-2 sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-[22rem]';
             document.body.append(container);
         }
 
@@ -545,7 +626,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isIconButton) {
                 submitButton.innerHTML = makeCrossSvg();
             } else {
-                submitButton.innerHTML = `${makeCrossSvg()} Error`;
+                submitButton.innerHTML = `${makeCrossSvg()} Ups`;
             }
             submitButton.classList.add('!bg-red-500', '!border-red-500');
             shakeCartButton(submitButton);
@@ -637,6 +718,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const rows = () => Array.from(bulkTable.querySelectorAll('[data-bulk-row]'));
         const countEl = document.querySelector('[data-bulk-count]');
         const copyButton = document.querySelector('[data-bulk-copy]');
+        const bulkForm = document.querySelector('form[data-bulk-form]');
+        const selectedInputsContainer = bulkForm?.querySelector('[data-bulk-selected-inputs]');
+        const bulkActionInput = bulkForm?.querySelector('[data-bulk-action-input]');
+        const bulkButtons = bulkForm ? Array.from(bulkForm.querySelectorAll('[data-bulk-submit]')) : [];
+        const bulkActionButtons = bulkForm ? Array.from(bulkForm.querySelectorAll('[data-bulk-action-trigger]')) : [];
+        const defaultConfirmText = bulkForm?.dataset.confirm || 'Confirmar acción';
 
         const refreshBulk = () => {
             const selected = rows().filter((row) => row.checked).map((row) => row.value);
@@ -649,6 +736,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 copyButton.disabled = selected.length === 0;
                 copyButton.dataset.codes = selected.join(', ');
             }
+
+            if (selectedInputsContainer) {
+                selectedInputsContainer.innerHTML = selected
+                    .map((id) => `<input type="hidden" name="product_ids[]" value="${id}">`)
+                    .join('');
+            }
+
+            bulkButtons.forEach((button) => {
+                button.disabled = selected.length === 0;
+            });
 
             if (master) {
                 const allSelected = selected.length > 0 && selected.length === rows().length;
@@ -683,6 +780,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, 1400);
             } catch (error) {
                 copyButton.textContent = 'No disponible';
+            }
+        });
+
+        bulkActionButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                if (!(button instanceof HTMLElement)) {
+                    return;
+                }
+
+                if (bulkActionInput) {
+                    bulkActionInput.value = button.dataset.bulkActionValue || '';
+                }
+
+                if (bulkForm) {
+                    bulkForm.dataset.confirm = button.dataset.bulkConfirm || defaultConfirmText;
+                }
+            });
+        });
+
+        bulkForm?.addEventListener('submit', (event) => {
+            if (rows().every((row) => !row.checked)) {
+                event.preventDefault();
             }
         });
 
@@ -837,6 +956,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const uploadFeedbackMessage = productForm.querySelector('[data-upload-feedback-message]');
         const photosInput = productForm.querySelector('#photos');
         const techSheetInput = productForm.querySelector('#tech_sheet');
+        const manualInput = productForm.querySelector('#manual');
         const totalMaxKb = Number(productForm.dataset.totalMaxKb || 0);
         const totalMaxText = productForm.dataset.totalMaxText || `${totalMaxKb / 1024} MB`;
 
@@ -881,6 +1001,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const photoFiles = photosInput?.files ? Array.from(photosInput.files) : [];
             const techSheetFiles = techSheetInput?.files ? Array.from(techSheetInput.files) : [];
+            const manualFiles = manualInput?.files ? Array.from(manualInput.files) : [];
             const photoMaxFiles = Number(photosInput?.dataset.maxFiles || 0);
             const photoMaxSizeKb = Number(photosInput?.dataset.maxSizeKb || 0);
             const photoMaxSizeText = photosInput?.dataset.maxSizeText || `${photoMaxSizeKb / 1024} MB`;
@@ -888,6 +1009,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const techSheetMaxSizeKb = Number(techSheetInput?.dataset.maxSizeKb || 0);
             const techSheetMaxSizeText = techSheetInput?.dataset.maxSizeText || `${techSheetMaxSizeKb / 1024} MB`;
             const techSheetLabel = techSheetInput?.dataset.uploadLabel || 'ficha tecnica';
+            const manualMaxSizeKb = Number(manualInput?.dataset.maxSizeKb || 0);
+            const manualMaxSizeText = manualInput?.dataset.maxSizeText || `${manualMaxSizeKb / 1024} MB`;
+            const manualLabel = manualInput?.dataset.uploadLabel || 'manual de usuario';
 
             if (photoMaxFiles > 0 && photoFiles.length > photoMaxFiles) {
                 showUploadFeedback(
@@ -918,13 +1042,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 return false;
             }
 
-            const totalSelectedBytes = [...photoFiles, ...techSheetFiles]
+            const oversizedManual = manualFiles.find((file) => file.size > manualMaxSizeKb * 1024);
+            if (oversizedManual) {
+                showUploadFeedback(
+                    `El ${manualLabel} supera el maximo permitido de ${manualMaxSizeText}. Reduce el PDF antes de guardarlo.`,
+                    manualInput,
+                    { notify },
+                );
+                return false;
+            }
+
+            const totalSelectedBytes = [...photoFiles, ...techSheetFiles, ...manualFiles]
                 .reduce((sum, file) => sum + (Number.isFinite(file.size) ? file.size : 0), 0);
 
             if (totalMaxKb > 0 && totalSelectedBytes > totalMaxKb * 1024) {
                 showUploadFeedback(
                     `La carga actual pesa ${formatFileSize(totalSelectedBytes)} y el formulario permite hasta ${totalMaxText} en total. Reduce la cantidad o el peso de fotos y documentos.`,
-                    photosInput || techSheetInput,
+                    photosInput || techSheetInput || manualInput,
                     { notify },
                 );
                 return false;
@@ -982,6 +1116,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         techSheetInput?.addEventListener('change', () => {
+            validateProductUploads();
+        });
+
+        manualInput?.addEventListener('change', () => {
             validateProductUploads();
         });
 

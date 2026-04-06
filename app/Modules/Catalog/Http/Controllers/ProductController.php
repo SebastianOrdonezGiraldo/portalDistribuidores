@@ -12,6 +12,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ProductController extends Controller
@@ -22,6 +23,8 @@ class ProductController extends Controller
         CategoryBreadcrumbsQuery $breadcrumbsQuery,
         TechSheetDownloadService $downloadService,
     ): View|JsonResponse {
+        $queryState = $this->resolveQueryState($request);
+
         $product->loadMissing('category.synonyms', 'photos', 'primaryPhoto', 'videos', 'documents', 'variantAttribute', 'variants.attributeValue.attribute');
 
         if (! $product->is_active) {
@@ -33,8 +36,8 @@ class ProductController extends Controller
         $remainingDownloads = null;
         $techSheetMonthlyLimit = $downloadService->monthlyLimit();
         $commercialSnapshot = $this->buildCommercialSnapshot($product);
-        $relatedProducts = $this->relatedProducts($product, $request);
-        $alternativeProducts = $this->alternativeProducts($product, $request);
+        $relatedProducts = $this->relatedProducts($product, $queryState);
+        $alternativeProducts = $this->alternativeProducts($product, $queryState);
 
         if ($techSheet && $request->user()?->distributor) {
             $remainingDownloads = $downloadService->remainingDownloads(
@@ -47,9 +50,9 @@ class ProductController extends Controller
         $viewData = $this->buildViewData($product, $commercialSnapshot, $techSheet);
 
         if ($request->ajax()) {
-            return match ($request->string('list')->toString()) {
-                'related' => response()->json($this->buildProductListPayload($relatedProducts)),
-                'alternatives' => response()->json($this->buildProductListPayload($alternativeProducts)),
+            return match ((string) ($queryState['list'] ?? '')) {
+                'related' => response()->json($this->buildProductListPayload($product, $relatedProducts, 'related', $queryState)),
+                'alternatives' => response()->json($this->buildProductListPayload($product, $alternativeProducts, 'alternatives', $queryState)),
                 default => abort(404),
             };
         }
@@ -124,17 +127,19 @@ class ProductController extends Controller
             : (is_null($stock) ? 'A confirmar' : $formatQty($stock).' '.$unitLabelLower);
 
         $documents         = $product->documents;
+        $manual            = $documents->firstWhere('type', DocumentType::Manual->value);
         $productVideo      = $product->videos->first();
         $secondaryDocuments = $documents->filter(
-            fn ($doc) => $doc->type !== DocumentType::TechSheet->value
+            fn ($doc) => ! in_array($doc->type, [DocumentType::TechSheet->value, DocumentType::Manual->value], true)
                 && (! $techSheet || $doc->id !== $techSheet->id)
+                && (! $manual || $doc->id !== $manual->id)
         );
 
         $documentTypeLabels = [
             'tech_sheet'  => 'Ficha técnica',
             'catalog'     => 'Catálogo',
             'certificate' => 'Certificado',
-            'manual'      => 'Manual',
+            'manual'      => 'Manual de usuario',
         ];
 
         $specRows = [
@@ -158,7 +163,7 @@ class ProductController extends Controller
             'variantAttributeName', 'minVariantPrice', 'maxVariantPrice',
             'price', 'isRangePrice', 'formattedPrice', 'stock', 'canBuy',
             'isLowStock', 'availability', 'stockLabel', 'documents',
-            'productVideo', 'secondaryDocuments', 'documentTypeLabels',
+            'manual', 'productVideo', 'secondaryDocuments', 'documentTypeLabels',
             'specRows', 'sections',
         );
     }
@@ -285,28 +290,37 @@ class ProductController extends Controller
         return "Entrega estimada en {$leadTimeDays} dias";
     }
 
-    private function relatedProducts(Product $product, Request $request): LengthAwarePaginator
+    /**
+     * @param array{list:?string, related_page:int, alternatives_page:int} $queryState
+     */
+    private function relatedProducts(Product $product, array $queryState): LengthAwarePaginator
     {
         if (! $product->category_id) {
-            return $this->emptyPaginator($request, 'related_page');
+            return $this->emptyPaginator($product, 'related_page', $queryState);
         }
 
-        return Product::query()
+        $paginator = Product::query()
             ->where('is_active', true)
             ->where('category_id', $product->category_id)
             ->whereKeyNot($product->id)
-            ->with(['category', 'primaryPhoto', 'variantAttribute', 'variants.attributeValue'])
+            ->with(['category', 'primaryPhoto', 'photos', 'variantAttribute', 'variants.attributeValue'])
             ->latest('id')
-            ->paginate(20, ['*'], 'related_page', $request->integer('related_page', 1))
-            ->withQueryString();
+            ->paginate(20, ['*'], 'related_page', (int) ($queryState['related_page'] ?? 1));
+
+        $paginator->appends($this->basePaginationQuery($queryState));
+
+        return $paginator;
     }
 
-    private function alternativeProducts(Product $product, Request $request): LengthAwarePaginator
+    /**
+     * @param array{list:?string, related_page:int, alternatives_page:int} $queryState
+     */
+    private function alternativeProducts(Product $product, array $queryState): LengthAwarePaginator
     {
         $query = Product::query()
             ->where('is_active', true)
             ->whereKeyNot($product->id)
-            ->with(['category', 'primaryPhoto', 'variantAttribute', 'variants.attributeValue'])
+            ->with(['category', 'primaryPhoto', 'photos', 'variantAttribute', 'variants.attributeValue'])
             ->latest('id');
 
         if ($product->category_id) {
@@ -317,26 +331,39 @@ class ProductController extends Controller
             });
         }
 
-        return $query
-            ->paginate(20, ['*'], 'alternatives_page', $request->integer('alternatives_page', 1))
-            ->withQueryString();
+        $paginator = $query
+            ->paginate(20, ['*'], 'alternatives_page', (int) ($queryState['alternatives_page'] ?? 1));
+
+        $paginator->appends($this->basePaginationQuery($queryState));
+
+        return $paginator;
     }
 
-    private function buildProductListPayload(LengthAwarePaginator $products): array
-    {
+    /**
+     * @param array{list:?string, related_page:int, alternatives_page:int} $queryState
+     */
+    private function buildProductListPayload(
+        Product $product,
+        LengthAwarePaginator $products,
+        string $listKey,
+        array $queryState,
+    ): array {
         return [
-            'html' => view('catalog._products-partial', compact('products'))->render(),
+            'html' => view('catalog._products-partial', compact('products', 'listKey'))->render(),
             'controlsHtml' => view('catalog._product-list-controls', compact('products'))->render(),
             'hasMore' => $products->hasMorePages(),
             'currentPage' => $products->currentPage(),
             'nextPage' => $products->currentPage() + 1,
-            'pushUrl' => $this->pushUrl($products),
+            'pushUrl' => $this->pushUrl($product, $products, $queryState),
         ];
     }
 
-    private function pushUrl(LengthAwarePaginator $products): string
+    /**
+     * @param array{list:?string, related_page:int, alternatives_page:int} $queryState
+     */
+    private function pushUrl(Product $product, LengthAwarePaginator $products, array $queryState): string
     {
-        $query = request()->except('list');
+        $query = $this->basePaginationQuery($queryState);
 
         if ($products->currentPage() <= 1) {
             unset($query[$products->getPageName()]);
@@ -344,30 +371,65 @@ class ProductController extends Controller
             $query[$products->getPageName()] = $products->currentPage();
         }
 
-        $query = array_filter(
-            $query,
-            static fn ($value) => ! is_null($value) && $value !== ''
-        );
-
         $queryString = http_build_query($query);
 
         return $queryString === ''
-            ? request()->url()
-            : request()->url() . '?' . $queryString;
+            ? route('products.show', $product)
+            : route('products.show', $product).'?'.$queryString;
     }
 
-    private function emptyPaginator(Request $request, string $pageName): LengthAwarePaginator
+    /**
+     * @param array{list:?string, related_page:int, alternatives_page:int} $queryState
+     */
+    private function emptyPaginator(Product $product, string $pageName, array $queryState): LengthAwarePaginator
     {
         return new \Illuminate\Pagination\LengthAwarePaginator(
             [],
             0,
             20,
-            max(1, $request->integer($pageName, 1)),
+            max(1, (int) ($queryState[$pageName] ?? 1)),
             [
-                'path' => $request->url(),
+                'path' => route('products.show', $product),
                 'pageName' => $pageName,
-                'query' => $request->query(),
+                'query' => $this->basePaginationQuery($queryState),
             ],
         );
+    }
+
+    /**
+     * @return array{list:?string, related_page:int, alternatives_page:int}
+     */
+    private function resolveQueryState(Request $request): array
+    {
+        $validated = $request->validate([
+            'list' => ['nullable', 'string', Rule::in(['related', 'alternatives'])],
+            'related_page' => ['nullable', 'integer', 'min:1'],
+            'alternatives_page' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        return [
+            'list' => $validated['list'] ?? null,
+            'related_page' => max(1, (int) ($validated['related_page'] ?? 1)),
+            'alternatives_page' => max(1, (int) ($validated['alternatives_page'] ?? 1)),
+        ];
+    }
+
+    /**
+     * @param array{list:?string, related_page:int, alternatives_page:int} $queryState
+     * @return array<string, int>
+     */
+    private function basePaginationQuery(array $queryState): array
+    {
+        $query = [];
+
+        if ((int) ($queryState['related_page'] ?? 1) > 1) {
+            $query['related_page'] = (int) $queryState['related_page'];
+        }
+
+        if ((int) ($queryState['alternatives_page'] ?? 1) > 1) {
+            $query['alternatives_page'] = (int) $queryState['alternatives_page'];
+        }
+
+        return $query;
     }
 }

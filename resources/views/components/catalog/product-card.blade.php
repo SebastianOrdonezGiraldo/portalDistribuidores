@@ -1,4 +1,7 @@
-@props(['product'])
+@props([
+    'product',
+    'isLcpCandidate' => false,
+])
 
 @php
     $activeVariants = $product->activeVariantsCollection();
@@ -9,11 +12,29 @@
     $detailUrl = route('products.show', $product);
     $coverPhoto = $product->primaryPhoto
         ?? ($product->relationLoaded('photos') ? $product->photos->first() : null);
+    $coverPhotoUrl = $coverPhoto
+        ? \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($coverPhoto->path)
+        : null;
+    // En listado de catalogo evitamos I/O de storage por tarjeta durante SSR.
+    // Solo usamos dimensiones persistidas; si no existen, aplicamos fallback seguro.
+    $coverPhotoWidth = (int) ($coverPhoto?->photo_width ?? 0);
+    $coverPhotoHeight = (int) ($coverPhoto?->photo_height ?? 0);
+    $coverPhotoDimensions = ($coverPhotoWidth > 0 && $coverPhotoHeight > 0)
+        ? ['width' => $coverPhotoWidth, 'height' => $coverPhotoHeight]
+        : ['width' => 1200, 'height' => 1200];
+    $coverPhotoSrcset = null;
+    $coverPhotoSizes = '(min-width: 1280px) 25vw, (min-width: 640px) 50vw, 100vw';
+    $isLcpImage = (bool) $isLcpCandidate;
+    $hasStock = is_numeric($product->stock ?? null) && (float) $product->stock > 0;
+    $stockLabel = $hasStock ? 'En stock' : 'Agotado';
+    $stockLabelClasses = $hasStock
+        ? 'text-emerald-700'
+        : 'text-red-700';
 @endphp
 
 <article class="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-panel">
-    <div class="relative flex aspect-square items-center justify-center overflow-hidden bg-slate-100 p-4">
-        <div class="absolute left-3 top-3 z-10">
+    <div class="relative flex aspect-square items-center justify-center overflow-hidden bg-slate-100 p-3">
+        <div class="absolute left-2.5 top-2.5 z-10">
             <x-ui.badge variant="neutral" class="!rounded-full !px-2 !py-0.5 !text-xs !font-medium !normal-case !tracking-normal">
                 {{ $product->category?->name ?? 'Sin categoría' }}
             </x-ui.badge>
@@ -21,10 +42,19 @@
 
         @if($coverPhoto)
             <img
-                src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($coverPhoto->path) }}"
+                src="{{ $coverPhotoUrl }}"
                 alt="{{ $product->name }}"
-                loading="lazy"
-                decoding="async"
+                width="{{ $coverPhotoDimensions['width'] }}"
+                height="{{ $coverPhotoDimensions['height'] }}"
+                loading="{{ $isLcpImage ? 'eager' : 'lazy' }}"
+                decoding="{{ $isLcpImage ? 'sync' : 'async' }}"
+                @if($isLcpImage)
+                    fetchpriority="high"
+                @endif
+                @if($coverPhotoSrcset)
+                    srcset="{{ $coverPhotoSrcset }}"
+                    sizes="{{ $coverPhotoSizes }}"
+                @endif
                 class="h-full w-full object-contain object-center transition duration-300 group-hover:scale-[1.03]"
             >
         @else
@@ -40,9 +70,9 @@
         @endif
     </div>
 
-    <div class="flex flex-1 flex-col p-4">
+    <div class="flex flex-1 flex-col p-3">
         {{-- Stretched link: el ::after cubre toda la tarjeta (article es relative) --}}
-        <h3 class="min-h-[2.75rem] overflow-hidden text-base font-semibold leading-tight text-slate-900 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+        <h3 class="min-h-[2.5rem] overflow-hidden text-sm font-semibold leading-tight text-slate-900 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
             <a
                 href="{{ $detailUrl }}"
                 class="focus-ring rounded after:absolute after:inset-0 after:z-0 after:content-['']"
@@ -51,7 +81,7 @@
             >{{ $product->name }}</a>
         </h3>
 
-        <dl class="mt-2 space-y-1 text-xs text-slate-600">
+        <dl class="mt-1.5 space-y-1 text-xs text-slate-600">
             <div class="flex gap-1.5">
                 <dt class="shrink-0 font-medium text-slate-500">SKU</dt>
                 <dd class="min-w-0 truncate font-medium text-slate-800">{{ $product->sku }}</dd>
@@ -64,15 +94,16 @@
             @endif
         </dl>
 
-        <div class="relative z-10 mt-3 flex items-end justify-between gap-2">
+        <div class="relative z-10 mt-2.5 flex items-end justify-between gap-2">
             <div>
+                <p class="text-sm font-semibold {{ $stockLabelClasses }}">{{ $stockLabel }}</p>
                 @if($isRangePrice)
-                    <p class="text-xl font-semibold tabular-nums tracking-tight text-slate-950 sm:text-2xl">
+                    <p class="text-lg font-semibold tabular-nums tracking-tight text-slate-950 sm:text-xl">
                         ${{ number_format($minPrice, 0, ',', '.') }} – ${{ number_format($maxPrice, 0, ',', '.') }}
                     </p>
                     <p class="text-xs text-slate-500">Precio según variante</p>
                 @else
-                    <p class="text-xl font-semibold tabular-nums tracking-tight text-slate-950 sm:text-2xl">
+                    <p class="text-lg font-semibold tabular-nums tracking-tight text-slate-950 sm:text-xl">
                         ${{ number_format($minPrice, 0, ',', '.') }}
                     </p>
                 @endif
@@ -83,6 +114,10 @@
                     <a href="{{ $detailUrl }}" class="relative z-10 inline-flex h-10 items-center justify-center rounded-lg border border-brand-primary bg-brand-primary px-3 text-xs font-semibold text-white transition hover:bg-brand-hover focus-ring">
                         Elegir
                     </a>
+                @elseif(! $hasStock)
+                    <span class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-3 text-xs font-semibold text-slate-500">
+                        No disponible
+                    </span>
                 @else
                     <form action="{{ route('cart.store') }}" method="POST" class="relative z-10">
                         @csrf

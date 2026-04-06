@@ -4,7 +4,15 @@
 @endpush
 
 <x-app-layout>
-    @php $defaultQty = $stepValue; @endphp
+    @php
+        $defaultQty = $stepValue;
+        $defaultStockLimit = is_numeric($stock ?? null) ? max(0, (int) floor((float) $stock)) : null;
+        $mainPhotoUrl = $mainPhoto ? \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($mainPhoto->path) : null;
+        $mainPhotoDimensions = $mainPhoto?->resolvedDimensions() ?? ['width' => 1200, 'height' => 1200];
+        $mainPhotoSrcset = $mainPhoto?->responsiveSrcsetFromKnownVariants();
+        $mainPhotoSizes = '(min-width: 1280px) 52vw, (min-width: 1024px) 48vw, 100vw';
+        $thumbSizes = '64px';
+    @endphp
 
     {{-- ──────────────────────────────────────────────────────────────
          Header: breadcrumb + acceso rápido al carrito
@@ -24,7 +32,16 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <path d="m9 18 6-6-6-6"/>
                 </svg>
-                <span class="shrink-0 text-slate-500">{{ $categoryName }}</span>
+                @if($product->category_id)
+                    <a
+                        href="{{ route('catalog.index', ['category_id' => $product->category_id]) }}"
+                        class="inline-flex shrink-0 items-center rounded text-slate-500 transition hover:text-slate-900 focus-ring"
+                    >
+                        {{ $categoryName }}
+                    </a>
+                @else
+                    <span class="shrink-0 text-slate-500">{{ $categoryName }}</span>
+                @endif
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <path d="m9 18 6-6-6-6"/>
                 </svg>
@@ -57,10 +74,17 @@
                     @if($mainPhoto)
                         <img
                             data-product-main-image
-                            src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($mainPhoto->path) }}"
+                            src="{{ $mainPhotoUrl }}"
                             alt="{{ $product->name }}"
+                            width="{{ $mainPhotoDimensions['width'] }}"
+                            height="{{ $mainPhotoDimensions['height'] }}"
                             loading="eager"
-                            decoding="async"
+                            fetchpriority="high"
+                            decoding="sync"
+                            @if($mainPhotoSrcset)
+                                srcset="{{ $mainPhotoSrcset }}"
+                                sizes="{{ $mainPhotoSizes }}"
+                            @endif
                             class="h-full max-h-[28rem] w-full object-contain object-center drop-shadow-[0_20px_28px_rgba(15,23,42,0.18)] transition duration-500 ease-out will-change-transform group-hover/img:scale-[1.06]"
                         >
                     @else
@@ -82,17 +106,36 @@
                     <div class="relative border-t border-slate-200 bg-white/80 px-4 py-3 sm:px-5" data-product-gallery>
                         <div class="flex gap-2 overflow-x-auto pb-0.5" style="scrollbar-width: thin;">
                             @foreach($galleryPhotos as $photo)
+                                @php
+                                    $thumbUrl = \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($photo->path);
+                                    $thumbDimensions = $photo->resolvedDimensions();
+                                    $thumbSrcset = $photo->responsiveSrcsetFromKnownVariants();
+                                @endphp
                                 <button
                                     type="button"
                                     data-product-thumb
-                                    data-src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($photo->path) }}"
+                                    data-src="{{ $thumbUrl }}"
                                     data-alt="{{ $product->name }}"
+                                    data-width="{{ $thumbDimensions['width'] }}"
+                                    data-height="{{ $thumbDimensions['height'] }}"
+                                    @if($thumbSrcset)
+                                        data-srcset="{{ $thumbSrcset }}"
+                                        data-sizes="{{ $mainPhotoSizes }}"
+                                    @endif
                                     class="group/thumb h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-white transition focus-ring {{ $loop->first ? 'border-brand-primary shadow-sm' : 'border-slate-200 hover:border-slate-300' }}"
                                     aria-label="Ver imagen {{ $loop->iteration }}"
                                 >
                                     <img
-                                        src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($photo->path) }}"
+                                        src="{{ $thumbUrl }}"
                                         alt="{{ $product->name }}"
+                                        width="{{ $thumbDimensions['width'] }}"
+                                        height="{{ $thumbDimensions['height'] }}"
+                                        loading="{{ $loop->first ? 'eager' : 'lazy' }}"
+                                        decoding="async"
+                                        @if($thumbSrcset)
+                                            srcset="{{ $thumbSrcset }}"
+                                            sizes="{{ $thumbSizes }}"
+                                        @endif
                                         class="h-full w-full object-contain p-1 transition duration-200 group-hover/thumb:scale-105"
                                     >
                                 </button>
@@ -247,6 +290,7 @@
                         data-loading-form
                         data-qty-control
                         data-min-multiple="{{ $stepValue }}"
+                        data-default-stock="{{ $defaultStockLimit ?? '' }}"
                         class="space-y-4"
                     >
                         @csrf
@@ -281,6 +325,7 @@
                                             value="{{ $variant->id }}"
                                             data-price="{{ $variantPrice }}"
                                             data-stock="{{ $variantStock ?? '' }}"
+                                            data-stock-max="{{ is_null($variantStock) ? '' : max(0, (int) floor((float) $variantStock)) }}"
                                             @selected((string) old('variant_id') === (string) $variant->id)
                                         >
                                             {{ $variantValue }} — ${{ number_format($variantPrice, 0, ',', '.') }} · {{ $variantStockLabel }}
@@ -314,11 +359,12 @@
                                         value="{{ $defaultQty }}"
                                         min="{{ $stepValue }}"
                                         step="{{ $stepValue }}"
+                                        @if($defaultStockLimit !== null) max="{{ $defaultStockLimit }}" @endif
                                         inputmode="numeric"
                                         data-qty-input
                                         data-primary-qty
                                         data-shared-qty
-                                        class="w-14 border-0 bg-transparent text-center text-base font-bold text-slate-900 focus:ring-0 disabled:opacity-50"
+                                        class="no-number-spinner w-14 border-0 bg-transparent text-center text-base font-bold text-slate-900 focus:ring-0 disabled:opacity-50"
                                         @disabled(! $canBuy)
                                         aria-label="Cantidad"
                                     >
@@ -480,15 +526,16 @@
         </section>
 
         {{-- ──────────────────────────────────────────────────────────────
-             Sección: Documentos — ⚠️ Afecta descargas de PDF
+             Sección: Documentos — ⚠️ Afecta descargas de PDF protegidas
              Si se modifica la ruta route('documents.tech-sheet.download')
+             o route('documents.manual.download')
              también se debe actualizar el controlador de documentos.
         ────────────────────────────────────────────────────────────────── --}}
         <section id="documentos" class="scroll-mt-32 card overflow-hidden">
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4 sm:px-7">
                 <div>
                     <h2 class="text-lg font-bold text-slate-950">Documentos</h2>
-                    <p class="mt-0.5 text-xs text-slate-500">Fichas técnicas, catálogos y certificados descargables</p>
+                    <p class="mt-0.5 text-xs text-slate-500">Fichas técnicas, manuales y documentos comerciales</p>
                 </div>
                 @if(! is_null($remainingDownloads))
                     <div class="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
@@ -505,7 +552,7 @@
 
             <div class="px-6 py-5 sm:px-7 sm:py-6">
                 @php
-                    $hasAnyDocument = $techSheet || $productVideo || $secondaryDocuments->isNotEmpty();
+                    $hasAnyDocument = $techSheet || $manual || $productVideo || $secondaryDocuments->isNotEmpty();
                 @endphp
 
                 @if(! $hasAnyDocument)
@@ -520,8 +567,8 @@
                         </div>
                     </div>
                 @else
-                    {{-- Grid principal: Ficha técnica (izq) + Video de apoyo (der) --}}
-                    <div class="grid gap-3 sm:grid-cols-2">
+                    {{-- Grid principal: Ficha técnica + Manual de usuario + Video de apoyo --}}
+                    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
 
                         {{-- Tarjeta izquierda: Ficha técnica --}}
                         <div class="group relative overflow-hidden rounded-2xl border transition {{ $techSheet ? 'border-brand-primary/30 bg-brand-primary/5 hover:border-brand-primary/50' : 'border-slate-200 bg-slate-50' }}">
@@ -555,6 +602,46 @@
                                             </a>
                                         @else
                                             <p class="text-xs text-slate-400">No disponible — solicítala a tu asesor</p>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Tarjeta central: Manual de usuario --}}
+                        <div class="group relative overflow-hidden rounded-2xl border transition {{ $manual ? 'border-amber-200 bg-amber-50/70 hover:border-amber-300' : 'border-slate-200 bg-slate-50' }}">
+                            <div class="flex items-start gap-4 p-5">
+                                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl {{ $manual ? 'bg-amber-100 text-amber-600' : 'bg-slate-200 text-slate-400' }}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                                        <path d="M6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22V4.5A2.5 2.5 0 0 1 6.5 2z"/>
+                                        <path d="M9 7h7"/>
+                                        <path d="M9 11h7"/>
+                                        <path d="M9 15h4"/>
+                                    </svg>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <p class="font-semibold text-slate-900">Manual de usuario</p>
+                                        <span class="rounded-md border border-amber-200 bg-white px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-amber-700">PDF</span>
+                                    </div>
+                                    <p class="mt-0.5 text-xs text-slate-500">Guía de uso, instalación y operación del producto</p>
+
+                                    <div class="mt-3">
+                                        @if($manual)
+                                            <a
+                                                href="{{ route('documents.manual.download', $manual) }}"
+                                                class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-amber-300 bg-white px-3.5 py-2 text-sm font-semibold text-amber-700 shadow-sm transition hover:border-amber-400 hover:bg-amber-50/70 focus-ring sm:w-auto"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M12 3v12"/>
+                                                    <path d="m7 10 5 5 5-5"/>
+                                                    <path d="M5 21h14"/>
+                                                </svg>
+                                                Descargar manual
+                                            </a>
+                                        @else
+                                            <p class="text-xs text-slate-400">No disponible por ahora</p>
                                         @endif
                                     </div>
                                 </div>
@@ -625,7 +712,21 @@
                                                 <span class="block truncate">{{ $document->filename }}</span>
                                             </td>
                                             <td data-label="Acceso" class="text-right text-xs text-slate-400">
-                                                Solicitar a soporte comercial
+                                                @if($document->isManual())
+                                                    <a
+                                                        href="{{ route('documents.manual.download', $document) }}"
+                                                        class="inline-flex items-center gap-1 font-semibold text-brand-primary transition hover:underline focus-ring rounded"
+                                                    >
+                                                        Descargar PDF
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <path d="M12 3v12"/>
+                                                            <path d="m7 10 5 5 5-5"/>
+                                                            <path d="M5 21h14"/>
+                                                        </svg>
+                                                    </a>
+                                                @else
+                                                    Solicitar a soporte comercial
+                                                @endif
                                             </td>
                                         </tr>
                                     @endforeach
@@ -679,6 +780,7 @@
                     class="inline-flex shrink-0 items-center rounded-xl border border-slate-300 bg-white"
                     data-qty-control
                     data-min-multiple="{{ $stepValue }}"
+                    data-default-stock="{{ $defaultStockLimit ?? '' }}"
                 >
                     <button
                         type="button"
@@ -691,10 +793,11 @@
                         value="{{ $defaultQty }}"
                         min="{{ $stepValue }}"
                         step="{{ $stepValue }}"
+                        @if($defaultStockLimit !== null) max="{{ $defaultStockLimit }}" @endif
                         inputmode="numeric"
                         data-qty-input
                         data-shared-qty
-                        class="w-12 border-0 bg-transparent text-center text-sm font-bold text-slate-900 focus:ring-0"
+                        class="no-number-spinner w-12 border-0 bg-transparent text-center text-sm font-bold text-slate-900 focus:ring-0"
                         aria-label="Cantidad"
                     >
                     <button
@@ -731,6 +834,16 @@
                     if (mainImage) {
                         mainImage.src = thumb.dataset.src || mainImage.src;
                         mainImage.alt = thumb.dataset.alt || mainImage.alt;
+                        mainImage.width = Number(thumb.dataset.width || mainImage.width || 0);
+                        mainImage.height = Number(thumb.dataset.height || mainImage.height || 0);
+
+                        if (thumb.dataset.srcset) {
+                            mainImage.srcset = thumb.dataset.srcset;
+                            mainImage.sizes = thumb.dataset.sizes || '';
+                        } else {
+                            mainImage.removeAttribute('srcset');
+                            mainImage.removeAttribute('sizes');
+                        }
                     }
 
                     galleryThumbs.forEach((item) => {
@@ -780,9 +893,6 @@
                 if (stockTarget) stockTarget.textContent = stockText;
             };
 
-            variantSelect?.addEventListener('change', refreshVariantSummary);
-            refreshVariantSummary();
-
             // ── Control de cantidad ──────────────────────────────────────
             const qtyRoots = Array.from(document.querySelectorAll('[data-qty-control]'));
             const sharedInputs = Array.from(document.querySelectorAll('[data-shared-qty]'));
@@ -801,6 +911,36 @@
                 return Math.ceil(base / multiple) * multiple;
             };
 
+            const parseStockLimit = (value) => {
+                if (value === '' || value === null || value === undefined) return null;
+                const parsed = Number(value);
+                if (!Number.isFinite(parsed)) return null;
+                return Math.max(0, Math.floor(parsed));
+            };
+
+            const activeStockLimit = () => {
+                if (variantSelect) {
+                    const selected = variantSelect.selectedOptions[0];
+                    if (selected && selected.value) {
+                        return parseStockLimit(selected.dataset.stockMax);
+                    }
+                }
+
+                const primaryRoot = qtyRoots[0];
+                return parseStockLimit(primaryRoot?.dataset.defaultStock);
+            };
+
+            const syncMaxAttributes = (limit) => {
+                sharedInputs.forEach((input) => {
+                    if (limit === null) {
+                        input.removeAttribute('max');
+                        return;
+                    }
+
+                    input.max = String(limit);
+                });
+            };
+
             const syncQtyInputs = (value) => {
                 sharedInputs.forEach((input) => { input.value = formatQtyVal(value); });
             };
@@ -810,8 +950,27 @@
                 if (!input || input.disabled) return;
                 const multiple = Math.max(1, Math.round(parseValue(root.dataset.minMultiple, 1)));
                 const minValue = Math.max(multiple, parseValue(input.min || multiple, multiple));
-                syncQtyInputs(normalizeQty(requestedValue, minValue, multiple));
+                const stockLimit = activeStockLimit();
+                syncMaxAttributes(stockLimit);
+
+                let normalizedValue = normalizeQty(requestedValue, minValue, multiple);
+                if (stockLimit !== null) {
+                    normalizedValue = Math.min(normalizedValue, stockLimit);
+                }
+
+                syncQtyInputs(normalizedValue);
             };
+
+            variantSelect?.addEventListener('change', () => {
+                refreshVariantSummary();
+
+                const primaryRoot = qtyRoots[0];
+                if (!primaryRoot) return;
+
+                const primaryInput = primaryRoot.querySelector('[data-qty-input]');
+                applyQty(parseValue(primaryInput?.value, parseValue(primaryInput?.min, 1)), primaryRoot);
+            });
+            refreshVariantSummary();
 
             qtyRoots.forEach((root) => {
                 const input = root.querySelector('[data-qty-input]');

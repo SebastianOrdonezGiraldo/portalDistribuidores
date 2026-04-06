@@ -9,14 +9,17 @@ use Illuminate\Http\UploadedFile;
 
 class AttachTechSheetAction
 {
+    public function __construct(
+        private readonly AttachProtectedProductDocumentAction $attachProtectedProductDocumentAction,
+    ) {}
+
     public function execute(Product $product, UploadedFile $file): ProductDocument
     {
-        $path = $file->store('products/documents', (string) config('filesystems.tech_sheets_disk', 'private'));
-
-        return $product->documents()->create([
-            'type' => DocumentType::TechSheet,
-            'path' => $path,
-            'filename' => $file->getClientOriginalName(),
-        ]);
+        return $this->attachProtectedProductDocumentAction->execute(
+            $product,
+            $file,
+            DocumentType::TechSheet,
+            'tech_sheet',
+        );
     }
 }

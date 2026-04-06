@@ -48,6 +48,8 @@ GIT_BIN=""
 NPM_BIN=""
 NODE_BIN=""
 SSH_KEYSCAN_BIN=""
+SSH_KEYGEN_BIN=""
+CURL_BIN=""
 
 MAINTENANCE_ACTIVE=false
 BACKUP_FILE=""
@@ -113,6 +115,62 @@ require_git_repo() {
     if [[ ! -d "$APP_DIR/.git" && ! -f "$APP_DIR/.git" ]]; then
         fail "No se encontro .git en $APP_DIR. Este script debe ejecutarse dentro del repositorio."
     fi
+}
+
+refresh_github_known_hosts() {
+    local ssh_dir="$APP_HOME/.ssh"
+    local known_hosts_file="$ssh_dir/known_hosts"
+    local refreshed_keys_file=""
+    local api_version="2022-11-28"
+
+    mkdir -p "$ssh_dir"
+    touch "$known_hosts_file"
+    chown -R "$APP_USER:$APP_USER" "$ssh_dir"
+    chmod 700 "$ssh_dir"
+    chmod 644 "$known_hosts_file"
+
+    refreshed_keys_file="$(mktemp)"
+
+    if [[ -n "$CURL_BIN" ]]; then
+        if "$CURL_BIN" --silent --show-error --fail \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: $api_version" \
+            "https://api.github.com/meta" \
+            | "$PHP_BIN" -r '
+                $meta = json_decode(stream_get_contents(STDIN), true);
+                if (!is_array($meta) || empty($meta["ssh_keys"]) || !is_array($meta["ssh_keys"])) {
+                    fwrite(STDERR, "GitHub meta API sin ssh_keys.\n");
+                    exit(1);
+                }
+
+                foreach ($meta["ssh_keys"] as $key) {
+                    echo "github.com {$key}\n";
+                }
+            ' > "$refreshed_keys_file"; then
+            log_ok "Host keys de GitHub obtenidas desde la API oficial"
+        else
+            rm -f "$refreshed_keys_file"
+            refreshed_keys_file="$(mktemp)"
+            log_warn "No se pudo consultar la API oficial de GitHub. Se usara ssh-keyscan como fallback."
+        fi
+    else
+        log_warn "curl no esta disponible. Se usara ssh-keyscan para refrescar known_hosts."
+    fi
+
+    if [[ ! -s "$refreshed_keys_file" ]]; then
+        "$SSH_KEYSCAN_BIN" github.com 2>/dev/null > "$refreshed_keys_file"
+        [[ -s "$refreshed_keys_file" ]] || fail "No se pudo obtener ninguna host key publica para github.com"
+        log_ok "Host keys de GitHub obtenidas con ssh-keyscan"
+    fi
+
+    "$SSH_KEYGEN_BIN" -R "github.com" -f "$known_hosts_file" >/dev/null 2>&1 || true
+    "$SSH_KEYGEN_BIN" -R "[github.com]:22" -f "$known_hosts_file" >/dev/null 2>&1 || true
+    cat "$refreshed_keys_file" >> "$known_hosts_file"
+    chown "$APP_USER:$APP_USER" "$known_hosts_file"
+    chmod 644 "$known_hosts_file"
+    rm -f "$refreshed_keys_file"
+
+    log_ok "Entradas de github.com actualizadas en known_hosts"
 }
 
 read_env_value() {
@@ -284,6 +342,8 @@ GIT_BIN="$(resolve_cmd git)"
 NPM_BIN="$(resolve_cmd npm)"
 NODE_BIN="$(resolve_cmd node)"
 SSH_KEYSCAN_BIN="$(resolve_cmd ssh-keyscan)"
+SSH_KEYGEN_BIN="$(resolve_cmd ssh-keygen)"
+CURL_BIN="$(command -v curl 2>/dev/null || true)"
 
 APP_HOME="$(getent passwd "$APP_USER" | cut -d: -f6 || true)"
 [[ -n "$APP_HOME" ]] || fail "No se pudo determinar el HOME del usuario '$APP_USER'"
@@ -344,11 +404,7 @@ if [[ "$REMOTE_URL" == git@github.com:* || "$REMOTE_URL" == ssh://git@github.com
         fail "El remoto usa SSH pero no existe una llave privada en $APP_HOME/.ssh para $APP_USER"
     fi
 
-    if ! grep -q "github.com" "$APP_HOME/.ssh/known_hosts" 2>/dev/null; then
-        run_as_app "\"$SSH_KEYSCAN_BIN\" -H github.com >> \"$APP_HOME/.ssh/known_hosts\""
-        log_ok "github.com agregado a known_hosts"
-    fi
-
+    refresh_github_known_hosts
     log_ok "SSH listo para GitHub"
 fi
 

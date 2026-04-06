@@ -35,7 +35,7 @@ class CheckoutController extends Controller
             'total'       => $cartService->total(),
             'distributor' => $distributor,
             'branches'    => $branches,
+            'departments' => config('locations.colombia_departments', []),
         ]);
     }
 }
-

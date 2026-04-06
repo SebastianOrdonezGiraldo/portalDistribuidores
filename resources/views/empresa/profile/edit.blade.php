@@ -12,7 +12,7 @@
                 </div>
             </x-slot>
             <x-slot name="actions">
-                <a href="{{ route('empresa.dashboard') }}" class="btn btn-secondary">Dashboard</a>
+                <a href="{{ route('empresa.dashboard') }}" class="btn btn-secondary">Inicio</a>
             </x-slot>
         </x-ui.page-header>
     </x-slot>
@@ -32,7 +32,7 @@
                         <x-input-error :messages="$errors->get('name')" />
                     </div>
                     <div>
-                        <label class="form-label" for="company-nit">NIT / Identificación</label>
+                        <label class="form-label" for="company-nit">NIT / Identificación *</label>
                         <x-ui.input
                             id="company-nit"
                             name="nit"
@@ -40,18 +40,19 @@
                             inputmode="numeric"
                             pattern="[0-9]*"
                             placeholder="9001234567"
+                            required
                         />
                         <p class="form-help">Ingresa solo números, sin puntos, espacios ni guiones.</p>
                         <x-input-error :messages="$errors->get('nit')" />
                     </div>
                     <div>
-                        <label class="form-label" for="company-city">Ciudad</label>
-                        <x-ui.input id="company-city" name="city" :value="old('city', $distributor->city)" placeholder="Bogotá" />
+                        <label class="form-label" for="company-city">Ciudad *</label>
+                        <x-ui.input id="company-city" name="city" :value="old('city', $distributor->city)" placeholder="Bogotá" required />
                         <x-input-error :messages="$errors->get('city')" />
                     </div>
                     <div class="sm:col-span-2">
-                        <label class="form-label" for="company-address">Dirección Principal</label>
-                        <x-ui.input id="company-address" name="address" :value="old('address', $distributor->address)" placeholder="Calle 80 # 30-15" />
+                        <label class="form-label" for="company-address">Dirección Principal *</label>
+                        <x-ui.input id="company-address" name="address" :value="old('address', $distributor->address)" placeholder="Calle 80 # 30-15" required />
                         <x-input-error :messages="$errors->get('address')" />
                     </div>
                 </div>
@@ -63,18 +64,18 @@
                 <p class="mt-1 text-sm text-slate-500">Datos del contacto principal de la empresa.</p>
                 <div class="mt-4 grid gap-4 sm:grid-cols-2">
                     <div>
-                        <label class="form-label" for="company-contact-name">Nombre del contacto</label>
-                        <x-ui.input id="company-contact-name" name="contact_name" :value="old('contact_name', $distributor->contact_name)" placeholder="Juan Pérez" />
+                        <label class="form-label" for="company-contact-name">Nombre del contacto *</label>
+                        <x-ui.input id="company-contact-name" name="contact_name" :value="old('contact_name', $distributor->contact_name)" placeholder="Juan Pérez" required />
                         <x-input-error :messages="$errors->get('contact_name')" />
                     </div>
                     <div>
-                        <label class="form-label" for="company-contact-email">Correo de contacto</label>
-                        <x-ui.input id="company-contact-email" name="contact_email" type="email" :value="old('contact_email', $distributor->contact_email)" placeholder="contacto@empresa.com" />
+                        <label class="form-label" for="company-contact-email">Correo de contacto *</label>
+                        <x-ui.input id="company-contact-email" name="contact_email" type="email" :value="old('contact_email', $distributor->contact_email)" placeholder="contacto@empresa.com" required />
                         <x-input-error :messages="$errors->get('contact_email')" />
                     </div>
                     <div>
-                        <label class="form-label" for="company-phone">Teléfono</label>
-                        <x-ui.input id="company-phone" name="phone" :value="old('phone', $distributor->phone)" placeholder="+57 300 000 0000" />
+                        <label class="form-label" for="company-phone">Teléfono *</label>
+                        <x-ui.input id="company-phone" name="phone" :value="old('phone', $distributor->phone)" placeholder="300 000 0000" required />
                         <x-input-error :messages="$errors->get('phone')" />
                     </div>
                 </div>

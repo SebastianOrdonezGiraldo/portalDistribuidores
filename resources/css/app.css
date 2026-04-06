@@ -78,6 +78,51 @@
         @apply btn border-emerald-600 bg-emerald-600 text-white shadow-soft hover:bg-emerald-700;
     }
 
+    .btn-whatsapp-advisor {
+        @apply focus-ring relative inline-flex w-full items-center justify-center overflow-hidden rounded-xl border border-emerald-500/80 bg-gradient-to-r from-emerald-500 via-emerald-500 to-teal-500 px-4 py-3 text-sm font-semibold text-white shadow-soft transition duration-200 hover:-translate-y-0.5 hover:shadow-lg;
+        animation: advisor-cta-pulse 2.4s ease-in-out infinite;
+    }
+
+    .btn-whatsapp-advisor::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: linear-gradient(110deg, transparent 25%, rgba(255, 255, 255, 0.32) 45%, transparent 65%);
+        transform: translateX(-130%);
+        animation: advisor-cta-sheen 2.8s linear infinite;
+    }
+
+    .btn-whatsapp-advisor:hover::after {
+        animation-duration: 1.9s;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .btn-whatsapp-advisor,
+        .btn-whatsapp-advisor::after {
+            animation: none !important;
+        }
+    }
+
+    @keyframes advisor-cta-pulse {
+        0%,
+        100% {
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.35);
+        }
+        50% {
+            box-shadow: 0 0 0 9px rgba(16, 185, 129, 0);
+        }
+    }
+
+    @keyframes advisor-cta-sheen {
+        from {
+            transform: translateX(-130%);
+        }
+        to {
+            transform: translateX(130%);
+        }
+    }
+
     .form-label {
         @apply mb-1.5 block text-sm font-semibold text-slate-700;
     }
@@ -103,6 +148,16 @@
 
     .form-checkbox {
         @apply h-4 w-4 rounded border-slate-300 text-brand-primary focus:ring-brand-primary;
+    }
+
+    .no-number-spinner {
+        -moz-appearance: textfield;
+    }
+
+    .no-number-spinner::-webkit-outer-spin-button,
+    .no-number-spinner::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
     }
 
     .form-error {
@@ -367,6 +422,193 @@
 
     .action-item--danger {
         @apply text-red-700 hover:bg-red-50 hover:text-red-800;
+    }
+
+    .catalog-toolbar {
+        @apply space-y-3 rounded-2xl border border-slate-200/90 bg-white p-3 shadow-soft sm:p-4;
+    }
+
+    .catalog-toolbar-meta {
+        @apply hidden items-center justify-between gap-2 md:flex;
+    }
+
+    .catalog-toolbar-breadcrumb {
+        @apply text-[0.72rem] font-medium text-slate-500;
+    }
+
+    .catalog-toolbar-breadcrumb-link {
+        @apply rounded px-1.5 py-0.5 transition hover:bg-slate-100 hover:text-slate-700;
+    }
+
+    .catalog-toolbar-breadcrumb-current {
+        @apply font-semibold text-slate-700;
+    }
+
+    .catalog-toolbar-results {
+        @apply inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-wide text-slate-500;
+    }
+
+    .catalog-toolbar-results .tabular-nums {
+        @apply mr-1 text-slate-900;
+    }
+
+    .catalog-toolbar-controls {
+        display: grid;
+        gap: 0.5rem;
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    @media (min-width: 768px) {
+        .catalog-toolbar-controls {
+            grid-template-columns: minmax(0, 1fr) 14rem auto;
+        }
+    }
+
+    .catalog-search-field {
+        @apply relative;
+    }
+
+    @media (min-width: 768px) {
+        .catalog-search-field {
+            grid-column: 1;
+        }
+    }
+
+    .catalog-search-icon {
+        @apply pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400;
+    }
+
+    .catalog-search-input {
+        @apply form-input border-slate-300/90 py-2.5 pl-9 pr-4 font-medium;
+    }
+
+    .catalog-mobile-actions {
+        @apply flex items-center gap-2 md:hidden;
+    }
+
+    .catalog-mobile-sort {
+        @apply min-w-0 flex-1;
+    }
+
+    .catalog-sort-field {
+        @apply hidden md:block;
+    }
+
+    .catalog-sort-select {
+        @apply form-select border-slate-300/90 py-2.5 font-medium;
+    }
+
+    .catalog-sort-select-mobile {
+        @apply h-10 min-h-10 rounded-xl px-3 py-1.5 text-sm;
+    }
+
+    .catalog-mobile-filter-toggle {
+        @apply !min-h-10 !px-3;
+    }
+
+    .catalog-filter-count {
+        @apply inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-primary/20 px-1.5 text-[0.68rem] font-bold text-brand-dark;
+    }
+
+    .catalog-mobile-results {
+        @apply inline-flex h-10 shrink-0 items-center rounded-xl border border-slate-200 bg-slate-50 px-2.5 text-xs font-semibold text-slate-600;
+    }
+
+    .catalog-mobile-results .tabular-nums {
+        @apply text-slate-900;
+    }
+
+    .catalog-filter-toggle {
+        @apply hidden justify-center md:inline-flex md:self-end;
+    }
+
+    .catalog-quick-categories {
+        @apply hidden gap-2 overflow-x-auto pb-1 md:flex;
+    }
+
+    .catalog-mobile-categories {
+        @apply -mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1 md:hidden;
+    }
+
+    .catalog-category-chip {
+        @apply inline-flex shrink-0 items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition;
+    }
+
+    .catalog-category-chip:hover {
+        @apply border-slate-300 text-slate-800;
+    }
+
+    .catalog-category-chip.is-active {
+        @apply border-brand-primary bg-brand-primary/15 text-brand-dark;
+    }
+
+    .catalog-filters-overlay {
+        @apply fixed inset-0 z-40 bg-slate-950/45 md:hidden;
+    }
+
+    .catalog-filters-panel {
+        @apply fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border border-slate-200 bg-white p-4 shadow-panel md:static md:z-auto md:rounded-2xl md:border md:bg-slate-50/95;
+        max-height: min(84vh, 42rem);
+        overflow-y: auto;
+    }
+
+    @media (min-width: 768px) {
+        .catalog-filters-panel {
+            max-height: none;
+            overflow: visible;
+        }
+    }
+
+    .catalog-filters-head {
+        @apply mb-3 flex items-start justify-between gap-3;
+    }
+
+    .catalog-filters-title {
+        @apply text-sm font-semibold text-slate-900;
+    }
+
+    .catalog-filters-subtitle {
+        @apply mt-0.5 text-xs text-slate-500;
+    }
+
+    .catalog-filters-close {
+        @apply focus-ring inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 md:hidden;
+    }
+
+    .catalog-filters-grid {
+        @apply grid gap-3 md:grid-cols-3;
+    }
+
+    .catalog-filters-actions {
+        @apply mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end;
+    }
+
+    .catalog-active-filters {
+        @apply hidden flex-wrap items-center gap-2 border-t border-slate-200/90 pt-3 md:flex;
+    }
+
+    .catalog-active-chip {
+        @apply inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition;
+    }
+
+    .catalog-active-chip:hover {
+        @apply border-slate-300 text-slate-900;
+    }
+
+    .catalog-active-summary {
+        @apply mt-1 inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 md:hidden;
+    }
+
+    .catalog-section-intro {
+        @apply mb-4 hidden rounded-2xl border border-slate-200/80 bg-white/85 p-4 shadow-soft md:block;
+    }
+
+    .catalog-section-intro-title {
+        @apply text-2xl font-semibold tracking-tight text-slate-900;
+    }
+
+    .catalog-section-intro-subtitle {
+        @apply mt-1 max-w-2xl text-sm text-slate-600;
     }
 
     .modal-dialog {

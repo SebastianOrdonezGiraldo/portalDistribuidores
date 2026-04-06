@@ -43,7 +43,7 @@
                     </div>
 
                     <div>
-                        <label class="form-label" for="user-email">Email *</label>
+                        <label class="form-label" for="user-email">Correo electrónico *</label>
                         <x-ui.input id="user-email" name="email" type="email" :value="old('email', $user->email)" required />
                         <x-input-error :messages="$errors->get('email')" />
                     </div>

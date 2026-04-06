@@ -33,8 +33,8 @@
         />
         <x-ui.kpi-card
             label="En Proceso"
-            :value="number_format($metrics['sending'])"
-            hint="Estado operativo: sending"
+            :value="number_format($metrics['in_progress'])"
+            hint="Vendidas y despachadas"
         />
     </section>
 
@@ -42,10 +42,16 @@
         $baseStatusQuery = request()->except(['page', 'status']);
         $statusLabels = [
             'draft' => 'Pendiente',
-            'submitted' => 'Aprobado',
-            'sending' => 'Procesando',
-            'sent' => 'Enviado',
-            'failed' => 'Error',
+            'pending_approval' => 'En revisión',
+            'submitted' => 'Registrado',
+            'sold' => 'Vendido',
+            'dispatched' => 'Despachado',
+            'delivered' => 'Entregado',
+            'rejected' => 'Rechazado',
+            'cancelled' => 'Cancelado',
+            'sending' => 'En proceso (legado)',
+            'sent' => 'Completado (legado)',
+            'failed' => 'Fallido (legado)',
         ];
     @endphp
 

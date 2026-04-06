@@ -19,9 +19,12 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::patch('categories/{category}/status', [CategoryAdminController::class, 'setStatus'])->name('categories.status');
         Route::resource('categories', CategoryAdminController::class)->except('show');
 
-        Route::get('products/check-sku', [ProductAdminController::class, 'checkSku'])->name('products.check-sku');
+        Route::get('products/check-sku', [ProductAdminController::class, 'checkSku'])
+            ->middleware(['throttle:api-endpoints', 'suspicious_automation'])
+            ->name('products.check-sku');
         Route::get('products/import/template', [ProductImportController::class, 'downloadTemplate'])->name('products.import.template');
         Route::post('products/import', [ProductImportController::class, 'import'])->name('products.import');
+        Route::post('products/bulk-action', [ProductAdminController::class, 'bulkAction'])->name('products.bulk-action');
         Route::patch('products/{product}/status', [ProductAdminController::class, 'setStatus'])->name('products.status');
         Route::get('products/{product}/documents/{document}/download', [ProductMediaController::class, 'downloadDocument'])->name('products.documents.download');
         Route::delete('products/{product}/photos/{photo}', [ProductMediaController::class, 'destroyPhoto'])->name('products.photos.destroy');
@@ -35,6 +38,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])
 
         Route::get('orders', [OrderAdminController::class, 'index'])->name('orders.index');
         Route::get('orders/{order}', [OrderAdminController::class, 'show'])->name('orders.show');
+        Route::patch('orders/{order}/status', [OrderAdminController::class, 'updateStatus'])->name('orders.status');
         Route::get('orders/{order}/pdf', [OrderAdminController::class, 'downloadPdf'])->name('orders.pdf');
         Route::delete('orders/{order}', [OrderAdminController::class, 'destroy'])->name('orders.destroy');
     });

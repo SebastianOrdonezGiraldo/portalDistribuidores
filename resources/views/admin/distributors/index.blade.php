@@ -304,7 +304,9 @@
                                                                                 </div>
                                                                                 <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 md:col-span-2">
                                                                                     <p class="text-xs uppercase tracking-wide text-slate-500">Direccion y ciudad</p>
-                                                                                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ $order->company_address ?: 'Sin direccion' }} - {{ $order->city ?: 'Sin ciudad' }}</p>
+                                                                                    <p class="mt-1 text-sm font-semibold text-slate-900">
+                                                                                        {{ $order->company_address ?: 'Sin direccion' }} - {{ $order->city ?: 'Sin ciudad' }}@if($order->department) ({{ $order->department }}) @endif
+                                                                                    </p>
                                                                                 </div>
                                                                             </div>
                                                                             <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">

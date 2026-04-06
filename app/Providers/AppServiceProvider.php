@@ -17,12 +17,17 @@ use App\Modules\Documents\Policies\ProductDocumentPolicy;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Policies\OrderPolicy;
 use App\Modules\Orders\Services\Cart\CartService;
+use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Contracts\SearchEngineInterface;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Str;
 use Illuminate\Support\ServiceProvider;
 use RuntimeException;
 
@@ -35,6 +40,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->configureAbuseProtectionRateLimiters();
+
         if (! app()->environment(['local', 'testing'])) {
             $violations = $this->runtimeSecurityViolations();
 
@@ -87,7 +94,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         View::composer('layouts.app', function ($view): void {
-            $count = app(CartService::class)->count();
+            $count = app(CartService::class)->sessionCount();
             $footerTopCategories = Cache::remember('footer_top_categories', 3600, fn () => Category::active()
                 ->withCount('products')
                 ->orderByDesc('products_count')
@@ -96,13 +103,115 @@ class AppServiceProvider extends ServiceProvider
                 ->limit(4)
                 ->get(['id', 'name'])
             );
+            $pendingApprovalCount = 0;
+            $user = auth()->user();
+
+            if ($user && $user->isDistributor() && $user->canApproveOrders() && $user->distributor_id) {
+                $cacheKey = 'pending_approval_count_distributor_'.$user->distributor_id;
+                $pendingApprovalCount = Cache::remember($cacheKey, 60, static function () use ($user): int {
+                    return (int) Order::query()
+                        ->where('distributor_id', $user->distributor_id)
+                        ->where('status', OrderStatus::PendingApproval)
+                        ->count();
+                });
+            }
 
             $view->with([
                 'navCartCount' => $count,
                 'cartCount' => $count,
                 'footerTopCategories' => $footerTopCategories,
+                'pendingApprovalCount' => $pendingApprovalCount,
             ]);
         });
+    }
+
+    private function configureAbuseProtectionRateLimiters(): void
+    {
+        RateLimiter::for('login-attempts', function (Request $request): array {
+            $ip = $request->ip() ?: 'unknown';
+            $perMinute = max(1, (int) config('abuse_protection.login.per_minute', 20));
+            $perHour = max(1, (int) config('abuse_protection.login.per_hour', 250));
+
+            return [
+                Limit::perMinute($perMinute)->by("login:minute:{$ip}"),
+                Limit::perHour($perHour)->by("login:hour:{$ip}"),
+            ];
+        });
+
+        RateLimiter::for('account-creation', function (Request $request): array {
+            $ip = $request->ip() ?: 'unknown';
+            $email = Str::lower(trim((string) $request->input('email', '')));
+            $hourLimit = max(1, (int) config('abuse_protection.registration.per_hour', 5));
+            $dayLimit = max(1, (int) config('abuse_protection.registration.per_day', 25));
+            $emailKey = $email !== '' ? $email : 'unknown';
+
+            return [
+                Limit::perHour($hourLimit)->by("register:hour:ip:{$ip}"),
+                Limit::perDay($dayLimit)->by("register:day:ip:{$ip}"),
+                Limit::perHour(max(1, min($hourLimit, 3)))->by("register:hour:email:{$emailKey}:{$ip}"),
+            ];
+        });
+
+        RateLimiter::for('api-endpoints', function (Request $request): array {
+            $isAuthenticated = $request->user() !== null;
+            $perMinute = $isAuthenticated
+                ? max(1, (int) config('abuse_protection.api.auth_per_minute', 180))
+                : max(1, (int) config('abuse_protection.api.guest_per_minute', 60));
+            $perHour = $isAuthenticated
+                ? max(1, (int) config('abuse_protection.api.auth_per_hour', 3600))
+                : max(1, (int) config('abuse_protection.api.guest_per_hour', 600));
+            $actor = $this->rateLimitActor($request);
+
+            return [
+                Limit::perMinute($perMinute)->by("api:minute:{$actor}"),
+                Limit::perHour($perHour)->by("api:hour:{$actor}"),
+            ];
+        });
+
+        RateLimiter::for('catalog-scraping', function (Request $request): array {
+            $isAuthenticated = $request->user() !== null;
+            $perMinute = $isAuthenticated
+                ? max(1, (int) config('abuse_protection.catalog.auth_per_minute', 120))
+                : max(1, (int) config('abuse_protection.catalog.guest_per_minute', 40));
+            $perHour = $isAuthenticated
+                ? max(1, (int) config('abuse_protection.catalog.auth_per_hour', 2400))
+                : max(1, (int) config('abuse_protection.catalog.guest_per_hour', 450));
+            $actor = $this->rateLimitActor($request);
+
+            return [
+                Limit::perMinute($perMinute)->by("catalog:minute:{$actor}"),
+                Limit::perHour($perHour)->by("catalog:hour:{$actor}"),
+            ];
+        });
+
+        RateLimiter::for('ai-generation', function (Request $request): array {
+            $isAuthenticated = $request->user() !== null;
+            $perMinute = $isAuthenticated
+                ? max(1, (int) config('abuse_protection.ai_generation.auth_per_minute', 30))
+                : max(1, (int) config('abuse_protection.ai_generation.guest_per_minute', 3));
+            $perHour = $isAuthenticated
+                ? max(1, (int) config('abuse_protection.ai_generation.auth_per_hour', 500))
+                : max(1, (int) config('abuse_protection.ai_generation.guest_per_hour', 30));
+            $actor = $this->rateLimitActor($request);
+
+            return [
+                Limit::perMinute($perMinute)->by("ai:minute:{$actor}"),
+                Limit::perHour($perHour)->by("ai:hour:{$actor}"),
+            ];
+        });
+    }
+
+    private function rateLimitActor(Request $request): string
+    {
+        if ($request->user()) {
+            return 'user:'.$request->user()->getAuthIdentifier();
+        }
+
+        $ip = $request->ip() ?: 'unknown';
+        $ua = Str::lower((string) $request->userAgent());
+        $uaHash = substr(sha1($ua), 0, 12);
+
+        return "guest:{$ip}:{$uaHash}";
     }
 
     /**

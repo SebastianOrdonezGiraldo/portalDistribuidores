@@ -8,6 +8,7 @@ use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Orders\Http\Requests\AddToCartRequest;
 use App\Modules\Orders\Http\Requests\UpdateCartRequest;
 use App\Modules\Orders\Services\Cart\CartService;
+use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -60,12 +61,23 @@ class CartController extends Controller
             }
         }
 
-        $cartService->add(
-            $product,
-            $request->integer('qty', 1),
-            $request->string('unit_label')->toString() ?: 'unidades',
-            $variant,
-        );
+        try {
+            $cartService->add(
+                $product,
+                $request->integer('qty', 1),
+                $request->string('unit_label')->toString() ?: 'unidades',
+                $variant,
+            );
+        } catch (DomainException $exception) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => $exception->getMessage(),
+                ], 422);
+            }
+
+            return back()->withErrors($exception->getMessage());
+        }
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -80,13 +92,21 @@ class CartController extends Controller
 
     public function update(UpdateCartRequest $request, CartService $cartService): RedirectResponse
     {
-        $cartService->update($request->input('quantities', []));
+        try {
+            $cartService->update($request->input('quantities', []));
+        } catch (DomainException $exception) {
+            return back()->withErrors($exception->getMessage());
+        }
 
         return back()->with('status', 'Carrito actualizado.');
     }
 
     public function destroy(string $lineKey, CartService $cartService): RedirectResponse
     {
+        if (preg_match('/^\d+-\d+$/', $lineKey) !== 1) {
+            return back()->withErrors('Formato de línea de carrito inválido.');
+        }
+
         $cartService->remove($lineKey);
 
         return back()->with('status', 'Línea eliminada del carrito.');

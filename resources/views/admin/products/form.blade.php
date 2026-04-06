@@ -297,7 +297,9 @@
                 <h2 class="card-title">Media y Documentación</h2>
                 <p class="mt-2 text-sm text-slate-600">
                     Limites vigentes: hasta {{ $uploadLimits['photo_max_files'] }} fotos de {{ $uploadLimits['photo_max_size_label'] }} cada una,
-                    1 PDF de {{ $uploadLimits['tech_sheet_max_size_label'] }} y una carga total maxima de {{ $uploadLimits['request_max_size_label'] }}.
+                    1 ficha técnica PDF de {{ $uploadLimits['tech_sheet_max_size_label'] }},
+                    1 manual de usuario PDF de {{ $uploadLimits['manual_max_size_label'] }}
+                    y una carga total maxima de {{ $uploadLimits['request_max_size_label'] }}.
                 </p>
                 <div class="mt-4 grid gap-4 sm:grid-cols-2">
                     <div>
@@ -331,6 +333,20 @@
                         <p class="form-help">Archivo PDF hasta {{ $uploadLimits['tech_sheet_max_size_label'] }}.</p>
                         <x-input-error :messages="$errors->get('tech_sheet')" />
                     </div>
+                    <div>
+                        <label class="form-label" for="manual">Manual de usuario (PDF)</label>
+                        <x-ui.input
+                            id="manual"
+                            type="file"
+                            name="manual"
+                            accept="application/pdf"
+                            data-max-size-kb="{{ $uploadLimits['manual_max_size_kb'] }}"
+                            data-max-size-text="{{ $uploadLimits['manual_max_size_label'] }}"
+                            data-upload-label="manual de usuario"
+                        />
+                        <p class="form-help">Archivo PDF hasta {{ $uploadLimits['manual_max_size_label'] }}.</p>
+                        <x-input-error :messages="$errors->get('manual')" />
+                    </div>
                 </div>
 
                 @if($isEdit && $product->photos->isNotEmpty())
@@ -361,7 +377,15 @@
                         <div class="mt-3 space-y-2">
                             @foreach($product->documents as $document)
                                 <div class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                                    <a href="{{ $document->isTechSheet() ? route('admin.products.documents.download', [$product, $document]) : \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($document->path) }}" target="_blank" rel="noopener" class="font-medium text-slate-900 hover:underline">{{ $document->filename }}</a>
+                                    @php
+                                        $documentUrl = $document->isProtected()
+                                            ? route('admin.products.documents.download', [$product, $document])
+                                            : \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($document->path);
+                                    @endphp
+                                    <a href="{{ $documentUrl }}" target="_blank" rel="noopener" class="min-w-0 font-medium text-slate-900 hover:underline">
+                                        <span class="block truncate">{{ $document->filename }}</span>
+                                        <span class="mt-0.5 block text-xs font-medium text-slate-500">{{ $document->typeLabel() }}</span>
+                                    </a>
                                     <x-ui.delete-media-button
                                         :action="route('admin.products.documents.destroy', [$product, $document])"
                                         confirm="¿Eliminar este documento del producto?"

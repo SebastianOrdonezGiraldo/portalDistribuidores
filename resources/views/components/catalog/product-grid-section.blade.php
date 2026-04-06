@@ -42,8 +42,8 @@
             data-has-more="{{ $products->hasMorePages() ? 'true' : 'false' }}"
             data-base-query="{{ http_build_query($baseQuery) }}"
         >
-            <div data-product-grid class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                @include('catalog._products-partial', ['products' => $products])
+            <div data-product-grid class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                @include('catalog._products-partial', ['products' => $products, 'listKey' => $listKey])
             </div>
 
             <div data-product-list-controls class="mt-6 space-y-4">

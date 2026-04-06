@@ -33,6 +33,7 @@ class Order extends Model
         'company_nit',
         'company_address',
         'city',
+        'department',
         'phone',
         'notes',
         'approval_note',
@@ -62,5 +63,10 @@ class Order extends Model
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function statusHistory(): HasMany
+    {
+        return $this->hasMany(OrderStatusHistory::class)->latest('created_at');
     }
 }

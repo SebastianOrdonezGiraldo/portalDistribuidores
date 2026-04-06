@@ -37,6 +37,18 @@ class TechSheetDownloadLimitTest extends TestCase
             ->assertDownload('a.pdf');
     }
 
+    public function test_guest_can_download_active_manual_document(): void
+    {
+        Storage::fake('public');
+        Storage::fake('private');
+
+        ['document' => $document] = $this->createProtectedDocument('manual', 'manual.pdf');
+
+        $this->get(route('documents.manual.download', $document))
+            ->assertOk()
+            ->assertDownload('manual.pdf');
+    }
+
     public function test_distributor_can_download_a_tech_sheet_two_times_per_month(): void
     {
         Storage::fake('public');
@@ -56,6 +68,22 @@ class TechSheetDownloadLimitTest extends TestCase
         $firstResponse->assertOk()->assertDownload('a.pdf');
         $secondResponse->assertOk()->assertDownload('a.pdf');
         $this->assertDatabaseCount('document_downloads', 2);
+    }
+
+    public function test_distributor_can_download_manual_without_consuming_quota(): void
+    {
+        Storage::fake('public');
+        Storage::fake('private');
+
+        $user = $this->createDistributorUser();
+        ['document' => $document] = $this->createProtectedDocument('manual', 'manual.pdf');
+
+        $this->actingAs($user)
+            ->get(route('documents.manual.download', $document))
+            ->assertOk()
+            ->assertDownload('manual.pdf');
+
+        $this->assertDatabaseCount('document_downloads', 0);
     }
 
     public function test_distributor_cannot_download_more_than_two_times_per_month(): void
@@ -158,10 +186,32 @@ class TechSheetDownloadLimitTest extends TestCase
             ->assertSeeText('2/2 descargas restantes este mes');
     }
 
+    public function test_product_page_lists_manual_download_link(): void
+    {
+        Storage::fake('public');
+        Storage::fake('private');
+
+        ['product' => $product, 'document' => $document] = $this->createProtectedDocument('manual', 'manual.pdf');
+
+        $this->get(route('products.show', $product))
+            ->assertOk()
+            ->assertSee('Manual de usuario')
+            ->assertSeeText('Descargar manual')
+            ->assertSee(route('documents.manual.download', $document), false);
+    }
+
     /**
      * @return array{product: Product, document: ProductDocument}
      */
     private function createTechSheetDocument(): array
+    {
+        return $this->createProtectedDocument('tech_sheet', 'a.pdf');
+    }
+
+    /**
+     * @return array{product: Product, document: ProductDocument}
+     */
+    private function createProtectedDocument(string $type, string $filename): array
     {
         $category = Category::create([
             'name' => 'Proteccion',
@@ -179,12 +229,13 @@ class TechSheetDownloadLimitTest extends TestCase
             'is_active' => true,
         ]);
 
-        Storage::disk('private')->put('products/documents/a.pdf', 'PDF');
+        $path = 'products/documents/'.$filename;
+        Storage::disk('private')->put($path, 'PDF');
         $document = ProductDocument::create([
             'product_id' => $product->id,
-            'type' => 'tech_sheet',
-            'path' => 'products/documents/a.pdf',
-            'filename' => 'a.pdf',
+            'type' => $type,
+            'path' => $path,
+            'filename' => $filename,
         ]);
 
         return compact('product', 'document');

@@ -10,5 +10,9 @@ return [
         'max_size_kb' => 5120,
     ],
 
-    'request_max_kb' => 40960,
+    'manual' => [
+        'max_size_kb' => 20480,
+    ],
+
+    'request_max_kb' => 61440,
 ];

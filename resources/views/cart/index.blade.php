@@ -26,14 +26,13 @@
             </x-slot>
         </x-ui.empty-state>
     @else
-        <form id="cart-update-form" action="{{ route('cart.update') }}" method="POST" data-loading-form data-cart-form class="grid gap-4 lg:grid-cols-[1.8fr_1fr]">
+        <form id="cart-update-form" action="{{ route('cart.update') }}" method="POST" data-loading-form data-cart-form class="grid min-w-0 gap-4 lg:grid-cols-[1.8fr_1fr]">
             @csrf
             @method('PATCH')
 
-            <x-ui.card class="p-4 sm:p-5">
+            <x-ui.card class="min-w-0 p-4 sm:p-5">
                 <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
                     <h2 class="card-title">Productos agregados</h2>
-                    <p class="text-xs text-slate-500">Tip: usa cantidad 0 para quitar un producto.</p>
                 </div>
 
                 <div class="mt-4 space-y-3">
@@ -47,13 +46,17 @@
                             class="rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4"
                             data-cart-item
                             data-unit-price="{{ (float) $item['unit_price'] }}"
+                            data-stock-limit="{{ $item['available_qty'] ?? '' }}"
                         >
-                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div class="flex min-w-0 items-center gap-3">
                                     <x-ui.product-thumb :product="$product" size="md" />
 
                                     <div class="min-w-0">
                                         <p class="truncate text-sm font-semibold text-slate-900">{{ $product->name }}</p>
+                                        @if(isset($item['available_qty']) && $item['available_qty'] !== null)
+                                            <p class="text-xs text-slate-500">Stock disponible: {{ number_format((int) $item['available_qty']) }}</p>
+                                        @endif
                                         <p class="text-xs text-slate-500">SKU: {{ $product->sku }}</p>
                                         @if($item['variant_label'])
                                             <p class="text-xs text-slate-500">{{ $item['variant_label'] }}</p>
@@ -65,8 +68,8 @@
                                     </div>
                                 </div>
 
-                                <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                                    <div class="inline-flex items-center rounded-xl border border-slate-300 bg-white p-1">
+                                <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+                                    <div class="inline-flex w-full max-w-[11rem] items-center rounded-xl border border-slate-300 bg-white p-1 sm:w-auto sm:max-w-none">
                                         <button type="button" data-cart-step="-1" data-cart-target="{{ $inputId }}" class="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-700 transition hover:bg-slate-100 focus-ring" aria-label="Disminuir cantidad">-</button>
                                         <input
                                             id="{{ $inputId }}"
@@ -75,7 +78,8 @@
                                             min="0"
                                             step="1"
                                             value="{{ (int) $item['qty'] }}"
-                                            class="w-14 border-0 bg-transparent text-center text-sm font-semibold text-slate-900 focus:ring-0"
+                                            @if(isset($item['available_qty']) && $item['available_qty'] !== null) max="{{ (int) $item['available_qty'] }}" @endif
+                                            class="no-number-spinner w-14 border-0 bg-transparent text-center text-sm font-semibold text-slate-900 focus:ring-0"
                                             data-cart-qty
                                         >
                                         <button type="button" data-cart-step="1" data-cart-target="{{ $inputId }}" class="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-700 transition hover:bg-slate-100 focus-ring" aria-label="Aumentar cantidad">+</button>
@@ -96,27 +100,28 @@
                 </div>
             </x-ui.card>
 
-            <aside class="space-y-4 lg:sticky lg:top-24 lg:h-fit">
-                <x-ui.card class="p-5">
+            <aside class="min-w-0 max-w-full space-y-4 lg:sticky lg:top-24 lg:h-fit">
+                <x-ui.card class="min-w-0 p-5">
                     <h2 class="card-title">Resumen comercial</h2>
 
                     <div class="mt-4 space-y-2 text-sm">
-                        <div class="flex items-center justify-between">
-                            <span class="text-slate-500">Productos distintos</span>
-                            <span class="font-medium text-slate-900" data-cart-products-count>{{ number_format($itemsCount) }}</span>
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="min-w-0 text-slate-500">Productos distintos</span>
+                            <span class="shrink-0 text-right font-medium text-slate-900" data-cart-products-count>{{ number_format($itemsCount) }}</span>
                         </div>
-                        <div class="flex items-center justify-between">
-                            <span class="text-slate-500">Unidades totales</span>
-                            <span class="font-medium text-slate-900" data-cart-units-count>{{ number_format($unitsCount) }}</span>
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="min-w-0 text-slate-500">Unidades totales</span>
+                            <span class="shrink-0 text-right font-medium text-slate-900" data-cart-units-count>{{ number_format($unitsCount) }}</span>
                         </div>
                     </div>
 
                     <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total estimado</p>
-                        <p class="mt-1 text-3xl font-semibold tracking-tight text-slate-950" data-cart-total-amount>${{ number_format((float) $total, 0, ',', '.') }}</p>
+                        <p class="mt-1 break-words text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl" data-cart-total-amount>${{ number_format((float) $total, 0, ',', '.') }}</p>
                     </div>
 
                     <div class="mt-4 space-y-2">
+                        <a href="{{ route('catalog.index') }}" class="btn btn-ghost w-full justify-center">Seguir comprando</a>
                         <x-ui.button type="submit" variant="secondary" class="w-full justify-center" data-loading-label="Actualizando...">Actualizar carrito</x-ui.button>
                         <a href="{{ route('checkout.show') }}" class="btn btn-primary w-full justify-center">Continuar al checkout</a>
                     </div>
@@ -142,6 +147,19 @@
                 return Math.max(0, Math.round(parsed));
             };
 
+            const parseStockLimit = (value) => {
+                if (value === '' || value === null || value === undefined) {
+                    return null;
+                }
+
+                const parsed = Number(value);
+                if (!Number.isFinite(parsed)) {
+                    return null;
+                }
+
+                return Math.max(0, Math.floor(parsed));
+            };
+
             const numberFormatter = new Intl.NumberFormat('es-CO', {
                 maximumFractionDigits: 0,
             });
@@ -161,14 +179,16 @@
                     }
 
                     const qty = parseQty(qtyInput.value);
-                    qtyInput.value = String(qty);
+                    const stockLimit = parseStockLimit(item.dataset.stockLimit);
+                    const normalizedQty = stockLimit === null ? qty : Math.min(qty, stockLimit);
+                    qtyInput.value = String(normalizedQty);
 
                     const unitPrice = Number(item.dataset.unitPrice || 0);
-                    const subtotal = qty * unitPrice;
+                    const subtotal = normalizedQty * unitPrice;
 
                     total += subtotal;
-                    units += qty;
-                    if (qty > 0) {
+                    units += normalizedQty;
+                    if (normalizedQty > 0) {
                         products += 1;
                     }
 
@@ -202,7 +222,10 @@
 
                     const direction = Number(button.dataset.cartStep || 0);
                     const current = parseQty(input.value);
-                    input.value = String(Math.max(0, current + direction));
+                    const item = input.closest('[data-cart-item]');
+                    const stockLimit = parseStockLimit(item?.dataset.stockLimit);
+                    const nextValue = Math.max(0, current + direction);
+                    input.value = String(stockLimit === null ? nextValue : Math.min(nextValue, stockLimit));
                     refreshCartSummary();
                 });
             });

@@ -1,6 +1,10 @@
 <?php
 
+use App\Http\Middleware\AddServerTiming;
 use App\Http\Middleware\EnsureActiveUser;
+use App\Http\Middleware\NormalizeAndValidateInput;
+use App\Http\Middleware\ThrottleAiGenerationRequests;
+use App\Http\Middleware\ThrottleSuspiciousAutomation;
 use App\Modules\AuthAccess\Middleware\RoleMiddleware;
 use App\Modules\Catalog\Support\ProductUploadLimits;
 use Illuminate\Foundation\Application;
@@ -9,6 +13,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Log;
+use Scoutapm\ScoutApmAgent;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -18,13 +23,24 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'role' => RoleMiddleware::class,
+            'suspicious_automation' => ThrottleSuspiciousAutomation::class,
+        ]);
+
+        $middleware->web(prepend: [
+            NormalizeAndValidateInput::class,
         ]);
 
         $middleware->web(append: [
+            AddServerTiming::class,
             EnsureActiveUser::class,
+            ThrottleAiGenerationRequests::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->reportable(function (\Throwable $e): void {
+            app()->make(ScoutApmAgent::class)->recordThrowable($e);
+        });
+
         $exceptions->render(function (PostTooLargeException $e, $request) {
             $referer = (string) $request->headers->get('referer', '');
             $currentHost = $request->getHost();

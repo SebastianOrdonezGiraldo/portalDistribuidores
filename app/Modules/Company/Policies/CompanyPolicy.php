@@ -7,12 +7,15 @@ use App\Models\User;
 class CompanyPolicy
 {
     /**
-     * Solo admin_empresa puede editar datos de la empresa.
+     * Cualquier usuario distribuidor activo vinculado a una empresa puede
+     * editar la ficha maestra de su empresa.
      * (Admin global manejado en el Gate::define del AppServiceProvider)
      */
     public function editCompany(User $user): bool
     {
-        return $user->canEditCompany();
+        return $user->isDistributor()
+            && $user->isActive()
+            && $user->distributor_id !== null;
     }
 
     /**

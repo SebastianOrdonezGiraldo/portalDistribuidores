@@ -12,6 +12,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
 
+    @include('partials.google-analytics')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
@@ -78,5 +79,9 @@
         </div>
     </div>
 </div>
+@if(view()->exists('layouts.partials.whatsapp-float'))
+    @include('layouts.partials.whatsapp-float')
+@endif
+@include('layouts.partials.cookie-banner')
 </body>
 </html>

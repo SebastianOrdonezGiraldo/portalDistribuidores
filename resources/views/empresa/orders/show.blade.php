@@ -6,23 +6,36 @@
             return number_format($n, $isInt ? 0 : 2, ',', '.');
         };
 
-        $timeline = collect([
-            [
-                'title'       => 'Cotización creada',
-                'description' => 'Registro inicial de la CTC en el portal.',
-                'status'      => 'submitted',
-                'at'          => $order->created_at,
-            ],
-            [
-                'title'       => 'Estado actual: '.strtoupper($order->status->value),
-                'description' => 'Seguimiento del proceso de tu cotización.',
-                'status'      => $order->status,
-                'at'          => $order->updated_at,
-            ],
+        $timeline = $order->statusHistory
+            ->map(function ($event) {
+                $status = \App\Modules\Shared\Enums\OrderStatus::tryFrom((string) $event->to_status);
+                $actor = $event->actor?->name ? ' por '.$event->actor->name : ' por sistema';
+
+                return [
+                    'title' => 'Estado: '.($status?->label() ?? strtoupper((string) $event->to_status)),
+                    'description' => $event->note ?: 'Cambio registrado'.$actor.'.',
+                    'status' => $event->to_status,
+                    'at' => $event->created_at,
+                ];
+            })
+            ->values();
+
+        if ($timeline->isEmpty()) {
+            $timeline = collect([
+                [
+                    'title' => 'Cotización creada',
+                    'description' => 'Registro inicial de la CTC en el portal.',
+                    'status' => $order->status,
+                    'at' => $order->created_at,
+                ],
+            ]);
+        }
+
+        $timeline->push(
             $order->pdf_path ? [
                 'title'       => 'PDF disponible',
                 'description' => 'Documento listo para descarga.',
-                'status'      => 'sent',
+                'status'      => 'info',
                 'at'          => $order->updated_at,
             ] : [
                 'title'       => 'PDF pendiente',
@@ -30,7 +43,9 @@
                 'status'      => 'pending',
                 'at'          => $order->updated_at,
             ],
-        ])->filter()->sortByDesc('at')->values();
+        );
+
+        $timeline = $timeline->sortByDesc('at')->values();
     @endphp
 
     <x-slot name="header">
@@ -115,10 +130,11 @@
                         @endif
                     </div>
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:col-span-2">
-                        <dt class="text-xs uppercase tracking-wide text-slate-500">Dirección y ciudad</dt>
+                        <dt class="text-xs uppercase tracking-wide text-slate-500">Dirección, ciudad y departamento</dt>
                         <dd class="mt-1 font-semibold text-slate-900">
                             {{ $order->company_address ?? '—' }}
                             @if($order->city)· {{ $order->city }}@endif
+                            @if($order->department) · {{ $order->department }} @endif
                         </dd>
                     </div>
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">

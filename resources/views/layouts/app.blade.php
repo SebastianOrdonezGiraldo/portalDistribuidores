@@ -12,6 +12,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
 
+    @include('partials.google-analytics')
     @stack('head')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -29,7 +30,7 @@
     @if($isAuthenticated)
         <div data-sidebar-overlay class="fixed inset-0 z-40 hidden bg-slate-950/45 lg:hidden" aria-hidden="true"></div>
 
-        <aside id="app-sidebar" data-sidebar aria-hidden="true" class="fixed inset-y-0 left-0 z-50 flex w-60 max-w-[calc(100vw-2rem)] -translate-x-full flex-col border-r border-slate-200 bg-white shadow-panel transition-transform duration-200 ease-out lg:translate-x-0">
+        <aside id="app-sidebar" data-sidebar class="fixed inset-y-0 left-0 z-50 flex w-60 max-w-[calc(100vw-2rem)] -translate-x-full pointer-events-none flex-col border-r border-slate-200 bg-white shadow-panel transition-transform duration-200 ease-out lg:translate-x-0 lg:pointer-events-auto">
         <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
             <a href="{{ route('dashboard') }}" class="flex min-w-0 items-center gap-3 focus-ring rounded-lg">
                 <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-9 w-auto">
@@ -50,7 +51,7 @@
                 <div class="mt-2 space-y-0.5">
                     <x-ui.sidebar-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-                        Dashboard
+                        Inicio
                     </x-ui.sidebar-link>
                     <x-ui.sidebar-link :href="route('admin.orders.index')" :active="request()->routeIs('admin.orders.*')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
@@ -80,16 +81,6 @@
             @endif
 
             @if($isDistributor)
-                @php
-                    $pendingApprovalCount = 0;
-                    if ($user?->canApproveOrders()) {
-                        $pendingApprovalCount = \App\Modules\Orders\Models\Order::query()
-                            ->where('distributor_id', $user->distributor_id)
-                            ->where('status', \App\Modules\Shared\Enums\OrderStatus::PendingApproval)
-                            ->count();
-                    }
-                @endphp
-
                 <p class="sidebar-section-label">Mi Empresa</p>
                 <div class="mt-2 space-y-0.5">
                     <x-ui.sidebar-link :href="route('empresa.dashboard')" :active="request()->routeIs('empresa.dashboard')">
@@ -259,7 +250,11 @@
                     </div>
                 </div>
 
-                @if($isAdmin)
+                @isset($catalogToolbar)
+                    <div class="border-t border-slate-200/80 pt-3">
+                        {{ $catalogToolbar }}
+                    </div>
+                @elseif($isAdmin)
                     <form method="GET" action="{{ route('admin.orders.index') }}" class="relative w-full lg:mx-auto lg:max-w-2xl">
                         <label class="sr-only" for="top-search-admin">Buscar pedido</label>
                         <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -303,5 +298,11 @@
         <x-ui.button type="button" variant="danger" class="w-full justify-center sm:w-auto" data-confirm-approve>Confirmar</x-ui.button>
     </div>
 </x-ui.modal>
+
+@if(!$isAdmin && view()->exists('layouts.partials.whatsapp-float'))
+    @include('layouts.partials.whatsapp-float')
+@endif
+
+@include('layouts.partials.cookie-banner')
 </body>
 </html>

@@ -28,21 +28,36 @@ Route::get('/dashboard', function () {
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-Route::get('/catalog', CatalogController::class)->name('catalog.index');
-Route::get('/products/{product}', [ProductController::class, 'show'])->name('products.show');
+Route::get('/catalog', CatalogController::class)
+    ->middleware(['throttle:catalog-scraping', 'suspicious_automation'])
+    ->name('catalog.index');
+Route::get('/products/{product}', [ProductController::class, 'show'])
+    ->middleware(['throttle:catalog-scraping', 'suspicious_automation'])
+    ->name('products.show');
 Route::get('/documents/tech-sheet/{productDocument}', TechSheetDownloadController::class)
+    ->middleware(['throttle:api-endpoints', 'suspicious_automation'])
     ->name('documents.tech-sheet.download');
+Route::get('/documents/manual/{productDocument}', TechSheetDownloadController::class)
+    ->middleware(['throttle:api-endpoints', 'suspicious_automation'])
+    ->name('documents.manual.download');
 
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
-Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
-Route::match(['put', 'patch'], '/cart', [CartController::class, 'update'])->name('cart.update');
-Route::delete('/cart/{lineKey}', [CartController::class, 'destroy'])->name('cart.destroy');
+Route::post('/cart', [CartController::class, 'store'])
+    ->middleware(['throttle:api-endpoints', 'suspicious_automation'])
+    ->name('cart.store');
+Route::match(['put', 'patch'], '/cart', [CartController::class, 'update'])
+    ->middleware(['throttle:api-endpoints', 'suspicious_automation'])
+    ->name('cart.update');
+Route::delete('/cart/{lineKey}', [CartController::class, 'destroy'])
+    ->middleware(['throttle:api-endpoints', 'suspicious_automation'])
+    ->name('cart.destroy');
 
 Route::get('/checkout', CheckoutController::class)->name('checkout.show');
-Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
+Route::post('/orders', [OrderController::class, 'store'])
+    ->middleware(['throttle:api-endpoints', 'suspicious_automation'])
+    ->name('orders.store');
 Route::get('/orders/{order}/submitted', [OrderController::class, 'submitted'])->name('orders.submitted');
 Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
 Route::get('/orders/{order}/pdf', [OrderController::class, 'downloadPdf'])->name('orders.pdf');

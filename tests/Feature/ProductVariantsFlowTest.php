@@ -131,6 +131,7 @@ class ProductVariantsFlowTest extends TestCase
             'company_nit' => '900999111',
             'company_address' => 'Calle 10 #20-30',
             'city' => 'Bogota',
+            'department' => 'Cundinamarca',
             'notes' => 'Pedido con variante',
         ]);
 
@@ -146,6 +147,7 @@ class ProductVariantsFlowTest extends TestCase
             'qty' => 2.00,
             'subtotal' => 30000.00,
         ]);
+        $this->assertEquals(1.0, (float) $variant->fresh()->stock);
         Mail::assertSent(OrderCreatedNotificationMail::class);
         Mail::assertSent(OrderCreatedCustomerQuotationMail::class);
     }
