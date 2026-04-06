@@ -81,7 +81,7 @@ class ProductController extends Controller
         $galleryPhotos = $product->photos->take(10);
         $categoryName  = $product->category?->name ?? 'Sin categoría';
         $brand         = $commercial['brand'] ?? 'Marca no especificada';
-        $unitLabel     = $commercial['unit'] ?? 'unidad';
+        $unitLabel     = $commercial['unit'] ?? 'unidades';
         $unitLabelLower = Str::lower($unitLabel);
         $leadTimeLabel = $commercial['leadTimeLabel'] ?? null;
         $etaLabel      = $commercial['etaLabel'] ?? null;
