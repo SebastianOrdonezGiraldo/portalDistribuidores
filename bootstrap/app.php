@@ -50,7 +50,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'method' => $request->method(),
                 'ip' => $request->ip(),
                 'user_agent' => $request->userAgent(),
-                'referrer' => $request->referrer(),
+                'referrer' => $request->headers->get('referer'),
             ]);
 
             if ($request->expectsJson()) {
