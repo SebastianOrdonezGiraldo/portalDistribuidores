@@ -35,8 +35,8 @@
 
         @if(config('auth.allow_public_registration') && Route::has('register'))
             <p class="text-center text-sm text-slate-600">
-                ¿Tu empresa aún no tiene acceso?
-                <a href="{{ route('register') }}" class="font-medium text-slate-900 underline">Solicita una cuenta</a>
+                ¿No tienes una cuenta?
+                <a href="{{ route('register') }}" class="font-medium text-slate-900 underline">Crea una cuenta</a>
             </p>
         @endif
     </form>
