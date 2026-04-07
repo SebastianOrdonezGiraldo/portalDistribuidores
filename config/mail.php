@@ -137,4 +137,9 @@ return [
     'order_notification_to' => env('ORDER_NOTIFICATION_EMAIL_TO', env('ORDER_NOTIFICATION_EMAIL')),
     'order_notification_dispatch' => env('ORDER_NOTIFICATION_EMAIL_DISPATCH', 'sync'),
 
+    /*
+    | Destinatario del aviso cuando un distribuidor completa el registro público.
+    */
+    'registration_notification_to' => (string) (env('REGISTRATION_NOTIFICATION_EMAIL_TO') ?: 'ventas@importcorporalmedical.com'),
+
 ];
