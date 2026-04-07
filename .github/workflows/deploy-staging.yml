@@ -40,12 +40,16 @@ jobs:
           echo "Resolviendo ${SSH_HOST}..."
           getent ahostsv4 "$SSH_HOST" || getent ahosts "$SSH_HOST" || true
 
-          echo "Probando conectividad TCP a ${SSH_HOST}:${SSH_PORT}..."
-          if nc -vz -w 10 "$SSH_HOST" "$SSH_PORT"; then
-            exit 0
-          fi
+          echo "Probando conectividad TCP IPv4 a ${SSH_HOST}:${SSH_PORT}..."
+          for attempt in 1 2 3; do
+            echo "Intento ${attempt}/3..."
+            if nc -4 -vz -w 15 "$SSH_HOST" "$SSH_PORT"; then
+              exit 0
+            fi
+            sleep 3
+          done
 
-          echo "::error title=SSH no accesible::No se pudo abrir TCP a ${SSH_HOST}:${SSH_PORT}. Verifica los secretos VPS_HOST_STAGING/VPS_HOST y VPS_SSH_PORT_STAGING/VPS_SSH_PORT, que sshd escuche en ese puerto y que el firewall o fail2ban permitan conexiones desde GitHub-hosted runners." >&2
+          echo "::error title=SSH no accesible::No se pudo abrir TCP IPv4 a ${SSH_HOST}:${SSH_PORT}. Verifica los secretos VPS_HOST_STAGING/VPS_HOST y VPS_SSH_PORT_STAGING/VPS_SSH_PORT, que sshd escuche en ese puerto y que el firewall o fail2ban permitan conexiones desde GitHub-hosted runners." >&2
           exit 1
 
       - name: Deploy staging on VPS
