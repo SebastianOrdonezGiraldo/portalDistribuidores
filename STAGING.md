@@ -79,7 +79,6 @@ Secretos opcionales para staging:
 - `VPS_USER_STAGING`
 - `VPS_SSH_KEY_STAGING`
 - `VPS_SSH_PASSPHRASE_STAGING`
-- `AUTH_ALLOW_PUBLIC_REGISTRATION_STAGING` (opcional, por defecto `true`)
 
 Secretos opcionales para produccion:
 
