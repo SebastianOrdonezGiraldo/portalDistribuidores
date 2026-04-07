@@ -79,6 +79,7 @@ Secretos opcionales para staging:
 - `VPS_USER_STAGING`
 - `VPS_SSH_KEY_STAGING`
 - `VPS_SSH_PASSPHRASE_STAGING`
+- `AUTH_ALLOW_PUBLIC_REGISTRATION_STAGING` (opcional, por defecto `true`)
 
 Secretos opcionales para produccion:
 
@@ -129,7 +130,7 @@ AWS_BUCKET=portal-distribuidores-staging
 
 MAIL_MAILER=log
 ORDER_NOTIFICATION_EMAIL_DISPATCH=queue
-AUTH_ALLOW_PUBLIC_REGISTRATION=false
+AUTH_ALLOW_PUBLIC_REGISTRATION=true
 
 DEPLOY_ENV_NAME=staging
 DEPLOY_QUEUE_SERVICE=laravel-queue-staging

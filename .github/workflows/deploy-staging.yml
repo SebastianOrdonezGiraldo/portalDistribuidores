@@ -32,6 +32,7 @@ jobs:
       SSH_USER: ${{ secrets.VPS_USER_STAGING || secrets.VPS_USER }}
       SSH_KEY: ${{ secrets.VPS_SSH_KEY_STAGING || secrets.VPS_SSH_KEY }}
       SSH_PASSPHRASE: ${{ secrets.VPS_SSH_PASSPHRASE_STAGING || secrets.VPS_SSH_PASSPHRASE }}
+      STAGING_ALLOW_PUBLIC_REGISTRATION: ${{ secrets.AUTH_ALLOW_PUBLIC_REGISTRATION_STAGING || 'true' }}
 
     steps:
       - name: Check SSH port reachability
@@ -60,12 +61,27 @@ jobs:
           key: ${{ env.SSH_KEY }}
           passphrase: ${{ env.SSH_PASSPHRASE }}
           port: ${{ env.SSH_PORT }}
+          envs: STAGING_ALLOW_PUBLIC_REGISTRATION
           protocol: tcp4
           command_timeout: 25m
           debug: true
           script: |
             set -e
             cd /var/www/portalDistribuidores-staging
+            case "${STAGING_ALLOW_PUBLIC_REGISTRATION,,}" in
+              true|false|1|0|yes|no|on|off) ;;
+              *)
+                echo "Valor invalido para STAGING_ALLOW_PUBLIC_REGISTRATION: ${STAGING_ALLOW_PUBLIC_REGISTRATION}" >&2
+                exit 1
+                ;;
+            esac
+
+            if grep -q '^AUTH_ALLOW_PUBLIC_REGISTRATION=' .env; then
+              sed -i "s/^AUTH_ALLOW_PUBLIC_REGISTRATION=.*/AUTH_ALLOW_PUBLIC_REGISTRATION=${STAGING_ALLOW_PUBLIC_REGISTRATION}/" .env
+            else
+              echo "AUTH_ALLOW_PUBLIC_REGISTRATION=${STAGING_ALLOW_PUBLIC_REGISTRATION}" >> .env
+            fi
+
             sudo bash deploy.sh
 
       - name: Smoke check staging
