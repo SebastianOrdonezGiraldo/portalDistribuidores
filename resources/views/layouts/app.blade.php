@@ -254,6 +254,19 @@
                     <div class="border-t border-slate-200/80 pt-3">
                         {{ $catalogToolbar }}
                     </div>
+                @elseif($isAdmin && request()->routeIs('admin.dashboard'))
+                    <div class="admin-top-toolbar">
+                        <div class="admin-top-toolbar-meta">
+                            <p class="admin-top-toolbar-eyebrow">Vista ejecutiva</p>
+                            <p class="admin-top-toolbar-caption">Resumen comercial y señales de seguimiento</p>
+                        </div>
+                        <form method="GET" action="{{ route('admin.orders.index') }}" class="relative w-full md:max-w-sm lg:max-w-md">
+                            <label class="sr-only" for="top-search-admin-dashboard">Buscar pedido</label>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                            <input id="top-search-admin-dashboard" type="text" name="q" value="{{ request('q') }}" placeholder="Buscar pedido puntual" class="form-input !min-h-10 py-2 pl-9 pr-4">
+                        </form>
+                        <a href="{{ route('admin.orders.index') }}" class="btn btn-secondary !min-h-10 !px-3">Ver pedidos</a>
+                    </div>
                 @elseif($isAdmin)
                     <form method="GET" action="{{ route('admin.orders.index') }}" class="relative w-full lg:mx-auto lg:max-w-2xl">
                         <label class="sr-only" for="top-search-admin">Buscar pedido</label>

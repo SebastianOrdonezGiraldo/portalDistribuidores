@@ -192,6 +192,63 @@
         @apply flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white;
     }
 
+    .admin-top-toolbar {
+        @apply flex flex-col gap-2 border-t border-slate-200/80 pt-3 md:flex-row md:items-center md:justify-between;
+    }
+
+    .admin-top-toolbar-meta {
+        @apply hidden min-w-0 md:block;
+    }
+
+    .admin-top-toolbar-eyebrow {
+        @apply text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-slate-500;
+    }
+
+    .admin-top-toolbar-caption {
+        @apply mt-0.5 truncate text-xs font-medium text-slate-500;
+    }
+
+    .admin-exec-hero {
+        @apply rounded-2xl border border-slate-200 bg-white/95 p-5 shadow-panel lg:flex lg:items-start lg:justify-between lg:gap-6;
+        background-image: linear-gradient(140deg, rgba(54, 177, 187, 0.08), rgba(255, 255, 255, 0) 50%);
+    }
+
+    .admin-exec-hero-main {
+        @apply min-w-0;
+    }
+
+    .admin-exec-hero-eyebrow {
+        @apply text-[0.68rem] font-bold uppercase tracking-[0.1em] text-brand-dark;
+    }
+
+    .admin-exec-hero-title {
+        @apply mt-1 text-2xl font-semibold tracking-tight text-slate-900;
+    }
+
+    .admin-exec-hero-subtitle {
+        @apply mt-1 max-w-3xl text-sm text-slate-600;
+    }
+
+    .admin-exec-hero-meta {
+        @apply mt-3 flex flex-wrap items-center gap-2;
+    }
+
+    .admin-exec-hero-actions {
+        @apply mt-4 flex flex-col gap-2 sm:flex-row lg:mt-0 lg:shrink-0;
+    }
+
+    .admin-section-intro {
+        @apply flex flex-col gap-1;
+    }
+
+    .admin-section-eyebrow {
+        @apply text-[0.68rem] font-semibold uppercase tracking-[0.1em] text-slate-500;
+    }
+
+    .admin-section-title {
+        @apply text-lg font-semibold text-slate-900;
+    }
+
     .stat-chip-label {
         @apply text-xs font-semibold uppercase tracking-wide text-slate-500;
     }
@@ -210,6 +267,14 @@
 
     .status-meter-fill {
         @apply h-full rounded-full transition-all duration-500;
+    }
+
+    .admin-quick-link {
+        @apply flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-white hover:text-slate-900;
+    }
+
+    .admin-quick-link-icon {
+        @apply inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg;
     }
 
     .table-wrap {
