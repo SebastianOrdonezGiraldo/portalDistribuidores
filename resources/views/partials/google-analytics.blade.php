@@ -1,5 +1,5 @@
 @php
-    $googleAnalyticsMeasurementId = config('services.google_analytics.measurement_id');
+    $googleAnalyticsMeasurementId = config('services.google_analytics.measurement_id') ?: 'G-Q1YVLK396N';
 @endphp
 
 @if ($googleAnalyticsMeasurementId)
