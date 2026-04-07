@@ -87,32 +87,6 @@
                 </div>
             </x-ui.card>
 
-            {{-- Aprobaciones pendientes (solo admin_empresa) --}}
-            @can('approveOrders')
-                @php
-                    $pendingCount = \App\Modules\Orders\Models\Order::query()
-                        ->where('distributor_id', auth()->user()->distributor_id)
-                        ->where('status', \App\Modules\Shared\Enums\OrderStatus::PendingApproval)
-                        ->count();
-                @endphp
-                @if($pendingCount > 0)
-                    <x-ui.card class="border-l-4 border-l-violet-400 p-5">
-                        <div class="flex items-center justify-between gap-3">
-                            <div>
-                                <h2 class="card-title text-violet-800">Aprobaciones Pendientes</h2>
-                                <p class="mt-0.5 text-sm text-violet-600">
-                                    {{ $pendingCount }} solicitud{{ $pendingCount !== 1 ? 'es' : '' }} esperando tu revisión.
-                                </p>
-                            </div>
-                            <span class="badge badge-violet text-lg font-bold px-3 py-1">{{ $pendingCount }}</span>
-                        </div>
-                        <a href="{{ route('empresa.approvals.index') }}" class="btn btn-primary mt-4 w-full justify-center text-sm">
-                            Revisar solicitudes
-                        </a>
-                    </x-ui.card>
-                @endif
-            @endcan
-
             {{-- Accesos rápidos --}}
             <x-ui.card class="p-5">
                 <h2 class="card-title">Accesos Rápidos</h2>
@@ -137,14 +111,6 @@
                         </span>
                         Catálogo de productos
                     </a>
-                    @if(auth()->user()?->canManageLists())
-                        <a href="{{ route('empresa.lists.index') }}" class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-900">
-                            <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-700">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
-                            </span>
-                            Listas frecuentes
-                        </a>
-                    @endif
                     @can('manageBranches')
                         <a href="{{ route('empresa.branches.index') }}" class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-900">
                             <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600">

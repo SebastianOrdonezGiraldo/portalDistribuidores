@@ -4,15 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
-use App\Modules\Catalog\Models\Product;
-use App\Modules\Orders\Events\OrderPlaced;
 use App\Modules\Orders\Models\Order;
-use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Shared\Enums\CompanyRole;
 use App\Modules\Shared\Enums\OrderStatus;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
 class CompanyApprovalControllerTest extends TestCase
@@ -25,50 +21,34 @@ class CompanyApprovalControllerTest extends TestCase
         $this->withoutMiddleware(ValidateCsrfToken::class);
     }
 
-    public function test_approval_moves_order_to_submitted_and_decreases_stock(): void
+    public function test_approvals_pages_are_not_available_for_company_panel(): void
     {
-        Event::fake([OrderPlaced::class]);
-
-        [$order, $product, $approver] = $this->makePendingApprovalOrderWithStock(5, 2);
+        [$order, $approver] = $this->makePendingApprovalOrder();
 
         $this->actingAs($approver)
-            ->post(route('empresa.approvals.approve', $order))
-            ->assertRedirect(route('empresa.approvals.index'));
+            ->get('/empresa/aprobaciones')
+            ->assertNotFound();
 
-        $this->assertDatabaseHas('orders', [
-            'id' => $order->id,
-            'status' => OrderStatus::Submitted->value,
-        ]);
-        $this->assertEquals(3.0, (float) $product->fresh()->stock);
+        $this->actingAs($approver)
+            ->post("/empresa/aprobaciones/{$order->id}/aprobar")
+            ->assertNotFound();
 
-        Event::assertDispatched(OrderPlaced::class, fn (OrderPlaced $event) => (int) $event->order->id === (int) $order->id);
-    }
-
-    public function test_approval_keeps_order_pending_when_stock_is_insufficient(): void
-    {
-        Event::fake([OrderPlaced::class]);
-
-        [$order, $product, $approver] = $this->makePendingApprovalOrderWithStock(1, 2);
-
-        $this->from(route('empresa.approvals.index'))
-            ->actingAs($approver)
-            ->post(route('empresa.approvals.approve', $order))
-            ->assertRedirect(route('empresa.approvals.index'))
-            ->assertSessionHasErrors();
+        $this->actingAs($approver)
+            ->post("/empresa/aprobaciones/{$order->id}/rechazar", [
+                'approval_note' => 'No procede',
+            ])
+            ->assertNotFound();
 
         $this->assertDatabaseHas('orders', [
             'id' => $order->id,
             'status' => OrderStatus::PendingApproval->value,
         ]);
-        $this->assertEquals(1.0, (float) $product->fresh()->stock);
-
-        Event::assertNotDispatched(OrderPlaced::class);
     }
 
     /**
-     * @return array{0: Order, 1: Product, 2: User}
+     * @return array{0: Order, 1: User}
      */
-    private function makePendingApprovalOrderWithStock(float $stock, int $qty): array
+    private function makePendingApprovalOrder(): array
     {
         $distributor = Distributor::factory()->create();
         $approver = User::factory()->create([
@@ -79,11 +59,6 @@ class CompanyApprovalControllerTest extends TestCase
             'distributor_id' => $distributor->id,
             'company_role' => CompanyRole::UsuarioComercial,
         ]);
-        $product = Product::factory()->create([
-            'price' => 25000,
-            'stock' => $stock,
-            'is_active' => true,
-        ]);
 
         $order = Order::factory()
             ->forDistributor($distributor)
@@ -92,14 +67,6 @@ class CompanyApprovalControllerTest extends TestCase
                 'user_id' => $requester->id,
             ]);
 
-        OrderItem::factory()->create([
-            'order_id' => $order->id,
-            'product_id' => $product->id,
-            'qty' => $qty,
-            'price_each' => 25000,
-            'subtotal' => 25000 * $qty,
-        ]);
-
-        return [$order, $product, $approver];
+        return [$order, $approver];
     }
 }

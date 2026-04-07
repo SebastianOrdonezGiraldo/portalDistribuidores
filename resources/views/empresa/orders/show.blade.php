@@ -68,13 +68,6 @@
                         <x-ui.button type="submit" variant="secondary" class="w-full justify-center sm:w-auto">Volver a cotizar</x-ui.button>
                     </form>
                 @endif
-                @if(auth()->user()?->canManageLists())
-                    <button type="button"
-                        onclick="document.getElementById('save-as-list-modal').showModal()"
-                        class="btn btn-secondary w-full justify-center sm:w-auto">
-                        Guardar como lista
-                    </button>
-                @endif
                 <a href="{{ route('empresa.orders.pdf', $order) }}" class="btn btn-primary w-full justify-center sm:w-auto">Descargar PDF</a>
             </x-slot>
         </x-ui.page-header>
@@ -279,16 +272,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="mt-0.5 h-5 w-5 flex-shrink-0 text-violet-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 <div>
                     <p class="font-semibold text-violet-800">En revisión interna</p>
-                    <p class="mt-0.5 text-sm text-violet-700">Esta solicitud está pendiente de aprobación por el administrador de tu empresa. Recibirás una notificación una vez sea revisada.</p>
-                    @can('approveOrders')
-                        <div class="mt-3 flex flex-wrap gap-2">
-                            <form method="POST" action="{{ route('empresa.approvals.approve', $order) }}" class="w-full sm:w-auto">
-                                @csrf
-                                <x-ui.button type="submit" variant="primary" class="w-full justify-center text-sm sm:w-auto">Aprobar ahora</x-ui.button>
-                            </form>
-                            <button type="button" onclick="document.getElementById('reject-modal-show').showModal()" class="btn btn-danger w-full justify-center text-sm sm:w-auto">Rechazar</button>
-                        </div>
-                    @endcan
+                    <p class="mt-0.5 text-sm text-violet-700">Esta solicitud está siendo revisada por el equipo comercial. Recibirás una notificación cuando cambie de estado.</p>
                 </div>
             </div>
         </div>
@@ -312,50 +296,4 @@
         </div>
     @endif
 
-    {{-- Modal: Guardar como lista frecuente --}}
-    @if(auth()->user()?->canManageLists())
-        <dialog id="save-as-list-modal" class="modal-dialog">
-            <div class="modal-dialog-panel w-full max-w-md">
-                <h2 class="card-title">Guardar como lista frecuente</h2>
-                <p class="mt-1 text-sm text-slate-500">Guarda los {{ $order->items->count() }} producto(s) de esta cotización para reutilizarlos.</p>
-                <form method="POST" action="{{ route('empresa.lists.store-from-order', $order) }}" class="mt-4">
-                    @csrf
-                    <div>
-                        <label class="form-label" for="list-name-order">Nombre de la lista *</label>
-                        <x-ui.input id="list-name-order" name="name" required
-                            placeholder="Ej: Reposición mensual, Kit básico..." />
-                        <x-input-error :messages="$errors->get('name')" />
-                    </div>
-                    <div class="modal-actions">
-                        <button type="button" data-dialog-close="save-as-list-modal" class="btn btn-secondary">Cancelar</button>
-                        <x-ui.button type="submit" variant="primary">Guardar lista</x-ui.button>
-                    </div>
-                </form>
-            </div>
-        </dialog>
-    @endif
-
-    {{-- Modal: Rechazar desde detalle (solo admin_empresa) --}}
-    @can('approveOrders')
-        @if($order->status->isPendingReview())
-            <dialog id="reject-modal-show" class="modal-dialog">
-                <div class="modal-dialog-panel w-full max-w-md">
-                    <h2 class="card-title text-red-700">Rechazar solicitud</h2>
-                    <form method="POST" action="{{ route('empresa.approvals.reject', $order) }}" class="mt-4">
-                        @csrf
-                        <div>
-                            <label class="form-label" for="reject-note-show">Motivo del rechazo *</label>
-                            <x-ui.textarea id="reject-note-show" name="approval_note" rows="3" required
-                                placeholder="Indica el motivo..."></x-ui.textarea>
-                            <x-input-error :messages="$errors->get('approval_note')" />
-                        </div>
-                        <div class="modal-actions">
-                            <button type="button" data-dialog-close="reject-modal-show" class="btn btn-secondary">Cancelar</button>
-                            <x-ui.button type="submit" variant="danger">Confirmar rechazo</x-ui.button>
-                        </div>
-                    </form>
-                </div>
-            </dialog>
-        @endif
-    @endcan
 </x-app-layout>

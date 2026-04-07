@@ -1,9 +1,7 @@
 <?php
 
-use App\Modules\Company\Http\Controllers\CompanyApprovalController;
 use App\Modules\Company\Http\Controllers\CompanyBranchController;
 use App\Modules\Company\Http\Controllers\CompanyDashboardController;
-use App\Modules\Company\Http\Controllers\CompanyListController;
 use App\Modules\Company\Http\Controllers\CompanyOrderController;
 use App\Modules\Company\Http\Controllers\CompanyProfileController;
 use App\Modules\Company\Http\Controllers\CompanyUserController;
@@ -22,19 +20,6 @@ Route::middleware(['auth', 'verified', 'role:distributor'])
         Route::get('/pedidos/{order}', [CompanyOrderController::class, 'show'])->name('orders.show');
         Route::get('/pedidos/{order}/pdf', [CompanyOrderController::class, 'downloadPdf'])->name('orders.pdf');
         Route::post('/pedidos/{order}/reordenar', [CompanyOrderController::class, 'reorder'])->name('orders.reorder');
-
-        // Aprobación interna
-        Route::get('/aprobaciones', [CompanyApprovalController::class, 'index'])->name('approvals.index');
-        Route::post('/aprobaciones/{order}/aprobar', [CompanyApprovalController::class, 'approve'])->name('approvals.approve');
-        Route::post('/aprobaciones/{order}/rechazar', [CompanyApprovalController::class, 'reject'])->name('approvals.reject');
-
-        // Listas frecuentes
-        Route::get('/listas', [CompanyListController::class, 'index'])->name('lists.index');
-        Route::post('/listas/desde-carrito', [CompanyListController::class, 'storeFromCart'])->name('lists.store-from-cart');
-        Route::post('/listas/desde-pedido/{order}', [CompanyListController::class, 'storeFromOrder'])->name('lists.store-from-order');
-        Route::patch('/listas/{list}/nombre', [CompanyListController::class, 'rename'])->name('lists.rename');
-        Route::post('/listas/{list}/aplicar', [CompanyListController::class, 'apply'])->name('lists.apply');
-        Route::delete('/listas/{list}', [CompanyListController::class, 'destroy'])->name('lists.destroy');
 
         // Sucursales / Direcciones de entrega
         Route::get('/sucursales', [CompanyBranchController::class, 'index'])->name('branches.index');
