@@ -120,17 +120,19 @@ return [
     |--------------------------------------------------------------------------
     |
     | Self-registration stays enabled in local/testing by default so developer
-    | workflows keep working, but it is disabled elsewhere unless explicitly
-    | turned back on.
+    | workflows keep working. Staging keeps it enabled unconditionally for QA.
+    | Other environments stay disabled unless explicitly turned back on.
     |
     */
 
-    'allow_public_registration' => filter_var(
-        env(
-            'AUTH_ALLOW_PUBLIC_REGISTRATION',
-            in_array(env('APP_ENV', 'production'), ['local', 'testing'], true) ? 'true' : 'false',
+    'allow_public_registration' => env('APP_ENV', 'production') === 'staging'
+        ? true
+        : filter_var(
+            env(
+                'AUTH_ALLOW_PUBLIC_REGISTRATION',
+                in_array(env('APP_ENV', 'production'), ['local', 'testing'], true) ? 'true' : 'false',
+            ),
+            FILTER_VALIDATE_BOOL,
         ),
-        FILTER_VALIDATE_BOOL,
-    ),
 
 ];
