@@ -25,17 +25,16 @@ class DistributorAdminController extends Controller
     {
         $this->authorize('viewAny', Distributor::class);
 
-        $statusOptions = array_map(
-            static fn (DistributorStatus $status) => $status->value,
-            DistributorStatus::cases(),
-        );
+        $statusOptions = $this->statusLabels();
         $relationOptions = ['with_users', 'without_users', 'with_orders', 'without_orders'];
+        $statusGroupOptions = ['non_active'];
         $sortOptions = ['newest', 'oldest', 'name_asc', 'name_desc', 'users_desc', 'orders_desc'];
         $perPageOptions = [15, 30, 60];
 
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:120'],
-            'status' => ['nullable', 'string', Rule::in($statusOptions)],
+            'status' => ['nullable', 'string', Rule::in(array_keys($statusOptions))],
+            'status_group' => ['nullable', 'string', Rule::in($statusGroupOptions)],
             'relation' => ['nullable', 'string', Rule::in($relationOptions)],
             'sort' => ['nullable', 'string', Rule::in($sortOptions)],
             'per_page' => ['nullable', 'integer', Rule::in($perPageOptions)],
@@ -44,6 +43,7 @@ class DistributorAdminController extends Controller
         $filters = array_merge([
             'q' => null,
             'status' => null,
+            'status_group' => null,
             'relation' => null,
             'sort' => 'newest',
             'per_page' => 15,
@@ -56,6 +56,7 @@ class DistributorAdminController extends Controller
                 $query->where('name', 'like', "%{$term}%");
             })
             ->when(! empty($filters['status']), fn ($query) => $query->where('status', $filters['status']))
+            ->when($filters['status_group'] === 'non_active', fn ($query) => $query->where('status', '!=', DistributorStatus::Active->value))
             ->when($filters['relation'] === 'with_users', fn ($query) => $query->has('users'))
             ->when($filters['relation'] === 'without_users', fn ($query) => $query->doesntHave('users'))
             ->when($filters['relation'] === 'with_orders', fn ($query) => $query->has('orders'))
@@ -79,7 +80,7 @@ class DistributorAdminController extends Controller
         $metrics = [
             'total_distributors' => (clone $filteredQuery)->count(),
             'active_distributors' => (clone $filteredQuery)->where('status', DistributorStatus::Active->value)->count(),
-            'inactive_distributors' => (clone $filteredQuery)->where('status', DistributorStatus::Suspended->value)->count(),
+            'inactive_distributors' => (clone $filteredQuery)->where('status', '!=', DistributorStatus::Active->value)->count(),
             'with_users' => (clone $filteredQuery)->has('users')->count(),
             'with_orders' => (clone $filteredQuery)->has('orders')->count(),
         ];
@@ -87,6 +88,7 @@ class DistributorAdminController extends Controller
         $activeFiltersCount = collect([
             $filters['q'],
             $filters['status'],
+            $filters['status_group'],
             $filters['relation'],
             $filters['sort'] !== 'newest' ? $filters['sort'] : null,
         ])->filter(fn ($value) => filled($value))->count();
@@ -162,7 +164,10 @@ class DistributorAdminController extends Controller
     {
         $this->authorize('create', Distributor::class);
 
-        return view('admin.distributors.form', ['distributor' => new Distributor()]);
+        return view('admin.distributors.form', [
+            'distributor' => new Distributor(),
+            'statusOptions' => $this->statusLabels(),
+        ]);
     }
 
     public function store(StoreDistributorRequest $request): RedirectResponse
@@ -179,6 +184,7 @@ class DistributorAdminController extends Controller
 
         return view('admin.distributors.form', [
             'distributor' => $distributor->loadCount(['users', 'orders']),
+            'statusOptions' => $this->statusLabels(),
         ]);
     }
 
@@ -223,20 +229,30 @@ class DistributorAdminController extends Controller
 
         $distributor->update(['status' => $payload['status']]);
 
-        return back()->with(
-            'status',
-            $payload['status'] === DistributorStatus::Active->value
-                ? 'Distribuidor activado.'
-                : 'Distribuidor suspendido.'
-        );
+        $status = DistributorStatus::from($payload['status']);
+        $message = match ($status) {
+            DistributorStatus::Active => 'Distribuidor activado.',
+            DistributorStatus::PendingReview => 'Distribuidor marcado como pendiente de revisión.',
+            DistributorStatus::Rejected => 'Distribuidor rechazado.',
+            DistributorStatus::Suspended => 'Distribuidor suspendido.',
+        };
+
+        return back()->with('status', $message);
     }
 
     private function statusValues(): array
     {
-        return array_map(
-            static fn (DistributorStatus $status) => $status->value,
-            DistributorStatus::cases(),
-        );
+        return array_keys($this->statusLabels());
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function statusLabels(): array
+    {
+        return collect(DistributorStatus::cases())
+            ->mapWithKeys(fn (DistributorStatus $status) => [$status->value => $status->label()])
+            ->all();
     }
 
     private function redirectAfterSave(Request $request, Distributor $distributor, bool $created): RedirectResponse

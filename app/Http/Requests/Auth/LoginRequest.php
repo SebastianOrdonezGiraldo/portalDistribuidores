@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Models\User;
+use App\Modules\Shared\Enums\DistributorStatus;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -47,10 +50,23 @@ class LoginRequest extends FormRequest
         ]);
 
         if (! Auth::attempt($credentials, $this->boolean('remember'))) {
+            $message = $this->resolveBlockedAccessMessage();
+
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
-                'email' => trans('auth.failed'),
+                'email' => $message ?? trans('auth.failed'),
+            ]);
+        }
+
+        $user = $this->user();
+
+        if ($user !== null && $this->isDistributorWithoutActiveCompany($user)) {
+            Auth::guard('web')->logout();
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => $this->distributorAccessMessage($user),
             ]);
         }
 
@@ -86,5 +102,57 @@ class LoginRequest extends FormRequest
     public function throttleKey(): string
     {
         return Str::transliterate(Str::lower($this->string('email')).'|'.$this->ip());
+    }
+
+    private function resolveBlockedAccessMessage(): ?string
+    {
+        $email = Str::lower(trim((string) $this->input('email', '')));
+        if ($email === '') {
+            return null;
+        }
+
+        $user = User::query()
+            ->with('distributor')
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->first();
+
+        if (! $user || ! Hash::check((string) $this->input('password', ''), (string) $user->password)) {
+            return null;
+        }
+
+        if (! $user->isActive()) {
+            return trans('auth.inactive_user');
+        }
+
+        if ($this->isDistributorWithoutActiveCompany($user)) {
+            return $this->distributorAccessMessage($user);
+        }
+
+        return null;
+    }
+
+    private function isDistributorWithoutActiveCompany(User $user): bool
+    {
+        if (! $user->isDistributor()) {
+            return false;
+        }
+
+        if (! $user->distributor) {
+            return false;
+        }
+
+        return ! $user->distributor->isActive();
+    }
+
+    private function distributorAccessMessage(User $user): string
+    {
+        $status = $user->distributor?->status;
+
+        return match ($status) {
+            DistributorStatus::PendingReview => trans('auth.company_pending_review'),
+            DistributorStatus::Rejected => trans('auth.company_rejected'),
+            DistributorStatus::Suspended => trans('auth.company_suspended'),
+            default => trans('auth.company_inactive'),
+        };
     }
 }

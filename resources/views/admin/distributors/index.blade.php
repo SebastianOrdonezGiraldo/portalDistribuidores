@@ -7,7 +7,7 @@
 
             return number_format($number, $isInteger ? 0 : 2, ',', '.');
         };
-        $baseQuickFilters = request()->except(['page', 'status', 'relation']);
+        $baseQuickFilters = request()->except(['page', 'status', 'status_group', 'relation']);
     @endphp
 
     <x-slot name="header">
@@ -38,16 +38,16 @@
     <x-ui.card class="mt-4 p-4">
         <div class="flex flex-wrap items-center gap-2">
             <a href="{{ route('admin.distributors.index', $baseQuickFilters) }}"
-               class="btn {{ empty($filters['status']) && empty($filters['relation']) ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
+               class="btn {{ empty($filters['status']) && empty($filters['status_group']) && empty($filters['relation']) ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
                 Todos <span class="ml-1 text-xs opacity-80">{{ number_format($metrics['total_distributors']) }}</span>
             </a>
             <a href="{{ route('admin.distributors.index', array_merge($baseQuickFilters, ['status' => 'active'])) }}"
                class="btn {{ $filters['status'] === 'active' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
                 Activos <span class="ml-1 text-xs opacity-80">{{ number_format($metrics['active_distributors']) }}</span>
             </a>
-            <a href="{{ route('admin.distributors.index', array_merge($baseQuickFilters, ['status' => 'suspended'])) }}"
-               class="btn {{ $filters['status'] === 'suspended' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
-                Inactivos <span class="ml-1 text-xs opacity-80">{{ number_format($metrics['inactive_distributors']) }}</span>
+            <a href="{{ route('admin.distributors.index', array_merge($baseQuickFilters, ['status_group' => 'non_active'])) }}"
+               class="btn {{ $filters['status_group'] === 'non_active' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
+                No activos <span class="ml-1 text-xs opacity-80">{{ number_format($metrics['inactive_distributors']) }}</span>
             </a>
             <a href="{{ route('admin.distributors.index', array_merge($baseQuickFilters, ['relation' => 'with_users'])) }}"
                class="btn {{ $filters['relation'] === 'with_users' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
@@ -70,8 +70,8 @@
             <label class="form-label" for="distributors-status">Estado</label>
             <x-ui.select id="distributors-status" name="status">
                 <option value="">Todos</option>
-                @foreach($statusOptions as $status)
-                    <option value="{{ $status }}" @selected($filters['status'] === $status)>{{ $status === 'active' ? 'Activo' : 'Suspendido' }}</option>
+                @foreach($statusOptions as $statusKey => $statusLabel)
+                    <option value="{{ $statusKey }}" @selected($filters['status'] === $statusKey)>{{ $statusLabel }}</option>
                 @endforeach
             </x-ui.select>
         </div>
