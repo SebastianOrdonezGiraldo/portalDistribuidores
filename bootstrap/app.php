@@ -10,11 +10,11 @@ use App\Modules\Catalog\Support\ProductUploadLimits;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Scoutapm\ScoutApmAgent;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -60,6 +60,47 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             return response()->view('errors.404', [], 404);
+        });
+
+        $exceptions->render(function (TooManyRequestsHttpException $e, $request) {
+            $retryAfter = $e->getHeaders()['Retry-After'] ?? null;
+            $message = 'Has realizado demasiados intentos. Espera un momento e inténtalo de nuevo.';
+
+            if ($request->expectsJson()) {
+                $payload = ['message' => $message];
+
+                if (is_numeric($retryAfter)) {
+                    $payload['retry_after'] = (int) $retryAfter;
+                }
+
+                $headers = [];
+                if ($retryAfter !== null) {
+                    $headers['Retry-After'] = (string) $retryAfter;
+                }
+
+                return response()->json($payload, 429, $headers);
+            }
+
+            $isAuthFormRequest = $request->is('login')
+                || $request->is('register')
+                || $request->is('forgot-password')
+                || $request->is('reset-password')
+                || $request->is('reset-password/*');
+
+            if ($isAuthFormRequest) {
+                $response = redirect()
+                    ->to($request->fullUrl())
+                    ->withInput($request->except(['password', 'password_confirmation']))
+                    ->withErrors(['email' => $message]);
+
+                if ($retryAfter !== null) {
+                    $response->headers->set('Retry-After', (string) $retryAfter);
+                }
+
+                return $response;
+            }
+
+            return response($message, 429);
         });
 
         $exceptions->render(function (PostTooLargeException $e, $request) {
