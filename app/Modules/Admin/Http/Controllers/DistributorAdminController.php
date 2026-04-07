@@ -3,6 +3,7 @@
 namespace App\Modules\Admin\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\AuthAccess\Mail\DistributorAccountActivatedMail;
 use App\Modules\Admin\Http\Requests\StoreDistributorRequest;
 use App\Modules\Admin\Http\Requests\UpdateDistributorRequest;
 use App\Modules\AuthAccess\Models\Distributor;
@@ -14,6 +15,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -227,9 +230,15 @@ class DistributorAdminController extends Controller
             'status' => ['required', 'string', Rule::in($this->statusValues())],
         ]);
 
+        $previousStatus = $distributor->status;
         $distributor->update(['status' => $payload['status']]);
 
         $status = DistributorStatus::from($payload['status']);
+
+        if ($previousStatus !== DistributorStatus::Active && $status === DistributorStatus::Active) {
+            $this->notifyUsersAccountActivated($distributor->fresh('users') ?? $distributor);
+        }
+
         $message = match ($status) {
             DistributorStatus::Active => 'Distribuidor activado.',
             DistributorStatus::PendingReview => 'Distribuidor marcado como pendiente de revisión.',
@@ -269,5 +278,28 @@ class DistributorAdminController extends Controller
         }
 
         return redirect()->route('admin.distributors.index')->with('status', $status);
+    }
+
+    private function notifyUsersAccountActivated(Distributor $distributor): void
+    {
+        $users = $distributor->users()
+            ->where('is_active', true)
+            ->get(['id', 'name', 'email', 'distributor_id']);
+
+        foreach ($users as $user) {
+            if (! filter_var((string) $user->email, FILTER_VALIDATE_EMAIL)) {
+                continue;
+            }
+
+            try {
+                Mail::to($user->email)->send(new DistributorAccountActivatedMail($user, $distributor));
+            } catch (\Throwable $exception) {
+                Log::error('distributor.activation_email.failed', [
+                    'distributor_id' => $distributor->id,
+                    'user_id' => $user->id,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        }
     }
 }
