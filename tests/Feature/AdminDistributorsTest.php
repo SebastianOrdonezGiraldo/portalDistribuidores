@@ -3,11 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Modules\AuthAccess\Mail\DistributorAccountActivatedMail;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Shared\Enums\OrderStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class AdminDistributorsTest extends TestCase
@@ -204,6 +206,42 @@ class AdminDistributorsTest extends TestCase
             'id' => $distributor->id,
             'status' => 'suspended',
         ]);
+    }
+
+    public function test_admin_sends_activation_email_when_distributor_becomes_active(): void
+    {
+        Mail::fake();
+
+        $admin = User::factory()->admin()->create();
+        $distributor = Distributor::create([
+            'name' => 'Distribuidor pendiente',
+            'status' => 'pending_review',
+        ]);
+
+        $recipient = User::factory()->create([
+            'distributor_id' => $distributor->id,
+            'is_active' => true,
+            'email' => 'cliente.activacion@example.com',
+        ]);
+
+        User::factory()->inactive()->create([
+            'distributor_id' => $distributor->id,
+            'email' => 'cliente.inactivo@example.com',
+        ]);
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->patch('/admin/distributors/'.$distributor->id.'/status', [
+                '_token' => 'test-token',
+                'status' => 'active',
+            ])
+            ->assertRedirect();
+
+        Mail::assertSent(DistributorAccountActivatedMail::class, function (DistributorAccountActivatedMail $mail) use ($recipient): bool {
+            return $mail->hasTo($recipient->email)
+                && $mail->user->is($recipient)
+                && $mail->distributor->is($recipient->distributor);
+        });
     }
 
     public function test_admin_can_choose_redirect_after_save_on_store_and_update(): void

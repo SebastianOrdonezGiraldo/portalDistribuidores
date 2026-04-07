@@ -6,6 +6,7 @@
     $map = [
         'draft'            => ['class' => 'status-pending',    'label' => 'En revisión'],
         'pending_approval' => ['class' => 'badge-violet',      'label' => 'En revisión'],
+        'pending_review'   => ['class' => 'status-pending',    'label' => 'Pendiente de revisión'],
         'pending'          => ['class' => 'status-pending',    'label' => 'Pendiente'],
         'submitted'        => ['class' => 'status-approved',   'label' => 'Registrado'],
         'sold'             => ['class' => 'status-processing', 'label' => 'Vendido'],

@@ -32,5 +32,12 @@
         </label>
 
         <x-ui.button type="submit" variant="primary" class="w-full justify-center" data-loading-label="Ingresando...">Iniciar sesión</x-ui.button>
+
+        @if(config('auth.allow_public_registration') && Route::has('register'))
+            <p class="text-center text-sm text-slate-600">
+                ¿Tu empresa aún no tiene acceso?
+                <a href="{{ route('register') }}" class="font-medium text-slate-900 underline">Solicita una cuenta</a>
+            </p>
+        @endif
     </form>
 </x-guest-layout>

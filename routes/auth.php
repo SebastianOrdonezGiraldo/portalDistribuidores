@@ -18,6 +18,9 @@ Route::middleware('guest')->group(function () {
 
         Route::post('register', [RegisteredUserController::class, 'store'])
             ->middleware(['throttle:account-creation', 'suspicious_automation']);
+
+        Route::get('register/pending', [RegisteredUserController::class, 'pending'])
+            ->name('register.pending');
     }
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])

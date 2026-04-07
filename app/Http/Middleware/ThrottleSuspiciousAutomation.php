@@ -77,6 +77,28 @@ class ThrottleSuspiciousAutomation
             ], 429, $headers);
         }
 
+        if ($this->isAuthFormRequest($request)) {
+            $response = redirect()
+                ->to($request->fullUrl())
+                ->withInput($request->except(['password', 'password_confirmation']))
+                ->withErrors(['email' => $message]);
+
+            foreach ($headers as $name => $value) {
+                $response->headers->set($name, $value);
+            }
+
+            return $response;
+        }
+
         return response($message, 429, $headers);
+    }
+
+    private function isAuthFormRequest(Request $request): bool
+    {
+        return $request->is('login')
+            || $request->is('register')
+            || $request->is('forgot-password')
+            || $request->is('reset-password')
+            || $request->is('reset-password/*');
     }
 }

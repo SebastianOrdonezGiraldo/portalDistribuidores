@@ -27,7 +27,9 @@ class AbuseProtectionTest extends TestCase
 
         $this->withHeaders($headers)->post('/login', $payload)->assertStatus(302);
         $this->withHeaders($headers)->post('/login', $payload)->assertStatus(302);
-        $this->withHeaders($headers)->post('/login', $payload)->assertStatus(429);
+        $this->withHeaders($headers)->post('/login', $payload)
+            ->assertStatus(302)
+            ->assertSessionHasErrors('email');
     }
 
     public function test_registration_route_is_rate_limited(): void
@@ -57,7 +59,9 @@ class AbuseProtectionTest extends TestCase
             'email' => 'registro-tres@example.com',
             'password' => 'short',
             'password_confirmation' => 'short',
-        ])->assertStatus(429);
+        ])
+            ->assertStatus(302)
+            ->assertSessionHasErrors('email');
     }
 
     public function test_api_endpoint_is_rate_limited(): void

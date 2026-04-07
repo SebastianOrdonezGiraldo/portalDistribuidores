@@ -45,10 +45,11 @@
                     <div>
                         <label class="form-label" for="distributor-status">Estado</label>
                         <x-ui.select id="distributor-status" name="status">
-                            <option value="active" @selected($statusValue === 'active')>Activo</option>
-                            <option value="suspended" @selected($statusValue === 'suspended')>Suspendido</option>
+                            @foreach($statusOptions as $statusKey => $statusLabel)
+                                <option value="{{ $statusKey }}" @selected($statusValue === $statusKey)>{{ $statusLabel }}</option>
+                            @endforeach
                         </x-ui.select>
-                        <p class="form-help">Los distribuidores suspendidos no deberían operar nuevas cuentas.</p>
+                        <p class="form-help">Solo los distribuidores en estado activo pueden operar en el portal.</p>
                         <x-input-error :messages="$errors->get('status')" />
                     </div>
                 </div>
