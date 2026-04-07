@@ -71,13 +71,6 @@ class AppServiceProvider extends ServiceProvider
 
             return (new CompanyPolicy)->editCompany($user);
         });
-        Gate::define('manageUsers', function (User $user) {
-            if ($user->isAdmin()) {
-                return true;
-            }
-
-            return (new CompanyPolicy)->manageUsers($user);
-        });
         Gate::define('manageBranches', function (User $user) {
             if ($user->isAdmin()) {
                 return true;

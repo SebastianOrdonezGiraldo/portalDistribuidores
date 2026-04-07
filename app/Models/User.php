@@ -115,17 +115,6 @@ class User extends Authenticatable
         return $this->company_role->canCreateOrders();
     }
 
-    public function canManageCompanyUsers(): bool
-    {
-        if (! $this->isActive()) {
-            return false;
-        }
-
-        return $this->isDistributor()
-            && $this->company_role !== null
-            && $this->company_role->canManageUsers();
-    }
-
     public function canEditCompany(): bool
     {
         if (! $this->isActive()) {

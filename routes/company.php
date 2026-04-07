@@ -4,7 +4,6 @@ use App\Modules\Company\Http\Controllers\CompanyBranchController;
 use App\Modules\Company\Http\Controllers\CompanyDashboardController;
 use App\Modules\Company\Http\Controllers\CompanyOrderController;
 use App\Modules\Company\Http\Controllers\CompanyProfileController;
-use App\Modules\Company\Http\Controllers\CompanyUserController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'role:distributor'])
@@ -34,11 +33,7 @@ Route::middleware(['auth', 'verified', 'role:distributor'])
         Route::get('/perfil', [CompanyProfileController::class, 'edit'])->name('profile.edit');
         Route::put('/perfil', [CompanyProfileController::class, 'update'])->name('profile.update');
 
-        // Usuarios de la empresa
-        Route::get('/usuarios', [CompanyUserController::class, 'index'])->name('users.index');
-        Route::get('/usuarios/nuevo', [CompanyUserController::class, 'create'])->name('users.create');
-        Route::post('/usuarios', [CompanyUserController::class, 'store'])->name('users.store');
-        Route::get('/usuarios/{user}/editar', [CompanyUserController::class, 'edit'])->name('users.edit');
-        Route::put('/usuarios/{user}', [CompanyUserController::class, 'update'])->name('users.update');
-        Route::patch('/usuarios/{user}/estado', [CompanyUserController::class, 'toggleActive'])->name('users.toggle-active');
+        // Usuarios de la empresa (deshabilitado: 1 cuenta por distribuidor)
+        Route::redirect('/usuarios', '/empresa', 302);
+        Route::redirect('/usuarios/{any}', '/empresa', 302)->where('any', '.*');
     });
