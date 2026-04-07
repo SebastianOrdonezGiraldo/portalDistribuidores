@@ -51,10 +51,14 @@ class RegisteredUserController extends Controller
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'company_name' => ['required', 'string', 'max:120'],
-            'nit' => ['required', 'string', 'max:40', 'unique:distributors,nit'],
-            'city' => ['required', 'string', 'max:120'],
+            'nit' => ['required', 'string', 'max:40', 'regex:/^\d+$/', 'unique:distributors,nit'],
+            'city' => ['required', 'string', 'max:120', 'regex:/^[\pL\s]+$/u'],
             'address' => ['nullable', 'string', 'max:180'],
-            'phone' => ['required', 'string', 'max:40'],
+            'phone' => ['required', 'string', 'max:40', 'regex:/^\d+$/'],
+        ], [
+            'nit.regex' => 'El NIT debe contener solo números.',
+            'city.regex' => 'La ciudad debe contener solo letras.',
+            'phone.regex' => 'El teléfono debe contener solo números.',
         ]);
 
         DB::transaction(function () use ($payload): void {
