@@ -73,9 +73,9 @@
                 <th>SKU</th>
                 <th>Producto</th>
                 <th class="num">Cant</th>
-                <th>Valor unit</th>
+                <th>Valor unit (sin IVA)</th>
                 <th>IVA</th>
-                <th>Valor total</th>
+                <th>Valor total unitario</th>
             </tr>
         </thead>
         <tbody>
