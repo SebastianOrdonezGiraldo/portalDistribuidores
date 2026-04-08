@@ -59,7 +59,18 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress
 
       - name: Audit PHP dependencies
-        run: composer audit --locked
+        run: |
+          for attempt in 1 2 3; do
+            if composer audit --locked --ignore-unreachable; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "composer audit fallo en el intento $attempt. Reintentando..."
+              sleep $((attempt * 5))
+            fi
+          done
+          echo "composer audit fallo despues de 3 intentos."
+          exit 1
 
       - name: Generate application key
         run: php artisan key:generate --ansi
