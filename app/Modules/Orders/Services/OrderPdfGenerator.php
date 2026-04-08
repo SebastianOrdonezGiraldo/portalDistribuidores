@@ -10,6 +10,8 @@ use RuntimeException;
 
 class OrderPdfGenerator
 {
+    private const VAT_RATE = 0.13;
+
     public static function diskName(): string
     {
         return (string) config('filesystems.order_pdfs_disk', 'private');
@@ -53,7 +55,7 @@ class OrderPdfGenerator
 
     private function buildViewData(Order $order): array
     {
-        $vatRate = (float) config('billing.vat_rate', 0.19);
+        $vatRate = self::VAT_RATE;
         $vatDivisor = $vatRate > -1 ? (1 + $vatRate) : 1.0;
         $logoPath = public_path('images/import-corporal-logo.png');
         $logoBase64 = null;
