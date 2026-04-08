@@ -1,41 +1,39 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cuenta activada</title>
-</head>
-<body style="font-family: Arial, sans-serif; color: #1f2937; line-height: 1.6;">
-    <h2 style="margin: 0 0 12px 0;">Tu cuenta ya está activa en el Portal de Distribuidores</h2>
+@extends('emails.layouts.base')
 
-    <p style="margin: 0 0 10px 0;">
+@section('title', 'Cuenta activada | Portal Distribuidores')
+@section('preheader', 'Tu cuenta fue activada y ya puedes ingresar al portal.')
+@section('heading', 'Tu cuenta ya esta activa')
+
+@section('content')
+    <p style="margin: 0 0 12px;">
         Hola {{ $user->name }},
     </p>
 
-    <p style="margin: 0 0 10px 0;">
-        Te informamos que tu cuenta asociada a <strong>{{ $distributor->name }}</strong> fue activada exitosamente.
+    <p style="margin: 0 0 12px;">
+        Tu cuenta asociada a <strong>{{ $distributor->name }}</strong> fue activada exitosamente.
     </p>
 
-    <p style="margin: 0 0 10px 0;">
-        Desde este momento puedes ingresar al portal para gestionar catálogo, pedidos y documentos.
-    </p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 14px 0 18px; border: 1px solid #e2e8f0; border-radius: 10px;">
+        <tr>
+            <td style="padding: 12px 14px; font-size: 14px;">
+                <p style="margin: 0 0 6px;"><strong>Usuario:</strong> {{ $user->email }}</p>
+                <p style="margin: 0;"><strong>Empresa:</strong> {{ $distributor->name }}</p>
+            </td>
+        </tr>
+    </table>
 
-    <p style="margin: 0 0 10px 0;">
-        <strong>Usuario de acceso:</strong> {{ $user->email }}<br>
-        <strong>Ingreso al portal:</strong>
-        <a href="{{ $loginUrl }}" target="_blank" rel="noopener noreferrer">{{ $loginUrl }}</a>
-    </p>
-
-    <p style="margin: 0 0 10px 0;">
-        Si no recuerdas tu contraseña, puedes restablecerla aquí:
-        <a href="{{ $resetPasswordUrl }}" target="_blank" rel="noopener noreferrer">{{ $resetPasswordUrl }}</a>
+    <p style="margin: 0 0 12px;">
+        Desde este momento puedes ingresar para gestionar catalogo, pedidos y documentos.
     </p>
 
     <p style="margin: 0;">
-        Cordialmente,<br>
-        Equipo de Servicio Comercial<br>
-        Import Corporal Medical SAS
+        Si no recuerdas tu contrasena, puedes restablecerla desde este enlace:
+        <a href="{{ $resetPasswordUrl }}" target="_blank" rel="noopener noreferrer" style="color: #0f766e;">Restablecer contrasena</a>.
     </p>
-</body>
-</html>
+@endsection
 
+@section('cta')
+    <a href="{{ $loginUrl }}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 12px 18px; background-color: #36b1bb; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 700; border-radius: 8px;">
+        Ingresar al portal
+    </a>
+@endsection

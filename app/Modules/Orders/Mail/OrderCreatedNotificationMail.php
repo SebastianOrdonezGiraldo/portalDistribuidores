@@ -31,6 +31,7 @@ class OrderCreatedNotificationMail extends Mailable
     {
         return new Content(
             view: 'emails.orders.created',
+            text: 'emails.orders.created-text',
             with: [
                 'order' => $this->order,
             ],

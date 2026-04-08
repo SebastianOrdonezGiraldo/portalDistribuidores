@@ -23,7 +23,7 @@ class OrderCreatedCustomerQuotationMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Tu cotizacion '.$this->order->oc_number.' fue registrada',
+            subject: 'Cotizacion recibida '.$this->order->oc_number.' | Import Corporal',
         );
     }
 
@@ -31,8 +31,10 @@ class OrderCreatedCustomerQuotationMail extends Mailable
     {
         return new Content(
             view: 'emails.orders.customer-quotation',
+            text: 'emails.orders.customer-quotation-text',
             with: [
                 'order' => $this->order,
+                'portalUrl' => rtrim((string) config('app.url'), '/').'/login',
             ],
         );
     }

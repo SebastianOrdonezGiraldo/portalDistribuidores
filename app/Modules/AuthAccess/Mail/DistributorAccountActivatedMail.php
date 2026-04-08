@@ -24,7 +24,7 @@ class DistributorAccountActivatedMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Tu cuenta ha sido activada | Portal Distribuidores',
+            subject: 'Cuenta activada | Portal Distribuidores',
         );
     }
 
@@ -32,6 +32,7 @@ class DistributorAccountActivatedMail extends Mailable
     {
         return new Content(
             view: 'emails.auth.distributor-account-activated',
+            text: 'emails.auth.distributor-account-activated-text',
             with: [
                 'user' => $this->user,
                 'distributor' => $this->distributor,
@@ -41,4 +42,3 @@ class DistributorAccountActivatedMail extends Mailable
         );
     }
 }
-
