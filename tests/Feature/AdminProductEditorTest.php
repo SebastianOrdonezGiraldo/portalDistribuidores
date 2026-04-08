@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Modules\Catalog\Models\Product;
+use App\Modules\Catalog\Models\ProductAttribute;
+use App\Modules\Catalog\Models\ProductAttributeValue;
 use App\Modules\Catalog\Support\ProductUploadLimits;
 use App\Modules\Categories\Models\Category;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -184,6 +186,116 @@ class AdminProductEditorTest extends TestCase
             ->assertRedirect();
 
         $this->assertDatabaseMissing('product_videos', ['id' => $video->id]);
+    }
+
+    public function test_admin_can_update_simple_product_stock_from_index(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProduct($category, 'SKU-STOCK-LIST-001');
+
+        $indexContext = [
+            'q' => 'SKU-STOCK-LIST-001',
+            'status' => 'active',
+            'sort' => 'stock_desc',
+            'per_page' => 30,
+            'page' => 2,
+        ];
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->patch('/admin/products/'.$product->id.'/stock', [
+                'stock' => 48.5,
+                'index_context' => $indexContext,
+                '_token' => 'test-token',
+            ])
+            ->assertRedirect(route('admin.products.index', $indexContext))
+            ->assertSessionHas('status', 'Stock actualizado.');
+
+        $product->refresh();
+        $this->assertSame(48.5, (float) $product->stock);
+    }
+
+    public function test_admin_cannot_update_parent_stock_when_product_has_active_variants(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProductWithVariants($category, 'SKU-STOCK-VARIANT-BLOCK-001', [7.0, 5.0]);
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->patch('/admin/products/'.$product->id.'/stock', [
+                'stock' => 90,
+                '_token' => 'test-token',
+            ])
+            ->assertRedirect('/admin/products')
+            ->assertSessionHas('error', 'Este producto usa variantes activas. Actualiza el stock por variante.');
+
+        $product->refresh();
+        $this->assertSame(12.0, (float) $product->stock);
+    }
+
+    public function test_admin_can_update_variant_stocks_from_index_and_recalculate_total(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProductWithVariants($category, 'SKU-STOCK-VARIANT-001', [4.0, 8.0]);
+        $variants = $product->variants()->orderBy('id')->get()->values();
+
+        $indexContext = [
+            'q' => 'SKU-STOCK-VARIANT-001',
+            'status' => 'active',
+            'sort' => 'name_asc',
+            'per_page' => 15,
+            'page' => 1,
+        ];
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->patch('/admin/products/'.$product->id.'/variants/stock', [
+                'variants' => [
+                    ['id' => $variants[0]->id, 'stock' => 3.5],
+                    ['id' => $variants[1]->id, 'stock' => 11],
+                ],
+                'index_context' => $indexContext,
+                '_token' => 'test-token',
+            ])
+            ->assertRedirect(route('admin.products.index', $indexContext))
+            ->assertSessionHas('status', 'Stock por variantes actualizado.');
+
+        $this->assertSame(3.5, (float) $variants[0]->fresh()->stock);
+        $this->assertSame(11.0, (float) $variants[1]->fresh()->stock);
+
+        $product->refresh();
+        $this->assertSame(14.5, (float) $product->stock);
+    }
+
+    public function test_admin_variant_stock_update_rejects_foreign_variant_ids(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $targetProduct = $this->createProductWithVariants($category, 'SKU-STOCK-TARGET-001', [2.0, 6.0]);
+        $otherProduct = $this->createProductWithVariants($category, 'SKU-STOCK-OTHER-001', [5.0, 9.0]);
+
+        $targetVariant = $targetProduct->variants()->orderBy('id')->firstOrFail();
+        $foreignVariant = $otherProduct->variants()->orderBy('id')->firstOrFail();
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->from('/admin/products')
+            ->patch('/admin/products/'.$targetProduct->id.'/variants/stock', [
+                'variants' => [
+                    ['id' => $targetVariant->id, 'stock' => 10],
+                    ['id' => $foreignVariant->id, 'stock' => 1],
+                ],
+                '_token' => 'test-token',
+            ])
+            ->assertRedirect('/admin/products')
+            ->assertSessionHasErrors(['variants.1.id']);
+
+        $targetProduct->refresh();
+        $this->assertSame(8.0, (float) $targetProduct->stock);
+        $this->assertSame(2.0, (float) $targetVariant->fresh()->stock);
     }
 
     public function test_admin_can_delete_product_from_admin_route(): void
@@ -554,6 +666,44 @@ class AdminProductEditorTest extends TestCase
                 'brand' => $payload['brand'],
                 'sku' => $payload['sku'],
             ]);
+    }
+
+    private function createProductWithVariants(Category $category, string $sku, array $stocks): Product
+    {
+        $attribute = ProductAttribute::create([
+            'name' => 'Color '.$sku,
+            'slug' => strtolower(str_replace('_', '-', $sku)).'-color',
+        ]);
+
+        $product = Product::create([
+            'name' => 'Producto Variante '.$sku,
+            'sku' => $sku,
+            'description' => 'Producto con variantes para pruebas de stock',
+            'category_id' => $category->id,
+            'variant_attribute_id' => $attribute->id,
+            'price' => 10000,
+            'stock' => array_sum($stocks),
+            'is_active' => true,
+        ]);
+
+        foreach (array_values($stocks) as $index => $stock) {
+            $valueLabel = 'Opcion '.($index + 1).' '.$sku;
+            $value = ProductAttributeValue::create([
+                'product_attribute_id' => $attribute->id,
+                'value' => $valueLabel,
+                'slug' => strtolower(str_replace(' ', '-', $valueLabel)),
+            ]);
+
+            $product->variants()->create([
+                'product_attribute_value_id' => $value->id,
+                'price' => 10000 + ($index * 1500),
+                'stock' => $stock,
+                'is_active' => true,
+                'sort_order' => $index + 1,
+            ]);
+        }
+
+        return $product->refresh();
     }
 
     private function createCategory(): Category

@@ -13,6 +13,7 @@ use App\Modules\Catalog\Http\Requests\StoreProductRequest;
 use App\Modules\Catalog\Http\Requests\UpdateProductRequest;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductAttribute;
+use App\Modules\Catalog\Services\ProductStockService;
 use App\Modules\Catalog\Services\ProductVariantSyncService;
 use App\Modules\Categories\Models\Category;
 use App\Modules\Shared\Enums\DocumentType;
@@ -38,8 +39,21 @@ class ProductAdminController extends Controller
         $filteredQuery = $this->buildFilteredQuery($filters);
 
         $products = (clone $filteredQuery)
-            ->with('category', 'primaryPhoto', 'photos')
-            ->withCount(['photos', 'videos', 'documents'])
+            ->with([
+                'category',
+                'primaryPhoto',
+                'photos',
+                'variantAttribute',
+                'variants' => fn ($query) => $query
+                    ->where('is_active', true)
+                    ->with('attributeValue'),
+            ])
+            ->withCount([
+                'photos',
+                'videos',
+                'documents',
+                'variants as active_variants_count' => fn ($query) => $query->where('is_active', true),
+            ])
             ->when($filters['sort'] === 'newest', fn ($query) => $query->latest())
             ->when($filters['sort'] === 'oldest', fn ($query) => $query->oldest())
             ->when($filters['sort'] === 'name_asc', fn ($query) => $query->orderBy('name'))
@@ -210,6 +224,85 @@ class ProductAdminController extends Controller
         $product->update(['is_active' => $isActive]);
 
         return back()->with('status', $isActive ? 'Producto activado.' : 'Producto desactivado.');
+    }
+
+    public function setStock(
+        Request $request,
+        Product $product,
+        ProductStockService $stockService,
+    ): RedirectResponse {
+        $this->authorize('update', $product);
+
+        $payload = $request->validate([
+            'stock' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
+        ]);
+
+        $indexContextQuery = $this->resolveIndexQuery((array) $request->input('index_context', []), true);
+        $stock = array_key_exists('stock', $payload) && $payload['stock'] !== null
+            ? (float) $payload['stock']
+            : null;
+
+        $updated = $stockService->updateSimpleProductStock($product, $stock);
+
+        if (! $updated) {
+            return redirect()
+                ->route('admin.products.index', $indexContextQuery)
+                ->with('error', 'Este producto usa variantes activas. Actualiza el stock por variante.');
+        }
+
+        return redirect()
+            ->route('admin.products.index', $indexContextQuery)
+            ->with('status', 'Stock actualizado.');
+    }
+
+    public function setVariantStocks(
+        Request $request,
+        Product $product,
+        ProductStockService $stockService,
+    ): RedirectResponse {
+        $this->authorize('update', $product);
+
+        $payload = $request->validate([
+            'variants' => ['required', 'array', 'min:1'],
+            'variants.*.id' => [
+                'required',
+                'integer',
+                'distinct',
+                Rule::exists('product_variants', 'id')->where(
+                    fn ($query) => $query
+                        ->where('product_id', $product->id)
+                        ->where('is_active', true),
+                ),
+            ],
+            'variants.*.stock' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
+        ]);
+
+        $indexContextQuery = $this->resolveIndexQuery((array) $request->input('index_context', []), true);
+        $rows = collect((array) $payload['variants'])
+            ->map(static function (array $row): array {
+                $stock = array_key_exists('stock', $row) && $row['stock'] !== null
+                    ? (float) $row['stock']
+                    : null;
+
+                return [
+                    'id' => (int) $row['id'],
+                    'stock' => $stock,
+                ];
+            })
+            ->values()
+            ->all();
+
+        $updated = $stockService->updateVariantStocks($product, $rows);
+
+        if (! $updated) {
+            return redirect()
+                ->route('admin.products.index', $indexContextQuery)
+                ->with('error', 'Este producto no tiene variantes activas para actualizar.');
+        }
+
+        return redirect()
+            ->route('admin.products.index', $indexContextQuery)
+            ->with('status', 'Stock por variantes actualizado.');
     }
 
     public function bulkAction(Request $request): RedirectResponse
