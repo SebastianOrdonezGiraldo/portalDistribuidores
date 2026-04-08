@@ -3,6 +3,7 @@
 namespace App\Modules\Admin\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Admin\Services\InventoryPdfGenerator;
 use App\Modules\Catalog\Actions\AddVideoAction;
 use App\Modules\Catalog\Actions\AttachManualAction;
 use App\Modules\Catalog\Actions\AttachTechSheetAction;
@@ -13,6 +14,7 @@ use App\Modules\Catalog\Http\Requests\StoreProductRequest;
 use App\Modules\Catalog\Http\Requests\UpdateProductRequest;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductAttribute;
+use App\Modules\Catalog\Services\ProductStockService;
 use App\Modules\Catalog\Services\ProductVariantSyncService;
 use App\Modules\Categories\Models\Category;
 use App\Modules\Shared\Enums\DocumentType;
@@ -20,6 +22,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -37,17 +40,25 @@ class ProductAdminController extends Controller
 
         $filteredQuery = $this->buildFilteredQuery($filters);
 
-        $products = (clone $filteredQuery)
-            ->with('category', 'primaryPhoto', 'photos')
-            ->withCount(['photos', 'videos', 'documents'])
-            ->when($filters['sort'] === 'newest', fn ($query) => $query->latest())
-            ->when($filters['sort'] === 'oldest', fn ($query) => $query->oldest())
-            ->when($filters['sort'] === 'name_asc', fn ($query) => $query->orderBy('name'))
-            ->when($filters['sort'] === 'name_desc', fn ($query) => $query->orderByDesc('name'))
-            ->when($filters['sort'] === 'price_desc', fn ($query) => $query->orderByDesc('price')->orderBy('name'))
-            ->when($filters['sort'] === 'price_asc', fn ($query) => $query->orderBy('price')->orderBy('name'))
-            ->when($filters['sort'] === 'stock_desc', fn ($query) => $query->orderByDesc('stock')->orderBy('name'))
-            ->when($filters['sort'] === 'stock_asc', fn ($query) => $query->orderBy('stock')->orderBy('name'))
+        $products = $this->applySortToProductQuery(
+            (clone $filteredQuery)
+                ->with([
+                    'category',
+                    'primaryPhoto',
+                    'photos',
+                    'variantAttribute',
+                    'variants' => fn ($query) => $query
+                        ->where('is_active', true)
+                        ->with('attributeValue'),
+                ])
+                ->withCount([
+                    'photos',
+                    'videos',
+                    'documents',
+                    'variants as active_variants_count' => fn ($query) => $query->where('is_active', true),
+                ]),
+            (string) $filters['sort'],
+        )
             ->paginate((int) $filters['per_page'], ['*'], 'page', (int) $indexContext['page'])
             ->withQueryString();
 
@@ -82,6 +93,38 @@ class ProductAdminController extends Controller
             'metrics' => $metrics,
             'activeFiltersCount' => $activeFiltersCount,
         ]);
+    }
+
+    public function downloadInventoryPdf(
+        Request $request,
+        InventoryPdfGenerator $inventoryPdfGenerator,
+    ): Response {
+        $this->authorize('viewAny', Product::class);
+
+        $indexOptions = $this->indexFilterOptions();
+        $indexContext = $this->resolveIndexContext($request->query(), true, $indexOptions);
+        $filters = $this->extractFiltersFromContext($indexContext);
+
+        $products = $this->applySortToProductQuery(
+            $this->buildFilteredQuery($filters)->with([
+                'category',
+                'variantAttribute',
+                'variants' => fn ($query) => $query
+                    ->where('is_active', true)
+                    ->with('attributeValue'),
+            ]),
+            (string) $filters['sort'],
+        )->get();
+
+        $pdf = $inventoryPdfGenerator->generate(
+            $products,
+            $this->resolveInventoryAppliedFilters($filters),
+            $request->user()?->name,
+        );
+
+        $fileName = 'saldos_inventario_'.now()->setTimezone(config('app.timezone'))->format('Ymd_His').'.pdf';
+
+        return $pdf->download($fileName);
     }
 
     public function create(Request $request): View
@@ -210,6 +253,85 @@ class ProductAdminController extends Controller
         $product->update(['is_active' => $isActive]);
 
         return back()->with('status', $isActive ? 'Producto activado.' : 'Producto desactivado.');
+    }
+
+    public function setStock(
+        Request $request,
+        Product $product,
+        ProductStockService $stockService,
+    ): RedirectResponse {
+        $this->authorize('update', $product);
+
+        $payload = $request->validate([
+            'stock' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
+        ]);
+
+        $indexContextQuery = $this->resolveIndexQuery((array) $request->input('index_context', []), true);
+        $stock = array_key_exists('stock', $payload) && $payload['stock'] !== null
+            ? (float) $payload['stock']
+            : null;
+
+        $updated = $stockService->updateSimpleProductStock($product, $stock);
+
+        if (! $updated) {
+            return redirect()
+                ->route('admin.products.index', $indexContextQuery)
+                ->with('error', 'Este producto usa variantes activas. Actualiza el stock por variante.');
+        }
+
+        return redirect()
+            ->route('admin.products.index', $indexContextQuery)
+            ->with('status', 'Stock actualizado.');
+    }
+
+    public function setVariantStocks(
+        Request $request,
+        Product $product,
+        ProductStockService $stockService,
+    ): RedirectResponse {
+        $this->authorize('update', $product);
+
+        $payload = $request->validate([
+            'variants' => ['required', 'array', 'min:1'],
+            'variants.*.id' => [
+                'required',
+                'integer',
+                'distinct',
+                Rule::exists('product_variants', 'id')->where(
+                    fn ($query) => $query
+                        ->where('product_id', $product->id)
+                        ->where('is_active', true),
+                ),
+            ],
+            'variants.*.stock' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
+        ]);
+
+        $indexContextQuery = $this->resolveIndexQuery((array) $request->input('index_context', []), true);
+        $rows = collect((array) $payload['variants'])
+            ->map(static function (array $row): array {
+                $stock = array_key_exists('stock', $row) && $row['stock'] !== null
+                    ? (float) $row['stock']
+                    : null;
+
+                return [
+                    'id' => (int) $row['id'],
+                    'stock' => $stock,
+                ];
+            })
+            ->values()
+            ->all();
+
+        $updated = $stockService->updateVariantStocks($product, $rows);
+
+        if (! $updated) {
+            return redirect()
+                ->route('admin.products.index', $indexContextQuery)
+                ->with('error', 'Este producto no tiene variantes activas para actualizar.');
+        }
+
+        return redirect()
+            ->route('admin.products.index', $indexContextQuery)
+            ->with('status', 'Stock por variantes actualizado.');
     }
 
     public function bulkAction(Request $request): RedirectResponse
@@ -490,6 +612,82 @@ class ProductAdminController extends Controller
             ->when($filters['stock'] === 'in_stock', fn ($query) => $query->whereNotNull('stock')->where('stock', '>', 0))
             ->when($filters['stock'] === 'no_stock', fn ($query) => $query->whereNotNull('stock')->where('stock', '<=', 0))
             ->when($filters['stock'] === 'unknown', fn ($query) => $query->whereNull('stock'));
+    }
+
+    private function applySortToProductQuery(Builder $query, string $sort): Builder
+    {
+        return match ($sort) {
+            'oldest' => $query->oldest(),
+            'name_asc' => $query->orderBy('name'),
+            'name_desc' => $query->orderByDesc('name'),
+            'price_desc' => $query->orderByDesc('price')->orderBy('name'),
+            'price_asc' => $query->orderBy('price')->orderBy('name'),
+            'stock_desc' => $query->orderByDesc('stock')->orderBy('name'),
+            'stock_asc' => $query->orderBy('stock')->orderBy('name'),
+            default => $query->latest(),
+        };
+    }
+
+    /**
+     * @param array{q: ?string, category_id: ?int, status: ?string, media: ?string, stock: ?string, sort: string, per_page: int} $filters
+     * @return list<string>
+     */
+    private function resolveInventoryAppliedFilters(array $filters): array
+    {
+        $summary = [];
+
+        if (filled($filters['q'])) {
+            $summary[] = 'Busqueda: '.(string) $filters['q'];
+        }
+
+        if (! empty($filters['category_id'])) {
+            $categoryName = Category::query()
+                ->whereKey((int) $filters['category_id'])
+                ->value('name');
+
+            $summary[] = 'Categoria: '.($categoryName ?: '#'.$filters['category_id']);
+        }
+
+        if (! empty($filters['status'])) {
+            $summary[] = 'Disponibilidad: '.match ($filters['status']) {
+                'active' => 'Disponible',
+                'inactive' => 'Inactivo',
+                default => (string) $filters['status'],
+            };
+        }
+
+        if (! empty($filters['media'])) {
+            $summary[] = 'Media: '.match ($filters['media']) {
+                'with_photo' => 'Con foto',
+                'without_photo' => 'Sin foto',
+                'with_sheet' => 'Con ficha tecnica',
+                'with_video' => 'Con video',
+                default => (string) $filters['media'],
+            };
+        }
+
+        if (! empty($filters['stock'])) {
+            $summary[] = 'Stock: '.match ($filters['stock']) {
+                'in_stock' => 'Con stock',
+                'no_stock' => 'Sin stock',
+                'unknown' => 'Sin definir',
+                default => (string) $filters['stock'],
+            };
+        }
+
+        $summary[] = 'Orden: '.match ((string) $filters['sort']) {
+            'newest' => 'Mas recientes',
+            'oldest' => 'Mas antiguos',
+            'name_asc' => 'Nombre A-Z',
+            'name_desc' => 'Nombre Z-A',
+            'price_desc' => 'Mayor precio',
+            'price_asc' => 'Menor precio',
+            'stock_desc' => 'Mayor stock',
+            'stock_asc' => 'Menor stock',
+            default => (string) $filters['sort'],
+        };
+
+        return $summary;
     }
 
     /**

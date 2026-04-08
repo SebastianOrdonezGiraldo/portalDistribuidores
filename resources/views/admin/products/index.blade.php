@@ -12,6 +12,7 @@
             </x-slot>
             <x-slot name="actions">
                 <div class="flex flex-wrap items-center gap-2">
+                    <a href="{{ route('admin.products.inventory.pdf', collect($indexContextQuery)->except('page')->all()) }}" class="btn btn-secondary w-full justify-center sm:w-auto">Descargar saldos PDF</a>
                     <a href="{{ route('admin.products.import.template') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Descargar plantilla CSV</a>
                     <form action="{{ route('admin.products.import') }}" method="POST" enctype="multipart/form-data" class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                         @csrf
@@ -90,6 +91,19 @@
 
     @php
         $baseStatusQuery = collect($indexContextQuery)->except(['page', 'status'])->all();
+        $formatStock = static function ($value): string {
+            if (! is_numeric($value)) {
+                return 'Sin definir';
+            }
+
+            $numeric = (float) $value;
+
+            if (abs($numeric - round($numeric)) < 0.00001) {
+                return number_format((float) round($numeric), 0, ',', '.');
+            }
+
+            return number_format($numeric, 2, ',', '.');
+        };
     @endphp
 
     <x-ui.card class="mt-4 p-4">
@@ -280,12 +294,17 @@
                         <th>Producto</th>
                         <th>Categoría</th>
                         <th>Precio</th>
+                        <th>Stock</th>
                         <th>Disponibilidad</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($products as $product)
+                        @php
+                            $hasActiveVariants = (int) ($product->active_variants_count ?? 0) > 0;
+                            $activeVariants = $product->variants ?? collect();
+                        @endphp
                         <tr>
                             <td data-label="Seleccionar">
                                 <input type="checkbox" class="form-checkbox" data-bulk-row value="{{ $product->id }}">
@@ -304,6 +323,113 @@
                             </td>
                             <td data-label="Categoría">{{ $product->category?->name ?? '-' }}</td>
                             <td data-label="Precio" class="font-medium text-slate-900">${{ number_format((float) $product->price, 0, ',', '.') }}</td>
+                            <td data-label="Stock">
+                                @if(! $hasActiveVariants)
+                                    <form
+                                        action="{{ route('admin.products.stock', $product) }}"
+                                        method="POST"
+                                        class="space-y-2"
+                                        data-loading-form
+                                    >
+                                        @csrf
+                                        @method('PATCH')
+                                        @foreach($indexContextQuery as $key => $value)
+                                            <input type="hidden" name="index_context[{{ $key }}]" value="{{ $value }}">
+                                        @endforeach
+
+                                        <label class="sr-only" for="stock-product-{{ $product->id }}">
+                                            Stock de {{ $product->name }}
+                                        </label>
+                                        <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                            <x-ui.input
+                                                id="stock-product-{{ $product->id }}"
+                                                name="stock"
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                inputmode="decimal"
+                                                class="no-number-spinner w-full sm:w-28"
+                                                :value="is_numeric($product->stock) ? rtrim(rtrim(number_format((float) $product->stock, 2, '.', ''), '0'), '.') : ''"
+                                                placeholder="Sin definir"
+                                            />
+                                            <button
+                                                type="submit"
+                                                class="btn btn-secondary w-full justify-center sm:w-auto"
+                                                data-loading-label="Guardando..."
+                                            >
+                                                Guardar
+                                            </button>
+                                        </div>
+                                        <p class="text-xs text-slate-500">
+                                            Actual: <span class="font-semibold text-slate-700">{{ $formatStock($product->stock) }}</span>
+                                        </p>
+                                    </form>
+                                @else
+                                    <details class="rounded-xl border border-slate-200 bg-slate-50/70 p-2">
+                                        <summary class="cursor-pointer text-xs font-semibold text-slate-700">
+                                            Editar variantes ({{ $activeVariants->count() }})
+                                        </summary>
+
+                                        <div class="mt-2 space-y-2">
+                                            <p class="text-xs text-slate-500">
+                                                Total actual: <span class="font-semibold text-slate-700">{{ $formatStock($product->stock) }}</span>
+                                            </p>
+                                            <p class="text-xs text-slate-500">
+                                                Atributo: <span class="font-semibold text-slate-700">{{ $product->variantAttribute?->name ?? 'Variante' }}</span>
+                                            </p>
+
+                                            <form
+                                                action="{{ route('admin.products.variants.stock', $product) }}"
+                                                method="POST"
+                                                class="space-y-2"
+                                                data-loading-form
+                                            >
+                                                @csrf
+                                                @method('PATCH')
+                                                @foreach($indexContextQuery as $key => $value)
+                                                    <input type="hidden" name="index_context[{{ $key }}]" value="{{ $value }}">
+                                                @endforeach
+
+                                                @foreach($activeVariants as $variantIndex => $variant)
+                                                    <input type="hidden" name="variants[{{ $variantIndex }}][id]" value="{{ $variant->id }}">
+                                                    <div class="grid grid-cols-[minmax(0,1fr)_6.5rem] items-center gap-2">
+                                                        <label class="text-xs text-slate-700" for="variant-stock-{{ $product->id }}-{{ $variant->id }}">
+                                                            {{ $variant->attributeValue?->value ?? 'Variante #'.$variant->id }}
+                                                        </label>
+                                                        <x-ui.input
+                                                            id="variant-stock-{{ $product->id }}-{{ $variant->id }}"
+                                                            name="variants[{{ $variantIndex }}][stock]"
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0"
+                                                            inputmode="decimal"
+                                                            class="no-number-spinner"
+                                                            :value="is_numeric($variant->stock) ? rtrim(rtrim(number_format((float) $variant->stock, 2, '.', ''), '0'), '.') : ''"
+                                                            placeholder="-"
+                                                        />
+                                                    </div>
+                                                @endforeach
+
+                                                <div class="flex flex-col gap-2 pt-1">
+                                                    <button
+                                                        type="submit"
+                                                        class="btn btn-secondary w-full justify-center"
+                                                        data-loading-label="Guardando..."
+                                                    >
+                                                        Guardar variantes
+                                                    </button>
+                                                    <a
+                                                        href="{{ route('admin.products.edit', array_merge(['product' => $product], $indexContextQuery)) }}"
+                                                        class="btn btn-ghost w-full justify-center"
+                                                    >
+                                                        Abrir editor completo
+                                                    </a>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </details>
+                                @endif
+                            </td>
                             <td data-label="Disponibilidad">
                                 <x-ui.status-badge :status="$product->is_active ? 'active' : 'inactive'" :label="$product->is_active ? 'Disponible' : 'Inactivo'" />
                             </td>

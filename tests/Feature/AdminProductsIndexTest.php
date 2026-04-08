@@ -3,9 +3,16 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Modules\Catalog\Models\ProductAttribute;
+use App\Modules\Catalog\Models\ProductAttributeValue;
 use App\Modules\Catalog\Models\Product;
+use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Categories\Models\Category;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Barryvdh\DomPDF\PDF as DomPdfWrapper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use Mockery;
 use Tests\TestCase;
 
 class AdminProductsIndexTest extends TestCase
@@ -25,6 +32,182 @@ class AdminProductsIndexTest extends TestCase
         $this->actingAs($distributorUser)
             ->get('/admin/products')
             ->assertForbidden();
+    }
+
+    public function test_guest_is_redirected_from_admin_inventory_pdf_download(): void
+    {
+        $this->get('/admin/products/inventory/pdf')
+            ->assertRedirect('/login');
+    }
+
+    public function test_distributor_cannot_access_admin_inventory_pdf_download(): void
+    {
+        $distributorUser = User::factory()->create();
+
+        $this->actingAs($distributorUser)
+            ->get('/admin/products/inventory/pdf')
+            ->assertForbidden();
+    }
+
+    public function test_admin_can_download_inventory_pdf_with_current_filters(): void
+    {
+        Carbon::setTestNow('2026-04-08 11:22:33');
+
+        try {
+            $admin = User::factory()->admin()->create([
+                'name' => 'Admin PDF',
+            ]);
+
+            $category = Category::create([
+                'parent_id' => null,
+                'name' => 'Categoria Inventario PDF',
+                'slug' => 'categoria-inventario-pdf',
+                'is_active' => true,
+                'sort_order' => 1,
+            ]);
+
+            $attribute = ProductAttribute::factory()->create([
+                'name' => 'Talla',
+                'slug' => 'talla',
+            ]);
+
+            $variantValueS = ProductAttributeValue::factory()->create([
+                'product_attribute_id' => $attribute->id,
+                'value' => 'S',
+                'slug' => 's',
+            ]);
+
+            $variantValueM = ProductAttributeValue::factory()->create([
+                'product_attribute_id' => $attribute->id,
+                'value' => 'M',
+                'slug' => 'm',
+            ]);
+
+            $token = 'INV-PDF-TOKEN';
+
+            Product::create([
+                'name' => 'Producto '.$token.' Agotado',
+                'sku' => 'SKU-NO-STOCK',
+                'description' => 'No debe entrar por filtro de stock',
+                'category_id' => $category->id,
+                'price' => 10000,
+                'stock' => 0,
+                'is_active' => true,
+            ]);
+
+            Product::create([
+                'name' => 'Producto sin token',
+                'sku' => 'SKU-OTHER',
+                'description' => 'No debe entrar por filtro de busqueda',
+                'category_id' => $category->id,
+                'price' => 10000,
+                'stock' => 3,
+                'is_active' => true,
+            ]);
+
+            Product::create([
+                'name' => 'Producto '.$token.' Inactivo',
+                'sku' => 'SKU-INACTIVE',
+                'description' => 'No debe entrar por filtro de estado',
+                'category_id' => $category->id,
+                'price' => 10000,
+                'stock' => 4,
+                'is_active' => false,
+            ]);
+
+            Product::create([
+                'name' => 'Producto '.$token.' Simple',
+                'sku' => 'SKU-SIMPLE-001',
+                'description' => 'Debe entrar como fila simple',
+                'category_id' => $category->id,
+                'price' => 15000,
+                'stock' => 9,
+                'is_active' => true,
+            ]);
+
+            $variantProduct = Product::create([
+                'name' => 'Producto '.$token.' Variantes',
+                'sku' => 'SKU-VAR-001',
+                'description' => 'Debe entrar como filas por variante',
+                'category_id' => $category->id,
+                'variant_attribute_id' => $attribute->id,
+                'price' => 12000,
+                'stock' => 5,
+                'is_active' => true,
+            ]);
+
+            ProductVariant::factory()
+                ->forProduct($variantProduct)
+                ->create([
+                    'product_attribute_value_id' => $variantValueS->id,
+                    'price' => 12000,
+                    'stock' => 2,
+                    'sort_order' => 1,
+                    'is_active' => true,
+                ]);
+
+            ProductVariant::factory()
+                ->forProduct($variantProduct)
+                ->create([
+                    'product_attribute_value_id' => $variantValueM->id,
+                    'price' => 12500,
+                    'stock' => 3,
+                    'sort_order' => 2,
+                    'is_active' => true,
+                ]);
+
+            Pdf::shouldReceive('loadView')
+                ->once()
+                ->with('admin.products.inventory-pdf', Mockery::on(function (array $data) use ($token) {
+                    $this->assertInstanceOf(Carbon::class, $data['generatedAt']);
+                    $this->assertSame('Admin PDF', $data['generatedBy']);
+                    $this->assertSame(2, (int) $data['totals']['products_count']);
+                    $this->assertSame(3, (int) $data['totals']['rows_count']);
+                    $this->assertSame(3, (int) $data['totals']['known_stock_rows']);
+                    $this->assertGreaterThan(0, (float) $data['totals']['total_stock']);
+                    $this->assertSame(
+                        ['SKU-SIMPLE-001', 'SKU-VAR-001', 'SKU-VAR-001'],
+                        $data['rows']->pluck('sku')->all(),
+                    );
+                    $this->assertSame(
+                        ['S', 'M'],
+                        $data['rows']->where('sku', 'SKU-VAR-001')->pluck('variant_value')->values()->all(),
+                    );
+                    $this->assertTrue(
+                        collect($data['appliedFilters'])->contains(fn (string $label) => str_contains($label, 'Busqueda: '.$token))
+                    );
+                    $this->assertTrue(
+                        collect($data['appliedFilters'])->contains('Stock: Con stock')
+                    );
+                    $this->assertTrue(
+                        collect($data['appliedFilters'])->contains('Disponibilidad: Disponible')
+                    );
+
+                    return true;
+                }))
+                ->andReturnUsing(function () {
+                    $pdfMock = Mockery::mock(DomPdfWrapper::class);
+                    $pdfMock->shouldReceive('setPaper')
+                        ->once()
+                        ->with('a4', 'landscape')
+                        ->andReturnSelf();
+                    $pdfMock->shouldReceive('download')
+                        ->once()
+                        ->with('saldos_inventario_20260408_112233.pdf')
+                        ->andReturn(response('%PDF-INVENTORY', 200, ['Content-Type' => 'application/pdf']));
+
+                    return $pdfMock;
+                });
+
+            $response = $this->actingAs($admin)
+                ->get('/admin/products/inventory/pdf?status=active&stock=in_stock&q='.$token.'&sort=stock_desc');
+
+            $response->assertOk();
+            $response->assertHeader('content-type', 'application/pdf');
+            $this->assertSame('%PDF-INVENTORY', $response->getContent());
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_admin_can_filter_and_sort_products(): void

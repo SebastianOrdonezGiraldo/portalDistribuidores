@@ -25,7 +25,10 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::get('products/import/template', [ProductImportController::class, 'downloadTemplate'])->name('products.import.template');
         Route::post('products/import', [ProductImportController::class, 'import'])->name('products.import');
         Route::post('products/bulk-action', [ProductAdminController::class, 'bulkAction'])->name('products.bulk-action');
+        Route::get('products/inventory/pdf', [ProductAdminController::class, 'downloadInventoryPdf'])->name('products.inventory.pdf');
         Route::patch('products/{product}/status', [ProductAdminController::class, 'setStatus'])->name('products.status');
+        Route::patch('products/{product}/stock', [ProductAdminController::class, 'setStock'])->name('products.stock');
+        Route::patch('products/{product}/variants/stock', [ProductAdminController::class, 'setVariantStocks'])->name('products.variants.stock');
         Route::get('products/{product}/documents/{document}/download', [ProductMediaController::class, 'downloadDocument'])->name('products.documents.download');
         Route::delete('products/{product}/photos/{photo}', [ProductMediaController::class, 'destroyPhoto'])->name('products.photos.destroy');
         Route::delete('products/{product}/documents/{document}', [ProductMediaController::class, 'destroyDocument'])->name('products.documents.destroy');
