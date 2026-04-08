@@ -10,6 +10,8 @@ use RuntimeException;
 
 class OrderPdfGenerator
 {
+    private const VAT_RATE = 0.13;
+
     public static function diskName(): string
     {
         return (string) config('filesystems.order_pdfs_disk', 'private');
@@ -53,7 +55,8 @@ class OrderPdfGenerator
 
     private function buildViewData(Order $order): array
     {
-        $vatRate = (float) config('billing.vat_rate', 0.19);
+        $vatRate = self::VAT_RATE;
+        $vatDivisor = $vatRate > -1 ? (1 + $vatRate) : 1.0;
         $logoPath = public_path('images/import-corporal-logo.png');
         $logoBase64 = null;
 
@@ -61,22 +64,23 @@ class OrderPdfGenerator
             $logoBase64 = 'data:image/png;base64,'.base64_encode((string) file_get_contents($logoPath));
         }
 
-        $lineItems = $order->items->map(function ($item) use ($vatRate) {
-            $valorUnit = (float) $item->price_each;
-            $valorBase = (float) $item->subtotal;
-            $valorIva = round($valorBase * $vatRate, 2);
-            $valorTotal = $valorBase + $valorIva;
+        $lineItems = $order->items->map(function ($item) use ($vatDivisor) {
+            $valorUnitConIva = (float) $item->price_each;
+            $valorUnit = round($valorUnitConIva / $vatDivisor, 2);
+            $valorIva = round($valorUnitConIva - $valorUnit, 2);
+            $valorTotal = round($valorUnit + $valorIva, 2);
+            $valorTotalLinea = round((float) $item->qty * $valorTotal, 2);
 
             return [
                 'item' => $item,
                 'valorUnit' => $valorUnit,
-                'valorBase' => $valorBase,
                 'valorIva' => $valorIva,
                 'valorTotal' => $valorTotal,
+                'valorTotalLinea' => $valorTotalLinea,
             ];
         });
 
-        $totalFinal = (float) $lineItems->sum('valorTotal');
+        $totalFinal = (float) $order->items->sum(fn ($item) => (float) $item->subtotal);
 
         return [
             'order' => $order,

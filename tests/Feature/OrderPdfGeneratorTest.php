@@ -104,7 +104,6 @@ class OrderPdfGeneratorTest extends TestCase
 
         config([
             'filesystems.order_pdfs_disk' => 'private',
-            'billing.vat_rate' => 0.19,
         ]);
 
         $order = Order::factory()->create([
@@ -131,15 +130,17 @@ class OrderPdfGeneratorTest extends TestCase
             ->once()
             ->with('orders.pdf', Mockery::on(function (array $data) use ($order) {
                 $this->assertTrue($data['order']->is($order));
-                $this->assertSame(0.19, $data['vatRate']);
+                $this->assertSame(0.13, $data['vatRate']);
                 $this->assertCount(2, $data['lineItems']);
-                $this->assertSame(1000.0, $data['lineItems'][0]['valorUnit']);
-                $this->assertSame(2000.0, $data['lineItems'][0]['valorBase']);
-                $this->assertSame(380.0, $data['lineItems'][0]['valorIva']);
-                $this->assertSame(2380.0, $data['lineItems'][0]['valorTotal']);
-                $this->assertSame(500.0, $data['lineItems'][1]['valorBase']);
-                $this->assertSame(95.0, $data['lineItems'][1]['valorIva']);
-                $this->assertSame(2975.0, $data['totalFinal']);
+                $this->assertSame(884.96, $data['lineItems'][0]['valorUnit']);
+                $this->assertSame(115.04, $data['lineItems'][0]['valorIva']);
+                $this->assertSame(1000.0, $data['lineItems'][0]['valorTotal']);
+                $this->assertSame(2000.0, $data['lineItems'][0]['valorTotalLinea']);
+                $this->assertSame(442.48, $data['lineItems'][1]['valorUnit']);
+                $this->assertSame(57.52, $data['lineItems'][1]['valorIva']);
+                $this->assertSame(500.0, $data['lineItems'][1]['valorTotal']);
+                $this->assertSame(500.0, $data['lineItems'][1]['valorTotalLinea']);
+                $this->assertSame(2500.0, $data['totalFinal']);
                 $this->assertTrue(array_key_exists('logoBase64', $data));
 
                 return true;
