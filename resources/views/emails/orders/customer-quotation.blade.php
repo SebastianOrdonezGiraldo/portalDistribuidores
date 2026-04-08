@@ -1,38 +1,48 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cotización {{ $order->oc_number }}</title>
-</head>
-<body style="font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5;">
-    <h2 style="margin: 0 0 12px 0;">Recibimos tu solicitud de cotización {{ $order->oc_number }}</h2>
+@extends('emails.layouts.base')
 
-    <p style="margin: 0 0 10px 0;">
+@section('title', 'Cotizacion '.$order->oc_number.' recibida')
+@section('preheader', 'Recibimos tu solicitud de cotizacion y ya esta en revision comercial.')
+@section('heading', 'Recibimos tu solicitud de cotizacion '.$order->oc_number)
+
+@section('content')
+    <p style="margin: 0 0 12px;">
         Hola {{ $order->contact_name }},
     </p>
 
-    <p style="margin: 0 0 10px 0;">
-        Gracias por contactarnos. Tu <strong>cotización</strong> fue registrada correctamente y está en proceso de revisión comercial.
+    <p style="margin: 0 0 12px;">
+        Gracias por contactarnos. Registramos tu solicitud correctamente y nuestro equipo comercial la revisara en breve.
     </p>
 
-    <p style="margin: 0 0 10px 0;">
-        <strong>Número de cotización:</strong> {{ $order->oc_number }}<br>
-        <strong>Empresa:</strong> {{ $order->company_name }}<br>
-        <strong>Correo de contacto:</strong> {{ $order->contact_email ?? '-' }}
-    </p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 14px 0 18px; border: 1px solid #e2e8f0; border-radius: 10px;">
+        <tr>
+            <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #475569;">Numero de cotizacion</td>
+            <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #0f172a;" align="right"><strong>{{ $order->oc_number }}</strong></td>
+        </tr>
+        <tr>
+            <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #475569;">Empresa</td>
+            <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #0f172a;" align="right">{{ $order->company_name }}</td>
+        </tr>
+        <tr>
+            <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #475569;">Correo</td>
+            <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #0f172a;" align="right">{{ $order->contact_email ?? '-' }}</td>
+        </tr>
+        <tr>
+            <td style="padding: 12px 14px; font-size: 13px; color: #475569;">Total estimado</td>
+            <td style="padding: 12px 14px; font-size: 13px; color: #0f172a;" align="right"><strong>${{ number_format((float) $order->total_amount, 2, ',', '.') }}</strong></td>
+        </tr>
+    </table>
 
-    <p style="margin: 0 0 10px 0;">
-        Adjuntamos el PDF con el detalle de la cotización para tu referencia.
-    </p>
-
-    <p style="margin: 0 0 10px 0;">
-        Este correo <strong>no confirma una compra</strong>; confirma la recepción de tu solicitud de cotización.
+    <p style="margin: 0 0 12px;">
+        Adjuntamos el PDF con el detalle de la cotizacion para tu referencia.
     </p>
 
     <p style="margin: 0;">
-        Equipo comercial Distribuidor<br>
-        Import Corporal Medical SAS
+        Este correo confirma la recepcion de tu solicitud, <strong>no confirma una compra</strong>.
     </p>
-</body>
-</html>
+@endsection
+
+@section('cta')
+    <a href="{{ $portalUrl }}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 12px 18px; background-color: #36b1bb; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 700; border-radius: 8px;">
+        Ir al portal
+    </a>
+@endsection
