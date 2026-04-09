@@ -43,10 +43,10 @@ class AdminOrderShowTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Pedido '.$order->oc_number);
-        $response->assertSee('Resumen Comercial');
-        $response->assertSee('Ítems del Pedido');
+        $response->assertSee('Datos clave');
+        $response->assertSee('Ítems del pedido');
         $response->assertSee('KIT-TEST-001');
-        $response->assertSee('Checklist Operativo');
+        $response->assertSee('Historial de estados');
     }
 
     public function test_admin_can_open_edit_form_for_editable_status(): void

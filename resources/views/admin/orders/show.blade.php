@@ -116,7 +116,7 @@
                             aria-invalid="{{ $errors->has('note') ? 'true' : 'false' }}"
                             aria-describedby="order-status-note-help{{ $errors->has('note') ? ' order-status-note-error' : '' }}"
                             aria-required="{{ $selectedRequiresNote ? 'true' : 'false' }}"
-                            @if($selectedRequiresNote) required @endif
+                            :required="$selectedRequiresNote"
                         >{{ old('note') }}</x-ui.textarea>
                         <p id="order-status-note-help" class="mt-1 text-xs text-slate-500" data-status-note-help>
                             {{ $selectedRequiresNote ? 'Nota obligatoria para estados Vendido y Despachado.' : 'Nota opcional para dejar contexto operativo.' }}
