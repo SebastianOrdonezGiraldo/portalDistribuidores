@@ -4,13 +4,17 @@ namespace App\Modules\Company\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Modules\Company\Http\Requests\UpdateCompanyOrderRequest;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
+use App\Modules\Orders\Actions\UpdateOrderAction;
 use App\Modules\Orders\Jobs\GenerateOrderPdfJob;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\Cart\CartService;
 use App\Modules\Orders\Services\OrderPdfGenerator;
+use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Shared\Enums\OrderStatus;
+use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -97,6 +101,73 @@ class CompanyOrderController extends Controller
             'totals' => $totals,
             'hasFinancialGap' => $hasFinancialGap,
         ]);
+    }
+
+    public function edit(Order $order): View|RedirectResponse
+    {
+        $this->authorize('update', $order);
+
+        if (! $order->status->canBeEditedByCompany()) {
+            return redirect()
+                ->route('empresa.orders.show', $order)
+                ->withErrors('Solo puedes editar cotizaciones en revisión o rechazadas.');
+        }
+
+        $order->load('items');
+
+        return view('empresa.orders.edit', [
+            'order' => $order,
+            'departments' => config('locations.colombia_departments', []),
+        ]);
+    }
+
+    public function update(
+        UpdateCompanyOrderRequest $request,
+        Order $order,
+        UpdateOrderAction $updateOrderAction,
+        OrderStatusTransitionService $transitionService,
+    ): RedirectResponse {
+        $this->authorize('update', $order);
+
+        if (! $order->status->canBeEditedByCompany()) {
+            return redirect()
+                ->route('empresa.orders.show', $order)
+                ->withErrors('Solo puedes editar cotizaciones en revisión o rechazadas.');
+        }
+
+        $wasRejected = $order->status->isRejected();
+
+        try {
+            $order = $updateOrderAction->execute($order, $request->validated(), $request->user());
+
+            if ($wasRejected) {
+                /** @var User $actor */
+                $actor = $request->user();
+
+                $order = $transitionService->transition(
+                    $order,
+                    OrderStatus::PendingApproval,
+                    $actor,
+                    'Cotización ajustada y reenviada para aprobación interna.'
+                );
+
+                $order->update([
+                    'approval_note' => null,
+                ]);
+            }
+        } catch (DomainException $exception) {
+            return back()
+                ->withInput()
+                ->withErrors($exception->getMessage());
+        }
+
+        $statusMessage = $wasRejected
+            ? "Cotización {$order->oc_number} actualizada y reenviada para aprobación."
+            : "Cotización {$order->oc_number} actualizada correctamente.";
+
+        return redirect()
+            ->route('empresa.orders.show', $order)
+            ->with('status', $statusMessage);
     }
 
     public function downloadPdf(Order $order, OrderPdfGenerator $pdfGenerator): StreamedResponse|RedirectResponse

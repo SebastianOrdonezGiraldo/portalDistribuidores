@@ -62,6 +62,11 @@
             </x-slot>
             <x-slot name="actions">
                 <a href="{{ route('empresa.orders.index') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Volver al historial</a>
+                @can('update', $order)
+                    @if($order->status->canBeEditedByCompany())
+                        <a href="{{ route('empresa.orders.edit', $order) }}" class="btn btn-secondary w-full justify-center sm:w-auto">Editar cotización</a>
+                    @endif
+                @endcan
                 @if(auth()->user()?->canReorder() && !$order->status->isPendingReview())
                     <form method="POST" action="{{ route('empresa.orders.reorder', $order) }}" class="w-full sm:w-auto">
                         @csrf
@@ -291,6 +296,11 @@
                     @if(auth()->user()?->canReorder())
                         <p class="mt-2 text-sm text-red-600">Puedes usar "Volver a cotizar" para crear una nueva solicitud corregida.</p>
                     @endif
+                    @can('update', $order)
+                        @if($order->status->canBeEditedByCompany())
+                            <p class="mt-1 text-sm text-red-600">También puedes editar esta cotización y reenviarla para aprobación interna.</p>
+                        @endif
+                    @endcan
                 </div>
             </div>
         </div>

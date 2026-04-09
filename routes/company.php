@@ -17,6 +17,8 @@ Route::middleware(['auth', 'verified', 'role:distributor'])
 
         // Historial de pedidos/cotizaciones
         Route::get('/pedidos', [CompanyOrderController::class, 'index'])->name('orders.index');
+        Route::get('/pedidos/{order}/editar', [CompanyOrderController::class, 'edit'])->name('orders.edit');
+        Route::put('/pedidos/{order}', [CompanyOrderController::class, 'update'])->name('orders.update');
         Route::get('/pedidos/{order}', [CompanyOrderController::class, 'show'])->name('orders.show');
         Route::get('/pedidos/{order}/pdf', [CompanyOrderController::class, 'downloadPdf'])->name('orders.pdf');
         Route::post('/pedidos/{order}/reordenar', [CompanyOrderController::class, 'reorder'])->name('orders.reorder');
