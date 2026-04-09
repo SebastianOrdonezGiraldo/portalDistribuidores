@@ -49,6 +49,131 @@ class AdminOrderShowTest extends TestCase
         $response->assertSee('Checklist Operativo');
     }
 
+    public function test_admin_can_open_edit_form_for_editable_status(): void
+    {
+        $order = $this->createOrderWithItem();
+        $admin = User::query()->findOrFail($order->user_id);
+
+        $this->actingAs($admin)
+            ->get(route('admin.orders.edit', $order))
+            ->assertOk()
+            ->assertViewIs('admin.orders.edit')
+            ->assertSee('Editar Pedido '.$order->oc_number);
+    }
+
+    public function test_admin_cannot_open_edit_form_for_non_editable_status(): void
+    {
+        $order = $this->createOrderWithItem();
+        $order->update(['status' => OrderStatus::Sold]);
+        $admin = User::query()->findOrFail($order->user_id);
+
+        $this->actingAs($admin)
+            ->get(route('admin.orders.edit', $order))
+            ->assertRedirect(route('admin.orders.show', $order))
+            ->assertSessionHasErrors();
+    }
+
+    public function test_admin_can_update_submitted_order_and_rebalance_inventory(): void
+    {
+        [$order, $product, $admin] = $this->createSubmittedOrderWithProductStock(3, 2);
+        $order->update(['pdf_path' => 'orders/old-admin.pdf']);
+        $item = $order->items()->firstOrFail();
+
+        $this->actingAs($admin)
+            ->put(route('admin.orders.update', $order), [
+                'contact_name' => 'Contacto Admin',
+                'contact_email' => 'admin-edita@test.com',
+                'phone' => '3004445555',
+                'company_name' => 'Empresa Admin',
+                'company_nit' => '9001234567',
+                'company_address' => 'Calle 200 #30-40',
+                'city' => 'Medellín',
+                'department' => 'Antioquia',
+                'notes' => 'Ajuste administrativo',
+                'items' => [
+                    [
+                        'id' => $item->id,
+                        'qty' => 4,
+                        'unit_label' => 'caja',
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('admin.orders.show', $order))
+            ->assertSessionHas('status');
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'contact_name' => 'Contacto Admin',
+            'contact_email' => 'admin-edita@test.com',
+            'phone' => '3004445555',
+            'company_name' => 'Empresa Admin',
+            'company_nit' => '9001234567',
+            'company_address' => 'Calle 200 #30-40',
+            'city' => 'Medellín',
+            'department' => 'Antioquia',
+            'notes' => 'Ajuste administrativo',
+            'status' => OrderStatus::Submitted->value,
+            'total_amount' => 240000,
+            'pdf_path' => null,
+        ]);
+
+        $this->assertDatabaseHas('order_items', [
+            'order_id' => $order->id,
+            'qty' => 4,
+            'unit_label' => 'caja',
+            'subtotal' => 240000,
+        ]);
+
+        $this->assertEquals(1.0, (float) $product->fresh()->stock);
+    }
+
+    public function test_admin_update_submitted_order_rolls_back_when_stock_is_insufficient(): void
+    {
+        [$order, $product, $admin] = $this->createSubmittedOrderWithProductStock(0, 2);
+        $item = $order->items()->firstOrFail();
+        $originalTotal = (float) $order->total_amount;
+        $originalQty = (int) $item->qty;
+        $originalSubtotal = (float) $item->subtotal;
+
+        $this->from(route('admin.orders.edit', $order))
+            ->actingAs($admin)
+            ->put(route('admin.orders.update', $order), [
+                'contact_name' => $order->contact_name,
+                'contact_email' => $order->contact_email,
+                'phone' => '3004445555',
+                'company_name' => $order->company_name,
+                'company_nit' => '9001234567',
+                'company_address' => $order->company_address,
+                'city' => $order->city,
+                'department' => 'Antioquia',
+                'notes' => $order->notes,
+                'items' => [
+                    [
+                        'id' => $item->id,
+                        'qty' => 5,
+                        'unit_label' => 'caja',
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('admin.orders.edit', $order))
+            ->assertSessionHasErrors();
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'total_amount' => $originalTotal,
+            'status' => OrderStatus::Submitted->value,
+        ]);
+
+        $this->assertDatabaseHas('order_items', [
+            'id' => $item->id,
+            'order_id' => $order->id,
+            'qty' => $originalQty,
+            'subtotal' => $originalSubtotal,
+        ]);
+
+        $this->assertEquals(0.0, (float) $product->fresh()->stock);
+    }
+
     public function test_admin_can_transition_status_and_history_is_recorded(): void
     {
         $order = $this->createOrderWithItem();

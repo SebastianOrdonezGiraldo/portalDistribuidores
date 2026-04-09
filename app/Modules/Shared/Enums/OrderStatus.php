@@ -71,6 +71,11 @@ enum OrderStatus: string
         return in_array($this, [self::Draft, self::PendingApproval, self::Rejected], true);
     }
 
+    public function canBeEditedByAdmin(): bool
+    {
+        return in_array($this, [self::Draft, self::PendingApproval, self::Rejected, self::Submitted], true);
+    }
+
     public function requiresTransitionNote(): bool
     {
         return in_array($this, [self::Sold, self::Dispatched], true);

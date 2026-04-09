@@ -64,6 +64,9 @@
             </x-slot>
             <x-slot name="actions">
                 <a href="{{ route('admin.orders.index') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Volver al listado</a>
+                @if($order->status->canBeEditedByAdmin())
+                    <a href="{{ route('admin.orders.edit', $order) }}" class="btn btn-secondary w-full justify-center sm:w-auto">Editar pedido</a>
+                @endif
                 <a href="{{ route('admin.orders.pdf', $order) }}" class="btn btn-primary w-full justify-center sm:w-auto">Descargar PDF</a>
             </x-slot>
         </x-ui.page-header>
@@ -268,6 +271,9 @@
                 @endif
 
                 <div class="mt-4 flex flex-wrap gap-2">
+                    @if($order->status->canBeEditedByAdmin())
+                        <a href="{{ route('admin.orders.edit', $order) }}" class="btn btn-secondary w-full justify-center sm:w-auto">Editar pedido</a>
+                    @endif
                     <a href="{{ route('admin.orders.pdf', $order) }}" class="btn btn-primary w-full justify-center sm:w-auto">Descargar PDF</a>
                     <a href="{{ route('admin.orders.index') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Volver</a>
                     @if($order->contact_email)

@@ -5,28 +5,50 @@ namespace App\Modules\Orders\Actions;
 use App\Models\User;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\OrderItem;
+use App\Modules\Orders\Services\OrderInventoryService;
+use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Support\Facades\DB;
 
 class UpdateOrderAction
 {
+    public function __construct(
+        private readonly OrderInventoryService $orderInventoryService,
+    ) {
+    }
+
     /**
      * @param array<string, mixed> $payload
      */
-    public function execute(Order $order, array $payload, ?User $actor = null): Order
+    public function execute(
+        Order $order,
+        array $payload,
+        ?User $actor = null,
+        bool $allowSubmittedEdit = false,
+    ): Order
     {
         $preparedItems = $this->prepareItems($order, $payload['items'] ?? []);
         $total = (float) collect($preparedItems)->sum('subtotal');
 
-        return DB::transaction(function () use ($order, $payload, $preparedItems, $total, $actor): Order {
+        return DB::transaction(function () use ($order, $payload, $preparedItems, $total, $actor, $allowSubmittedEdit): Order {
             /** @var Order $lockedOrder */
             $lockedOrder = Order::query()
                 ->whereKey($order->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if (! $lockedOrder->status->canBeEditedByCompany()) {
-                throw new DomainException('Solo puedes editar cotizaciones en revisión o rechazadas.');
+            $isEditable = $allowSubmittedEdit
+                ? $lockedOrder->status->canBeEditedByAdmin()
+                : $lockedOrder->status->canBeEditedByCompany();
+
+            if (! $isEditable) {
+                throw new DomainException('Esta cotización no puede editarse en su estado actual.');
+            }
+
+            $statusConsumesInventory = $this->statusConsumesInventory($lockedOrder->status);
+            if ($statusConsumesInventory) {
+                // Devuelve stock de la versión actual para recalcular con los nuevos ítems.
+                $this->orderInventoryService->increaseForOrder($lockedOrder);
             }
 
             $lockedOrder->items()->delete();
@@ -54,11 +76,19 @@ class UpdateOrderAction
                 'from_status' => $lockedOrder->status->value,
                 'to_status' => $lockedOrder->status->value,
                 'changed_by_user_id' => $actor?->id,
-                'note' => 'Cotización actualizada por el cliente.',
+                'note' => $allowSubmittedEdit
+                    ? 'Cotización actualizada por administrador.'
+                    : 'Cotización actualizada por el cliente.',
                 'metadata' => [
                     'type' => 'order_updated',
+                    'scope' => $allowSubmittedEdit ? 'admin' : 'company',
                 ],
             ]);
+
+            if ($statusConsumesInventory) {
+                // Aplica consumo con los ítems actualizados.
+                $this->orderInventoryService->decreaseForOrder($lockedOrder);
+            }
 
             return $lockedOrder->refresh();
         });
@@ -129,5 +159,14 @@ class UpdateOrderAction
 
         return $prepared;
     }
-}
 
+    private function statusConsumesInventory(OrderStatus $status): bool
+    {
+        return in_array($status, [
+            OrderStatus::Submitted,
+            OrderStatus::Sold,
+            OrderStatus::Dispatched,
+            OrderStatus::Delivered,
+        ], true);
+    }
+}

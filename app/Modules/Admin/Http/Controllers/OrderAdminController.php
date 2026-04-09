@@ -3,7 +3,9 @@
 namespace App\Modules\Admin\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Admin\Http\Requests\UpdateAdminOrderRequest;
 use App\Modules\AuthAccess\Models\Distributor;
+use App\Modules\Orders\Actions\UpdateOrderAction;
 use App\Modules\Orders\Jobs\GenerateOrderPdfJob;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\OrderPdfGenerator;
@@ -142,6 +144,50 @@ class OrderAdminController extends Controller
             'hasFinancialGap' => $hasFinancialGap,
             'nextStatuses' => $nextStatuses,
         ]);
+    }
+
+    public function edit(Order $order): View|RedirectResponse
+    {
+        $this->authorize('update', $order);
+
+        if (! $order->status->canBeEditedByAdmin()) {
+            return redirect()
+                ->route('admin.orders.show', $order)
+                ->withErrors('Este pedido no puede editarse en su estado actual.');
+        }
+
+        $order->load('items');
+
+        return view('admin.orders.edit', [
+            'order' => $order,
+            'departments' => config('locations.colombia_departments', []),
+        ]);
+    }
+
+    public function update(
+        UpdateAdminOrderRequest $request,
+        Order $order,
+        UpdateOrderAction $updateOrderAction,
+    ): RedirectResponse {
+        $this->authorize('update', $order);
+
+        if (! $order->status->canBeEditedByAdmin()) {
+            return redirect()
+                ->route('admin.orders.show', $order)
+                ->withErrors('Este pedido no puede editarse en su estado actual.');
+        }
+
+        try {
+            $order = $updateOrderAction->execute($order, $request->validated(), $request->user(), true);
+        } catch (DomainException $exception) {
+            return back()
+                ->withInput()
+                ->withErrors($exception->getMessage());
+        }
+
+        return redirect()
+            ->route('admin.orders.show', $order)
+            ->with('status', "Pedido {$order->oc_number} actualizado correctamente.");
     }
 
     public function updateStatus(
