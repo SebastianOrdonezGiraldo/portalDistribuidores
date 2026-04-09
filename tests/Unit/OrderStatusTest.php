@@ -61,6 +61,12 @@ class OrderStatusTest extends TestCase
         $this->assertSame($expected, $status->canBeApproved());
     }
 
+    #[DataProvider('canBeEditedByCompanyProvider')]
+    public function test_can_be_edited_by_company_matches_expected_statuses(OrderStatus $status, bool $expected): void
+    {
+        $this->assertSame($expected, $status->canBeEditedByCompany());
+    }
+
     #[DataProvider('requiresTransitionNoteProvider')]
     public function test_requires_transition_note_is_only_true_for_sold_and_dispatched(OrderStatus $status, bool $expected): void
     {
@@ -168,6 +174,14 @@ class OrderStatusTest extends TestCase
         );
     }
 
+    public static function canBeEditedByCompanyProvider(): array
+    {
+        return array_map(
+            fn (OrderStatus $status) => [$status, in_array($status, [OrderStatus::Draft, OrderStatus::PendingApproval, OrderStatus::Rejected], true)],
+            OrderStatus::cases(),
+        );
+    }
+
     public static function nextAllowedStatusesProvider(): array
     {
         return [
@@ -181,7 +195,7 @@ class OrderStatusTest extends TestCase
             'sending' => [OrderStatus::Sending, []],
             'sent' => [OrderStatus::Sent, []],
             'failed' => [OrderStatus::Failed, []],
-            'rejected' => [OrderStatus::Rejected, []],
+            'rejected' => [OrderStatus::Rejected, [OrderStatus::PendingApproval, OrderStatus::Cancelled]],
         ];
     }
 
@@ -197,6 +211,8 @@ class OrderStatusTest extends TestCase
             'sold to cancelled' => [OrderStatus::Sold, OrderStatus::Cancelled],
             'dispatched to delivered' => [OrderStatus::Dispatched, OrderStatus::Delivered],
             'dispatched to cancelled' => [OrderStatus::Dispatched, OrderStatus::Cancelled],
+            'rejected to pending approval' => [OrderStatus::Rejected, OrderStatus::PendingApproval],
+            'rejected to cancelled' => [OrderStatus::Rejected, OrderStatus::Cancelled],
         ];
     }
 

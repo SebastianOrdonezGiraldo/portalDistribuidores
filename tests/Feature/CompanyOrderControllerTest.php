@@ -147,6 +147,187 @@ class CompanyOrderControllerTest extends TestCase
     }
 
     // ──────────────────────────────────────────────────────────────────────────
+    // edit / update
+    // ──────────────────────────────────────────────────────────────────────────
+
+    public function test_edit_renders_for_pending_approval_order(): void
+    {
+        [$distA, $userA] = $this->makeDistributorWithUser(CompanyRole::UsuarioComercial);
+        $order = $this->makeOrderWithItem($distA, [
+            'status' => OrderStatus::PendingApproval,
+        ]);
+
+        $this->actingAs($userA)
+            ->get(route('empresa.orders.edit', $order))
+            ->assertOk()
+            ->assertViewIs('empresa.orders.edit');
+    }
+
+    public function test_edit_redirects_when_order_status_is_not_editable(): void
+    {
+        [$distA, $userA] = $this->makeDistributorWithUser(CompanyRole::UsuarioComercial);
+        $order = $this->makeOrderWithItem($distA, [
+            'status' => OrderStatus::Submitted,
+        ]);
+
+        $this->actingAs($userA)
+            ->get(route('empresa.orders.edit', $order))
+            ->assertRedirect(route('empresa.orders.show', $order))
+            ->assertSessionHasErrors();
+    }
+
+    public function test_update_pending_approval_order_updates_fields_items_and_invalidates_pdf(): void
+    {
+        [$distA, $userA] = $this->makeDistributorWithUser(CompanyRole::UsuarioComercial);
+        $order = $this->makeOrderWithItem($distA, [
+            'status' => OrderStatus::PendingApproval,
+            'pdf_path' => 'orders/old-cotizacion.pdf',
+        ]);
+
+        $item = $order->items()->firstOrFail();
+
+        $response = $this->actingAs($userA)
+            ->from(route('empresa.orders.edit', $order))
+            ->put(route('empresa.orders.update', $order), [
+                'contact_name' => 'Contacto Actualizado',
+                'contact_email' => 'actualizado@empresa.test',
+                'phone' => '3009990000',
+                'company_name' => 'Empresa Ajustada',
+                'company_nit' => '9001234567',
+                'company_address' => 'Calle 11 #22-33',
+                'city' => 'Medellín',
+                'department' => 'Antioquia',
+                'notes' => 'nota nueva',
+                'items' => [
+                    [
+                        'id' => $item->id,
+                        'qty' => 3,
+                        'unit_label' => 'cajas',
+                    ],
+                ],
+            ]);
+
+        $response
+            ->assertRedirect(route('empresa.orders.show', $order))
+            ->assertSessionHas('status');
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'contact_name' => 'Contacto Actualizado',
+            'contact_email' => 'actualizado@empresa.test',
+            'phone' => '3009990000',
+            'company_name' => 'Empresa Ajustada',
+            'company_nit' => '9001234567',
+            'company_address' => 'Calle 11 #22-33',
+            'city' => 'Medellín',
+            'department' => 'Antioquia',
+            'notes' => 'nota nueva',
+            'status' => OrderStatus::PendingApproval->value,
+            'total_amount' => 15000,
+            'pdf_path' => null,
+        ]);
+
+        $this->assertDatabaseHas('order_items', [
+            'order_id' => $order->id,
+            'qty' => 3,
+            'unit_label' => 'cajas',
+            'price_each' => 5000,
+            'subtotal' => 15000,
+        ]);
+
+        $this->assertDatabaseHas('order_status_histories', [
+            'order_id' => $order->id,
+            'from_status' => OrderStatus::PendingApproval->value,
+            'to_status' => OrderStatus::PendingApproval->value,
+            'changed_by_user_id' => $userA->id,
+            'note' => 'Cotización actualizada por el cliente.',
+        ]);
+    }
+
+    public function test_update_rejected_order_resubmits_for_approval_and_clears_reject_note(): void
+    {
+        [$distA, $userA] = $this->makeDistributorWithUser(CompanyRole::UsuarioComercial);
+        $order = $this->makeOrderWithItem($distA, [
+            'status' => OrderStatus::Rejected,
+            'approval_note' => 'Falta presupuesto',
+        ]);
+
+        $item = $order->items()->firstOrFail();
+
+        $response = $this->actingAs($userA)
+            ->put(route('empresa.orders.update', $order), [
+                'contact_name' => $order->contact_name,
+                'contact_email' => $order->contact_email,
+                'phone' => $order->phone ?? '3001112222',
+                'company_name' => $order->company_name,
+                'company_nit' => '9001234567',
+                'company_address' => $order->company_address ?? 'Calle 1',
+                'city' => $order->city ?? 'Bogotá',
+                'department' => 'Antioquia',
+                'notes' => $order->notes,
+                'items' => [
+                    [
+                        'id' => $item->id,
+                        'qty' => 2,
+                        'unit_label' => $item->unit_label,
+                    ],
+                ],
+            ]);
+
+        $response
+            ->assertRedirect(route('empresa.orders.show', $order))
+            ->assertSessionHas('status');
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => OrderStatus::PendingApproval->value,
+            'approval_note' => null,
+        ]);
+
+        $this->assertDatabaseHas('order_status_histories', [
+            'order_id' => $order->id,
+            'from_status' => OrderStatus::Rejected->value,
+            'to_status' => OrderStatus::PendingApproval->value,
+            'changed_by_user_id' => $userA->id,
+            'note' => 'Cotización ajustada y reenviada para aprobación interna.',
+        ]);
+    }
+
+    public function test_update_rejects_when_all_item_quantities_are_zero(): void
+    {
+        [$distA, $userA] = $this->makeDistributorWithUser(CompanyRole::UsuarioComercial);
+        $order = $this->makeOrderWithItem($distA, [
+            'status' => OrderStatus::PendingApproval,
+        ]);
+        $item = $order->items()->firstOrFail();
+
+        $response = $this->actingAs($userA)
+            ->from(route('empresa.orders.edit', $order))
+            ->put(route('empresa.orders.update', $order), [
+                'contact_name' => $order->contact_name,
+                'contact_email' => $order->contact_email,
+                'phone' => $order->phone ?? '3001112222',
+                'company_name' => $order->company_name,
+                'company_nit' => '9001234567',
+                'company_address' => $order->company_address ?? 'Calle 1',
+                'city' => $order->city ?? 'Bogotá',
+                'department' => 'Antioquia',
+                'notes' => $order->notes,
+                'items' => [
+                    [
+                        'id' => $item->id,
+                        'qty' => 0,
+                        'unit_label' => $item->unit_label,
+                    ],
+                ],
+            ]);
+
+        $response
+            ->assertRedirect(route('empresa.orders.edit', $order))
+            ->assertSessionHasErrors();
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
     // downloadPdf
     // ──────────────────────────────────────────────────────────────────────────
 

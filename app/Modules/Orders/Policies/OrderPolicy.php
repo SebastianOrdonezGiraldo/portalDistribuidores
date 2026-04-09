@@ -28,7 +28,13 @@ class OrderPolicy
 
     public function update(User $user, Order $order): bool
     {
-        return $user->isAdmin();
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        return $user->isDistributor()
+            && $user->distributor_id === $order->distributor_id
+            && $user->canCreateOrders();
     }
 
     public function delete(User $user, Order $order): bool

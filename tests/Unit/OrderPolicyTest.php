@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Policies\OrderPolicy;
+use App\Modules\Shared\Enums\CompanyRole;
 use App\Modules\Shared\Enums\DistributorStatus;
 use App\Modules\Shared\Enums\OrderStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -150,11 +151,23 @@ class OrderPolicyTest extends TestCase
         $this->assertTrue($this->policy->update($admin, $order));
     }
 
-    public function test_distributor_cannot_update_order(): void
+    public function test_distributor_can_update_own_order_when_role_allows_creating_orders(): void
     {
         $distA = $this->makeDistributor();
         $order = $this->makeOrder($distA->id);
         $userA = User::factory()->make(['distributor_id' => $distA->id]);
+
+        $this->assertTrue($this->policy->update($userA, $order));
+    }
+
+    public function test_distributor_solo_lectura_cannot_update_order(): void
+    {
+        $distA = $this->makeDistributor();
+        $order = $this->makeOrder($distA->id);
+        $userA = User::factory()->make([
+            'distributor_id' => $distA->id,
+            'company_role' => CompanyRole::SoloLectura,
+        ]);
 
         $this->assertFalse($this->policy->update($userA, $order));
     }

@@ -66,6 +66,11 @@ enum OrderStatus: string
         return $this === self::PendingApproval;
     }
 
+    public function canBeEditedByCompany(): bool
+    {
+        return in_array($this, [self::Draft, self::PendingApproval, self::Rejected], true);
+    }
+
     public function requiresTransitionNote(): bool
     {
         return in_array($this, [self::Sold, self::Dispatched], true);
@@ -81,6 +86,7 @@ enum OrderStatus: string
             self::Submitted       => [self::Sold, self::Cancelled],
             self::Sold            => [self::Dispatched, self::Cancelled],
             self::Dispatched      => [self::Delivered, self::Cancelled],
+            self::Rejected        => [self::PendingApproval, self::Cancelled],
             default               => [],
         };
     }
