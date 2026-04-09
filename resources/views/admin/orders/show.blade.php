@@ -33,8 +33,8 @@
         </x-ui.page-header>
     </x-slot>
 
-    <section class="grid gap-4 xl:grid-cols-[1.7fr_1fr]">
-        <x-ui.card class="order-1 p-5 xl:col-start-1">
+    <section class="grid gap-4 lg:grid-cols-[1.7fr_1fr]">
+        <x-ui.card class="order-1 p-5 lg:col-start-1">
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <h2 class="card-title">Datos clave</h2>
@@ -71,7 +71,7 @@
             @endif
         </x-ui.card>
 
-        <x-ui.card class="order-2 p-5 xl:col-start-2 xl:sticky xl:top-24 xl:self-start">
+        <x-ui.card class="order-2 p-5 lg:col-start-2 lg:sticky lg:top-24 lg:self-start">
             <h2 class="card-title">Siguiente paso</h2>
             <p class="mt-1 text-xs text-slate-500">Ejecuta la siguiente transición de estado y deja nota cuando aplique.</p>
 
@@ -142,7 +142,7 @@
             @endif
         </x-ui.card>
 
-        <x-ui.card class="order-3 p-5 xl:col-start-1">
+        <x-ui.card class="order-3 p-5 lg:col-start-1">
             <h2 class="card-title">Cliente y contacto</h2>
             <p class="mt-1 text-sm text-slate-600">Datos para validación comercial y comunicación inmediata.</p>
 
@@ -187,7 +187,7 @@
             </dl>
         </x-ui.card>
 
-        <x-ui.card class="order-4 xl:col-start-1">
+        <x-ui.card class="order-4 lg:col-start-1">
             <x-slot name="header">
                 <div>
                     <h2 class="card-title">Ítems del pedido</h2>
@@ -254,13 +254,13 @@
         </x-ui.card>
 
         @if($order->notes)
-            <x-ui.card class="order-5 p-5 xl:col-start-1">
+            <x-ui.card class="order-5 p-5 lg:col-start-1">
                 <h2 class="card-title">Observaciones</h2>
                 <p class="mt-3 whitespace-pre-line text-sm text-slate-700">{{ $order->notes }}</p>
             </x-ui.card>
         @endif
 
-        <x-ui.card class="order-6 p-5 xl:col-start-2">
+        <x-ui.card class="order-6 p-5 lg:col-start-2">
             <h2 class="card-title">Historial de estados</h2>
             <ol class="mt-4 space-y-3">
                 @foreach($timeline as $event)
@@ -276,7 +276,7 @@
             </ol>
         </x-ui.card>
 
-        <x-ui.card class="order-7 p-5 xl:col-start-2">
+        <x-ui.card class="order-7 p-5 lg:col-start-2">
             <h2 class="card-title">Documentación</h2>
             <div class="mt-3 space-y-2">
                 @if($order->pdf_path)
@@ -299,7 +299,7 @@
             @endif
         </x-ui.card>
 
-        <x-ui.card class="danger-zone order-8 p-5 xl:col-start-2">
+        <x-ui.card class="danger-zone order-8 p-5 lg:col-start-2">
             <h2 class="card-title">Zona de peligro</h2>
             <p class="mt-1 text-xs text-slate-600">Acción irreversible. Úsala solo cuando sea estrictamente necesario.</p>
 
