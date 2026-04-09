@@ -55,11 +55,11 @@
     }
 
     .btn {
-        @apply focus-ring inline-flex min-h-[2.5rem] items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold tracking-tight transition duration-200 disabled:cursor-not-allowed disabled:opacity-60;
+        @apply focus-ring inline-flex min-h-[2.75rem] items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold tracking-tight transition duration-200 disabled:cursor-not-allowed disabled:opacity-60;
     }
 
     .btn-primary {
-        @apply btn border-brand-primary bg-brand-primary text-white shadow-soft hover:bg-brand-hover;
+        @apply btn border-brand-primary bg-brand-primary text-brand-ink shadow-soft hover:bg-brand-hover;
     }
 
     .btn-secondary {
@@ -178,6 +178,14 @@
 
     .card-title {
         @apply text-sm font-semibold leading-snug text-slate-900;
+    }
+
+    .danger-zone {
+        @apply border-red-200 bg-red-50/60;
+    }
+
+    .danger-zone .card-title {
+        @apply text-red-900;
     }
 
     .badge {
