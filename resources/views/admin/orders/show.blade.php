@@ -7,52 +7,16 @@
             return number_format($number, $isInteger ? 0 : 2, ',', '.');
         };
 
-        $timeline = $order->statusHistory
-            ->map(function ($event) {
-                $status = \App\Modules\Shared\Enums\OrderStatus::tryFrom((string) $event->to_status);
-                $actor = $event->actor?->name ? ' por '.$event->actor->name : ' por sistema';
-
-                return [
-                    'title' => 'Estado: '.($status?->label() ?? strtoupper((string) $event->to_status)),
-                    'description' => $event->note ?: 'Cambio registrado'.$actor.'.',
-                    'status' => $event->to_status,
-                    'at' => $event->created_at,
-                ];
-            })
-            ->values();
-
-        if ($timeline->isEmpty()) {
-            $timeline = collect([
-                [
-                    'title' => 'Pedido creado',
-                    'description' => 'Registro inicial de la CTC en el portal.',
-                    'status' => $order->status,
-                    'at' => $order->created_at,
-                ],
-            ]);
-        }
-
-        $timeline->push(
-            $order->pdf_path
-                ? [
-                    'title' => 'PDF disponible',
-                    'description' => 'Documento generado y listo para descarga.',
-                    'status' => 'info',
-                    'at' => $order->updated_at,
-                ]
-                : [
-                    'title' => 'PDF pendiente',
-                    'description' => 'Aún no se encuentra un documento generado.',
-                    'status' => 'pending',
-                    'at' => $order->updated_at,
-                ]
-        );
-
-        $timeline = $timeline->sortByDesc('at')->values();
+        $hasTransitions = $nextStatuses->isNotEmpty();
+        $statusFormId = 'order-status-form';
+        $selectedStatus = old('status', $recommendedAction['value'] ?? '');
+        $selectedStatusOption = $nextStatuses->firstWhere('value', $selectedStatus);
+        $selectedRequiresNote = is_array($selectedStatusOption) ? (bool) ($selectedStatusOption['requires_note'] ?? false) : false;
+        $primaryCtaLabel = is_array($recommendedAction) ? ($recommendedAction['cta'] ?? 'Actualizar estado') : 'Actualizar estado';
     @endphp
 
     <x-slot name="header">
-        <x-ui.page-header title="Pedido {{ $order->oc_number }}" subtitle="Detalle integral para validación comercial, documentación y trazabilidad operativa.">
+        <x-ui.page-header title="Pedido {{ $order->oc_number }}" subtitle="Resumen operativo para validar información, actualizar estado y mantener control del proceso.">
             <x-slot name="meta">
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="stat-pill">Creado: {{ $order->created_at?->format('d/m/Y H:i') ?? '-' }}</span>
@@ -64,250 +28,305 @@
             </x-slot>
             <x-slot name="actions">
                 <a href="{{ route('admin.orders.index') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Volver al listado</a>
-                @if($order->status->canBeEditedByAdmin())
-                    <a href="{{ route('admin.orders.edit', $order) }}" class="btn btn-secondary w-full justify-center sm:w-auto">Editar pedido</a>
-                @endif
                 <a href="{{ route('admin.orders.pdf', $order) }}" class="btn btn-primary w-full justify-center sm:w-auto">Descargar PDF</a>
             </x-slot>
         </x-ui.page-header>
     </x-slot>
 
     <section class="grid gap-4 xl:grid-cols-[1.7fr_1fr]">
-        <div class="space-y-4">
-            <x-ui.card class="p-5">
-                <div class="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                        <h2 class="card-title">Resumen Comercial</h2>
-                        <p class="mt-1 text-sm text-slate-600">Información principal para revisión rápida del pedido.</p>
-                    </div>
-                    <x-ui.status-badge :status="$order->status" class="shrink-0" />
+        <x-ui.card class="order-1 p-5 xl:col-start-1">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h2 class="card-title">Datos clave</h2>
+                    <p class="mt-1 text-sm text-slate-600">Información principal para validar el pedido rápidamente.</p>
                 </div>
+                <x-ui.status-badge :status="$order->status" class="shrink-0" />
+            </div>
 
-                <div class="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <p class="text-xs uppercase tracking-wide text-slate-500">CTC</p>
-                        <p class="mt-1 text-sm font-semibold text-slate-900">{{ $order->oc_number }}</p>
-                    </div>
-                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <p class="text-xs uppercase tracking-wide text-slate-500">Monto total</p>
-                        <p class="mt-1 text-sm font-semibold text-slate-900">${{ number_format((float) $order->total_amount, 0, ',', '.') }}</p>
-                    </div>
-                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <p class="text-xs uppercase tracking-wide text-slate-500">Ítems</p>
-                        <p class="mt-1 text-sm font-semibold text-slate-900">{{ number_format($totals['items_count']) }}</p>
-                    </div>
-                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <p class="text-xs uppercase tracking-wide text-slate-500">Unidades</p>
-                        <p class="mt-1 text-sm font-semibold text-slate-900">{{ $formatQuantity($totals['units_total']) }}</p>
-                    </div>
+            <div class="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <p class="text-xs uppercase tracking-wide text-slate-500">CTC</p>
+                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ $order->oc_number }}</p>
                 </div>
-
-                <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <dt class="text-xs uppercase tracking-wide text-slate-500">Cliente</dt>
-                        <dd class="mt-1 font-semibold text-slate-900">{{ $order->company_name }}</dd>
-                    </div>
-                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <dt class="text-xs uppercase tracking-wide text-slate-500">NIT / Cédula</dt>
-                        <dd class="mt-1 font-semibold text-slate-900">{{ $order->company_nit ?? '-' }}</dd>
-                    </div>
-                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <dt class="text-xs uppercase tracking-wide text-slate-500">Contacto</dt>
-                        <dd class="mt-1 font-semibold text-slate-900">{{ $order->contact_name }}</dd>
-                        <p class="text-xs text-slate-500">{{ $order->contact_email ?? '-' }}</p>
-                        <p class="text-xs text-slate-500">{{ $order->phone ?? '-' }}</p>
-                    </div>
-                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <dt class="text-xs uppercase tracking-wide text-slate-500">Distribuidor / Usuario</dt>
-                        <dd class="mt-1 font-semibold text-slate-900">{{ $order->distributor?->name ?? '-' }}</dd>
-                        <p class="text-xs text-slate-500">{{ $order->user?->email }}</p>
-                    </div>
-                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:col-span-2">
-                        <dt class="text-xs uppercase tracking-wide text-slate-500">Dirección, Ciudad y Departamento</dt>
-                        <dd class="mt-1 font-semibold text-slate-900">
-                            {{ $order->company_address ?? '-' }} · {{ $order->city ?? '-' }} · {{ $order->department ?? '-' }}
-                        </dd>
-                    </div>
-                </dl>
-
-                @if($hasFinancialGap)
-                    <div class="mt-4">
-                        <x-ui.alert variant="warning" title="Diferencia detectada en el total">
-                            La suma de subtotales (${{ number_format($totals['subtotals_total'], 0, ',', '.') }}) no coincide con el total del pedido.
-                        </x-ui.alert>
-                    </div>
-                @endif
-            </x-ui.card>
-
-            <x-ui.card>
-                <x-slot name="header">
-                    <div>
-                        <h2 class="card-title">Ítems del Pedido</h2>
-                        <p class="mt-1 text-xs text-slate-500">Detalle de cantidades, precio unitario y subtotal.</p>
-                    </div>
-                </x-slot>
-
-                <div class="p-5 pt-0">
-                    @if($order->items->isEmpty())
-                        <x-ui.empty-state
-                            title="Sin ítems registrados"
-                            description="No se encontraron líneas de producto asociadas a este pedido."
-                            compact
-                        />
-                    @else
-                        <x-ui.table>
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>SKU</th>
-                                    <th>Producto</th>
-                                    <th>Cantidad</th>
-                                    <th>Precio</th>
-                                    <th>Subtotal</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($order->items as $index => $item)
-                                    <tr>
-                                        <td data-label="#" class="text-xs text-slate-500">{{ $index + 1 }}</td>
-                                        <td data-label="SKU" class="font-medium text-slate-900">{{ $item->sku_snapshot }}</td>
-                                        <td data-label="Producto" data-full="true">
-                                            <p class="font-medium text-slate-900">{{ $item->product_name_snapshot }}</p>
-                                            @if($item->variant_value_snapshot)
-                                                <p class="text-xs text-slate-500">
-                                                    {{ $item->variant_attribute_snapshot ?? 'Variante' }}: {{ $item->variant_value_snapshot }}
-                                                </p>
-                                            @endif
-                                        </td>
-                                        <td data-label="Cantidad">{{ $formatQuantity($item->qty) }} {{ $item->unit_label }}</td>
-                                        <td data-label="Precio">${{ number_format((float) $item->price_each, 0, ',', '.') }}</td>
-                                        <td data-label="Subtotal" class="font-semibold text-slate-900">${{ number_format((float) $item->subtotal, 0, ',', '.') }}</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </x-ui.table>
-
-                        <div class="mt-4 grid gap-2 border-t border-slate-200 pt-3 sm:grid-cols-3">
-                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                <p class="text-xs uppercase tracking-wide text-slate-500">Subtotal ítems</p>
-                                <p class="mt-1 text-sm font-semibold text-slate-900">${{ number_format($totals['subtotals_total'], 0, ',', '.') }}</p>
-                            </div>
-                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                <p class="text-xs uppercase tracking-wide text-slate-500">Promedio unitario</p>
-                                <p class="mt-1 text-sm font-semibold text-slate-900">${{ number_format($totals['average_unit_price'], 0, ',', '.') }}</p>
-                            </div>
-                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                <p class="text-xs uppercase tracking-wide text-slate-500">Total pedido</p>
-                                <p class="mt-1 text-sm font-semibold text-slate-900">${{ number_format((float) $order->total_amount, 0, ',', '.') }}</p>
-                            </div>
-                        </div>
-                    @endif
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <p class="text-xs uppercase tracking-wide text-slate-500">Monto total</p>
+                    <p class="mt-1 text-sm font-semibold text-slate-900">${{ number_format((float) $order->total_amount, 0, ',', '.') }}</p>
                 </div>
-            </x-ui.card>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <p class="text-xs uppercase tracking-wide text-slate-500">Ítems</p>
+                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ number_format($totals['items_count']) }}</p>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <p class="text-xs uppercase tracking-wide text-slate-500">Unidades</p>
+                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ $formatQuantity($totals['units_total']) }}</p>
+                </div>
+            </div>
 
-            @if($order->notes)
-                <x-ui.card class="p-5">
-                    <h2 class="card-title">Observaciones</h2>
-                    <p class="mt-3 whitespace-pre-line text-sm text-slate-700">{{ $order->notes }}</p>
-                </x-ui.card>
+            @if($hasFinancialGap)
+                <div class="mt-4">
+                    <x-ui.alert variant="warning" title="Diferencia detectada en el total">
+                        La suma de subtotales (${{ number_format($totals['subtotals_total'], 0, ',', '.') }}) no coincide con el total registrado del pedido.
+                    </x-ui.alert>
+                </div>
             @endif
-        </div>
+        </x-ui.card>
 
-        <div class="space-y-4">
-            <x-ui.card class="p-5">
-                <h2 class="card-title">Estado y Trazabilidad</h2>
-                <ol class="mt-4 space-y-3">
-                    @foreach($timeline as $event)
-                        <li class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                            <div class="flex items-start justify-between gap-2">
-                                <p class="text-sm font-medium text-slate-900">{{ $event['title'] }}</p>
-                                <x-ui.status-badge :status="$event['status']" class="shrink-0" />
-                            </div>
-                            <p class="mt-1 text-xs text-slate-600">{{ $event['description'] }}</p>
-                            <p class="mt-1 text-xs text-slate-500">{{ $event['at']?->format('d/m/Y H:i') }}</p>
-                        </li>
-                    @endforeach
-                </ol>
-            </x-ui.card>
+        <x-ui.card class="order-2 p-5 xl:col-start-2 xl:sticky xl:top-24 xl:self-start">
+            <h2 class="card-title">Siguiente paso</h2>
+            <p class="mt-1 text-xs text-slate-500">Ejecuta la siguiente transición de estado y deja nota cuando aplique.</p>
 
-            <x-ui.card class="p-5">
-                <h2 class="card-title">Documentación y Acciones</h2>
-                <div class="mt-3 space-y-2">
-                    @if($order->pdf_path)
-                        <x-ui.alert variant="success" title="PDF listo para descarga">
-                            Documento comercial generado y almacenado.
-                        </x-ui.alert>
+            @if($hasTransitions)
+                <form id="{{ $statusFormId }}" action="{{ route('admin.orders.status', $order) }}" method="POST" class="mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3" data-status-form>
+                    @csrf
+                    @method('PATCH')
+                    <div>
+                        <label class="form-label" for="order-status-next">Nuevo estado</label>
+                        <x-ui.select
+                            id="order-status-next"
+                            name="status"
+                            required
+                            data-status-select
+                            aria-invalid="{{ $errors->has('status') ? 'true' : 'false' }}"
+                            aria-describedby="order-status-next-help{{ $errors->has('status') ? ' order-status-next-error' : '' }}"
+                        >
+                            <option value="">Selecciona un estado</option>
+                            @foreach($nextStatuses as $statusOption)
+                                <option
+                                    value="{{ $statusOption['value'] }}"
+                                    data-requires-note="{{ $statusOption['requires_note'] ? 'true' : 'false' }}"
+                                    @selected($selectedStatus === $statusOption['value'])
+                                >
+                                    {{ $statusOption['label'] }}
+                                </option>
+                            @endforeach
+                        </x-ui.select>
+                        <p id="order-status-next-help" class="mt-1 text-xs text-slate-500">Te sugerimos: {{ is_array($recommendedAction) ? $recommendedAction['label'] : 'elige una transición permitida' }}.</p>
+                        <x-input-error id="order-status-next-error" :messages="$errors->get('status')" />
+                    </div>
+
+                    <div>
+                        <label class="form-label" for="order-status-note">Nota de trazabilidad</label>
+                        <x-ui.textarea
+                            id="order-status-note"
+                            name="note"
+                            rows="3"
+                            placeholder="Ejemplo: Se confirma salida de bodega con guía #..."
+                            data-status-note
+                            aria-invalid="{{ $errors->has('note') ? 'true' : 'false' }}"
+                            aria-describedby="order-status-note-help{{ $errors->has('note') ? ' order-status-note-error' : '' }}"
+                            aria-required="{{ $selectedRequiresNote ? 'true' : 'false' }}"
+                            @if($selectedRequiresNote) required @endif
+                        >{{ old('note') }}</x-ui.textarea>
+                        <p id="order-status-note-help" class="mt-1 text-xs text-slate-500" data-status-note-help>
+                            {{ $selectedRequiresNote ? 'Nota obligatoria para este cambio de estado.' : 'Nota opcional para dejar contexto operativo.' }}
+                        </p>
+                        <x-input-error id="order-status-note-error" :messages="$errors->get('note')" />
+                    </div>
+
+                    <x-ui.button
+                        type="submit"
+                        variant="primary"
+                        class="hidden w-full justify-center sm:inline-flex sm:w-auto"
+                        data-status-submit
+                    >
+                        {{ $primaryCtaLabel }}
+                    </x-ui.button>
+                </form>
+            @else
+                <div class="mt-4">
+                    <x-ui.alert variant="info" title="Sin transiciones disponibles">
+                        El pedido está en estado <strong>{{ $order->status->label() }}</strong> y no tiene cambios de estado habilitados.
+                    </x-ui.alert>
+                </div>
+            @endif
+        </x-ui.card>
+
+        <x-ui.card class="order-3 p-5 xl:col-start-1">
+            <h2 class="card-title">Cliente y contacto</h2>
+            <p class="mt-1 text-sm text-slate-600">Datos para validación comercial y comunicación inmediata.</p>
+
+            <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <dt class="text-xs uppercase tracking-wide text-slate-500">Cliente</dt>
+                    <dd class="mt-1 font-semibold text-slate-900">{{ $order->company_name }}</dd>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <dt class="text-xs uppercase tracking-wide text-slate-500">NIT / Cédula</dt>
+                    <dd class="mt-1 font-semibold text-slate-900">{{ $order->company_nit ?? '-' }}</dd>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <dt class="text-xs uppercase tracking-wide text-slate-500">Contacto</dt>
+                    <dd class="mt-1 font-semibold text-slate-900">{{ $order->contact_name }}</dd>
+                    @if($order->contact_email)
+                        <p class="text-xs text-slate-600">
+                            <a href="mailto:{{ $order->contact_email }}" class="focus-ring rounded text-brand-dark underline-offset-2 hover:underline">{{ $order->contact_email }}</a>
+                        </p>
                     @else
-                        <x-ui.alert variant="warning" title="PDF pendiente">
-                            El PDF se encuentra en cola o aún no fue generado.
-                        </x-ui.alert>
+                        <p class="text-xs text-slate-500">Sin correo registrado.</p>
+                    @endif
+                    @if($order->phone)
+                        <p class="text-xs text-slate-600">
+                            <a href="tel:{{ preg_replace('/\s+/', '', $order->phone) }}" class="focus-ring rounded text-brand-dark underline-offset-2 hover:underline">{{ $order->phone }}</a>
+                        </p>
+                    @else
+                        <p class="text-xs text-slate-500">Sin teléfono registrado.</p>
                     @endif
                 </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <dt class="text-xs uppercase tracking-wide text-slate-500">Distribuidor / Usuario</dt>
+                    <dd class="mt-1 font-semibold text-slate-900">{{ $order->distributor?->name ?? '-' }}</dd>
+                    <p class="text-xs text-slate-500">{{ $order->user?->email }}</p>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:col-span-2">
+                    <dt class="text-xs uppercase tracking-wide text-slate-500">Dirección, ciudad y departamento</dt>
+                    <dd class="mt-1 font-semibold text-slate-900">
+                        {{ $order->company_address ?? '-' }} · {{ $order->city ?? '-' }} · {{ $order->department ?? '-' }}
+                    </dd>
+                </div>
+            </dl>
+        </x-ui.card>
 
-                @if($nextStatuses->isNotEmpty())
-                    <form action="{{ route('admin.orders.status', $order) }}" method="POST" class="mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        @csrf
-                        @method('PATCH')
-                        <div>
-                            <label class="form-label" for="order-status-next">Cambiar estado</label>
-                            <x-ui.select id="order-status-next" name="status" required>
-                                <option value="">Selecciona un estado</option>
-                                @foreach($nextStatuses as $statusOption)
-                                    <option value="{{ $statusOption['value'] }}" @selected(old('status') === $statusOption['value'])>
-                                        {{ $statusOption['label'] }}
-                                    </option>
-                                @endforeach
-                            </x-ui.select>
-                            <x-input-error :messages="$errors->get('status')" />
+        <x-ui.card class="order-4 xl:col-start-1">
+            <x-slot name="header">
+                <div>
+                    <h2 class="card-title">Ítems del pedido</h2>
+                    <p class="mt-1 text-xs text-slate-500">Detalle de cantidades, precio unitario y subtotal.</p>
+                </div>
+            </x-slot>
+
+            <div class="p-5 pt-0">
+                @if($order->items->isEmpty())
+                    <x-ui.empty-state
+                        title="Sin ítems registrados"
+                        description="No se encontraron líneas de producto asociadas a este pedido."
+                        compact
+                    />
+                @else
+                    <x-ui.table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>SKU</th>
+                                <th>Producto</th>
+                                <th>Cantidad</th>
+                                <th>Precio</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($order->items as $index => $item)
+                                <tr>
+                                    <td data-label="#" class="text-xs text-slate-500">{{ $index + 1 }}</td>
+                                    <td data-label="SKU" class="font-medium text-slate-900">{{ $item->sku_snapshot }}</td>
+                                    <td data-label="Producto" data-full="true">
+                                        <p class="font-medium text-slate-900">{{ $item->product_name_snapshot }}</p>
+                                        @if($item->variant_value_snapshot)
+                                            <p class="text-xs text-slate-500">
+                                                {{ $item->variant_attribute_snapshot ?? 'Variante' }}: {{ $item->variant_value_snapshot }}
+                                            </p>
+                                        @endif
+                                    </td>
+                                    <td data-label="Cantidad">{{ $formatQuantity($item->qty) }} {{ $item->unit_label }}</td>
+                                    <td data-label="Precio">${{ number_format((float) $item->price_each, 0, ',', '.') }}</td>
+                                    <td data-label="Subtotal" class="font-semibold text-slate-900">${{ number_format((float) $item->subtotal, 0, ',', '.') }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </x-ui.table>
+
+                    <div class="mt-4 grid gap-2 border-t border-slate-200 pt-3 sm:grid-cols-3">
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <p class="text-xs uppercase tracking-wide text-slate-500">Subtotal ítems</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-900">${{ number_format($totals['subtotals_total'], 0, ',', '.') }}</p>
                         </div>
-                        <div>
-                            <label class="form-label" for="order-status-note">Nota de trazabilidad</label>
-                            <x-ui.textarea id="order-status-note" name="note" rows="3" placeholder="Obligatoria para vendido y despachado...">{{ old('note') }}</x-ui.textarea>
-                            <x-input-error :messages="$errors->get('note')" />
-                            <p class="mt-1 text-xs text-slate-500">Requerida al marcar como vendido o despachado.</p>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <p class="text-xs uppercase tracking-wide text-slate-500">Promedio unitario</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-900">${{ number_format($totals['average_unit_price'], 0, ',', '.') }}</p>
                         </div>
-                        <x-ui.button type="submit" variant="primary" class="w-full justify-center sm:w-auto">Actualizar estado</x-ui.button>
-                    </form>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <p class="text-xs uppercase tracking-wide text-slate-500">Total pedido</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-900">${{ number_format((float) $order->total_amount, 0, ',', '.') }}</p>
+                        </div>
+                    </div>
                 @endif
+            </div>
+        </x-ui.card>
 
-                <div class="mt-4 flex flex-wrap gap-2">
-                    @if($order->status->canBeEditedByAdmin())
-                        <a href="{{ route('admin.orders.edit', $order) }}" class="btn btn-secondary w-full justify-center sm:w-auto">Editar pedido</a>
-                    @endif
-                    <a href="{{ route('admin.orders.pdf', $order) }}" class="btn btn-primary w-full justify-center sm:w-auto">Descargar PDF</a>
-                    <a href="{{ route('admin.orders.index') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Volver</a>
-                    @if($order->contact_email)
-                        <a href="mailto:{{ $order->contact_email }}" class="btn btn-secondary w-full justify-center sm:w-auto">Enviar correo</a>
-                    @endif
-                    <form action="{{ route('admin.orders.destroy', $order) }}" method="POST" data-confirm="¿Eliminar {{ $order->oc_number }}? Esta acción no se puede deshacer." class="w-full sm:w-auto">
+        @if($order->notes)
+            <x-ui.card class="order-5 p-5 xl:col-start-1">
+                <h2 class="card-title">Observaciones</h2>
+                <p class="mt-3 whitespace-pre-line text-sm text-slate-700">{{ $order->notes }}</p>
+            </x-ui.card>
+        @endif
+
+        <x-ui.card class="order-6 p-5 xl:col-start-2">
+            <h2 class="card-title">Historial de estados</h2>
+            <ol class="mt-4 space-y-3">
+                @foreach($timeline as $event)
+                    <li class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <div class="flex items-start justify-between gap-2">
+                            <p class="text-sm font-medium text-slate-900">{{ $event['title'] }}</p>
+                            <x-ui.status-badge :status="$event['status']" class="shrink-0" />
+                        </div>
+                        <p class="mt-1 text-xs text-slate-600">{{ $event['description'] }}</p>
+                        <p class="mt-1 text-xs text-slate-500">{{ $event['at']?->format('d/m/Y H:i') }}</p>
+                    </li>
+                @endforeach
+            </ol>
+        </x-ui.card>
+
+        <x-ui.card class="order-7 p-5 xl:col-start-2">
+            <h2 class="card-title">Documentación</h2>
+            <div class="mt-3 space-y-2">
+                @if($order->pdf_path)
+                    <x-ui.alert variant="success" title="PDF listo para descarga">
+                        Documento comercial generado y almacenado.
+                    </x-ui.alert>
+                @else
+                    <x-ui.alert variant="warning" title="PDF pendiente">
+                        El PDF aún no está disponible. Vuelve a intentarlo en unos minutos.
+                    </x-ui.alert>
+                @endif
+            </div>
+
+            @if($secondaryActions->isNotEmpty())
+                <div class="mt-4 flex flex-wrap gap-2 border-t border-slate-200 pt-3">
+                    @foreach($secondaryActions as $action)
+                        <a href="{{ $action['href'] }}" class="btn btn-secondary w-full justify-center sm:w-auto">{{ $action['label'] }}</a>
+                    @endforeach
+                </div>
+            @endif
+        </x-ui.card>
+
+        <x-ui.card class="danger-zone order-8 p-5 xl:col-start-2">
+            <h2 class="card-title">Zona de peligro</h2>
+            <p class="mt-1 text-xs text-slate-600">Acción irreversible. Úsala solo cuando sea estrictamente necesario.</p>
+
+            <div class="mt-4 space-y-2">
+                @foreach($dangerActions as $dangerAction)
+                    <form action="{{ $dangerAction['action'] }}" method="POST" data-confirm="{{ $dangerAction['confirm'] }}" class="w-full">
                         @csrf
                         @method('DELETE')
-                        <button type="submit" class="btn btn-danger w-full justify-center sm:w-auto">Eliminar</button>
+                        <button type="submit" class="btn btn-danger w-full justify-center">{{ $dangerAction['label'] }}</button>
                     </form>
-                </div>
-            </x-ui.card>
-
-            <x-ui.card class="p-5">
-                <h2 class="card-title">Checklist Operativo</h2>
-                <ul class="mt-4 space-y-2 text-sm">
-                    <li class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                        <span>Correo de contacto</span>
-                        <x-ui.badge :variant="$order->contact_email ? 'success' : 'warning'">{{ $order->contact_email ? 'OK' : 'Falta' }}</x-ui.badge>
-                    </li>
-                    <li class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                        <span>NIT / Identificación</span>
-                        <x-ui.badge :variant="$order->company_nit ? 'success' : 'warning'">{{ $order->company_nit ? 'OK' : 'Falta' }}</x-ui.badge>
-                    </li>
-                    <li class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                        <span>Dirección, ciudad y departamento</span>
-                        <x-ui.badge :variant="($order->company_address && $order->city && $order->department) ? 'success' : 'warning'">{{ ($order->company_address && $order->city && $order->department) ? 'OK' : 'Incompleto' }}</x-ui.badge>
-                    </li>
-                    <li class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                        <span>Documento PDF</span>
-                        <x-ui.badge :variant="$order->pdf_path ? 'success' : 'warning'">{{ $order->pdf_path ? 'Listo' : 'Pendiente' }}</x-ui.badge>
-                    </li>
-                </ul>
-            </x-ui.card>
-        </div>
+                @endforeach
+            </div>
+        </x-ui.card>
     </section>
+
+    @if($hasTransitions)
+        <div class="fixed inset-x-3 bottom-3 z-50 sm:hidden">
+            <x-ui.button
+                type="submit"
+                form="{{ $statusFormId }}"
+                variant="primary"
+                class="w-full justify-center shadow-panel"
+                data-status-submit
+                data-mobile-status-submit
+                disabled
+            >
+                {{ $primaryCtaLabel }}
+            </x-ui.button>
+        </div>
+    @endif
 </x-app-layout>

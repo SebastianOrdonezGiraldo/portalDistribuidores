@@ -17,6 +17,7 @@ use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -137,15 +138,109 @@ class OrderAdminController extends Controller
                 'value' => $status->value,
                 'label' => $status->label(),
                 'requires_note' => $status->requiresTransitionNote(),
+                'cta' => $this->transitionCtaLabel($status),
             ])
             ->values();
+
+        $timeline = $this->buildOrderTimeline($order);
+        $recommendedAction = $this->buildRecommendedAction($order->status, $nextStatuses);
+        $secondaryActions = collect([
+            [
+                'label' => 'Editar pedido',
+                'href' => route('admin.orders.edit', $order),
+                'visible' => $order->status->canBeEditedByAdmin(),
+            ],
+            [
+                'label' => 'Enviar correo',
+                'href' => $order->contact_email ? 'mailto:'.$order->contact_email : null,
+                'visible' => filled($order->contact_email),
+            ],
+        ])->filter(fn (array $action) => ! empty($action['visible']) && filled($action['href']))
+            ->values();
+
+        $dangerActions = collect([
+            [
+                'label' => 'Eliminar pedido',
+                'action' => route('admin.orders.destroy', $order),
+                'confirm' => "¿Eliminar {$order->oc_number}? Esta acción no se puede deshacer.",
+            ],
+        ]);
 
         return view('admin.orders.show', [
             'order' => $order,
             'totals' => $totals,
             'hasFinancialGap' => $hasFinancialGap,
             'nextStatuses' => $nextStatuses,
+            'timeline' => $timeline,
+            'recommendedAction' => $recommendedAction,
+            'secondaryActions' => $secondaryActions,
+            'dangerActions' => $dangerActions,
         ]);
+    }
+
+    private function buildOrderTimeline(Order $order): Collection
+    {
+        $timeline = $order->statusHistory
+            ->map(function ($event): array {
+                $status = OrderStatus::tryFrom((string) $event->to_status);
+                $actor = $event->actor?->name ? ' por '.$event->actor->name : ' por sistema';
+
+                return [
+                    'title' => 'Estado: '.($status?->label() ?? strtoupper((string) $event->to_status)),
+                    'description' => $event->note ?: 'Cambio registrado'.$actor.'.',
+                    'status' => $event->to_status,
+                    'at' => $event->created_at,
+                ];
+            })
+            ->values();
+
+        if ($timeline->isEmpty()) {
+            $timeline = collect([
+                [
+                    'title' => 'Pedido creado',
+                    'description' => 'Registro inicial en el portal.',
+                    'status' => $order->status,
+                    'at' => $order->created_at,
+                ],
+            ]);
+        }
+
+        return $timeline->sortByDesc('at')->values();
+    }
+
+    private function buildRecommendedAction(OrderStatus $currentStatus, Collection $nextStatuses): ?array
+    {
+        $recommendedTransition = match ($currentStatus) {
+            OrderStatus::PendingApproval => OrderStatus::Submitted->value,
+            OrderStatus::Submitted => OrderStatus::Sold->value,
+            OrderStatus::Sold => OrderStatus::Dispatched->value,
+            OrderStatus::Dispatched => OrderStatus::Delivered->value,
+            OrderStatus::Rejected => OrderStatus::PendingApproval->value,
+            default => null,
+        };
+
+        if ($recommendedTransition === null) {
+            return null;
+        }
+
+        $target = $nextStatuses->firstWhere('value', $recommendedTransition);
+        if (! is_array($target)) {
+            return null;
+        }
+
+        return $target;
+    }
+
+    private function transitionCtaLabel(OrderStatus $targetStatus): string
+    {
+        return match ($targetStatus) {
+            OrderStatus::Submitted => 'Registrar pedido',
+            OrderStatus::Sold => 'Marcar como vendido',
+            OrderStatus::Dispatched => 'Marcar como despachado',
+            OrderStatus::Delivered => 'Marcar como entregado',
+            OrderStatus::PendingApproval => 'Reingresar a revisión',
+            default => 'Actualizar estado',
+        };
     }
 
     public function edit(Order $order): View|RedirectResponse
