@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Modules\Company\Http\Requests;
+namespace App\Modules\Admin\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class UpdateCompanyOrderRequest extends FormRequest
+class UpdateAdminOrderRequest extends FormRequest
 {
     public function authorize(): bool
     {

@@ -40,6 +40,8 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::resource('users', UserAdminController::class)->except('show');
 
         Route::get('orders', [OrderAdminController::class, 'index'])->name('orders.index');
+        Route::get('orders/{order}/edit', [OrderAdminController::class, 'edit'])->name('orders.edit');
+        Route::put('orders/{order}', [OrderAdminController::class, 'update'])->name('orders.update');
         Route::get('orders/{order}', [OrderAdminController::class, 'show'])->name('orders.show');
         Route::patch('orders/{order}/status', [OrderAdminController::class, 'updateStatus'])->name('orders.status');
         Route::get('orders/{order}/pdf', [OrderAdminController::class, 'downloadPdf'])->name('orders.pdf');

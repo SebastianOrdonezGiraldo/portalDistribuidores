@@ -10,23 +10,29 @@
 
     <x-slot name="header">
         <x-ui.page-header
-            title="Editar Cotización {{ $order->oc_number }}"
-            subtitle="Ajusta datos comerciales, quita ítems y agrega productos nuevos."
+            title="Editar Pedido {{ $order->oc_number }}"
+            subtitle="Ajusta datos comerciales e ítems para actualizar la cotización."
         >
             <x-slot name="actions">
-                <a href="{{ route('empresa.orders.show', $order) }}" class="btn btn-secondary w-full justify-center sm:w-auto">
+                <a href="{{ route('admin.orders.show', $order) }}" class="btn btn-secondary w-full justify-center sm:w-auto">
                     Volver al detalle
                 </a>
             </x-slot>
         </x-ui.page-header>
     </x-slot>
 
-    <form action="{{ route('empresa.orders.update', $order) }}" method="POST" class="grid gap-4 lg:grid-cols-[1.7fr_1fr]">
+    <form action="{{ route('admin.orders.update', $order) }}" method="POST" class="grid gap-4 lg:grid-cols-[1.7fr_1fr]">
         @csrf
         @method('PUT')
 
         <x-ui.card class="p-5">
-            <h2 class="card-title">Datos comerciales</h2>
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h2 class="card-title">Datos comerciales</h2>
+                    <p class="mt-1 text-xs text-slate-500">Estado actual: {{ $order->status->label() }}</p>
+                </div>
+                <x-ui.status-badge :status="$order->status" />
+            </div>
 
             <div class="mt-4 grid gap-4 sm:grid-cols-2">
                 <div>
@@ -293,7 +299,7 @@
 
             <div class="mt-4 flex flex-col gap-2">
                 <x-ui.button type="submit" variant="primary" class="w-full justify-center">Guardar cambios</x-ui.button>
-                <a href="{{ route('empresa.orders.show', $order) }}" class="btn btn-secondary w-full justify-center">Cancelar</a>
+                <a href="{{ route('admin.orders.show', $order) }}" class="btn btn-secondary w-full justify-center">Cancelar</a>
             </div>
         </x-ui.card>
     </form>

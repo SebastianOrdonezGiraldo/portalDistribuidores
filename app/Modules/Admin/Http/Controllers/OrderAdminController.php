@@ -3,7 +3,11 @@
 namespace App\Modules\Admin\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Admin\Http\Requests\UpdateAdminOrderRequest;
 use App\Modules\AuthAccess\Models\Distributor;
+use App\Modules\Catalog\Models\Product;
+use App\Modules\Catalog\Models\ProductVariant;
+use App\Modules\Orders\Actions\UpdateOrderAction;
 use App\Modules\Orders\Jobs\GenerateOrderPdfJob;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\OrderPdfGenerator;
@@ -142,6 +146,96 @@ class OrderAdminController extends Controller
             'hasFinancialGap' => $hasFinancialGap,
             'nextStatuses' => $nextStatuses,
         ]);
+    }
+
+    public function edit(Order $order): View|RedirectResponse
+    {
+        $this->authorize('update', $order);
+
+        if (! $order->status->canBeEditedByAdmin()) {
+            return redirect()
+                ->route('admin.orders.show', $order)
+                ->withErrors('Este pedido no puede editarse en su estado actual.');
+        }
+
+        $order->load('items');
+
+        return view('admin.orders.edit', [
+            'order' => $order,
+            'departments' => config('locations.colombia_departments', []),
+            'catalogOptions' => $this->catalogOptions(),
+        ]);
+    }
+
+    public function update(
+        UpdateAdminOrderRequest $request,
+        Order $order,
+        UpdateOrderAction $updateOrderAction,
+    ): RedirectResponse {
+        $this->authorize('update', $order);
+
+        if (! $order->status->canBeEditedByAdmin()) {
+            return redirect()
+                ->route('admin.orders.show', $order)
+                ->withErrors('Este pedido no puede editarse en su estado actual.');
+        }
+
+        try {
+            $order = $updateOrderAction->execute($order, $request->validated(), $request->user(), true);
+        } catch (DomainException $exception) {
+            return back()
+                ->withInput()
+                ->withErrors($exception->getMessage());
+        }
+
+        return redirect()
+            ->route('admin.orders.show', $order)
+            ->with('status', "Pedido {$order->oc_number} actualizado correctamente.");
+    }
+
+    /**
+     * @return array<int, array{ref:string,label:string,price:float}>
+     */
+    private function catalogOptions(): array
+    {
+        $products = Product::query()
+            ->active()
+            ->withCount(['variants as active_variants_count' => fn ($query) => $query->active()])
+            ->with([
+                'variants' => fn ($query) => $query
+                    ->active()
+                    ->with('attributeValue.attribute')
+                    ->orderBy('sort_order')
+                    ->orderBy('id'),
+            ])
+            ->orderBy('name')
+            ->get(['id', 'name', 'sku', 'price']);
+
+        return $products
+            ->flatMap(function (Product $product) {
+                $baseLabel = trim("{$product->sku} · {$product->name}");
+
+                if ((int) ($product->active_variants_count ?? 0) === 0) {
+                    return [[
+                        'ref' => 'p:'.$product->id,
+                        'label' => $baseLabel,
+                        'price' => (float) $product->price,
+                    ]];
+                }
+
+                return $product->variants->map(function (ProductVariant $variant) use ($baseLabel): array {
+                    $attributeName = $variant->attributeValue?->attribute?->name ?? 'Variante';
+                    $attributeValue = $variant->attributeValue?->value ?? ('#'.$variant->id);
+
+                    return [
+                        'ref' => 'v:'.$variant->id,
+                        'label' => "{$baseLabel} · {$attributeName}: {$attributeValue}",
+                        'price' => (float) $variant->price,
+                    ];
+                });
+            })
+            ->values()
+            ->all();
     }
 
     public function updateStatus(

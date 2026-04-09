@@ -244,6 +244,69 @@ class CompanyOrderControllerTest extends TestCase
         ]);
     }
 
+    public function test_update_pending_approval_order_can_remove_existing_item_and_add_new_product(): void
+    {
+        [$distA, $userA] = $this->makeDistributorWithUser(CompanyRole::UsuarioComercial);
+        $order = $this->makeOrderWithItem($distA, [
+            'status' => OrderStatus::PendingApproval,
+        ]);
+
+        $item = $order->items()->firstOrFail();
+        $newProduct = Product::factory()->create([
+            'price' => 7000,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($userA)
+            ->put(route('empresa.orders.update', $order), [
+                'contact_name' => $order->contact_name,
+                'contact_email' => $order->contact_email,
+                'phone' => '3002223333',
+                'company_name' => $order->company_name,
+                'company_nit' => '9001234567',
+                'company_address' => $order->company_address,
+                'city' => $order->city,
+                'department' => 'Antioquia',
+                'notes' => 'Cambio de producto',
+                'items' => [
+                    [
+                        'id' => $item->id,
+                        'qty' => 0,
+                        'unit_label' => 'unidades',
+                    ],
+                ],
+                'new_items' => [
+                    [
+                        'catalog_ref' => 'p:'.$newProduct->id,
+                        'qty' => 4,
+                        'unit_label' => 'cajas',
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('empresa.orders.show', $order))
+            ->assertSessionHas('status');
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => OrderStatus::PendingApproval->value,
+            'total_amount' => 28000,
+        ]);
+
+        $this->assertDatabaseMissing('order_items', [
+            'order_id' => $order->id,
+            'product_id' => $item->product_id,
+        ]);
+
+        $this->assertDatabaseHas('order_items', [
+            'order_id' => $order->id,
+            'product_id' => $newProduct->id,
+            'qty' => 4,
+            'unit_label' => 'cajas',
+            'price_each' => 7000,
+            'subtotal' => 28000,
+        ]);
+    }
+
     public function test_update_rejected_order_resubmits_for_approval_and_clears_reject_note(): void
     {
         [$distA, $userA] = $this->makeDistributorWithUser(CompanyRole::UsuarioComercial);
