@@ -127,6 +127,71 @@ class AdminOrderShowTest extends TestCase
         $this->assertEquals(1.0, (float) $product->fresh()->stock);
     }
 
+    public function test_admin_can_remove_existing_item_and_add_new_product_on_submitted_order(): void
+    {
+        [$order, $productA, $admin] = $this->createSubmittedOrderWithProductStock(3, 2);
+        $productB = Product::factory()->create([
+            'price' => 45000,
+            'stock' => 5,
+            'is_active' => true,
+        ]);
+
+        $item = $order->items()->firstOrFail();
+
+        $this->actingAs($admin)
+            ->put(route('admin.orders.update', $order), [
+                'contact_name' => 'Contacto Admin',
+                'contact_email' => 'admin-edita@test.com',
+                'phone' => '3004445555',
+                'company_name' => 'Empresa Admin',
+                'company_nit' => '9001234567',
+                'company_address' => 'Calle 200 #30-40',
+                'city' => 'Medellín',
+                'department' => 'Antioquia',
+                'notes' => 'Cambio de referencia',
+                'items' => [
+                    [
+                        'id' => $item->id,
+                        'qty' => 0,
+                        'unit_label' => 'caja',
+                    ],
+                ],
+                'new_items' => [
+                    [
+                        'catalog_ref' => 'p:'.$productB->id,
+                        'qty' => 3,
+                        'unit_label' => 'paquete',
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('admin.orders.show', $order))
+            ->assertSessionHas('status');
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => OrderStatus::Submitted->value,
+            'total_amount' => 135000,
+        ]);
+
+        $this->assertDatabaseMissing('order_items', [
+            'order_id' => $order->id,
+            'product_id' => $productA->id,
+        ]);
+
+        $this->assertDatabaseHas('order_items', [
+            'order_id' => $order->id,
+            'product_id' => $productB->id,
+            'qty' => 3,
+            'unit_label' => 'paquete',
+            'price_each' => 45000,
+            'subtotal' => 135000,
+        ]);
+
+        // El ítem anterior se devuelve a stock y el nuevo se descuenta.
+        $this->assertEquals(5.0, (float) $productA->fresh()->stock);
+        $this->assertEquals(2.0, (float) $productB->fresh()->stock);
+    }
+
     public function test_admin_update_submitted_order_rolls_back_when_stock_is_insufficient(): void
     {
         [$order, $product, $admin] = $this->createSubmittedOrderWithProductStock(0, 2);

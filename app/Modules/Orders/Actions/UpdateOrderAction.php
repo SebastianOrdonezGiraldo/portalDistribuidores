@@ -3,6 +3,8 @@
 namespace App\Modules\Orders\Actions;
 
 use App\Models\User;
+use App\Modules\Catalog\Models\Product;
+use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Orders\Services\OrderInventoryService;
@@ -27,7 +29,11 @@ class UpdateOrderAction
         bool $allowSubmittedEdit = false,
     ): Order
     {
-        $preparedItems = $this->prepareItems($order, $payload['items'] ?? []);
+        $preparedItems = $this->prepareItems(
+            $order,
+            $payload['items'] ?? [],
+            $payload['new_items'] ?? [],
+        );
         $total = (float) collect($preparedItems)->sum('subtotal');
 
         return DB::transaction(function () use ($order, $payload, $preparedItems, $total, $actor, $allowSubmittedEdit): Order {
@@ -96,9 +102,10 @@ class UpdateOrderAction
 
     /**
      * @param mixed $rawItems
+     * @param mixed $rawNewItems
      * @return array<int, array<string, mixed>>
      */
-    private function prepareItems(Order $order, mixed $rawItems): array
+    private function prepareItems(Order $order, mixed $rawItems, mixed $rawNewItems = []): array
     {
         if (! is_array($rawItems) || $rawItems === []) {
             throw new DomainException('Debes enviar los ítems de la cotización.');
@@ -153,11 +160,160 @@ class UpdateOrderAction
             ];
         }
 
+        $prepared = [...$prepared, ...$this->prepareNewItems($rawNewItems)];
+
         if ($prepared === []) {
             throw new DomainException('La cotización debe conservar al menos un ítem con cantidad mayor a cero.');
         }
 
         return $prepared;
+    }
+
+    /**
+     * @param mixed $rawNewItems
+     * @return array<int, array<string, mixed>>
+     */
+    private function prepareNewItems(mixed $rawNewItems): array
+    {
+        if (! is_array($rawNewItems) || $rawNewItems === []) {
+            return [];
+        }
+
+        $rows = [];
+        $productIds = [];
+        $variantIds = [];
+
+        foreach ($rawNewItems as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $catalogRef = trim((string) ($row['catalog_ref'] ?? ''));
+            $qty = max(0, (int) ($row['qty'] ?? 0));
+            $unitLabel = trim((string) ($row['unit_label'] ?? 'unidades'));
+
+            if ($catalogRef === '' || $qty <= 0) {
+                continue;
+            }
+
+            if ($unitLabel === '') {
+                $unitLabel = 'unidades';
+            }
+
+            $parsedRef = $this->parseCatalogRef($catalogRef);
+            if (! $parsedRef) {
+                throw new DomainException('Se enviaron productos nuevos inválidos para esta cotización.');
+            }
+
+            $rows[] = [
+                'type' => $parsedRef['type'],
+                'id' => $parsedRef['id'],
+                'qty' => $qty,
+                'unit_label' => $unitLabel,
+            ];
+
+            if ($parsedRef['type'] === 'product') {
+                $productIds[] = $parsedRef['id'];
+            } else {
+                $variantIds[] = $parsedRef['id'];
+            }
+        }
+
+        if ($rows === []) {
+            return [];
+        }
+
+        $products = Product::query()
+            ->active()
+            ->whereIn('id', array_values(array_unique($productIds)))
+            ->withCount(['variants as active_variants_count' => fn ($query) => $query->active()])
+            ->get()
+            ->keyBy('id');
+
+        $variants = ProductVariant::query()
+            ->active()
+            ->whereIn('id', array_values(array_unique($variantIds)))
+            ->whereHas('product', fn ($query) => $query->active())
+            ->with('product:id,name,sku,price', 'attributeValue.attribute')
+            ->get()
+            ->keyBy('id');
+
+        $prepared = [];
+
+        foreach ($rows as $row) {
+            if ($row['type'] === 'product') {
+                /** @var Product|null $product */
+                $product = $products->get($row['id']);
+                if (! $product) {
+                    throw new DomainException('Uno de los productos seleccionados ya no está disponible.');
+                }
+
+                if ((int) ($product->active_variants_count ?? 0) > 0) {
+                    throw new DomainException("El producto {$product->sku} requiere seleccionar una variante.");
+                }
+
+                $priceEach = (float) $product->price;
+
+                $prepared[] = [
+                    'product_id' => $product->id,
+                    'product_variant_id' => null,
+                    'product_name_snapshot' => $product->name,
+                    'sku_snapshot' => $product->sku,
+                    'variant_attribute_snapshot' => null,
+                    'variant_value_snapshot' => null,
+                    'qty' => $row['qty'],
+                    'unit_label' => $row['unit_label'],
+                    'price_each' => $priceEach,
+                    'subtotal' => round($row['qty'] * $priceEach, 2),
+                ];
+
+                continue;
+            }
+
+            /** @var ProductVariant|null $variant */
+            $variant = $variants->get($row['id']);
+            if (! $variant) {
+                throw new DomainException('Una de las variantes seleccionadas ya no está disponible.');
+            }
+
+            /** @var Product|null $product */
+            $product = $variant->product;
+            if (! $product) {
+                throw new DomainException('No fue posible resolver el producto de la variante seleccionada.');
+            }
+
+            $priceEach = (float) $variant->price;
+
+            $prepared[] = [
+                'product_id' => $product->id,
+                'product_variant_id' => $variant->id,
+                'product_name_snapshot' => $product->name,
+                'sku_snapshot' => $product->sku,
+                'variant_attribute_snapshot' => $variant->attributeValue?->attribute?->name,
+                'variant_value_snapshot' => $variant->attributeValue?->value,
+                'qty' => $row['qty'],
+                'unit_label' => $row['unit_label'],
+                'price_each' => $priceEach,
+                'subtotal' => round($row['qty'] * $priceEach, 2),
+            ];
+        }
+
+        return $prepared;
+    }
+
+    /**
+     * @return array{type: 'product'|'variant', id: int}|null
+     */
+    private function parseCatalogRef(string $catalogRef): ?array
+    {
+        if (! preg_match('/^(p|v):(\d+)$/', $catalogRef, $matches)) {
+            return null;
+        }
+
+        return [
+            'type' => $matches[1] === 'p' ? 'product' : 'variant',
+            'id' => (int) $matches[2],
+        ];
     }
 
     private function statusConsumesInventory(OrderStatus $status): bool

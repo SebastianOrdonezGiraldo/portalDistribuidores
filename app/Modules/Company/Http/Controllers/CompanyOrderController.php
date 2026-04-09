@@ -118,6 +118,7 @@ class CompanyOrderController extends Controller
         return view('empresa.orders.edit', [
             'order' => $order,
             'departments' => config('locations.colombia_departments', []),
+            'catalogOptions' => $this->catalogOptions(),
         ]);
     }
 
@@ -168,6 +169,51 @@ class CompanyOrderController extends Controller
         return redirect()
             ->route('empresa.orders.show', $order)
             ->with('status', $statusMessage);
+    }
+
+    /**
+     * @return array<int, array{ref:string,label:string,price:float}>
+     */
+    private function catalogOptions(): array
+    {
+        $products = Product::query()
+            ->active()
+            ->withCount(['variants as active_variants_count' => fn ($query) => $query->active()])
+            ->with([
+                'variants' => fn ($query) => $query
+                    ->active()
+                    ->with('attributeValue.attribute')
+                    ->orderBy('sort_order')
+                    ->orderBy('id'),
+            ])
+            ->orderBy('name')
+            ->get(['id', 'name', 'sku', 'price']);
+
+        return $products
+            ->flatMap(function (Product $product) {
+                $baseLabel = trim("{$product->sku} · {$product->name}");
+
+                if ((int) ($product->active_variants_count ?? 0) === 0) {
+                    return [[
+                        'ref' => 'p:'.$product->id,
+                        'label' => $baseLabel,
+                        'price' => (float) $product->price,
+                    ]];
+                }
+
+                return $product->variants->map(function (ProductVariant $variant) use ($baseLabel): array {
+                    $attributeName = $variant->attributeValue?->attribute?->name ?? 'Variante';
+                    $attributeValue = $variant->attributeValue?->value ?? ('#'.$variant->id);
+
+                    return [
+                        'ref' => 'v:'.$variant->id,
+                        'label' => "{$baseLabel} · {$attributeName}: {$attributeValue}",
+                        'price' => (float) $variant->price,
+                    ];
+                });
+            })
+            ->values()
+            ->all();
     }
 
     public function downloadPdf(Order $order, OrderPdfGenerator $pdfGenerator): StreamedResponse|RedirectResponse
