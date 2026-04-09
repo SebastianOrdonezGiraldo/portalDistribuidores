@@ -35,8 +35,6 @@
                 data-toast
                 data-toast-timeout="5000"
                 data-cart-success="{{ !empty($message['cart_success']) ? 'true' : 'false' }}"
-                role="{{ $message['variant'] === 'danger' ? 'alert' : 'status' }}"
-                aria-live="{{ $message['variant'] === 'danger' ? 'assertive' : 'polite' }}"
                 class="pointer-events-auto animate-toast-in"
             >
                 <div class="flex items-start justify-between gap-3">

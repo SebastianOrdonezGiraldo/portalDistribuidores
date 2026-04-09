@@ -4,6 +4,24 @@ import Alpine from 'alpinejs';
 window.Alpine = Alpine;
 Alpine.start();
 
+const openModal = (modal) => {
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+};
+
+const closeModal = (modal) => {
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     const sidebar = document.querySelector('[data-sidebar]');
     const sidebarOverlay = document.querySelector('[data-sidebar-overlay]');
@@ -21,87 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'textarea:not([disabled])',
         '[tabindex]:not([tabindex="-1"])',
     ].join(', ');
-    const modalState = new WeakMap();
     let lastSidebarTrigger = null;
-
-    const getFocusableElements = (container) =>
-        Array.from(container.querySelectorAll(focusableSelector))
-            .filter((element) => element.offsetParent !== null || element === document.activeElement);
-
-    const closeModal = (modal) => {
-        if (!modal) {
-            return;
-        }
-
-        const state = modalState.get(modal);
-        if (state?.keydownHandler) {
-            modal.removeEventListener('keydown', state.keydownHandler);
-        }
-
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-        modal.setAttribute('aria-hidden', 'true');
-
-        const focusTarget = state?.trigger;
-        if (focusTarget instanceof HTMLElement && document.contains(focusTarget)) {
-            focusTarget.focus();
-        }
-
-        modalState.delete(modal);
-    };
-
-    const openModal = (modal, { trigger = null } = {}) => {
-        if (!modal) {
-            return;
-        }
-
-        const triggerEl = trigger instanceof HTMLElement
-            ? trigger
-            : (document.activeElement instanceof HTMLElement ? document.activeElement : null);
-
-        const keydownHandler = (event) => {
-            if (event.key === 'Escape') {
-                event.preventDefault();
-                closeModal(modal);
-                return;
-            }
-
-            if (event.key !== 'Tab') {
-                return;
-            }
-
-            const focusables = getFocusableElements(modal);
-            if (focusables.length === 0) {
-                event.preventDefault();
-                return;
-            }
-
-            const first = focusables[0];
-            const last = focusables[focusables.length - 1];
-            const active = document.activeElement;
-
-            if (event.shiftKey && active === first) {
-                event.preventDefault();
-                last.focus();
-            } else if (!event.shiftKey && active === last) {
-                event.preventDefault();
-                first.focus();
-            }
-        };
-
-        modalState.set(modal, {
-            trigger: triggerEl,
-            keydownHandler,
-        });
-
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-        modal.setAttribute('aria-hidden', 'false');
-        modal.addEventListener('keydown', keydownHandler);
-
-        const firstFocusable = getFocusableElements(modal)[0];
-        (firstFocusable || modal).focus();
-    };
 
     const hasCookieConsent = () => {
         try {
@@ -339,8 +277,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const toast = document.createElement('div');
         toast.className = `pointer-events-auto toast ${palette[variant] || palette.info} animate-toast-in`;
-        toast.setAttribute('role', variant === 'error' ? 'alert' : 'status');
-        toast.setAttribute('aria-live', variant === 'error' ? 'assertive' : 'polite');
         toast.innerHTML = `
             <div class="flex items-start justify-between gap-3">
                 <div class="flex items-start gap-2">
@@ -580,9 +516,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmApprove = confirmModal?.querySelector('[data-confirm-approve]');
     const confirmCancel = confirmModal?.querySelector('[data-confirm-cancel]');
     let pendingForm = null;
-    const clearPendingConfirmation = () => {
-        pendingForm = null;
-    };
 
     document.querySelectorAll('form[data-confirm]').forEach((form) => {
         form.addEventListener('submit', (event) => {
@@ -598,9 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 confirmText.textContent = form.dataset.confirm || 'Confirmar acci\u00f3n';
             }
 
-            openModal(confirmModal, {
-                trigger: event.submitter instanceof HTMLElement ? event.submitter : form,
-            });
+            openModal(confirmModal);
         });
     });
 
@@ -612,83 +543,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         pendingForm.dataset.confirmed = 'true';
         pendingForm.requestSubmit();
-        clearPendingConfirmation();
+        pendingForm = null;
         closeModal(confirmModal);
     });
 
     confirmCancel?.addEventListener('click', () => {
-        clearPendingConfirmation();
+        pendingForm = null;
         closeModal(confirmModal);
     });
 
     confirmModal?.addEventListener('click', (event) => {
         if (event.target === confirmModal) {
-            clearPendingConfirmation();
+            pendingForm = null;
             closeModal(confirmModal);
         }
-    });
-
-    confirmModal?.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') {
-            clearPendingConfirmation();
-        }
-    });
-
-    document.querySelectorAll('[data-status-form]').forEach((statusForm) => {
-        const statusSelect = statusForm.querySelector('[data-status-select]');
-        const noteField = statusForm.querySelector('[data-status-note]');
-        const noteHelp = statusForm.querySelector('[data-status-note-help]');
-
-        if (!(statusSelect instanceof HTMLSelectElement) || !(noteField instanceof HTMLTextAreaElement)) {
-            return;
-        }
-
-        const submitButtons = Array.from(document.querySelectorAll('[data-status-submit]'))
-            .filter((button) =>
-                button.closest('form') === statusForm
-                || button.getAttribute('form') === statusForm.id,
-            );
-
-        submitButtons.forEach((button) => {
-            if (!button.dataset.defaultLabel) {
-                button.dataset.defaultLabel = button.textContent?.trim() || 'Actualizar estado';
-            }
-        });
-
-        const refreshStatusFormState = () => {
-            const selectedOption = statusSelect.selectedOptions[0];
-            const requiresNote = selectedOption?.dataset.requiresNote === 'true';
-            const ctaLabel = selectedOption?.dataset.cta?.trim();
-
-            noteField.required = requiresNote;
-            noteField.setAttribute('aria-required', requiresNote ? 'true' : 'false');
-
-            if (noteHelp) {
-                noteHelp.textContent = requiresNote
-                    ? 'Nota obligatoria para estados Vendido y Despachado.'
-                    : 'Nota opcional para dejar contexto operativo.';
-            }
-
-            submitButtons.forEach((button) => {
-                const baseLabel = button.dataset.defaultLabel || 'Actualizar estado';
-                button.textContent = ctaLabel || baseLabel;
-            });
-
-            const hasStatus = statusSelect.value.trim() !== '';
-            const canSubmit = hasStatus && statusForm.checkValidity();
-
-            submitButtons.forEach((button) => {
-                button.disabled = !canSubmit;
-            });
-        };
-
-        statusSelect.addEventListener('change', refreshStatusFormState);
-        noteField.addEventListener('input', refreshStatusFormState);
-        noteField.addEventListener('change', refreshStatusFormState);
-        statusForm.addEventListener('input', refreshStatusFormState);
-        statusForm.addEventListener('change', refreshStatusFormState);
-
-        refreshStatusFormState();
     });
 
     document.querySelectorAll('form[data-loading-form]').forEach((form) => {
