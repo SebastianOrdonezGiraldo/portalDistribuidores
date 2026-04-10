@@ -24,7 +24,7 @@
     $isDistributor = $user?->isDistributor();
 @endphp
 
-<div class="relative min-h-dvh overflow-x-clip">
+<div class="app-shell relative min-h-dvh">
     <x-ui.flash-stack />
 
     @if($isAuthenticated)
