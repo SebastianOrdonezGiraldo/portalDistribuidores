@@ -34,7 +34,8 @@
     </x-slot>
 
     <section class="grid gap-4 xl:grid-cols-[1.7fr_1fr] xl:items-start">
-        <x-ui.card class="order-1 p-5 xl:col-start-1">
+        <div class="space-y-4 xl:col-start-1">
+            <x-ui.card class="p-5">
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <h2 class="card-title">Resumen Comercial</h2>
@@ -71,7 +72,127 @@
             @endif
         </x-ui.card>
 
-        <x-ui.card class="order-2 p-5 xl:col-start-2 xl:row-span-4 xl:sticky xl:top-24 xl:self-start">
+            <x-ui.card class="p-5">
+            <h2 class="card-title">Cliente y contacto</h2>
+            <p class="mt-1 text-sm text-slate-600">Datos para validación comercial y comunicación inmediata.</p>
+
+            <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <dt class="text-xs uppercase tracking-wide text-slate-500">Cliente</dt>
+                    <dd class="mt-1 font-semibold text-slate-900">{{ $order->company_name }}</dd>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <dt class="text-xs uppercase tracking-wide text-slate-500">NIT / Cédula</dt>
+                    <dd class="mt-1 font-semibold text-slate-900">{{ $order->company_nit ?? '-' }}</dd>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <dt class="text-xs uppercase tracking-wide text-slate-500">Contacto</dt>
+                    <dd class="mt-1 font-semibold text-slate-900">{{ $order->contact_name }}</dd>
+                    @if($order->contact_email)
+                        <p class="text-xs text-slate-600">
+                            <a href="mailto:{{ $order->contact_email }}" class="focus-ring rounded text-brand-dark underline-offset-2 hover:underline">{{ $order->contact_email }}</a>
+                        </p>
+                    @else
+                        <p class="text-xs text-slate-500">Sin correo registrado.</p>
+                    @endif
+                    @if($order->phone)
+                        <p class="text-xs text-slate-600">
+                            <a href="tel:{{ preg_replace('/\s+/', '', $order->phone) }}" class="focus-ring rounded text-brand-dark underline-offset-2 hover:underline">{{ $order->phone }}</a>
+                        </p>
+                    @else
+                        <p class="text-xs text-slate-500">Sin teléfono registrado.</p>
+                    @endif
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <dt class="text-xs uppercase tracking-wide text-slate-500">Distribuidor / Usuario</dt>
+                    <dd class="mt-1 font-semibold text-slate-900">{{ $order->distributor?->name ?? '-' }}</dd>
+                    <p class="text-xs text-slate-500">{{ $order->user?->email }}</p>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:col-span-2">
+                    <dt class="text-xs uppercase tracking-wide text-slate-500">Dirección, ciudad y departamento</dt>
+                    <dd class="mt-1 font-semibold text-slate-900">
+                        {{ $order->company_address ?? '-' }} · {{ $order->city ?? '-' }} · {{ $order->department ?? '-' }}
+                    </dd>
+                </div>
+            </dl>
+        </x-ui.card>
+
+            <x-ui.card>
+            <x-slot name="header">
+                <div>
+                    <h2 class="card-title">Ítems del Pedido</h2>
+                    <p class="mt-1 text-xs text-slate-500">Detalle de cantidades, precio unitario y subtotal.</p>
+                </div>
+            </x-slot>
+
+            <div class="p-5 pt-0">
+                @if($order->items->isEmpty())
+                    <x-ui.empty-state
+                        title="Sin ítems registrados"
+                        description="No se encontraron líneas de producto asociadas a este pedido."
+                        compact
+                    />
+                @else
+                    <x-ui.table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>SKU</th>
+                                <th>Producto</th>
+                                <th>Cantidad</th>
+                                <th>Precio</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($order->items as $index => $item)
+                                <tr>
+                                    <td data-label="#" class="text-xs text-slate-500">{{ $index + 1 }}</td>
+                                    <td data-label="SKU" class="font-medium text-slate-900">{{ $item->sku_snapshot }}</td>
+                                    <td data-label="Producto" data-full="true">
+                                        <p class="font-medium text-slate-900">{{ $item->product_name_snapshot }}</p>
+                                        @if($item->variant_value_snapshot)
+                                            <p class="text-xs text-slate-500">
+                                                {{ $item->variant_attribute_snapshot ?? 'Variante' }}: {{ $item->variant_value_snapshot }}
+                                            </p>
+                                        @endif
+                                    </td>
+                                    <td data-label="Cantidad">{{ $formatQuantity($item->qty) }} {{ $item->unit_label }}</td>
+                                    <td data-label="Precio">${{ number_format((float) $item->price_each, 0, ',', '.') }}</td>
+                                    <td data-label="Subtotal" class="font-semibold text-slate-900">${{ number_format((float) $item->subtotal, 0, ',', '.') }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </x-ui.table>
+
+                    <div class="mt-4 grid gap-2 border-t border-slate-200 pt-3 sm:grid-cols-3">
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <p class="text-xs uppercase tracking-wide text-slate-500">Subtotal ítems</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-900">${{ number_format($totals['subtotals_total'], 0, ',', '.') }}</p>
+                        </div>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <p class="text-xs uppercase tracking-wide text-slate-500">Promedio unitario</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-900">${{ number_format($totals['average_unit_price'], 0, ',', '.') }}</p>
+                        </div>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <p class="text-xs uppercase tracking-wide text-slate-500">Total pedido</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-900">${{ number_format((float) $order->total_amount, 0, ',', '.') }}</p>
+                        </div>
+                    </div>
+                @endif
+            </div>
+        </x-ui.card>
+
+            @if($order->notes)
+                <x-ui.card class="p-5">
+                <h2 class="card-title">Observaciones</h2>
+                <p class="mt-3 whitespace-pre-line text-sm text-slate-700">{{ $order->notes }}</p>
+                </x-ui.card>
+            @endif
+        </div>
+
+        <aside class="space-y-4 xl:col-start-2">
+        <x-ui.card class="p-5 xl:sticky xl:top-24">
             <h2 class="card-title">Checklist Operativo</h2>
             <p class="mt-1 text-xs text-slate-500">Ejecuta la siguiente transición de estado y deja nota cuando aplique.</p>
 
@@ -141,125 +262,7 @@
             @endif
         </x-ui.card>
 
-        <x-ui.card class="order-3 p-5 xl:col-start-1">
-            <h2 class="card-title">Cliente y contacto</h2>
-            <p class="mt-1 text-sm text-slate-600">Datos para validación comercial y comunicación inmediata.</p>
-
-            <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <dt class="text-xs uppercase tracking-wide text-slate-500">Cliente</dt>
-                    <dd class="mt-1 font-semibold text-slate-900">{{ $order->company_name }}</dd>
-                </div>
-                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <dt class="text-xs uppercase tracking-wide text-slate-500">NIT / Cédula</dt>
-                    <dd class="mt-1 font-semibold text-slate-900">{{ $order->company_nit ?? '-' }}</dd>
-                </div>
-                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <dt class="text-xs uppercase tracking-wide text-slate-500">Contacto</dt>
-                    <dd class="mt-1 font-semibold text-slate-900">{{ $order->contact_name }}</dd>
-                    @if($order->contact_email)
-                        <p class="text-xs text-slate-600">
-                            <a href="mailto:{{ $order->contact_email }}" class="focus-ring rounded text-brand-dark underline-offset-2 hover:underline">{{ $order->contact_email }}</a>
-                        </p>
-                    @else
-                        <p class="text-xs text-slate-500">Sin correo registrado.</p>
-                    @endif
-                    @if($order->phone)
-                        <p class="text-xs text-slate-600">
-                            <a href="tel:{{ preg_replace('/\s+/', '', $order->phone) }}" class="focus-ring rounded text-brand-dark underline-offset-2 hover:underline">{{ $order->phone }}</a>
-                        </p>
-                    @else
-                        <p class="text-xs text-slate-500">Sin teléfono registrado.</p>
-                    @endif
-                </div>
-                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <dt class="text-xs uppercase tracking-wide text-slate-500">Distribuidor / Usuario</dt>
-                    <dd class="mt-1 font-semibold text-slate-900">{{ $order->distributor?->name ?? '-' }}</dd>
-                    <p class="text-xs text-slate-500">{{ $order->user?->email }}</p>
-                </div>
-                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:col-span-2">
-                    <dt class="text-xs uppercase tracking-wide text-slate-500">Dirección, ciudad y departamento</dt>
-                    <dd class="mt-1 font-semibold text-slate-900">
-                        {{ $order->company_address ?? '-' }} · {{ $order->city ?? '-' }} · {{ $order->department ?? '-' }}
-                    </dd>
-                </div>
-            </dl>
-        </x-ui.card>
-
-        <x-ui.card class="order-4 xl:col-start-1">
-            <x-slot name="header">
-                <div>
-                    <h2 class="card-title">Ítems del Pedido</h2>
-                    <p class="mt-1 text-xs text-slate-500">Detalle de cantidades, precio unitario y subtotal.</p>
-                </div>
-            </x-slot>
-
-            <div class="p-5 pt-0">
-                @if($order->items->isEmpty())
-                    <x-ui.empty-state
-                        title="Sin ítems registrados"
-                        description="No se encontraron líneas de producto asociadas a este pedido."
-                        compact
-                    />
-                @else
-                    <x-ui.table>
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>SKU</th>
-                                <th>Producto</th>
-                                <th>Cantidad</th>
-                                <th>Precio</th>
-                                <th>Subtotal</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($order->items as $index => $item)
-                                <tr>
-                                    <td data-label="#" class="text-xs text-slate-500">{{ $index + 1 }}</td>
-                                    <td data-label="SKU" class="font-medium text-slate-900">{{ $item->sku_snapshot }}</td>
-                                    <td data-label="Producto" data-full="true">
-                                        <p class="font-medium text-slate-900">{{ $item->product_name_snapshot }}</p>
-                                        @if($item->variant_value_snapshot)
-                                            <p class="text-xs text-slate-500">
-                                                {{ $item->variant_attribute_snapshot ?? 'Variante' }}: {{ $item->variant_value_snapshot }}
-                                            </p>
-                                        @endif
-                                    </td>
-                                    <td data-label="Cantidad">{{ $formatQuantity($item->qty) }} {{ $item->unit_label }}</td>
-                                    <td data-label="Precio">${{ number_format((float) $item->price_each, 0, ',', '.') }}</td>
-                                    <td data-label="Subtotal" class="font-semibold text-slate-900">${{ number_format((float) $item->subtotal, 0, ',', '.') }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </x-ui.table>
-
-                    <div class="mt-4 grid gap-2 border-t border-slate-200 pt-3 sm:grid-cols-3">
-                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                            <p class="text-xs uppercase tracking-wide text-slate-500">Subtotal ítems</p>
-                            <p class="mt-1 text-sm font-semibold text-slate-900">${{ number_format($totals['subtotals_total'], 0, ',', '.') }}</p>
-                        </div>
-                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                            <p class="text-xs uppercase tracking-wide text-slate-500">Promedio unitario</p>
-                            <p class="mt-1 text-sm font-semibold text-slate-900">${{ number_format($totals['average_unit_price'], 0, ',', '.') }}</p>
-                        </div>
-                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                            <p class="text-xs uppercase tracking-wide text-slate-500">Total pedido</p>
-                            <p class="mt-1 text-sm font-semibold text-slate-900">${{ number_format((float) $order->total_amount, 0, ',', '.') }}</p>
-                        </div>
-                    </div>
-                @endif
-            </div>
-        </x-ui.card>
-
-        @if($order->notes)
-            <x-ui.card class="order-5 p-5 xl:col-start-1">
-                <h2 class="card-title">Observaciones</h2>
-                <p class="mt-3 whitespace-pre-line text-sm text-slate-700">{{ $order->notes }}</p>
-            </x-ui.card>
-        @endif
-
-        <x-ui.card class="order-6 p-5 xl:col-start-2">
+        <x-ui.card class="p-5">
             <h2 class="card-title">Historial de estados</h2>
             <ol class="mt-4 space-y-3">
                 @foreach($timeline as $event)
@@ -275,7 +278,7 @@
             </ol>
         </x-ui.card>
 
-        <x-ui.card class="order-7 p-5 xl:col-start-2">
+        <x-ui.card class="p-5">
             <h2 class="card-title">Documentación</h2>
             <div class="mt-3 space-y-2">
                 @if($order->pdf_path)
@@ -298,7 +301,7 @@
             @endif
         </x-ui.card>
 
-        <x-ui.card class="danger-zone order-8 p-5 xl:col-start-2">
+        <x-ui.card class="danger-zone p-5">
             <h2 class="card-title">Zona de peligro</h2>
             <p class="mt-1 text-xs text-slate-600">Acción irreversible. Úsala solo cuando sea estrictamente necesario.</p>
 
@@ -312,6 +315,7 @@
                 @endforeach
             </div>
         </x-ui.card>
+        </aside>
     </section>
 
     @if($hasTransitions)
