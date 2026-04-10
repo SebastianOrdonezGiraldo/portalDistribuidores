@@ -33,7 +33,7 @@
         </x-ui.page-header>
     </x-slot>
 
-    <section class="grid gap-4 xl:grid-cols-[1.7fr_1fr] xl:items-start">
+    <section class="grid gap-4 xl:grid-cols-[1.7fr_1fr]">
         <div class="space-y-4 xl:col-start-1">
             <x-ui.card class="p-5">
             <div class="flex flex-wrap items-start justify-between gap-3">
