@@ -23,19 +23,52 @@
 
         <div>
             <x-input-label for="nit" :value="__('NIT')" />
-            <x-text-input id="nit" class="block mt-1 w-full" type="text" name="nit" :value="old('nit')" required />
+            <x-text-input
+                id="nit"
+                class="block mt-1 w-full"
+                type="text"
+                name="nit"
+                :value="old('nit')"
+                required
+                inputmode="numeric"
+                pattern="[0-9]+"
+                title="Solo números"
+                oninput="this.value=this.value.replace(/\D/g, '')"
+            />
             <x-input-error :messages="$errors->get('nit')" class="mt-2" />
         </div>
 
         <div class="grid gap-4 sm:grid-cols-2">
             <div>
                 <x-input-label for="city" :value="__('Ciudad')" />
-                <x-text-input id="city" class="block mt-1 w-full" type="text" name="city" :value="old('city')" required />
+                <x-text-input
+                    id="city"
+                    class="block mt-1 w-full"
+                    type="text"
+                    name="city"
+                    :value="old('city')"
+                    required
+                    pattern="[A-Za-zÁÉÍÓÚáéíóúÑñÜü ]+"
+                    title="Solo letras"
+                    oninput="this.value=this.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]/g, '')"
+                />
                 <x-input-error :messages="$errors->get('city')" class="mt-2" />
             </div>
             <div>
                 <x-input-label for="phone" :value="__('Teléfono')" />
-                <x-text-input id="phone" class="block mt-1 w-full" type="text" name="phone" :value="old('phone')" required autocomplete="tel" />
+                <x-text-input
+                    id="phone"
+                    class="block mt-1 w-full"
+                    type="text"
+                    name="phone"
+                    :value="old('phone')"
+                    required
+                    autocomplete="tel"
+                    inputmode="numeric"
+                    pattern="[0-9]+"
+                    title="Solo números"
+                    oninput="this.value=this.value.replace(/\D/g, '')"
+                />
                 <x-input-error :messages="$errors->get('phone')" class="mt-2" />
             </div>
         </div>

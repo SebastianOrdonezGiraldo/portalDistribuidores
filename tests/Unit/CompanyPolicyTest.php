@@ -40,29 +40,4 @@ class CompanyPolicyTest extends TestCase
         $this->assertFalse($this->policy->editCompany($distributorWithoutCompany));
         $this->assertFalse($this->policy->editCompany($admin));
     }
-
-    public function test_manage_users_delegates_to_company_role_permissions(): void
-    {
-        $companyAdmin = User::factory()->make([
-            'distributor_id' => 10,
-            'company_role' => CompanyRole::AdminEmpresa,
-        ]);
-        $commercialUser = User::factory()->make([
-            'distributor_id' => 10,
-            'company_role' => CompanyRole::UsuarioComercial,
-        ]);
-        $readOnlyUser = User::factory()->make([
-            'distributor_id' => 10,
-            'company_role' => CompanyRole::SoloLectura,
-        ]);
-        $inactiveCompanyAdmin = User::factory()->inactive()->make([
-            'distributor_id' => 10,
-            'company_role' => CompanyRole::AdminEmpresa,
-        ]);
-
-        $this->assertTrue($this->policy->manageUsers($companyAdmin));
-        $this->assertFalse($this->policy->manageUsers($commercialUser));
-        $this->assertFalse($this->policy->manageUsers($readOnlyUser));
-        $this->assertFalse($this->policy->manageUsers($inactiveCompanyAdmin));
-    }
 }

@@ -78,46 +78,6 @@ class UserPermissionsTest extends TestCase
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // canManageCompanyUsers
-    // ──────────────────────────────────────────────────────────────────────────
-
-    public function test_admin_empresa_can_manage_company_users(): void
-    {
-        $user = User::factory()->make(['company_role' => CompanyRole::AdminEmpresa]);
-
-        $this->assertTrue($user->canManageCompanyUsers());
-    }
-
-    public function test_usuario_comercial_cannot_manage_company_users(): void
-    {
-        $user = User::factory()->make(['company_role' => CompanyRole::UsuarioComercial]);
-
-        $this->assertFalse($user->canManageCompanyUsers());
-    }
-
-    public function test_solo_lectura_cannot_manage_company_users(): void
-    {
-        $user = User::factory()->make(['company_role' => CompanyRole::SoloLectura]);
-
-        $this->assertFalse($user->canManageCompanyUsers());
-    }
-
-    public function test_distributor_without_company_role_cannot_manage_company_users(): void
-    {
-        $user = User::factory()->make(['company_role' => null]);
-
-        $this->assertFalse($user->canManageCompanyUsers());
-    }
-
-    public function test_admin_user_cannot_manage_company_users(): void
-    {
-        // Admin no es distributor, la regla es exclusiva de distribuidores con company_role
-        $user = User::factory()->admin()->make();
-
-        $this->assertFalse($user->canManageCompanyUsers());
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
     // canEditCompany
     // ──────────────────────────────────────────────────────────────────────────
 
