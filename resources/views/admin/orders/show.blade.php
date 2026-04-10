@@ -192,10 +192,8 @@
         </div>
 
         <aside class="relative space-y-4 lg:w-full lg:max-w-md lg:flex-shrink-0 lg:self-start xl:max-w-lg">
-        {{-- En lg+: el checklist es fixed al viewport; este bloque reserva altura para no solapar Historial --}}
-        <div class="hidden shrink-0 lg:block lg:min-h-[30rem]" aria-hidden="true"></div>
-
-        <div class="lg:fixed lg:right-8 lg:top-28 lg:z-40 lg:w-[min(28rem,calc(100vw-18rem))] lg:max-h-[calc(100dvh-8rem)] lg:overflow-y-auto lg:overflow-x-hidden">
+        {{-- Flujo normal en columna: evita que un panel fixed tape Documentación / Zona de peligro al hacer scroll --}}
+        <div class="w-full lg:max-h-[calc(100dvh-8rem)] lg:overflow-y-auto lg:overflow-x-hidden">
         <x-ui.card>
             <h2 class="card-title">Checklist Operativo</h2>
             <p class="mt-1 text-xs text-slate-500">Ejecuta la siguiente transición de estado y deja nota cuando aplique.</p>
