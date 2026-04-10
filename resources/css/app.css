@@ -25,12 +25,25 @@
         background-attachment: fixed;
     }
 
+    .app-shell {
+        min-height: 100dvh;
+        overflow-x: clip;
+    }
+
     body.sidebar-open {
         overflow: hidden;
         touch-action: none;
     }
 
     @media (min-width: 1024px) {
+        body {
+            overflow-x: visible;
+        }
+
+        .app-shell {
+            overflow-x: visible;
+        }
+
         body.sidebar-open {
             overflow: auto;
             touch-action: auto;
