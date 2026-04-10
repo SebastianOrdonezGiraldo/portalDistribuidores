@@ -191,7 +191,7 @@
             @endif
         </div>
 
-        <aside class="space-y-4 xl:col-start-2">
+        <aside class="space-y-4 xl:col-start-2 xl:self-start">
         <x-ui.card class="p-5 xl:sticky xl:top-24">
             <h2 class="card-title">Checklist Operativo</h2>
             <p class="mt-1 text-xs text-slate-500">Ejecuta la siguiente transición de estado y deja nota cuando aplique.</p>
