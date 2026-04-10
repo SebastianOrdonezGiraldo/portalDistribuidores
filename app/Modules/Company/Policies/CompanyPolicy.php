@@ -17,13 +17,4 @@ class CompanyPolicy
             && $user->isActive()
             && $user->distributor_id !== null;
     }
-
-    /**
-     * Solo admin_empresa puede gestionar usuarios de su empresa.
-     * (Admin global manejado en el Gate::define del AppServiceProvider)
-     */
-    public function manageUsers(User $user): bool
-    {
-        return $user->canManageCompanyUsers();
-    }
 }
