@@ -15,19 +15,6 @@
         $primaryCtaLabel = is_array($recommendedAction) ? ($recommendedAction['cta'] ?? 'Actualizar estado') : 'Actualizar estado';
     @endphp
 
-    @push('head')
-        <style>
-            @media (min-width: 1280px) {
-                .order-ops-checklist-sticky {
-                    position: -webkit-sticky;
-                    position: sticky;
-                    top: 6rem;
-                    z-index: 20;
-                }
-            }
-        </style>
-    @endpush
-
     <x-slot name="header">
         <x-ui.page-header title="Pedido {{ $order->oc_number }}" subtitle="Resumen operativo para validar información, actualizar estado y mantener control del proceso.">
             <x-slot name="meta">
@@ -46,8 +33,8 @@
         </x-ui.page-header>
     </x-slot>
 
-    <section class="grid gap-4 xl:grid-cols-[1.7fr_1fr]">
-        <div class="space-y-4 xl:col-start-1">
+    <section class="grid gap-4 lg:grid-cols-[1.7fr_1fr]">
+        <div class="space-y-4 lg:col-start-1">
             <x-ui.card class="p-5">
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -204,8 +191,8 @@
             @endif
         </div>
 
-        <aside class="space-y-4 xl:col-start-2 xl:self-start">
-        <div class="order-ops-checklist-sticky">
+        <aside class="space-y-4 lg:col-start-2 lg:self-start">
+        <div class="lg:sticky lg:top-24 lg:z-20">
         <x-ui.card class="p-5">
             <h2 class="card-title">Checklist Operativo</h2>
             <p class="mt-1 text-xs text-slate-500">Ejecuta la siguiente transición de estado y deja nota cuando aplique.</p>
