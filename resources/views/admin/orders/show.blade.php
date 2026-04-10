@@ -33,9 +33,9 @@
         </x-ui.page-header>
     </x-slot>
 
-    <section class="grid gap-4 lg:grid-cols-[1.7fr_1fr] lg:items-start">
-        <div class="space-y-4 lg:col-start-1">
-            <x-ui.card class="p-5">
+    <section class="space-y-4 lg:flex lg:items-start lg:gap-6 lg:space-y-0">
+        <div class="space-y-4 lg:min-w-0 lg:flex-1">
+            <x-ui.card>
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <h2 class="card-title">Resumen Comercial</h2>
@@ -72,7 +72,7 @@
             @endif
         </x-ui.card>
 
-            <x-ui.card class="p-5">
+            <x-ui.card>
             <h2 class="card-title">Cliente y contacto</h2>
             <p class="mt-1 text-sm text-slate-600">Datos para validación comercial y comunicación inmediata.</p>
 
@@ -184,16 +184,19 @@
         </x-ui.card>
 
             @if($order->notes)
-                <x-ui.card class="p-5">
+                <x-ui.card>
                 <h2 class="card-title">Observaciones</h2>
                 <p class="mt-3 whitespace-pre-line text-sm text-slate-700">{{ $order->notes }}</p>
                 </x-ui.card>
             @endif
         </div>
 
-        <aside class="space-y-4 lg:col-start-2">
-        <div class="lg:sticky lg:top-24 lg:z-20">
-        <x-ui.card class="p-5">
+        <aside class="relative space-y-4 lg:w-full lg:max-w-md lg:flex-shrink-0 lg:self-start xl:max-w-lg">
+        {{-- En lg+: el checklist es fixed al viewport; este bloque reserva altura para no solapar Historial --}}
+        <div class="hidden shrink-0 lg:block lg:min-h-[30rem]" aria-hidden="true"></div>
+
+        <div class="lg:fixed lg:right-8 lg:top-28 lg:z-40 lg:w-[min(28rem,calc(100vw-18rem))] lg:max-h-[calc(100dvh-8rem)] lg:overflow-y-auto lg:overflow-x-hidden">
+        <x-ui.card>
             <h2 class="card-title">Checklist Operativo</h2>
             <p class="mt-1 text-xs text-slate-500">Ejecuta la siguiente transición de estado y deja nota cuando aplique.</p>
 
@@ -264,7 +267,7 @@
         </x-ui.card>
         </div>
 
-        <x-ui.card class="p-5">
+        <x-ui.card>
             <h2 class="card-title">Historial de estados</h2>
             <ol class="mt-4 space-y-3">
                 @foreach($timeline as $event)
@@ -280,7 +283,7 @@
             </ol>
         </x-ui.card>
 
-        <x-ui.card class="p-5">
+        <x-ui.card>
             <h2 class="card-title">Documentación</h2>
             <div class="mt-3 space-y-2">
                 @if($order->pdf_path)
@@ -303,7 +306,7 @@
             @endif
         </x-ui.card>
 
-        <x-ui.card class="danger-zone p-5">
+        <x-ui.card class="danger-zone">
             <h2 class="card-title">Zona de peligro</h2>
             <p class="mt-1 text-xs text-slate-600">Acción irreversible. Úsala solo cuando sea estrictamente necesario.</p>
 
