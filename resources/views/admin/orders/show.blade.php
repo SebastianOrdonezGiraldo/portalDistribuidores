@@ -191,7 +191,7 @@
             @endif
         </div>
 
-        <aside class="space-y-4 lg:col-start-2 lg:self-start">
+        <aside class="space-y-4 lg:col-start-2">
         <div class="lg:sticky lg:top-24 lg:z-20">
         <x-ui.card class="p-5">
             <h2 class="card-title">Checklist Operativo</h2>
