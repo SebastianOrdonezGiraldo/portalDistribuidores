@@ -37,7 +37,7 @@
         <x-ui.card class="order-1 p-5 xl:col-start-1">
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h2 class="card-title">Datos clave</h2>
+                    <h2 class="card-title">Resumen Comercial</h2>
                     <p class="mt-1 text-sm text-slate-600">Información principal para validar el pedido rápidamente.</p>
                 </div>
                 <x-ui.status-badge :status="$order->status" class="shrink-0" />
@@ -72,7 +72,7 @@
         </x-ui.card>
 
         <x-ui.card class="order-2 p-5 xl:col-start-2 xl:sticky xl:top-24 xl:self-start">
-            <h2 class="card-title">Siguiente paso</h2>
+            <h2 class="card-title">Checklist Operativo</h2>
             <p class="mt-1 text-xs text-slate-500">Ejecuta la siguiente transición de estado y deja nota cuando aplique.</p>
 
             @if($hasTransitions)
@@ -115,7 +115,7 @@
                             aria-invalid="{{ $errors->has('note') ? 'true' : 'false' }}"
                             aria-describedby="order-status-note-help{{ $errors->has('note') ? ' order-status-note-error' : '' }}"
                             aria-required="{{ $selectedRequiresNote ? 'true' : 'false' }}"
-                            @if($selectedRequiresNote) required @endif
+                            :required="$selectedRequiresNote"
                         >{{ old('note') }}</x-ui.textarea>
                         <p id="order-status-note-help" class="mt-1 text-xs text-slate-500" data-status-note-help>
                             {{ $selectedRequiresNote ? 'Nota obligatoria para este cambio de estado.' : 'Nota opcional para dejar contexto operativo.' }}
@@ -189,7 +189,7 @@
         <x-ui.card class="order-4 xl:col-start-1">
             <x-slot name="header">
                 <div>
-                    <h2 class="card-title">Ítems del pedido</h2>
+                    <h2 class="card-title">Ítems del Pedido</h2>
                     <p class="mt-1 text-xs text-slate-500">Detalle de cantidades, precio unitario y subtotal.</p>
                 </div>
             </x-slot>
