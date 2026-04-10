@@ -33,7 +33,7 @@
         </x-ui.page-header>
     </x-slot>
 
-    <section class="grid gap-4 xl:grid-cols-[1.7fr_1fr]">
+    <section class="grid gap-4 xl:grid-cols-[1.7fr_1fr] xl:items-start">
         <x-ui.card class="order-1 p-5 xl:col-start-1">
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -71,7 +71,7 @@
             @endif
         </x-ui.card>
 
-        <x-ui.card class="order-2 p-5 xl:col-start-2 xl:sticky xl:top-24 xl:self-start">
+        <x-ui.card class="order-2 p-5 xl:col-start-2 xl:row-span-4 xl:sticky xl:top-24 xl:self-start">
             <h2 class="card-title">Checklist Operativo</h2>
             <p class="mt-1 text-xs text-slate-500">Ejecuta la siguiente transición de estado y deja nota cuando aplique.</p>
 
