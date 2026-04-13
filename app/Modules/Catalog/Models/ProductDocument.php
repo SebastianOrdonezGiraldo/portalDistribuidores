@@ -20,11 +20,13 @@ class ProductDocument extends Model
         'filename',
     ];
 
+    /** @return BelongsTo<Product, $this> */
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }
 
+    /** @return HasMany<DocumentDownload, $this> */
     public function downloads(): HasMany
     {
         return $this->hasMany(DocumentDownload::class);

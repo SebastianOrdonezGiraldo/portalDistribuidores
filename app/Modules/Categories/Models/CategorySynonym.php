@@ -15,6 +15,7 @@ class CategorySynonym extends Model
         'term',
     ];
 
+    /** @return BelongsTo<Category, $this> */
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);

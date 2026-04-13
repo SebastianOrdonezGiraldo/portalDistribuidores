@@ -11,6 +11,17 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $id
+ * @property OrderStatus $status
+ * @property float $total_amount
+ * @property string|null $pdf_path
+ * @property string|null $oc_number
+ * @property \Carbon\Carbon $created_at
+ * @property float|null $revenue
+ * @property int|null $orders
+ * @property float|null $total
+ */
 class Order extends Model
 {
     use HasFactory;
@@ -51,21 +62,25 @@ class Order extends Model
         ];
     }
 
+    /** @return BelongsTo<Distributor, $this> */
     public function distributor(): BelongsTo
     {
         return $this->belongsTo(Distributor::class);
     }
 
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /** @return HasMany<OrderItem, $this> */
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);
     }
 
+    /** @return HasMany<OrderStatusHistory, $this> */
     public function statusHistory(): HasMany
     {
         return $this->hasMany(OrderStatusHistory::class)->latest('created_at');

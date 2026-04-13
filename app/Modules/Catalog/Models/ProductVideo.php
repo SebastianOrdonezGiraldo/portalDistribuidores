@@ -16,6 +16,7 @@ class ProductVideo extends Model
         'sort_order',
     ];
 
+    /** @return BelongsTo<Product, $this> */
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);

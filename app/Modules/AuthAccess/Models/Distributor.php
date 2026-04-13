@@ -13,6 +13,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property DistributorStatus $status
+ * @property string|null $contact_email
+ * @property string|null $contact_name
+ */
 class Distributor extends Model
 {
     use HasFactory;
@@ -45,26 +52,31 @@ class Distributor extends Model
         return $this->status === DistributorStatus::Active;
     }
 
+    /** @return HasMany<User, $this> */
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
     }
 
+    /** @return HasMany<Order, $this> */
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
     }
 
+    /** @return HasOne<Order, $this> */
     public function latestOrder(): HasOne
     {
         return $this->hasOne(Order::class)->latestOfMany();
     }
 
+    /** @return HasMany<CompanyBranch, $this> */
     public function branches(): HasMany
     {
         return $this->hasMany(CompanyBranch::class);
     }
 
+    /** @return HasMany<CompanyList, $this> */
     public function lists(): HasMany
     {
         return $this->hasMany(CompanyList::class);

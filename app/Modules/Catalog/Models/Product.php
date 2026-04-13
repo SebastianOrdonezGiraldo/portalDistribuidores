@@ -16,6 +16,16 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string|null $brand
+ * @property string $sku
+ * @property bool $is_active
+ * @property int|null $category_id
+ * @property int|null $variant_attribute_id
+ * @property int $active_variants_count
+ */
 class Product extends Model
 {
     use HasFactory;
@@ -46,41 +56,49 @@ class Product extends Model
         ];
     }
 
+    /** @return BelongsTo<Category, $this> */
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
     }
 
+    /** @return BelongsTo<ProductAttribute, $this> */
     public function variantAttribute(): BelongsTo
     {
         return $this->belongsTo(ProductAttribute::class, 'variant_attribute_id');
     }
 
+    /** @return HasMany<ProductVariant, $this> */
     public function variants(): HasMany
     {
         return $this->hasMany(ProductVariant::class)->orderBy('sort_order')->orderBy('id');
     }
 
+    /** @return HasMany<ProductPhoto, $this> */
     public function photos(): HasMany
     {
         return $this->hasMany(ProductPhoto::class)->orderBy('sort_order');
     }
 
+    /** @return HasOne<ProductPhoto, $this> */
     public function primaryPhoto(): HasOne
     {
         return $this->hasOne(ProductPhoto::class)->where('is_primary', true);
     }
 
+    /** @return HasMany<ProductVideo, $this> */
     public function videos(): HasMany
     {
         return $this->hasMany(ProductVideo::class)->orderBy('sort_order');
     }
 
+    /** @return HasMany<ProductDocument, $this> */
     public function documents(): HasMany
     {
         return $this->hasMany(ProductDocument::class)->orderBy('sort_order')->orderBy('id');
     }
 
+    /** @return HasMany<OrderItem, $this> */
     public function orderItems(): HasMany
     {
         return $this->hasMany(OrderItem::class);
