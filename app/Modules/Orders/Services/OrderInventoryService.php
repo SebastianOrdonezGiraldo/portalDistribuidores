@@ -38,7 +38,7 @@ class OrderInventoryService
     }
 
     /**
-     * @param Collection<int, OrderItem> $items
+     * @param  Collection<int, OrderItem>  $items
      */
     private function decreaseVariantStock(Collection $items): void
     {
@@ -71,6 +71,7 @@ class OrderInventoryService
             }
 
             $available = max(0, (int) floor((float) $variant->stock));
+
             if ($available < $qty) {
                 throw new DomainException("Stock insuficiente en variante {$variant->id}. Disponible: {$available}.");
             }
@@ -81,7 +82,7 @@ class OrderInventoryService
     }
 
     /**
-     * @param Collection<int, OrderItem> $items
+     * @param  Collection<int, OrderItem>  $items
      */
     private function decreaseProductStock(Collection $items): void
     {
@@ -114,6 +115,7 @@ class OrderInventoryService
             }
 
             $available = max(0, (int) floor((float) $product->stock));
+
             if ($available < $qty) {
                 throw new DomainException("Stock insuficiente en producto {$product->sku}. Disponible: {$available}.");
             }
@@ -124,7 +126,7 @@ class OrderInventoryService
     }
 
     /**
-     * @param Collection<int, OrderItem> $items
+     * @param  Collection<int, OrderItem>  $items
      */
     private function increaseVariantStock(Collection $items): void
     {
@@ -158,7 +160,7 @@ class OrderInventoryService
     }
 
     /**
-     * @param Collection<int, OrderItem> $items
+     * @param  Collection<int, OrderItem>  $items
      */
     private function increaseProductStock(Collection $items): void
     {

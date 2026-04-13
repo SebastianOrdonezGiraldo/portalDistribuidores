@@ -20,7 +20,8 @@ class Order extends Model
         return OrderFactory::new();
     }
 
-    public const OC_PREFIX  = 'CTC-';
+    public const OC_PREFIX = 'CTC-';
+
     public const OC_PADDING = 6;
 
     protected $fillable = [

@@ -21,6 +21,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class OrderController extends Controller
 {
     private const GUEST_ORDERS_SESSION_KEY = 'orders.guest_access';
+
     private const SESSION_EXPIRED_MESSAGE = 'Tu sesión expiró o ya no es válida. Inicia sesión para continuar con tu pedido.';
 
     public function store(

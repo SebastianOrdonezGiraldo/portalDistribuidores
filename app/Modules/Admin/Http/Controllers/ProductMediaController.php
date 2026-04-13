@@ -31,6 +31,7 @@ class ProductMediaController extends Controller
 
         if ($wasPrimary) {
             $nextPrimary = $product->photos()->orderBy('sort_order')->orderBy('id')->first();
+
             if ($nextPrimary) {
                 $nextPrimary->update(['is_primary' => true]);
             }

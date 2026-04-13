@@ -10,25 +10,24 @@ use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Orders\Services\OrderInventoryService;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Exceptions\DomainException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class UpdateOrderAction
 {
     public function __construct(
         private readonly OrderInventoryService $orderInventoryService,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     public function execute(
         Order $order,
         array $payload,
         ?User $actor = null,
         bool $allowSubmittedEdit = false,
-    ): Order
-    {
+    ): Order {
         $preparedItems = $this->prepareItems(
             $order,
             $payload['items'] ?? [],
@@ -52,6 +51,7 @@ class UpdateOrderAction
             }
 
             $statusConsumesInventory = $this->statusConsumesInventory($lockedOrder->status);
+
             if ($statusConsumesInventory) {
                 // Devuelve stock de la versión actual para recalcular con los nuevos ítems.
                 $this->orderInventoryService->increaseForOrder($lockedOrder);
@@ -101,8 +101,6 @@ class UpdateOrderAction
     }
 
     /**
-     * @param mixed $rawItems
-     * @param mixed $rawNewItems
      * @return array<int, array<string, mixed>>
      */
     private function prepareItems(Order $order, mixed $rawItems, mixed $rawNewItems = []): array
@@ -111,7 +109,7 @@ class UpdateOrderAction
             throw new DomainException('Debes enviar los ítems de la cotización.');
         }
 
-        /** @var \Illuminate\Support\Collection<int, OrderItem> $existingItems */
+        /** @var Collection<int, OrderItem> $existingItems */
         $existingItems = $order->items()->get()->keyBy('id');
         $prepared = [];
         $seen = [];
@@ -133,6 +131,7 @@ class UpdateOrderAction
 
             /** @var OrderItem|null $existing */
             $existing = $existingItems->get($itemId);
+
             if (! $existing) {
                 throw new DomainException('Se enviaron ítems inválidos para esta cotización.');
             }
@@ -170,7 +169,6 @@ class UpdateOrderAction
     }
 
     /**
-     * @param mixed $rawNewItems
      * @return array<int, array<string, mixed>>
      */
     private function prepareNewItems(mixed $rawNewItems): array
@@ -201,6 +199,7 @@ class UpdateOrderAction
             }
 
             $parsedRef = $this->parseCatalogRef($catalogRef);
+
             if (! $parsedRef) {
                 throw new DomainException('Se enviaron productos nuevos inválidos para esta cotización.');
             }
@@ -244,6 +243,7 @@ class UpdateOrderAction
             if ($row['type'] === 'product') {
                 /** @var Product|null $product */
                 $product = $products->get($row['id']);
+
                 if (! $product) {
                     throw new DomainException('Uno de los productos seleccionados ya no está disponible.');
                 }
@@ -272,12 +272,14 @@ class UpdateOrderAction
 
             /** @var ProductVariant|null $variant */
             $variant = $variants->get($row['id']);
+
             if (! $variant) {
                 throw new DomainException('Una de las variantes seleccionadas ya no está disponible.');
             }
 
             /** @var Product|null $product */
             $product = $variant->product;
+
             if (! $product) {
                 throw new DomainException('No fue posible resolver el producto de la variante seleccionada.');
             }

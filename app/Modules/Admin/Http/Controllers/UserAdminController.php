@@ -106,7 +106,7 @@ class UserAdminController extends Controller
         $this->authorize('create', User::class);
 
         return view('admin.users.form', [
-            'user' => new User(),
+            'user' => new User,
             'distributors' => Distributor::query()->where('status', 'active')->orderBy('name')->get(),
             'roles' => UserRole::cases(),
         ]);

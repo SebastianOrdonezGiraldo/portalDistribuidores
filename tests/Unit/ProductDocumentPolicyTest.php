@@ -17,7 +17,7 @@ class ProductDocumentPolicyTest extends TestCase
     {
         parent::setUp();
 
-        $this->policy = new ProductDocumentPolicy();
+        $this->policy = new ProductDocumentPolicy;
     }
 
     public function test_download_rejects_unprotected_documents(): void

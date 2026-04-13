@@ -7,4 +7,3 @@ enum UserRole: string
     case Admin = 'admin';
     case Distributor = 'distributor';
 }
-

@@ -52,6 +52,7 @@ class UpdateCompanyOrderRequest extends FormRequest
                 $unitLabel = trim((string) ($row['unit_label'] ?? ''));
 
                 $hasAnyData = $catalogRef !== '' || $qty !== null || $unitLabel !== '';
+
                 if (! $hasAnyData) {
                     continue;
                 }

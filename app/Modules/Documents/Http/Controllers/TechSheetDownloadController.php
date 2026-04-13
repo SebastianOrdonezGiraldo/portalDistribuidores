@@ -21,6 +21,7 @@ class TechSheetDownloadController extends Controller
         TechSheetDownloadService $downloadService,
     ): StreamedResponse|RedirectResponse {
         $productDocument->loadMissing('product');
+
         if ($request->routeIs('documents.tech-sheet.download') && ! $productDocument->isTechSheet()) {
             abort(404);
         }
@@ -60,6 +61,7 @@ class TechSheetDownloadController extends Controller
 
         if (! $this->safeExists($disk, $path)) {
             $publicDisk = Storage::disk('public');
+
             if ($this->safeExists($publicDisk, $path)) {
                 return $publicDisk->download($path, $productDocument->filename);
             }
@@ -110,7 +112,7 @@ class TechSheetDownloadController extends Controller
     }
 
     /**
-     * @param mixed $disk Typically an instance from Storage::disk()
+     * @param  mixed  $disk  Typically an instance from Storage::disk()
      */
     private function safeExists(mixed $disk, string $path): bool
     {

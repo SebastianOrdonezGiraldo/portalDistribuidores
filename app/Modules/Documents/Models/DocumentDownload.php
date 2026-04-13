@@ -35,4 +35,3 @@ class DocumentDownload extends Model
         return $this->belongsTo(ProductDocument::class);
     }
 }
-

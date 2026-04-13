@@ -107,6 +107,7 @@ class LoginRequest extends FormRequest
     private function resolveBlockedAccessMessage(): ?string
     {
         $email = Str::lower(trim((string) $this->input('email', '')));
+
         if ($email === '') {
             return null;
         }

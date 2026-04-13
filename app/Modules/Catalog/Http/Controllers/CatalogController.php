@@ -5,9 +5,9 @@ namespace App\Modules\Catalog\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Http\Middleware\AddServerTiming;
 use App\Modules\Catalog\Http\Requests\ProductSearchRequest;
-use App\Modules\Shared\ValueObjects\ProductSearchQuery;
 use App\Modules\Categories\Queries\CategoryTreeQuery;
 use App\Modules\Shared\Contracts\SearchEngineInterface;
+use App\Modules\Shared\ValueObjects\ProductSearchQuery;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
@@ -50,9 +50,9 @@ class CatalogController extends Controller
         );
 
         return view('catalog.index', [
-            'products'   => $products,
+            'products' => $products,
             'categories' => $categories,
-            'search'     => $searchQuery,
+            'search' => $searchQuery,
             'canonicalUrl' => $this->canonicalUrl($searchQuery),
             'robotsContent' => $this->robotsContent($searchQuery),
         ]);

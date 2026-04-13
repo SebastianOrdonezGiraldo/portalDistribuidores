@@ -17,8 +17,8 @@ use App\Modules\Documents\Policies\ProductDocumentPolicy;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Policies\OrderPolicy;
 use App\Modules\Orders\Services\Cart\CartService;
-use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Contracts\SearchEngineInterface;
+use App\Modules\Shared\Enums\OrderStatus;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -27,8 +27,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
-use Illuminate\Support\Str;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
@@ -53,6 +53,7 @@ class AppServiceProvider extends ServiceProvider
         }
 
         $configuredScheme = strtolower((string) parse_url((string) config('app.url'), PHP_URL_SCHEME));
+
         if ($configuredScheme === 'https' || app()->isProduction()) {
             URL::forceScheme('https');
         }

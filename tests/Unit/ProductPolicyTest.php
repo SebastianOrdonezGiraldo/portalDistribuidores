@@ -15,7 +15,7 @@ class ProductPolicyTest extends TestCase
     {
         parent::setUp();
 
-        $this->policy = new ProductPolicy();
+        $this->policy = new ProductPolicy;
     }
 
     public function test_view_any_allows_admin_and_distributor(): void

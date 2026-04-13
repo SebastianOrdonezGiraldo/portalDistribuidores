@@ -3,10 +3,10 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
+use App\Modules\AuthAccess\Mail\DistributorRegistrationNotificationMail;
 use App\Modules\Shared\Enums\CompanyRole;
 use App\Modules\Shared\Enums\DistributorStatus;
 use App\Modules\Shared\Enums\UserRole;
-use App\Modules\AuthAccess\Mail\DistributorRegistrationNotificationMail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;

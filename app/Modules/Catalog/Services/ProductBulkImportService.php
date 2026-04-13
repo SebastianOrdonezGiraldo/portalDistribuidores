@@ -4,8 +4,8 @@ namespace App\Modules\Catalog\Services;
 
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Categories\Models\Category;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Throwable;
 
@@ -84,6 +84,7 @@ class ProductBulkImportService
         }
 
         $rawHeaderRow = fgetcsv($handle, 0, $delimiter);
+
         if (! is_array($rawHeaderRow) || $rawHeaderRow === []) {
             fclose($handle);
             $report['ok'] = false;
@@ -128,6 +129,7 @@ class ProductBulkImportService
 
             try {
                 $errorMessage = $this->validateRowPayload($rowPayload);
+
                 if ($errorMessage !== null) {
                     $report['ok'] = false;
                     $this->appendError($report, $lineNumber, $sku, $errorMessage);
@@ -187,8 +189,8 @@ class ProductBulkImportService
     }
 
     /**
-     * @param array<int, string|null> $row
-     * @param array<string, int> $headerIndexes
+     * @param  array<int, string|null>  $row
+     * @param  array<string, int>  $headerIndexes
      * @return array<string, mixed>
      */
     private function mapRowPayload(array $row, array $headerIndexes, string $defaultAction): array
@@ -219,7 +221,7 @@ class ProductBulkImportService
     }
 
     /**
-     * @param array<string, mixed> $rowPayload
+     * @param  array<string, mixed>  $rowPayload
      */
     private function validateRowPayload(array $rowPayload): ?string
     {
@@ -281,12 +283,13 @@ class ProductBulkImportService
     }
 
     /**
-     * @param array<int, string|null> $row
-     * @param array<string, int> $headerIndexes
+     * @param  array<int, string|null>  $row
+     * @param  array<string, int>  $headerIndexes
      */
     private function cell(array $row, array $headerIndexes, string $header): ?string
     {
         $index = $headerIndexes[$header] ?? null;
+
         if ($index === null) {
             return null;
         }
@@ -295,7 +298,7 @@ class ProductBulkImportService
     }
 
     /**
-     * @param array<int, string|null> $row
+     * @param  array<int, string|null>  $row
      */
     private function isEmptyRow(array $row): bool
     {
@@ -321,6 +324,7 @@ class ProductBulkImportService
     private function normalizeCategoryReference(?string $value): array
     {
         $trimmed = trim((string) $value);
+
         if ($trimmed === '') {
             return [null, false];
         }
@@ -352,6 +356,7 @@ class ProductBulkImportService
     private function normalizeNullableDecimal(?string $value): ?float
     {
         $trimmed = trim((string) $value);
+
         if ($trimmed === '') {
             return null;
         }
@@ -384,6 +389,7 @@ class ProductBulkImportService
     private function normalizeNullableBoolean(?string $value): array
     {
         $trimmed = strtolower(trim((string) $value));
+
         if ($trimmed === '') {
             return [null, false];
         }
@@ -451,7 +457,7 @@ class ProductBulkImportService
     }
 
     /**
-     * @param array<string, int|null> $lookup
+     * @param  array<string, int|null>  $lookup
      */
     private function rememberCategoryLookup(array &$lookup, string $key, int $id): void
     {
@@ -498,8 +504,8 @@ class ProductBulkImportService
     }
 
     /**
-     * @param array<string, mixed> $attributes
-     * @param array<string, mixed> $report
+     * @param  array<string, mixed>  $attributes
+     * @param  array<string, mixed>  $report
      */
     private function persistCreate(string $sku, array $attributes, array &$report): void
     {
@@ -510,8 +516,8 @@ class ProductBulkImportService
     }
 
     /**
-     * @param array<string, mixed> $attributes
-     * @param array<string, mixed> $report
+     * @param  array<string, mixed>  $attributes
+     * @param  array<string, mixed>  $report
      */
     private function persistUpdate(Product $existing, array $attributes, array &$report): void
     {

@@ -21,4 +21,3 @@ class ProductVideo extends Model
         return $this->belongsTo(Product::class);
     }
 }
-

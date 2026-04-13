@@ -2,8 +2,8 @@
 
 namespace App\Modules\Catalog\Http\Requests;
 
-use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Http\Requests\Concerns\InteractsWithProductUploads;
+use App\Modules\Catalog\Models\Product;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;

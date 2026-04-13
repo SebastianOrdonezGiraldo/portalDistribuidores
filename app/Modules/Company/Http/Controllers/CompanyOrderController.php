@@ -4,9 +4,9 @@ namespace App\Modules\Company\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Modules\Company\Http\Requests\UpdateCompanyOrderRequest;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
+use App\Modules\Company\Http\Requests\UpdateCompanyOrderRequest;
 use App\Modules\Orders\Actions\UpdateOrderAction;
 use App\Modules\Orders\Jobs\GenerateOrderPdfJob;
 use App\Modules\Orders\Models\Order;

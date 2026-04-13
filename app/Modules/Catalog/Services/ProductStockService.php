@@ -31,7 +31,7 @@ class ProductStockService
     }
 
     /**
-     * @param array<int, array{id:int, stock:float|null}> $rows
+     * @param  array<int, array{id:int, stock:float|null}>  $rows
      */
     public function updateVariantStocks(Product $product, array $rows): bool
     {

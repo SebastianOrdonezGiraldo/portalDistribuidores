@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Cache;
 class CategoryTreeQuery
 {
     private const CATALOG_TREE_CACHE_KEY = 'catalog_category_tree';
+
     private const CATALOG_TREE_CACHE_TTL_SECONDS = 3600;
 
     public function execute(bool $activeOnly = true, array $filters = []): Collection

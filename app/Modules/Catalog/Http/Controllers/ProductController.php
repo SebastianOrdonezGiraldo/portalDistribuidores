@@ -58,14 +58,14 @@ class ProductController extends Controller
         }
 
         return view('product.show', array_merge($viewData, [
-            'product'            => $product,
-            'breadcrumbs'        => $breadcrumbs,
-            'techSheet'          => $techSheet,
+            'product' => $product,
+            'breadcrumbs' => $breadcrumbs,
+            'techSheet' => $techSheet,
             'techSheetMonthlyLimit' => $techSheetMonthlyLimit,
             'remainingDownloads' => $remainingDownloads,
-            'relatedProducts'    => $relatedProducts,
+            'relatedProducts' => $relatedProducts,
             'alternativeProducts' => $alternativeProducts,
-            'canonicalUrl'       => route('products.show', $product),
+            'canonicalUrl' => route('products.show', $product),
         ]));
     }
 
@@ -74,35 +74,34 @@ class ProductController extends Controller
      */
     private function buildViewData(Product $product, array $commercial, mixed $techSheet): array
     {
-        $formatQty = static fn (float|int $value): string =>
-            rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
+        $formatQty = static fn (float|int $value): string => rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
 
-        $mainPhoto    = $product->primaryPhoto ?? $product->photos->first();
+        $mainPhoto = $product->primaryPhoto ?? $product->photos->first();
         $galleryPhotos = $product->photos->take(10);
-        $categoryName  = $product->category?->name ?? 'Sin categoría';
-        $brand         = $commercial['brand'] ?? 'Marca no especificada';
-        $unitLabel     = $commercial['unit'] ?? 'unidades';
+        $categoryName = $product->category?->name ?? 'Sin categoría';
+        $brand = $commercial['brand'] ?? 'Marca no especificada';
+        $unitLabel = $commercial['unit'] ?? 'unidades';
         $unitLabelLower = Str::lower($unitLabel);
         $leadTimeLabel = $commercial['leadTimeLabel'] ?? null;
-        $etaLabel      = $commercial['etaLabel'] ?? null;
-        $minMultiple   = max(1, (int) ceil((float) ($commercial['minMultiple'] ?? 1)));
-        $stepValue     = (string) $minMultiple;
+        $etaLabel = $commercial['etaLabel'] ?? null;
+        $minMultiple = max(1, (int) ceil((float) ($commercial['minMultiple'] ?? 1)));
+        $stepValue = (string) $minMultiple;
         $discountPercent = $commercial['discountPercent'] ?? null;
-        $promoLabel    = $commercial['promoLabel'] ?? null;
+        $promoLabel = $commercial['promoLabel'] ?? null;
 
-        $activeVariants      = $product->activeVariantsCollection();
-        $hasVariants         = $activeVariants->isNotEmpty();
+        $activeVariants = $product->activeVariantsCollection();
+        $hasVariants = $activeVariants->isNotEmpty();
         $variantAttributeName = $product->variantAttribute?->name ?? 'Variante';
-        $minVariantPrice     = $hasVariants ? (float) ($activeVariants->min('price') ?? 0) : null;
-        $maxVariantPrice     = $hasVariants ? (float) ($activeVariants->max('price') ?? 0) : null;
-        $price               = $hasVariants ? (float) ($minVariantPrice ?? 0) : (float) $product->price;
-        $isRangePrice        = $hasVariants && $maxVariantPrice !== null && $maxVariantPrice > $price;
-        $formattedPrice      = $isRangePrice
+        $minVariantPrice = $hasVariants ? (float) ($activeVariants->min('price') ?? 0) : null;
+        $maxVariantPrice = $hasVariants ? (float) ($activeVariants->max('price') ?? 0) : null;
+        $price = $hasVariants ? (float) ($minVariantPrice ?? 0) : (float) $product->price;
+        $isRangePrice = $hasVariants && $maxVariantPrice !== null && $maxVariantPrice > $price;
+        $formattedPrice = $isRangePrice
             ? '$'.number_format($price, 0, ',', '.').' – $'.number_format((float) $maxVariantPrice, 0, ',', '.')
             : '$'.number_format($price, 0, ',', '.');
 
-        $stock    = $hasVariants ? null : ($commercial['stock'] ?? null);
-        $canBuy   = $hasVariants
+        $stock = $hasVariants ? null : ($commercial['stock'] ?? null);
+        $canBuy = $hasVariants
             ? $activeVariants->isNotEmpty()
             : ! in_array($commercial['availability']['key'] ?? '', ['out', 'inactive'], true);
         $isLowStock = ! $hasVariants && in_array($commercial['availability']['key'] ?? '', ['low', 'out'], true);
@@ -110,15 +109,15 @@ class ProductController extends Controller
         // Resolve final availability: override to "requires selection" when product has variants.
         $availability = $hasVariants
             ? [
-                'key'    => 'variant',
-                'label'  => 'Requiere selección',
-                'badge'  => 'brand',
+                'key' => 'variant',
+                'label' => 'Requiere selección',
+                'badge' => 'brand',
                 'helper' => 'Selecciona '.Str::lower($variantAttributeName).' para definir precio y disponibilidad.',
             ]
             : ($commercial['availability'] ?? [
-                'key'    => 'check',
-                'label'  => 'Disponibilidad a confirmar',
-                'badge'  => 'warning',
+                'key' => 'check',
+                'label' => 'Disponibilidad a confirmar',
+                'badge' => 'warning',
                 'helper' => 'Consulta disponibilidad en tiempo real.',
             ]);
 
@@ -126,9 +125,9 @@ class ProductController extends Controller
             ? 'Selecciona '.Str::lower($variantAttributeName)
             : (is_null($stock) ? 'A confirmar' : $formatQty($stock).' '.$unitLabelLower);
 
-        $documents         = $product->documents;
-        $manual            = $documents->firstWhere('type', DocumentType::Manual->value);
-        $productVideo      = $product->videos->first();
+        $documents = $product->documents;
+        $manual = $documents->firstWhere('type', DocumentType::Manual->value);
+        $productVideo = $product->videos->first();
         $secondaryDocuments = $documents->filter(
             fn ($doc) => ! in_array($doc->type, [DocumentType::TechSheet->value, DocumentType::Manual->value], true)
                 && (! $techSheet || $doc->id !== $techSheet->id)
@@ -136,10 +135,10 @@ class ProductController extends Controller
         );
 
         $documentTypeLabels = [
-            'tech_sheet'  => 'Ficha técnica',
-            'catalog'     => 'Catálogo',
+            'tech_sheet' => 'Ficha técnica',
+            'catalog' => 'Catálogo',
             'certificate' => 'Certificado',
-            'manual'      => 'Manual de usuario',
+            'manual' => 'Manual de usuario',
         ];
 
         $specRows = [
@@ -291,7 +290,7 @@ class ProductController extends Controller
     }
 
     /**
-     * @param array{list:?string, related_page:int, alternatives_page:int} $queryState
+     * @param  array{list:?string, related_page:int, alternatives_page:int}  $queryState
      */
     private function relatedProducts(Product $product, array $queryState): LengthAwarePaginator
     {
@@ -313,7 +312,7 @@ class ProductController extends Controller
     }
 
     /**
-     * @param array{list:?string, related_page:int, alternatives_page:int} $queryState
+     * @param  array{list:?string, related_page:int, alternatives_page:int}  $queryState
      */
     private function alternativeProducts(Product $product, array $queryState): LengthAwarePaginator
     {
@@ -340,7 +339,7 @@ class ProductController extends Controller
     }
 
     /**
-     * @param array{list:?string, related_page:int, alternatives_page:int} $queryState
+     * @param  array{list:?string, related_page:int, alternatives_page:int}  $queryState
      */
     private function buildProductListPayload(
         Product $product,
@@ -359,7 +358,7 @@ class ProductController extends Controller
     }
 
     /**
-     * @param array{list:?string, related_page:int, alternatives_page:int} $queryState
+     * @param  array{list:?string, related_page:int, alternatives_page:int}  $queryState
      */
     private function pushUrl(Product $product, LengthAwarePaginator $products, array $queryState): string
     {
@@ -379,7 +378,7 @@ class ProductController extends Controller
     }
 
     /**
-     * @param array{list:?string, related_page:int, alternatives_page:int} $queryState
+     * @param  array{list:?string, related_page:int, alternatives_page:int}  $queryState
      */
     private function emptyPaginator(Product $product, string $pageName, array $queryState): LengthAwarePaginator
     {
@@ -415,7 +414,7 @@ class ProductController extends Controller
     }
 
     /**
-     * @param array{list:?string, related_page:int, alternatives_page:int} $queryState
+     * @param  array{list:?string, related_page:int, alternatives_page:int}  $queryState
      * @return array<string, int>
      */
     private function basePaginationQuery(array $queryState): array

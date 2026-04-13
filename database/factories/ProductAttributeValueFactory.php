@@ -3,15 +3,16 @@
 namespace Database\Factories;
 
 use App\Modules\Catalog\Models\ProductAttribute;
+use App\Modules\Catalog\Models\ProductAttributeValue;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Modules\Catalog\Models\ProductAttributeValue>
+ * @extends Factory<ProductAttributeValue>
  */
 class ProductAttributeValueFactory extends Factory
 {
-    protected $model = \App\Modules\Catalog\Models\ProductAttributeValue::class;
+    protected $model = ProductAttributeValue::class;
 
     public function definition(): array
     {
@@ -19,8 +20,8 @@ class ProductAttributeValueFactory extends Factory
 
         return [
             'product_attribute_id' => ProductAttribute::factory(),
-            'value'                => $value,
-            'slug'                 => Str::slug($value).'-'.Str::random(4),
+            'value' => $value,
+            'slug' => Str::slug($value).'-'.Str::random(4),
         ];
     }
 }

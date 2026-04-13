@@ -287,8 +287,7 @@ class AdminDistributorsTest extends TestCase
         string $ocNumber,
         OrderStatus $status = OrderStatus::Submitted,
         float|int $totalAmount = 120000
-    ): Order
-    {
+    ): Order {
         return Order::create([
             'distributor_id' => $distributor->id,
             'user_id' => $admin->id,

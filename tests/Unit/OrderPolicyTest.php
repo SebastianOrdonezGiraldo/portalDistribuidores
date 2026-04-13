@@ -28,7 +28,7 @@ class OrderPolicyTest extends TestCase
     {
         parent::setUp();
 
-        $this->policy = new OrderPolicy();
+        $this->policy = new OrderPolicy;
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -38,7 +38,7 @@ class OrderPolicyTest extends TestCase
     private function makeDistributor(): Distributor
     {
         return Distributor::create([
-            'name'   => 'Distribuidora Test',
+            'name' => 'Distribuidora Test',
             'status' => DistributorStatus::Active,
         ]);
     }
@@ -46,16 +46,16 @@ class OrderPolicyTest extends TestCase
     private function makeOrder(int $distributorId): Order
     {
         return Order::create([
-            'distributor_id'  => $distributorId,
-            'oc_number'       => 'CTC-TEST-01',
-            'contact_name'    => 'Test',
-            'contact_email'   => 'test@test.com',
-            'company_name'    => 'Empresa Test',
-            'company_nit'     => '123456',
+            'distributor_id' => $distributorId,
+            'oc_number' => 'CTC-TEST-01',
+            'contact_name' => 'Test',
+            'contact_email' => 'test@test.com',
+            'company_name' => 'Empresa Test',
+            'company_nit' => '123456',
             'company_address' => 'Calle 1',
-            'city'            => 'Bogotá',
-            'status'          => OrderStatus::Submitted,
-            'total_amount'    => 1000,
+            'city' => 'Bogotá',
+            'status' => OrderStatus::Submitted,
+            'total_amount' => 1000,
         ]);
     }
 
@@ -83,18 +83,18 @@ class OrderPolicyTest extends TestCase
 
     public function test_admin_can_view_any_specific_order(): void
     {
-        $distA  = $this->makeDistributor();
-        $order  = $this->makeOrder($distA->id);
-        $admin  = User::factory()->admin()->make();
+        $distA = $this->makeDistributor();
+        $order = $this->makeOrder($distA->id);
+        $admin = User::factory()->admin()->make();
 
         $this->assertTrue($this->policy->view($admin, $order));
     }
 
     public function test_distributor_can_view_own_order(): void
     {
-        $distA    = $this->makeDistributor();
-        $order    = $this->makeOrder($distA->id);
-        $userA    = User::factory()->make(['distributor_id' => $distA->id]);
+        $distA = $this->makeDistributor();
+        $order = $this->makeOrder($distA->id);
+        $userA = User::factory()->make(['distributor_id' => $distA->id]);
 
         $this->assertTrue($this->policy->view($userA, $order));
     }
@@ -113,7 +113,7 @@ class OrderPolicyTest extends TestCase
     {
         $distA = $this->makeDistributor();
         $order = $this->makeOrder($distA->id);
-        $user  = User::factory()->make(['distributor_id' => null]);
+        $user = User::factory()->make(['distributor_id' => null]);
 
         $this->assertFalse($this->policy->view($user, $order));
     }

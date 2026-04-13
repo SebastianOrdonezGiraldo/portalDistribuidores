@@ -12,8 +12,7 @@ class OrderStatusTransitionService
 {
     public function __construct(
         private readonly OrderInventoryService $orderInventoryService,
-    ) {
-    }
+    ) {}
 
     public function transition(
         Order $order,

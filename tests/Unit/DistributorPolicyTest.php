@@ -15,7 +15,7 @@ class DistributorPolicyTest extends TestCase
     {
         parent::setUp();
 
-        $this->policy = new DistributorPolicy();
+        $this->policy = new DistributorPolicy;
     }
 
     public function test_before_grants_everything_to_admin(): void

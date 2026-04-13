@@ -556,7 +556,7 @@ class AdminProductEditorTest extends TestCase
         $admin = User::factory()->admin()->create();
 
         Route::middleware('web')->post('/test-post-too-large', function () {
-            throw new PostTooLargeException();
+            throw new PostTooLargeException;
         });
 
         $response = $this->actingAs($admin)
@@ -646,7 +646,7 @@ class AdminProductEditorTest extends TestCase
         $category = $this->createCategory();
 
         Route::middleware('web')->post('/test-post-too-large-fallback', function () {
-            throw new PostTooLargeException();
+            throw new PostTooLargeException;
         });
 
         $payload = array_merge($this->validProductPayload($category), [

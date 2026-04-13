@@ -3,13 +3,13 @@
 namespace App\Modules\Admin\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Modules\AuthAccess\Mail\DistributorAccountActivatedMail;
 use App\Modules\Admin\Http\Requests\StoreDistributorRequest;
 use App\Modules\Admin\Http\Requests\UpdateDistributorRequest;
+use App\Modules\AuthAccess\Mail\DistributorAccountActivatedMail;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Orders\Models\Order;
-use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Enums\DistributorStatus;
+use App\Modules\Shared\Enums\OrderStatus;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -168,7 +168,7 @@ class DistributorAdminController extends Controller
         $this->authorize('create', Distributor::class);
 
         return view('admin.distributors.form', [
-            'distributor' => new Distributor(),
+            'distributor' => new Distributor,
             'statusOptions' => $this->statusLabels(),
         ]);
     }
@@ -204,6 +204,7 @@ class DistributorAdminController extends Controller
         $this->authorize('delete', $distributor);
 
         $usersCount = $distributor->users()->count();
+
         if ($usersCount > 0) {
             $label = $usersCount === 1 ? 'usuario asociado' : 'usuarios asociados';
 
@@ -211,6 +212,7 @@ class DistributorAdminController extends Controller
         }
 
         $ordersCount = $distributor->orders()->count();
+
         if ($ordersCount > 0) {
             $label = $ordersCount === 1 ? 'pedido asociado' : 'pedidos asociados';
 

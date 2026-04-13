@@ -11,8 +11,8 @@ use Illuminate\Support\Collection;
 class InventoryPdfGenerator
 {
     /**
-     * @param Collection<int, Product> $products
-     * @param list<string> $appliedFilters
+     * @param  Collection<int, Product>  $products
+     * @param  list<string>  $appliedFilters
      */
     public function generate(Collection $products, array $appliedFilters = [], ?string $generatedBy = null): DomPdfWrapper
     {
@@ -35,7 +35,7 @@ class InventoryPdfGenerator
     }
 
     /**
-     * @param Collection<int, Product> $products
+     * @param  Collection<int, Product>  $products
      * @return Collection<int, array{
      *     sku:string,
      *     product_name:string,
@@ -95,4 +95,3 @@ class InventoryPdfGenerator
         return (float) round((float) $value, 2);
     }
 }
-

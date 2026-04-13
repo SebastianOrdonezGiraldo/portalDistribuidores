@@ -66,6 +66,7 @@ class SendOrderNotificationEmailJob implements ShouldQueue
 
         // Send both emails independently so that a failure in one does not prevent the other.
         $internalFailed = null;
+
         try {
             $this->sendInternalNotification($order, $pdfContents);
         } catch (\Throwable $exception) {

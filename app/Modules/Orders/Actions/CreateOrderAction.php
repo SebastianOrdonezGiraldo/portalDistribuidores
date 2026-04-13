@@ -12,6 +12,7 @@ use App\Modules\Orders\Services\OrderInventoryService;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Exceptions\DomainException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -20,8 +21,7 @@ class CreateOrderAction
     public function __construct(
         private readonly OrderStatusTransitionService $orderStatusTransitionService,
         private readonly OrderInventoryService $orderInventoryService,
-    ) {
-    }
+    ) {}
 
     public function execute(?User $user, CreateOrderData $data): Order
     {
@@ -61,20 +61,20 @@ class CreateOrderAction
                 : OrderStatus::Submitted;
 
             $order = Order::create([
-                'distributor_id'  => $user?->distributor_id,
-                'user_id'         => $user?->id,
-                'oc_number'       => Order::OC_PREFIX.'TMP-'.Str::upper(Str::random(8)),
-                'contact_name'    => $data->contactName,
-                'contact_email'   => $data->contactEmail,
-                'phone'           => $data->phone,
-                'company_name'    => $data->companyName,
-                'company_nit'     => $data->companyNit,
+                'distributor_id' => $user?->distributor_id,
+                'user_id' => $user?->id,
+                'oc_number' => Order::OC_PREFIX.'TMP-'.Str::upper(Str::random(8)),
+                'contact_name' => $data->contactName,
+                'contact_email' => $data->contactEmail,
+                'phone' => $data->phone,
+                'company_name' => $data->companyName,
+                'company_nit' => $data->companyNit,
                 'company_address' => $data->companyAddress,
-                'city'            => $data->city,
-                'department'      => $data->department,
-                'notes'           => $data->notes,
-                'status'          => $status,
-                'total_amount'    => 0,
+                'city' => $data->city,
+                'department' => $data->department,
+                'notes' => $data->notes,
+                'status' => $status,
+                'total_amount' => 0,
             ]);
 
             foreach ($data->items as $item) {
@@ -85,7 +85,7 @@ class CreateOrderAction
                 }
 
                 $variantId = isset($item['variant_id']) ? (int) $item['variant_id'] : null;
-                $variant   = null;
+                $variant = null;
                 $priceEach = (float) $product->price;
 
                 if ($variantId > 0) {
@@ -101,26 +101,26 @@ class CreateOrderAction
                     continue;
                 }
 
-                $qty      = max(1, (int) $item['qty']);
+                $qty = max(1, (int) $item['qty']);
                 $subtotal = $qty * $priceEach;
 
                 $order->items()->create([
-                    'product_id'                 => $product->id,
-                    'product_variant_id'         => $variant?->id,
-                    'product_name_snapshot'      => $product->name,
-                    'sku_snapshot'               => $product->sku,
+                    'product_id' => $product->id,
+                    'product_variant_id' => $variant?->id,
+                    'product_name_snapshot' => $product->name,
+                    'sku_snapshot' => $product->sku,
                     'variant_attribute_snapshot' => $variant?->attributeValue?->attribute?->name,
-                    'variant_value_snapshot'     => $variant?->attributeValue?->value,
-                    'qty'                        => $qty,
-                    'unit_label'                 => $item['unit_label'] ?? 'unidades',
-                    'price_each'                 => $priceEach,
-                    'subtotal'                   => $subtotal,
+                    'variant_value_snapshot' => $variant?->attributeValue?->value,
+                    'qty' => $qty,
+                    'unit_label' => $item['unit_label'] ?? 'unidades',
+                    'price_each' => $priceEach,
+                    'subtotal' => $subtotal,
                 ]);
             }
 
             $order->update([
                 'total_amount' => $preTotal,
-                'oc_number'    => sprintf(Order::OC_PREFIX.'%0'.Order::OC_PADDING.'d', $order->id),
+                'oc_number' => sprintf(Order::OC_PREFIX.'%0'.Order::OC_PADDING.'d', $order->id),
             ]);
 
             if ($status === OrderStatus::Submitted) {
@@ -146,8 +146,8 @@ class CreateOrderAction
 
     private function calculateTotal(
         array $items,
-        \Illuminate\Support\Collection $products,
-        \Illuminate\Support\Collection $variants,
+        Collection $products,
+        Collection $variants,
     ): float {
         $total = 0.0;
 
@@ -163,6 +163,7 @@ class CreateOrderAction
 
             if ($variantId > 0) {
                 $variant = $variants->get($variantId);
+
                 if (! $variant || (int) $variant->product_id !== (int) $product->id) {
                     continue;
                 }

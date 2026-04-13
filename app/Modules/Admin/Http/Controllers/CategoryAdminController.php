@@ -13,6 +13,7 @@ use App\Modules\Categories\Queries\CategoryTreeQuery;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -81,7 +82,7 @@ class CategoryAdminController extends Controller
         $this->authorize('create', Category::class);
 
         return view('admin.categories.form', [
-            'category' => new Category(),
+            'category' => new Category,
             'allCategories' => Category::query()->orderBy('name')->get(),
             'synonyms' => '',
         ]);
@@ -158,8 +159,8 @@ class CategoryAdminController extends Controller
             throw $exception;
         }
 
-        \App\Modules\Categories\Queries\CategoryTreeQuery::forgetCatalogCache();
-        \Illuminate\Support\Facades\Cache::forget('footer_top_categories');
+        CategoryTreeQuery::forgetCatalogCache();
+        Cache::forget('footer_top_categories');
 
         return redirect()->route('admin.categories.index')->with('status', 'Categoría eliminada.');
     }
@@ -174,8 +175,8 @@ class CategoryAdminController extends Controller
 
         $isActive = (bool) $payload['is_active'];
         $category->update(['is_active' => $isActive]);
-        \App\Modules\Categories\Queries\CategoryTreeQuery::forgetCatalogCache();
-        \Illuminate\Support\Facades\Cache::forget('footer_top_categories');
+        CategoryTreeQuery::forgetCatalogCache();
+        Cache::forget('footer_top_categories');
 
         return back()->with('status', $isActive ? 'Categoría activada.' : 'Categoría desactivada.');
     }
@@ -194,7 +195,7 @@ class CategoryAdminController extends Controller
             $category->synonyms()->create(['term' => $term]);
         }
 
-        \App\Modules\Categories\Queries\CategoryTreeQuery::forgetCatalogCache();
+        CategoryTreeQuery::forgetCatalogCache();
     }
 
     private function isDescendantOf(int $categoryId, int $candidateParentId): bool

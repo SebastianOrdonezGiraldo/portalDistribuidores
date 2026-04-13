@@ -56,6 +56,7 @@ class ProductSearchFeatureTest extends TestCase
         $response->assertSee('Guante Nitrilo Premium');
         $response->assertDontSee('Caja Básica');
     }
+
     public function test_search_can_match_product_brand(): void
     {
         $distributor = Distributor::create(['name' => 'Dist 2', 'status' => 'active']);

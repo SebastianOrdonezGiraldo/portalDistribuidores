@@ -37,4 +37,3 @@ class DistributorPolicy
         return false;
     }
 }
-

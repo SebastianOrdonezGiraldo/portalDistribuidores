@@ -10,21 +10,31 @@ use App\Modules\Shared\Support\TextNormalizer;
 use App\Modules\Shared\ValueObjects\ProductSearchQuery;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator as Paginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class PostgresSearchEngine implements SearchEngineInterface
 {
-    private const SCORE_NAME_EXACT      = 500;
-    private const SCORE_NAME_STRONG     = 380;
-    private const SCORE_BRAND_EXACT     = 340;
-    private const SCORE_BRAND_STRONG    = 280;
-    private const SCORE_CATEGORY_EXACT  = 260;
+    private const SCORE_NAME_EXACT = 500;
+
+    private const SCORE_NAME_STRONG = 380;
+
+    private const SCORE_BRAND_EXACT = 340;
+
+    private const SCORE_BRAND_STRONG = 280;
+
+    private const SCORE_CATEGORY_EXACT = 260;
+
     private const SCORE_CATEGORY_STRONG = 200;
-    private const SCORE_SYNONYM_EXACT   = 120;
-    private const SCORE_SYNONYM_TOKEN   = 80;
-    private const SCORE_DESCRIPTION     = 20;
+
+    private const SCORE_SYNONYM_EXACT = 120;
+
+    private const SCORE_SYNONYM_TOKEN = 80;
+
+    private const SCORE_DESCRIPTION = 20;
+
     private const STRONG_MATCH_MIN_TOKENS = 2;
 
     public function __construct(
@@ -60,12 +70,12 @@ class PostgresSearchEngine implements SearchEngineInterface
             ->leftJoin('category_synonyms as _fsyn', '_fcat.id', '=', '_fsyn.category_id')
             ->where(function (Builder $q) use ($query): void {
                 foreach ($query->tokens() as $token) {
-                    $like = '%' . $token . '%';
-                    $q->orWhereRaw($this->ciExpr('products.name') . ' LIKE ?',                        [$like])
-                      ->orWhereRaw($this->ciExpr('coalesce(products.brand, \'\')') . ' LIKE ?',       [$like])
-                      ->orWhereRaw($this->ciExpr('coalesce(products.description, \'\')') . ' LIKE ?', [$like])
-                      ->orWhereRaw($this->ciExpr('coalesce(_fcat.name, \'\')') . ' LIKE ?',           [$like])
-                      ->orWhereRaw($this->ciExpr('coalesce(_fsyn.term, \'\')') . ' LIKE ?',           [$like]);
+                    $like = '%'.$token.'%';
+                    $q->orWhereRaw($this->ciExpr('products.name').' LIKE ?', [$like])
+                        ->orWhereRaw($this->ciExpr('coalesce(products.brand, \'\')').' LIKE ?', [$like])
+                        ->orWhereRaw($this->ciExpr('coalesce(products.description, \'\')').' LIKE ?', [$like])
+                        ->orWhereRaw($this->ciExpr('coalesce(_fcat.name, \'\')').' LIKE ?', [$like])
+                        ->orWhereRaw($this->ciExpr('coalesce(_fsyn.term, \'\')').' LIKE ?', [$like]);
                 }
             })
             ->select('products.*')
@@ -80,10 +90,10 @@ class PostgresSearchEngine implements SearchEngineInterface
         $ranked = $this->rank($candidates, $query);
         $this->recordTiming('catalog_rank', (microtime(true) - $rankStartedAt) * 1000, 'In-memory ranking');
 
-        $total  = $ranked->count();
+        $total = $ranked->count();
         $offset = ($query->page - 1) * $query->perPage;
         $hydrateStartedAt = microtime(true);
-        $items  = $this->hydratePageItems(
+        $items = $this->hydratePageItems(
             $ranked->slice($offset, $query->perPage)->values()
         );
         $this->recordTiming('catalog_hydrate', (microtime(true) - $hydrateStartedAt) * 1000, 'Hydrate current page');
@@ -139,16 +149,16 @@ class PostgresSearchEngine implements SearchEngineInterface
 
     private function rank(Collection $products, ProductSearchQuery $query): Collection
     {
-        $term    = $query->normalizedTerm();
-        $tokens  = $query->tokens();
+        $term = $query->normalizedTerm();
+        $tokens = $query->tokens();
         $requiresStrongMatch = count($tokens) >= self::STRONG_MATCH_MIN_TOKENS;
 
         return $products
             ->map(function (Product $product) use ($term, $tokens, $requiresStrongMatch) {
-                $name        = TextNormalizer::normalize($product->name);
-                $brand       = TextNormalizer::normalize($product->brand);
-                $category    = TextNormalizer::normalize($product->category?->name);
-                $synonyms    = TextNormalizer::normalize(
+                $name = TextNormalizer::normalize($product->name);
+                $brand = TextNormalizer::normalize($product->brand);
+                $category = TextNormalizer::normalize($product->category?->name);
+                $synonyms = TextNormalizer::normalize(
                     $product->category?->synonyms?->pluck('term')->implode(' ') ?? ''
                 );
                 $description = TextNormalizer::normalize($product->description);
@@ -166,7 +176,7 @@ class PostgresSearchEngine implements SearchEngineInterface
     }
 
     /**
-     * @param list<string> $tokens
+     * @param  list<string>  $tokens
      */
     private function scoreMatch(
         string $name,
@@ -175,38 +185,38 @@ class PostgresSearchEngine implements SearchEngineInterface
         string $synonyms,
         string $description,
         string $term,
-        array  $tokens,
-        bool   $requiresStrongMatch,
+        array $tokens,
+        bool $requiresStrongMatch,
     ): int {
-        $strongName     = $this->containsAllTokens($name, $tokens);
-        $strongBrand    = $this->containsAllTokens($brand, $tokens);
+        $strongName = $this->containsAllTokens($name, $tokens);
+        $strongBrand = $this->containsAllTokens($brand, $tokens);
         $strongCategory = $this->containsAllTokens($category, $tokens);
 
         if ($requiresStrongMatch && ! ($strongName || $strongBrand || $strongCategory)) {
             return 0;
         }
 
-        $token           = $tokens[0] ?? $term;
-        $nameMatch       = str_contains($name, $token)        || str_contains($name, $term);
-        $brandMatch      = str_contains($brand, $token)       || str_contains($brand, $term);
-        $categoryMatch   = str_contains($category, $token)    || str_contains($category, $term);
-        $synonymsMatch   = str_contains($synonyms, $token)    || str_contains($synonyms, $term);
+        $token = $tokens[0] ?? $term;
+        $nameMatch = str_contains($name, $token) || str_contains($name, $term);
+        $brandMatch = str_contains($brand, $token) || str_contains($brand, $term);
+        $categoryMatch = str_contains($category, $token) || str_contains($category, $term);
+        $synonymsMatch = str_contains($synonyms, $token) || str_contains($synonyms, $term);
         $descriptionMatch = str_contains($description, $token) || str_contains($description, $term);
 
         if (! ($nameMatch || $brandMatch || $categoryMatch || $synonymsMatch || $descriptionMatch)) {
             return 0;
         }
 
-        $score  = 0;
-        $score += str_contains($name, $term)     ? self::SCORE_NAME_EXACT      : 0;
-        $score += $strongName                    ? self::SCORE_NAME_STRONG     : 0;
-        $score += str_contains($brand, $term)    ? self::SCORE_BRAND_EXACT     : 0;
-        $score += $strongBrand                   ? self::SCORE_BRAND_STRONG    : 0;
-        $score += str_contains($category, $term) ? self::SCORE_CATEGORY_EXACT  : 0;
-        $score += $strongCategory                ? self::SCORE_CATEGORY_STRONG : 0;
-        $score += str_contains($synonyms, $term) ? self::SCORE_SYNONYM_EXACT   : 0;
-        $score += $synonymsMatch                 ? self::SCORE_SYNONYM_TOKEN   : 0;
-        $score += $descriptionMatch              ? self::SCORE_DESCRIPTION     : 0;
+        $score = 0;
+        $score += str_contains($name, $term) ? self::SCORE_NAME_EXACT : 0;
+        $score += $strongName ? self::SCORE_NAME_STRONG : 0;
+        $score += str_contains($brand, $term) ? self::SCORE_BRAND_EXACT : 0;
+        $score += $strongBrand ? self::SCORE_BRAND_STRONG : 0;
+        $score += str_contains($category, $term) ? self::SCORE_CATEGORY_EXACT : 0;
+        $score += $strongCategory ? self::SCORE_CATEGORY_STRONG : 0;
+        $score += str_contains($synonyms, $term) ? self::SCORE_SYNONYM_EXACT : 0;
+        $score += $synonymsMatch ? self::SCORE_SYNONYM_TOKEN : 0;
+        $score += $descriptionMatch ? self::SCORE_DESCRIPTION : 0;
 
         return $score;
     }
@@ -226,7 +236,7 @@ class PostgresSearchEngine implements SearchEngineInterface
     }
 
     /**
-     * @param list<string> $tokens
+     * @param  list<string>  $tokens
      */
     private function containsAllTokens(string $haystack, array $tokens): bool
     {
@@ -292,7 +302,8 @@ class PostgresSearchEngine implements SearchEngineInterface
     private function recordTiming(string $name, float $durationMs, string $description): void
     {
         $request = request();
-        if (! $request instanceof \Illuminate\Http\Request) {
+
+        if (! $request instanceof Request) {
             return;
         }
 

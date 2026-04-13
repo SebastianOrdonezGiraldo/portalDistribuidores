@@ -7,8 +7,8 @@ use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Orders\Services\OrderPdfGenerator;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Barryvdh\DomPDF\PDF as DomPdfWrapper;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Filesystem\FilesystemAdapter;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
@@ -75,7 +75,7 @@ class OrderPdfGeneratorTest extends TestCase
                 return $pdfMock;
             });
 
-        $generator = new OrderPdfGenerator();
+        $generator = new OrderPdfGenerator;
 
         $path = $generator->generate($order);
 
@@ -158,7 +158,7 @@ class OrderPdfGeneratorTest extends TestCase
                 return $pdfMock;
             });
 
-        $path = (new OrderPdfGenerator())->generate($order);
+        $path = (new OrderPdfGenerator)->generate($order);
 
         $this->assertSame('orders/CTC-000777.pdf', $path);
         $this->assertSame('%PDF-VIEW-DATA', Storage::disk('private')->get($path));
@@ -196,7 +196,7 @@ class OrderPdfGeneratorTest extends TestCase
                 return $pdfMock;
             });
 
-        $path = (new OrderPdfGenerator())->generate($order);
+        $path = (new OrderPdfGenerator)->generate($order);
 
         $this->assertSame($legacyPath, $path);
         $this->assertFalse(Storage::disk('public')->exists($legacyPath));
@@ -258,6 +258,6 @@ class OrderPdfGeneratorTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('No fue posible guardar el PDF de la orden '.$order->id.'.');
 
-        (new OrderPdfGenerator())->generate($order);
+        (new OrderPdfGenerator)->generate($order);
     }
 }

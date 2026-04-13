@@ -3,6 +3,7 @@
 namespace App\Modules\Orders\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Modules\Orders\Services\Cart\CartService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -11,7 +12,7 @@ class CheckoutController extends Controller
 {
     public function __invoke(CartService $cartService): View|RedirectResponse
     {
-        /** @var \App\Models\User|null $user */
+        /** @var User|null $user */
         $user = auth()->user();
 
         if ($user && ! $user->canCreateOrders()) {
@@ -26,15 +27,15 @@ class CheckoutController extends Controller
         }
 
         $distributor = $user?->distributor;
-        $branches    = $distributor
+        $branches = $distributor
             ? $distributor->branches()->orderByDesc('is_default')->orderBy('name')->get()
             : collect();
 
         return view('orders.checkout', [
-            'items'       => $items,
-            'total'       => $cartService->total(),
+            'items' => $items,
+            'total' => $cartService->total(),
             'distributor' => $distributor,
-            'branches'    => $branches,
+            'branches' => $branches,
             'departments' => config('locations.colombia_departments', []),
         ]);
     }

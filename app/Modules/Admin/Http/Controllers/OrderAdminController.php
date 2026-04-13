@@ -3,6 +3,7 @@
 namespace App\Modules\Admin\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Modules\Admin\Http\Requests\UpdateAdminOrderRequest;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Catalog\Models\Product;
@@ -224,6 +225,7 @@ class OrderAdminController extends Controller
         }
 
         $target = $nextStatuses->firstWhere('value', $recommendedTransition);
+
         if (! is_array($target)) {
             return null;
         }
@@ -347,7 +349,7 @@ class OrderAdminController extends Controller
 
         $targetStatus = OrderStatus::from($payload['status']);
 
-        /** @var \App\Models\User $actor */
+        /** @var User $actor */
         $actor = $request->user();
 
         try {
