@@ -15,7 +15,7 @@ class CategoryPolicyTest extends TestCase
     {
         parent::setUp();
 
-        $this->policy = new CategoryPolicy();
+        $this->policy = new CategoryPolicy;
     }
 
     public function test_view_any_and_view_allow_admin_and_distributor(): void

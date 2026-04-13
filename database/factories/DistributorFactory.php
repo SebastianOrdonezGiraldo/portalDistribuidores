@@ -2,27 +2,28 @@
 
 namespace Database\Factories;
 
+use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Shared\Enums\DistributorStatus;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Modules\AuthAccess\Models\Distributor>
+ * @extends Factory<Distributor>
  */
 class DistributorFactory extends Factory
 {
-    protected $model = \App\Modules\AuthAccess\Models\Distributor::class;
+    protected $model = Distributor::class;
 
     public function definition(): array
     {
         return [
-            'name'          => fake()->company(),
-            'status'        => DistributorStatus::Active,
-            'nit'           => fake()->numerify('########-#'),
-            'address'       => fake()->streetAddress(),
-            'city'          => fake()->city(),
-            'phone'         => fake()->phoneNumber(),
+            'name' => fake()->company(),
+            'status' => DistributorStatus::Active,
+            'nit' => fake()->numerify('########-#'),
+            'address' => fake()->streetAddress(),
+            'city' => fake()->city(),
+            'phone' => fake()->phoneNumber(),
             'contact_email' => fake()->companyEmail(),
-            'contact_name'  => fake()->name(),
+            'contact_name' => fake()->name(),
         ];
     }
 

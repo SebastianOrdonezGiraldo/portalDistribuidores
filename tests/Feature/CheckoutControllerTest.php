@@ -28,9 +28,9 @@ class CheckoutControllerTest extends TestCase
     public function test_checkout_redirects_when_user_cannot_create_orders(): void
     {
         $distributor = Distributor::factory()->create();
-        $user        = User::factory()->create([
+        $user = User::factory()->create([
             'distributor_id' => $distributor->id,
-            'company_role'   => CompanyRole::SoloLectura,
+            'company_role' => CompanyRole::SoloLectura,
         ]);
 
         $product = Product::factory()->create();
@@ -49,7 +49,7 @@ class CheckoutControllerTest extends TestCase
     public function test_checkout_redirects_when_cart_is_empty(): void
     {
         $distributor = Distributor::factory()->create();
-        $user        = User::factory()->create(['distributor_id' => $distributor->id]);
+        $user = User::factory()->create(['distributor_id' => $distributor->id]);
 
         $this->actingAs($user)
             ->get(route('checkout.show'))
@@ -71,8 +71,8 @@ class CheckoutControllerTest extends TestCase
     public function test_checkout_renders_correctly_with_items_for_distributor(): void
     {
         $distributor = Distributor::factory()->create();
-        $user        = User::factory()->create(['distributor_id' => $distributor->id]);
-        $product     = Product::factory()->create(['price' => 15000]);
+        $user = User::factory()->create(['distributor_id' => $distributor->id]);
+        $product = Product::factory()->create(['price' => 15000]);
 
         $this->actingAs($user)->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 3]);
 
@@ -92,23 +92,23 @@ class CheckoutControllerTest extends TestCase
     public function test_checkout_passes_branches_ordered_by_default_then_name(): void
     {
         $distributor = Distributor::factory()->create();
-        $user        = User::factory()->create(['distributor_id' => $distributor->id]);
-        $product     = Product::factory()->create();
+        $user = User::factory()->create(['distributor_id' => $distributor->id]);
+        $product = Product::factory()->create();
 
         // Crea dos sucursales
         CompanyBranch::create([
             'distributor_id' => $distributor->id,
-            'name'           => 'Sucursal B',
-            'address'        => 'Dir B',
-            'city'           => 'City B',
-            'is_default'     => false,
+            'name' => 'Sucursal B',
+            'address' => 'Dir B',
+            'city' => 'City B',
+            'is_default' => false,
         ]);
         CompanyBranch::create([
             'distributor_id' => $distributor->id,
-            'name'           => 'Sucursal A (Default)',
-            'address'        => 'Dir A',
-            'city'           => 'City A',
-            'is_default'     => true,
+            'name' => 'Sucursal A (Default)',
+            'address' => 'Dir A',
+            'city' => 'City A',
+            'is_default' => true,
         ]);
 
         $this->actingAs($user)->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 1]);
@@ -137,9 +137,9 @@ class CheckoutControllerTest extends TestCase
     public function test_checkout_distributor_without_company_role_can_access(): void
     {
         $distributor = Distributor::factory()->create();
-        $user        = User::factory()->create([
+        $user = User::factory()->create([
             'distributor_id' => $distributor->id,
-            'company_role'   => null,
+            'company_role' => null,
         ]);
         $product = Product::factory()->create();
 
@@ -153,9 +153,9 @@ class CheckoutControllerTest extends TestCase
     public function test_checkout_admin_empresa_can_access(): void
     {
         $distributor = Distributor::factory()->create();
-        $user        = User::factory()->create([
+        $user = User::factory()->create([
             'distributor_id' => $distributor->id,
-            'company_role'   => CompanyRole::AdminEmpresa,
+            'company_role' => CompanyRole::AdminEmpresa,
         ]);
         $product = Product::factory()->create();
 

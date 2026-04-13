@@ -44,6 +44,7 @@ class OrderPdfGenerator
             ->setPaper('a4', 'portrait');
 
         $written = $this->disk()->put($path, $pdf->output());
+
         if ($written === false) {
             throw new RuntimeException("No fue posible guardar el PDF de la orden {$order->id}.");
         }

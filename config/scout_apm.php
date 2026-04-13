@@ -18,7 +18,7 @@ $config = array_combine(
     array_map(
         /** @return mixed */
         static function (string $configKey) {
-            return env('SCOUT_' . strtoupper($configKey), null);
+            return env('SCOUT_'.strtoupper($configKey), null);
         },
         ConfigKey::allConfigurationKeys()
     )

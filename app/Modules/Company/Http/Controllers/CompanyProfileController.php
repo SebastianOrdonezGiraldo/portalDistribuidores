@@ -3,6 +3,7 @@
 namespace App\Modules\Company\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Company\Http\Requests\UpdateCompanyProfileRequest;
 use Illuminate\Http\RedirectResponse;
@@ -12,7 +13,7 @@ class CompanyProfileController extends Controller
 {
     public function edit(): View
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         $this->authorize('editCompany', Distributor::class);
@@ -24,7 +25,7 @@ class CompanyProfileController extends Controller
 
     public function update(UpdateCompanyProfileRequest $request): RedirectResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         $this->authorize('editCompany', Distributor::class);

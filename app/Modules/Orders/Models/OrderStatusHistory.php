@@ -3,9 +3,17 @@
 namespace App\Modules\Orders\Models;
 
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property string $to_status
+ * @property string|null $from_status
+ * @property string|null $note
+ * @property Carbon $created_at
+ */
 class OrderStatusHistory extends Model
 {
     protected $fillable = [
@@ -24,14 +32,15 @@ class OrderStatusHistory extends Model
         ];
     }
 
+    /** @return BelongsTo<Order, $this> */
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
     }
 
+    /** @return BelongsTo<User, $this> */
     public function actor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'changed_by_user_id');
     }
 }
-

@@ -23,7 +23,7 @@ class EnsureActiveUser
         }
 
         if ($user->isDistributor() && $user->distributor && ! $user->distributor->isActive()) {
-            return $this->logout($request, $this->distributorAccessMessage($user->distributor?->status));
+            return $this->logout($request, $this->distributorAccessMessage($user->distributor->status));
         }
 
         return $next($request);

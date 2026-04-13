@@ -24,7 +24,7 @@ class UploadProductPhotoAction
         $path = $file->store('products/photos', 'public');
 
         $photo = $product->photos()->create([
-            'path'       => $path,
+            'path' => $path,
             'photo_width' => $photoWidth,
             'photo_height' => $photoHeight,
             'sort_order' => $sortOrder,

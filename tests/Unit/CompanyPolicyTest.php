@@ -15,7 +15,7 @@ class CompanyPolicyTest extends TestCase
     {
         parent::setUp();
 
-        $this->policy = new CompanyPolicy();
+        $this->policy = new CompanyPolicy;
     }
 
     public function test_edit_company_allows_only_active_distributor_with_distributor_id(): void

@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('failed_jobs', function (Blueprint $table) {
             // Add created_at column if it doesn't exist
-            if (!Schema::hasColumn('failed_jobs', 'created_at')) {
+            if (! Schema::hasColumn('failed_jobs', 'created_at')) {
                 $table->timestamp('created_at')->useCurrent();
             }
         });

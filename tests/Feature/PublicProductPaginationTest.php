@@ -12,6 +12,7 @@ class PublicProductPaginationTest extends TestCase
     use RefreshDatabase;
 
     private int $categorySequence = 1;
+
     private int $productSequence = 1;
 
     public function test_catalog_uses_twenty_products_per_page_and_indexes_only_base_page(): void
@@ -29,7 +30,7 @@ class PublicProductPaginationTest extends TestCase
         $firstPage->assertSee('Catalog Product 20');
         $firstPage->assertDontSee('Catalog Product 21');
         $firstPage->assertSee('<meta name="robots" content="index,follow">', false);
-        $firstPage->assertSee('<link rel="canonical" href="' . route('catalog.index') . '">', false);
+        $firstPage->assertSee('<link rel="canonical" href="'.route('catalog.index').'">', false);
 
         $secondPage = $this->get(route('catalog.index', ['page' => 2]));
 
@@ -37,7 +38,7 @@ class PublicProductPaginationTest extends TestCase
         $secondPage->assertSee('Catalog Product 21');
         $secondPage->assertDontSee('Catalog Product 20');
         $secondPage->assertSee('<meta name="robots" content="noindex,follow">', false);
-        $secondPage->assertSee('<link rel="canonical" href="' . route('catalog.index') . '">', false);
+        $secondPage->assertSee('<link rel="canonical" href="'.route('catalog.index').'">', false);
     }
 
     public function test_catalog_filtered_results_are_noindex_and_preserve_filter_query(): void
@@ -55,7 +56,7 @@ class PublicProductPaginationTest extends TestCase
         $response->assertDontSee('Filtro Externo');
         $response->assertSee('<meta name="robots" content="noindex,follow">', false);
         $response->assertSee(
-            '<link rel="canonical" href="' . route('catalog.index', ['category_id' => $targetCategory->id]) . '">',
+            '<link rel="canonical" href="'.route('catalog.index', ['category_id' => $targetCategory->id]).'">',
             false,
         );
     }
@@ -99,7 +100,7 @@ class PublicProductPaginationTest extends TestCase
 
         $baseResponse->assertOk();
         $baseResponse->assertSee(
-            'href="' . route('catalog.index', ['category_id' => $mainCategory->id]) . '"',
+            'href="'.route('catalog.index', ['category_id' => $mainCategory->id]).'"',
             false,
         );
         $baseResponse->assertSee('Related Product 25');
@@ -120,7 +121,7 @@ class PublicProductPaginationTest extends TestCase
         $relatedPageTwo->assertDontSee('Related Product 06');
         $relatedPageTwo->assertSee('Alternative Product 25');
         $relatedPageTwo->assertDontSee('Alternative Product 05');
-        $relatedPageTwo->assertSee('<link rel="canonical" href="' . route('products.show', $product) . '">', false);
+        $relatedPageTwo->assertSee('<link rel="canonical" href="'.route('products.show', $product).'">', false);
 
         $alternativesPageTwo = $this->get(route('products.show', [
             'product' => $product,

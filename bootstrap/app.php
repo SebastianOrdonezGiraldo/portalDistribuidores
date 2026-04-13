@@ -13,9 +13,9 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Log;
+use Scoutapm\ScoutApmAgent;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
-use Scoutapm\ScoutApmAgent;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -39,7 +39,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->reportable(function (\Throwable $e): void {
+        $exceptions->reportable(function (Throwable $e): void {
             app()->make(ScoutApmAgent::class)->recordThrowable($e);
         });
 
@@ -74,6 +74,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 }
 
                 $headers = [];
+
                 if ($retryAfter !== null) {
                     $headers['Retry-After'] = (string) $retryAfter;
                 }

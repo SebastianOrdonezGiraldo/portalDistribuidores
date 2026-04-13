@@ -2,15 +2,16 @@
 
 namespace Database\Factories;
 
+use App\Modules\Catalog\Models\ProductAttribute;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Modules\Catalog\Models\ProductAttribute>
+ * @extends Factory<ProductAttribute>
  */
 class ProductAttributeFactory extends Factory
 {
-    protected $model = \App\Modules\Catalog\Models\ProductAttribute::class;
+    protected $model = ProductAttribute::class;
 
     public function definition(): array
     {

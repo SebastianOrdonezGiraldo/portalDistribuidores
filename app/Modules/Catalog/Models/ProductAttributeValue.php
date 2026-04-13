@@ -24,11 +24,13 @@ class ProductAttributeValue extends Model
         'slug',
     ];
 
+    /** @return BelongsTo<ProductAttribute, $this> */
     public function attribute(): BelongsTo
     {
         return $this->belongsTo(ProductAttribute::class, 'product_attribute_id');
     }
 
+    /** @return HasMany<ProductVariant, $this> */
     public function variants(): HasMany
     {
         return $this->hasMany(ProductVariant::class);

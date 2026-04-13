@@ -3,6 +3,7 @@
 namespace App\Modules\Company\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Modules\Company\Http\Requests\RejectOrderRequest;
 use App\Modules\Orders\Events\OrderPlaced;
 use App\Modules\Orders\Models\Order;
@@ -18,7 +19,7 @@ class CompanyApprovalController extends Controller
     {
         $this->authorize('approveOrders');
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         $pending = Order::query()
@@ -42,14 +43,13 @@ class CompanyApprovalController extends Controller
     public function approve(
         Order $order,
         OrderStatusTransitionService $transitionService,
-    ): RedirectResponse
-    {
+    ): RedirectResponse {
         $this->authorize('approveOrders');
         $this->authorizeOrderBelongsToCompany($order);
 
         abort_unless($order->status->canBeApproved(), 422, 'Este pedido no puede ser aprobado en su estado actual.');
 
-        /** @var \App\Models\User $actor */
+        /** @var User $actor */
         $actor = auth()->user();
 
         try {
@@ -78,14 +78,13 @@ class CompanyApprovalController extends Controller
         RejectOrderRequest $request,
         Order $order,
         OrderStatusTransitionService $transitionService,
-    ): RedirectResponse
-    {
+    ): RedirectResponse {
         $this->authorize('approveOrders');
         $this->authorizeOrderBelongsToCompany($order);
 
         abort_unless($order->status->canBeApproved(), 422, 'Este pedido no puede ser rechazado en su estado actual.');
 
-        /** @var \App\Models\User $actor */
+        /** @var User $actor */
         $actor = auth()->user();
         $note = $request->validated('approval_note');
 
@@ -110,7 +109,7 @@ class CompanyApprovalController extends Controller
 
     private function authorizeOrderBelongsToCompany(Order $order): void
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         abort_unless(

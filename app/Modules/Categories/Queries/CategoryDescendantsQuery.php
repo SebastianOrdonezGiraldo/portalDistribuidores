@@ -38,4 +38,3 @@ class CategoryDescendantsQuery
         return $collected;
     }
 }
-

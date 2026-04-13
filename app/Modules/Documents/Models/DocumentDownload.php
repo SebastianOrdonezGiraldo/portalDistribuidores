@@ -25,14 +25,15 @@ class DocumentDownload extends Model
         ];
     }
 
+    /** @return BelongsTo<Distributor, $this> */
     public function distributor(): BelongsTo
     {
         return $this->belongsTo(Distributor::class);
     }
 
+    /** @return BelongsTo<ProductDocument, $this> */
     public function productDocument(): BelongsTo
     {
         return $this->belongsTo(ProductDocument::class);
     }
 }
-

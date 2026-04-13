@@ -13,6 +13,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string $email
+ * @property UserRole $role
+ * @property CompanyRole|null $company_role
+ * @property int|null $distributor_id
+ * @property bool $is_active
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -59,11 +68,13 @@ class User extends Authenticatable
         ];
     }
 
+    /** @return BelongsTo<Distributor, $this> */
     public function distributor(): BelongsTo
     {
         return $this->belongsTo(Distributor::class);
     }
 
+    /** @return HasMany<Order, $this> */
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);

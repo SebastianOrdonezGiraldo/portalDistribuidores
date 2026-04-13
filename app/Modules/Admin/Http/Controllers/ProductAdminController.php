@@ -19,6 +19,7 @@ use App\Modules\Catalog\Services\ProductVariantSyncService;
 use App\Modules\Categories\Models\Category;
 use App\Modules\Shared\Enums\DocumentType;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -133,7 +134,7 @@ class ProductAdminController extends Controller
 
         return view('admin.products.form', array_merge(
             [
-                'product' => new Product(),
+                'product' => new Product,
                 'indexContextQuery' => $this->resolveIndexQuery($request->query(), true),
             ],
             $this->formViewData(),
@@ -407,6 +408,7 @@ class ProductAdminController extends Controller
     ): void {
         if ($request->hasFile('photos')) {
             $existingSortOrder = $product->photos()->max('sort_order') ?? -1;
+
             foreach ($request->file('photos') as $index => $photo) {
                 $uploadPhotoAction->execute($product, $photo, $existingSortOrder + $index + 1);
             }
@@ -447,12 +449,12 @@ class ProductAdminController extends Controller
     }
 
     /**
-     * @return array{categories: \Illuminate\Database\Eloquent\Collection, variantAttributes: \Illuminate\Database\Eloquent\Collection}
+     * @return array{categories: Collection, variantAttributes: Collection}
      */
     private function formViewData(): array
     {
         return [
-            'categories'        => Category::active()->orderBy('name')->get(),
+            'categories' => Category::active()->orderBy('name')->get(),
             'variantAttributes' => ProductAttribute::query()->with('values')->orderBy('name')->get(),
         ];
     }
@@ -479,7 +481,7 @@ class ProductAdminController extends Controller
     }
 
     /**
-     * @param array<int, array<string, mixed>> $rows
+     * @param  array<int, array<string, mixed>>  $rows
      */
     private function resolveVariantBootstrapPrice(array $rows): float
     {
@@ -510,7 +512,7 @@ class ProductAdminController extends Controller
     }
 
     /**
-     * @param array{status: list<string>, media: list<string>, stock: list<string>, sort: list<string>, per_page: list<int>} $options
+     * @param  array{status: list<string>, media: list<string>, stock: list<string>, sort: list<string>, per_page: list<int>}  $options
      * @return array<string, mixed>
      */
     private function indexContextRules(array $options, bool $includePage = false): array
@@ -550,8 +552,8 @@ class ProductAdminController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $input
-     * @param array{status: list<string>, media: list<string>, stock: list<string>, sort: list<string>, per_page: list<int>}|null $options
+     * @param  array<string, mixed>  $input
+     * @param  array{status: list<string>, media: list<string>, stock: list<string>, sort: list<string>, per_page: list<int>}|null  $options
      * @return array{q: ?string, category_id: ?int, status: ?string, media: ?string, stock: ?string, sort: string, per_page: int, page: int}
      */
     private function resolveIndexContext(array $input, bool $includePage = false, ?array $options = null): array
@@ -571,8 +573,8 @@ class ProductAdminController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $input
-     * @param array{status: list<string>, media: list<string>, stock: list<string>, sort: list<string>, per_page: list<int>}|null $options
+     * @param  array<string, mixed>  $input
+     * @param  array{status: list<string>, media: list<string>, stock: list<string>, sort: list<string>, per_page: list<int>}|null  $options
      * @return array<string, int|string>
      */
     private function resolveIndexQuery(array $input, bool $includePage = false, ?array $options = null): array
@@ -586,7 +588,7 @@ class ProductAdminController extends Controller
     }
 
     /**
-     * @param array{q: ?string, category_id: ?int, status: ?string, media: ?string, stock: ?string, sort: string, per_page: int, page: int} $context
+     * @param  array{q: ?string, category_id: ?int, status: ?string, media: ?string, stock: ?string, sort: string, per_page: int, page: int}  $context
      * @return array{q: ?string, category_id: ?int, status: ?string, media: ?string, stock: ?string, sort: string, per_page: int}
      */
     private function extractFiltersFromContext(array $context): array
@@ -597,7 +599,8 @@ class ProductAdminController extends Controller
     }
 
     /**
-     * @param array{q: ?string, category_id: ?int, status: ?string, media: ?string, stock: ?string, sort: string, per_page: int} $filters
+     * @param  array{q: ?string, category_id: ?int, status: ?string, media: ?string, stock: ?string, sort: string, per_page: int}  $filters
+     * @return Builder<Product>
      */
     private function buildFilteredQuery(array $filters): Builder
     {
@@ -614,6 +617,10 @@ class ProductAdminController extends Controller
             ->when($filters['stock'] === 'unknown', fn ($query) => $query->whereNull('stock'));
     }
 
+    /**
+     * @param  Builder<Product>  $query
+     * @return Builder<Product>
+     */
     private function applySortToProductQuery(Builder $query, string $sort): Builder
     {
         return match ($sort) {
@@ -629,7 +636,7 @@ class ProductAdminController extends Controller
     }
 
     /**
-     * @param array{q: ?string, category_id: ?int, status: ?string, media: ?string, stock: ?string, sort: string, per_page: int} $filters
+     * @param  array{q: ?string, category_id: ?int, status: ?string, media: ?string, stock: ?string, sort: string, per_page: int}  $filters
      * @return list<string>
      */
     private function resolveInventoryAppliedFilters(array $filters): array
@@ -691,8 +698,8 @@ class ProductAdminController extends Controller
     }
 
     /**
-     * @param array{q: ?string, category_id: ?int, status: ?string, media: ?string, stock: ?string, sort: string, per_page: int, page: int} $context
-     * @param array<string, int|string> $query
+     * @param  array{q: ?string, category_id: ?int, status: ?string, media: ?string, stock: ?string, sort: string, per_page: int, page: int}  $context
+     * @param  array<string, int|string>  $query
      * @return array<string, int|string>
      */
     private function resolveDeleteIndexQuery(array $context, array $query): array

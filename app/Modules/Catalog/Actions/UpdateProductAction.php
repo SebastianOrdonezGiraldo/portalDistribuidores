@@ -13,4 +13,3 @@ class UpdateProductAction
         return $product->refresh();
     }
 }
-

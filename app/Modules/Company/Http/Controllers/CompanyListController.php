@@ -3,6 +3,7 @@
 namespace App\Modules\Company\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Company\Http\Requests\RenameCompanyListRequest;
@@ -18,7 +19,7 @@ class CompanyListController extends Controller
 {
     public function index(): View
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         abort_unless($user->canManageLists(), 403);
@@ -35,7 +36,7 @@ class CompanyListController extends Controller
 
     public function storeFromCart(StoreCompanyListRequest $request, CartService $cartService): RedirectResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         abort_unless($user->canManageLists(), 403);
@@ -48,20 +49,20 @@ class CompanyListController extends Controller
 
         $list = CompanyList::create([
             'distributor_id' => $user->distributor_id,
-            'created_by'     => $user->id,
-            'name'           => $request->validated('name'),
+            'created_by' => $user->id,
+            'name' => $request->validated('name'),
         ]);
 
         foreach ($cartItems as $item) {
             CompanyListItem::create([
-                'list_id'               => $list->id,
-                'product_id'            => $item['product']->id,
-                'product_variant_id'    => $item['variant']?->id,
+                'list_id' => $list->id,
+                'product_id' => $item['product']->id,
+                'product_variant_id' => $item['variant']?->id,
                 'product_name_snapshot' => $item['product']->name,
-                'sku_snapshot'          => $item['product']->sku,
-                'variant_value_snapshot'=> $item['variant_label'],
-                'qty'                   => max(1, (int) $item['qty']),
-                'unit_label'            => $item['unit_label'] ?? 'unidad',
+                'sku_snapshot' => $item['product']->sku,
+                'variant_value_snapshot' => $item['variant_label'],
+                'qty' => max(1, (int) $item['qty']),
+                'unit_label' => $item['unit_label'] ?? 'unidad',
             ]);
         }
 
@@ -71,7 +72,7 @@ class CompanyListController extends Controller
 
     public function storeFromOrder(StoreCompanyListRequest $request, Order $order): RedirectResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         abort_unless($user->canManageLists(), 403);
@@ -85,20 +86,20 @@ class CompanyListController extends Controller
 
         $list = CompanyList::create([
             'distributor_id' => $user->distributor_id,
-            'created_by'     => $user->id,
-            'name'           => $request->validated('name'),
+            'created_by' => $user->id,
+            'name' => $request->validated('name'),
         ]);
 
         foreach ($order->items as $item) {
             CompanyListItem::create([
-                'list_id'               => $list->id,
-                'product_id'            => $item->product_id,
-                'product_variant_id'    => $item->product_variant_id,
+                'list_id' => $list->id,
+                'product_id' => $item->product_id,
+                'product_variant_id' => $item->product_variant_id,
                 'product_name_snapshot' => $item->product_name_snapshot,
-                'sku_snapshot'          => $item->sku_snapshot,
-                'variant_value_snapshot'=> $item->variant_value_snapshot,
-                'qty'                   => max(1, (int) $item->qty),
-                'unit_label'            => $item->unit_label ?? 'unidad',
+                'sku_snapshot' => $item->sku_snapshot,
+                'variant_value_snapshot' => $item->variant_value_snapshot,
+                'qty' => max(1, (int) $item->qty),
+                'unit_label' => $item->unit_label ?? 'unidad',
             ]);
         }
 
@@ -108,7 +109,7 @@ class CompanyListController extends Controller
 
     public function rename(RenameCompanyListRequest $request, CompanyList $list): RedirectResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         abort_unless($user->canManageLists(), 403);
@@ -121,7 +122,7 @@ class CompanyListController extends Controller
 
     public function apply(CompanyList $list, CartService $cartService): RedirectResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         abort_unless($user->canManageLists(), 403);
@@ -141,7 +142,7 @@ class CompanyListController extends Controller
             ? ProductVariant::active()->whereIn('id', $variantIds)->get()->keyBy('id')
             : collect();
 
-        $added   = 0;
+        $added = 0;
         $skipped = [];
 
         foreach ($list->items as $item) {
@@ -194,7 +195,7 @@ class CompanyListController extends Controller
 
     public function destroy(CompanyList $list): RedirectResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         abort_unless($user->canManageLists(), 403);
@@ -209,7 +210,7 @@ class CompanyListController extends Controller
 
     private function authorizeListBelongsToCompany(CompanyList $list): void
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         abort_unless(

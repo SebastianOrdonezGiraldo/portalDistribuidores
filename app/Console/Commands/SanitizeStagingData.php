@@ -88,11 +88,11 @@ class SanitizeStagingData extends Command
         $database = (string) config("database.connections.{$connection}.database");
 
         if ($appEnv !== self::EXPECTED_APP_ENV) {
-            throw new RuntimeException("Este comando solo puede ejecutarse con APP_ENV=".self::EXPECTED_APP_ENV.". Entorno actual: {$appEnv}.");
+            throw new RuntimeException('Este comando solo puede ejecutarse con APP_ENV='.self::EXPECTED_APP_ENV.". Entorno actual: {$appEnv}.");
         }
 
         if ($database !== self::EXPECTED_DATABASE) {
-            throw new RuntimeException("Este comando solo puede ejecutarse sobre la base ".self::EXPECTED_DATABASE.". Base actual: {$database}.");
+            throw new RuntimeException('Este comando solo puede ejecutarse sobre la base '.self::EXPECTED_DATABASE.". Base actual: {$database}.");
         }
     }
 

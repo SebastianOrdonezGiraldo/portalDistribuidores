@@ -13,7 +13,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
-class GenerateOrderPdfJob implements ShouldQueue, ShouldBeUnique
+class GenerateOrderPdfJob implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
@@ -33,9 +33,7 @@ class GenerateOrderPdfJob implements ShouldQueue, ShouldBeUnique
         return (string) $this->orderId;
     }
 
-    public function __construct(public readonly int $orderId)
-    {
-    }
+    public function __construct(public readonly int $orderId) {}
 
     public function handle(OrderPdfGenerator $generator): void
     {
@@ -66,4 +64,3 @@ class GenerateOrderPdfJob implements ShouldQueue, ShouldBeUnique
         ]);
     }
 }
-

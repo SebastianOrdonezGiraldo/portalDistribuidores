@@ -14,9 +14,9 @@ class StoreCompanyBranchRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name'       => ['required', 'string', 'max:120'],
-            'address'    => ['nullable', 'string', 'max:180'],
-            'city'       => ['nullable', 'string', 'max:120'],
+            'name' => ['required', 'string', 'max:120'],
+            'address' => ['nullable', 'string', 'max:180'],
+            'city' => ['nullable', 'string', 'max:120'],
             'is_default' => ['nullable', 'boolean'],
         ];
     }

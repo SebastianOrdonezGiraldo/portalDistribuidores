@@ -4,16 +4,16 @@ namespace App\Modules\Shared\Enums;
 
 enum CompanyRole: string
 {
-    case AdminEmpresa     = 'admin_empresa';
+    case AdminEmpresa = 'admin_empresa';
     case UsuarioComercial = 'usuario_comercial';
-    case SoloLectura      = 'solo_lectura';
+    case SoloLectura = 'solo_lectura';
 
     public function label(): string
     {
         return match ($this) {
-            self::AdminEmpresa     => 'Admin empresa',
+            self::AdminEmpresa => 'Admin empresa',
             self::UsuarioComercial => 'Usuario comercial',
-            self::SoloLectura      => 'Solo lectura',
+            self::SoloLectura => 'Solo lectura',
         };
     }
 
@@ -31,7 +31,7 @@ enum CompanyRole: string
     {
         return match ($this) {
             self::AdminEmpresa, self::UsuarioComercial => true,
-            default                                    => false,
+            default => false,
         };
     }
 
@@ -39,7 +39,7 @@ enum CompanyRole: string
     {
         return match ($this) {
             self::AdminEmpresa, self::UsuarioComercial => true,
-            default                                    => false,
+            default => false,
         };
     }
 
@@ -47,7 +47,7 @@ enum CompanyRole: string
     {
         return match ($this) {
             self::AdminEmpresa, self::UsuarioComercial => true,
-            default                                    => false,
+            default => false,
         };
     }
 

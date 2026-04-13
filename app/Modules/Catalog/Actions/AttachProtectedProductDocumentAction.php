@@ -72,7 +72,7 @@ class AttachProtectedProductDocumentAction
     }
 
     /**
-     * @param list<string> $diskNames
+     * @param  list<string>  $diskNames
      */
     private function deletePathFromDisks(string $path, array $diskNames): void
     {

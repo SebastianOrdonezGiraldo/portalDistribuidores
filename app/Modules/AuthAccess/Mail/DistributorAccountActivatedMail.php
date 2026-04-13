@@ -18,8 +18,7 @@ class DistributorAccountActivatedMail extends Mailable
     public function __construct(
         public readonly User $user,
         public readonly Distributor $distributor,
-    ) {
-    }
+    ) {}
 
     public function envelope(): Envelope
     {

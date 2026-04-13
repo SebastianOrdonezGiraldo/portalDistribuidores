@@ -14,7 +14,7 @@ class UserPolicyTest extends TestCase
     {
         parent::setUp();
 
-        $this->policy = new UserPolicy();
+        $this->policy = new UserPolicy;
     }
 
     public function test_before_grants_everything_to_admin(): void

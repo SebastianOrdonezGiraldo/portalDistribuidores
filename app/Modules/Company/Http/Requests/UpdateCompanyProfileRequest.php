@@ -14,13 +14,13 @@ class UpdateCompanyProfileRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name'          => ['required', 'string', 'max:120'],
-            'nit'           => ['required', 'string', 'max:40', 'regex:/^\d+$/'],
-            'address'       => ['required', 'string', 'max:180'],
-            'city'          => ['required', 'string', 'max:120'],
-            'phone'         => ['required', 'string', 'max:40'],
+            'name' => ['required', 'string', 'max:120'],
+            'nit' => ['required', 'string', 'max:40', 'regex:/^\d+$/'],
+            'address' => ['required', 'string', 'max:180'],
+            'city' => ['required', 'string', 'max:120'],
+            'phone' => ['required', 'string', 'max:40'],
             'contact_email' => ['required', 'string', 'email', 'max:120'],
-            'contact_name'  => ['required', 'string', 'max:120'],
+            'contact_name' => ['required', 'string', 'max:120'],
         ];
     }
 

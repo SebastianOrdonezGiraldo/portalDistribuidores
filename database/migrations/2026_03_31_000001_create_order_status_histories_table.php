@@ -27,4 +27,3 @@ return new class extends Migration
         Schema::dropIfExists('order_status_histories');
     }
 };
-

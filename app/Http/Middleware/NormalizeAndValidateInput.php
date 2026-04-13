@@ -72,7 +72,7 @@ class NormalizeAndValidateInput
     }
 
     /**
-     * @param array<string|int, mixed> $input
+     * @param  array<string|int, mixed>  $input
      * @return array<string|int, mixed>
      */
     private function normalizeArray(array $input, string $source, int $depth = 0): array

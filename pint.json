@@ -1,0 +1,11 @@
+{
+    "preset": "laravel",
+    "rules": {
+        "concat_space": {
+            "spacing": "none"
+        },
+        "blank_line_before_statement": {
+            "statements": ["return", "throw", "if", "foreach", "for", "while", "do", "switch", "try"]
+        }
+    }
+}

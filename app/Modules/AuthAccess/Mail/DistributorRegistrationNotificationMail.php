@@ -16,8 +16,7 @@ class DistributorRegistrationNotificationMail extends Mailable
 
     public function __construct(
         public readonly Distributor $distributor,
-    ) {
-    }
+    ) {}
 
     public function envelope(): Envelope
     {

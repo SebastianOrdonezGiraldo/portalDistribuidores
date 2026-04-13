@@ -2,7 +2,4 @@
 
 namespace App\Modules\Admin\Http\Requests;
 
-class UpdateDistributorRequest extends StoreDistributorRequest
-{
-}
-
+class UpdateDistributorRequest extends StoreDistributorRequest {}

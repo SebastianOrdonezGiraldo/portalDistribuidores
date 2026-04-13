@@ -5,10 +5,12 @@ namespace App\Modules\Admin\Services;
 use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Catalog\Models\Product;
+use App\Modules\Categories\Models\Category;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Shared\Enums\DistributorStatus;
 use App\Modules\Shared\Enums\OrderStatus;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 class DashboardDataService
@@ -31,15 +33,15 @@ class DashboardDataService
             $orderStatusTotals = $this->getOrderStatusTotals();
 
             return [
-                'totals'                 => $totals,
-                'kpis'                   => $this->buildKpis($totals, $monthlyMetrics),
-                'operationalSummary'     => $this->buildOperationalSummary($totals),
-                'orderStatusTotals'      => $orderStatusTotals,
-                'statusDistribution'     => $this->buildStatusDistribution($orderStatusTotals, $totals),
-                'operationalAlerts'      => $this->buildOperationalAlerts($orderStatusTotals),
-                'monthRangeLabel'        => $monthlyMetrics['range_label'],
-                'currentMonthOrders'     => $monthlyMetrics['current_orders'],
-                'latestCatalogUpdateAt'  => $this->getLatestCatalogUpdateAt(),
+                'totals' => $totals,
+                'kpis' => $this->buildKpis($totals, $monthlyMetrics),
+                'operationalSummary' => $this->buildOperationalSummary($totals),
+                'orderStatusTotals' => $orderStatusTotals,
+                'statusDistribution' => $this->buildStatusDistribution($orderStatusTotals, $totals),
+                'operationalAlerts' => $this->buildOperationalAlerts($orderStatusTotals),
+                'monthRangeLabel' => $monthlyMetrics['range_label'],
+                'currentMonthOrders' => $monthlyMetrics['current_orders'],
+                'latestCatalogUpdateAt' => $this->getLatestCatalogUpdateAt(),
             ];
         });
     }
@@ -47,8 +49,8 @@ class DashboardDataService
     private function getLiveData(): array
     {
         return [
-            'recentOrders'  => $this->getRecentOrders(),
-            'recentEvents'  => $this->getRecentEvents(),
+            'recentOrders' => $this->getRecentOrders(),
+            'recentEvents' => $this->getRecentEvents(),
             'latestOrderAt' => $this->getLatestOrderAt(),
         ];
     }
@@ -56,21 +58,21 @@ class DashboardDataService
     private function getTotals(): array
     {
         return [
-            'products'     => Product::query()->count(),
-            'categories'   => \App\Modules\Categories\Models\Category::query()->count(),
+            'products' => Product::query()->count(),
+            'categories' => Category::query()->count(),
             'distributors' => Distributor::query()->count(),
-            'users'        => User::query()->count(),
-            'orders'       => Order::query()->count(),
+            'users' => User::query()->count(),
+            'orders' => Order::query()->count(),
         ];
     }
 
     private function getMonthlyMetrics(): array
     {
         $now = now();
-        $currentStart  = $now->copy()->startOfMonth();
-        $currentEnd    = $now->copy()->endOfMonth();
+        $currentStart = $now->copy()->startOfMonth();
+        $currentEnd = $now->copy()->endOfMonth();
         $previousStart = $now->copy()->subMonthNoOverflow()->startOfMonth();
-        $previousEnd   = $now->copy()->subMonthNoOverflow()->endOfMonth();
+        $previousEnd = $now->copy()->subMonthNoOverflow()->endOfMonth();
 
         $current = Order::query()
             ->whereBetween('created_at', [$currentStart, $currentEnd])
@@ -83,15 +85,15 @@ class DashboardDataService
             ->first();
 
         return [
-            'current_revenue'  => (float) ($current?->revenue ?? 0),
-            'previous_revenue' => (float) ($previous?->revenue ?? 0),
-            'current_orders'   => (int) ($current?->orders ?? 0),
-            'previous_orders'  => (int) ($previous?->orders ?? 0),
-            'range_label'      => 'Desde '.$currentStart->format('d/m').' al '.$currentEnd->format('d/m'),
+            'current_revenue' => (float) ($current->revenue ?? 0),
+            'previous_revenue' => (float) ($previous->revenue ?? 0),
+            'current_orders' => (int) ($current->orders ?? 0),
+            'previous_orders' => (int) ($previous->orders ?? 0),
+            'range_label' => 'Desde '.$currentStart->format('d/m').' al '.$currentEnd->format('d/m'),
         ];
     }
 
-    private function getOrderStatusTotals(): \Illuminate\Support\Collection
+    private function getOrderStatusTotals(): Collection
     {
         $statusCounts = Order::query()
             ->selectRaw('status, COUNT(*) as total')
@@ -109,27 +111,27 @@ class DashboardDataService
                 'label' => 'Pedidos Totales',
                 'value' => number_format($totals['orders']),
                 'trend' => $this->formatTrend($monthly['current_orders'], $monthly['previous_orders'], 'vs mes anterior'),
-                'hint'  => 'Histórico en plataforma',
-                'href'  => route('admin.orders.index'),
+                'hint' => 'Histórico en plataforma',
+                'href' => route('admin.orders.index'),
             ],
             [
                 'label' => 'Facturación Mes',
                 'value' => '$'.number_format($monthly['current_revenue'], 0, ',', '.'),
                 'trend' => $this->formatTrend($monthly['current_revenue'], $monthly['previous_revenue'], 'vs mes anterior'),
-                'hint'  => $monthly['range_label'],
-                'href'  => route('admin.orders.index'),
+                'hint' => $monthly['range_label'],
+                'href' => route('admin.orders.index'),
             ],
             [
                 'label' => 'Distribuidores Activos',
                 'value' => number_format((int) Distributor::query()->where('status', DistributorStatus::Active)->count()),
-                'hint'  => 'Con acceso operativo vigente',
-                'href'  => route('admin.distributors.index'),
+                'hint' => 'Con acceso operativo vigente',
+                'href' => route('admin.distributors.index'),
             ],
             [
                 'label' => 'Catálogo Activo',
                 'value' => number_format((int) Product::active()->count()),
-                'hint'  => 'Productos visibles al distribuidor',
-                'href'  => route('admin.products.index'),
+                'hint' => 'Productos visibles al distribuidor',
+                'href' => route('admin.products.index'),
             ],
         ];
     }
@@ -139,48 +141,48 @@ class DashboardDataService
         return [
             ['label' => 'Categorías',    'value' => number_format($totals['categories']),   'hint' => 'Estructura del catálogo',  'href' => route('admin.categories.index')],
             ['label' => 'Productos',     'value' => number_format($totals['products']),      'hint' => 'Registros en catálogo',    'href' => route('admin.products.index')],
-            ['label' => 'Distribuidores','value' => number_format($totals['distributors']),  'hint' => 'Empresas vinculadas',      'href' => route('admin.distributors.index')],
+            ['label' => 'Distribuidores', 'value' => number_format($totals['distributors']),  'hint' => 'Empresas vinculadas',      'href' => route('admin.distributors.index')],
             ['label' => 'Usuarios',      'value' => number_format($totals['users']),         'hint' => 'Accesos registrados',      'href' => route('admin.users.index')],
         ];
     }
 
-    private function buildStatusDistribution(\Illuminate\Support\Collection $orderStatusTotals, array $totals): \Illuminate\Support\Collection
+    private function buildStatusDistribution(Collection $orderStatusTotals, array $totals): Collection
     {
         $maxStatusCount = max(1, $orderStatusTotals->max() ?? 0);
 
         return collect(OrderStatus::cases())
             ->map(function (OrderStatus $status) use ($orderStatusTotals, $maxStatusCount, $totals) {
-                $count      = (int) ($orderStatusTotals[$status->value] ?? 0);
+                $count = (int) ($orderStatusTotals[$status->value] ?? 0);
                 $percentage = $totals['orders'] > 0
                     ? (int) round(($count / $totals['orders']) * 100)
                     : 0;
                 $fill = (int) round(($count / $maxStatusCount) * 100);
 
                 return [
-                    'status'     => $status->value,
-                    'count'      => $count,
+                    'status' => $status->value,
+                    'count' => $count,
                     'percentage' => $percentage,
-                    'fill'       => $fill,
-                    'bar_class'  => $status->badgeClass(),
+                    'fill' => $fill,
+                    'bar_class' => $status->badgeClass(),
                 ];
             })
             ->values();
     }
 
-    private function buildOperationalAlerts(\Illuminate\Support\Collection $statusCounts): \Illuminate\Support\Collection
+    private function buildOperationalAlerts(Collection $statusCounts): Collection
     {
         return collect([
             [
-                'variant'     => 'warning',
-                'title'       => 'Pedidos sin PDF',
+                'variant' => 'warning',
+                'title' => 'Pedidos sin PDF',
                 'description' => 'Revisar cola de generación documental para pedidos pendientes.',
-                'count'       => Order::query()->whereNull('pdf_path')->count(),
+                'count' => Order::query()->whereNull('pdf_path')->count(),
             ],
             [
-                'variant'     => 'info',
-                'title'       => 'Pedidos en gestión comercial',
+                'variant' => 'info',
+                'title' => 'Pedidos en gestión comercial',
                 'description' => 'Cotizaciones vendidas o despachadas aún sin cierre final.',
-                'count'       => (int) (($statusCounts[OrderStatus::Sold->value] ?? 0) + ($statusCounts[OrderStatus::Dispatched->value] ?? 0)),
+                'count' => (int) (($statusCounts[OrderStatus::Sold->value] ?? 0) + ($statusCounts[OrderStatus::Dispatched->value] ?? 0)),
             ],
         ])->filter(fn (array $alert) => $alert['count'] > 0)->values();
     }
@@ -194,25 +196,25 @@ class DashboardDataService
             ->get();
     }
 
-    private function getRecentEvents(): \Illuminate\Support\Collection
+    private function getRecentEvents(): Collection
     {
         $recentOrders = Order::query()->with('distributor', 'user')->latest()->take(6)->get();
 
         return collect()
             ->merge(
                 $recentOrders->map(fn (Order $order) => [
-                    'title'       => 'Pedido '.$order->oc_number,
+                    'title' => 'Pedido '.$order->oc_number,
                     'description' => ($order->distributor?->name ?? 'Distribuidor').' registró una orden.',
-                    'status'      => $order->status,
-                    'created_at'  => $order->created_at,
+                    'status' => $order->status,
+                    'created_at' => $order->created_at,
                 ])
             )
             ->merge(
                 Product::query()->latest()->take(4)->get()->map(fn (Product $product) => [
-                    'title'       => 'Actualización de producto '.$product->sku,
+                    'title' => 'Actualización de producto '.$product->sku,
                     'description' => $product->name,
-                    'status'      => $product->is_active ? 'active' : 'inactive',
-                    'created_at'  => $product->updated_at,
+                    'status' => $product->is_active ? 'active' : 'inactive',
+                    'created_at' => $product->updated_at,
                 ])
             )
             ->sortByDesc('created_at')
@@ -236,7 +238,7 @@ class DashboardDataService
 
     private function formatTrend(float|int $current, float|int $previous, string $suffix): string
     {
-        $current  = (float) $current;
+        $current = (float) $current;
         $previous = (float) $previous;
 
         if ($current == 0.0 && $previous == 0.0) {
@@ -247,7 +249,7 @@ class DashboardDataService
             return '+100% '.$suffix;
         }
 
-        $delta  = (($current - $previous) / $previous) * 100;
+        $delta = (($current - $previous) / $previous) * 100;
         $prefix = $delta >= 0 ? '+' : '';
 
         return $prefix.number_format($delta, 1, ',', '.').'% '.$suffix;

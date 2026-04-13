@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Modules\AuthAccess\Mail\DistributorRegistrationNotificationMail;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Shared\Enums\CompanyRole;
 use App\Modules\Shared\Enums\DistributorStatus;
-use App\Modules\AuthAccess\Mail\DistributorRegistrationNotificationMail;
 use App\Modules\Shared\Enums\UserRole;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rules;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class RegisteredUserController extends Controller
@@ -43,7 +44,7 @@ class RegisteredUserController extends Controller
     /**
      * Handle an incoming registration request.
      *
-     * @throws \Illuminate\Validation\ValidationException
+     * @throws ValidationException
      */
     public function store(Request $request): RedirectResponse
     {
@@ -104,6 +105,7 @@ class RegisteredUserController extends Controller
     private function notifyAdminOfNewRegistration(Distributor $distributor): void
     {
         $to = trim((string) config('mail.registration_notification_to'));
+
         if ($to === '' || ! filter_var($to, FILTER_VALIDATE_EMAIL)) {
             return;
         }

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Session;
 class CartService
 {
     private const SESSION_KEY = 'orders.cart.items';
+
     private ?Collection $resolvedItems = null;
 
     public function add(Product $product, int $qty = 1, string $unitLabel = 'unidad', ?ProductVariant $variant = null): void
@@ -42,7 +43,7 @@ class CartService
     }
 
     /**
-     * @param array<int|string, mixed> $quantities
+     * @param  array<int|string, mixed>  $quantities
      */
     public function update(array $quantities): void
     {
@@ -152,6 +153,7 @@ class CartService
         }
 
         $raw = $this->rawItems();
+
         if ($raw === []) {
             $this->resolvedItems = collect();
 
@@ -259,6 +261,7 @@ class CartService
 
         foreach ($this->rawItems() as $item) {
             $qty = isset($item['qty']) ? (int) $item['qty'] : 0;
+
             if ($qty > 0) {
                 $totalQty += $qty;
             }

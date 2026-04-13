@@ -281,7 +281,7 @@ class CreateOrderActionTest extends TestCase
     }
 
     /**
-     * @param array<int, array{product_id:int,variant_id:int|null,qty:int,unit_label:string}> $items
+     * @param  array<int, array{product_id:int,variant_id:int|null,qty:int,unit_label:string}>  $items
      */
     private function makeOrderData(array $items, bool $requiresApproval = false): CreateOrderData
     {

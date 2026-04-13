@@ -37,4 +37,3 @@ class TextNormalizer
         return array_values(array_filter(explode(' ', $normalized)));
     }
 }
-

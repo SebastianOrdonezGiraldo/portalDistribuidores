@@ -15,4 +15,3 @@ class SetPrimaryPhotoAction
         return $photo->refresh();
     }
 }
-

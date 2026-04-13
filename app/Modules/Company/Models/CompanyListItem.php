@@ -29,16 +29,19 @@ class CompanyListItem extends Model
         ];
     }
 
+    /** @return BelongsTo<CompanyList, $this> */
     public function list(): BelongsTo
     {
         return $this->belongsTo(CompanyList::class);
     }
 
+    /** @return BelongsTo<Product, $this> */
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }
 
+    /** @return BelongsTo<ProductVariant, $this> */
     public function variant(): BelongsTo
     {
         return $this->belongsTo(ProductVariant::class, 'product_variant_id');

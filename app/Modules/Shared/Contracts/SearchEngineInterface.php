@@ -9,4 +9,3 @@ interface SearchEngineInterface
 {
     public function search(ProductSearchQuery $query): LengthAwarePaginator;
 }
-

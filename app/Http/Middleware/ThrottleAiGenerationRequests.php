@@ -45,6 +45,7 @@ class ThrottleAiGenerationRequests
         }
 
         $routeName = (string) optional($request->route())->getName();
+
         if ($routeName !== '' && Str::startsWith($routeName, 'ai.')) {
             return true;
         }

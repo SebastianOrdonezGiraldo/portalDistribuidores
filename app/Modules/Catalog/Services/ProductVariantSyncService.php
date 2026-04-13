@@ -102,7 +102,7 @@ class ProductVariantSyncService
     }
 
     /**
-     * @param array<int, array<string, mixed>> $rows
+     * @param  array<int, array<string, mixed>>  $rows
      * @return Collection<int, array{value:string,value_slug:string,price:float,stock:float|null}>
      */
     private function normalizeRows(array $rows): Collection
@@ -134,4 +134,3 @@ class ProductVariantSyncService
             ->values();
     }
 }
-

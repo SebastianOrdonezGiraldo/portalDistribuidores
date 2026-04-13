@@ -7,8 +7,11 @@ use App\Modules\Shared\Support\TextNormalizer;
 class ProductSearchQuery
 {
     public const SORT_RELEVANCE = 'relevance';
+
     public const SORT_NAME_ASC = 'name_asc';
+
     public const SORT_NAME_DESC = 'name_desc';
+
     public const SORT_STOCK_DESC = 'stock_desc';
 
     public const AVAILABLE_SORTS = [
@@ -19,27 +22,27 @@ class ProductSearchQuery
     ];
 
     public function __construct(
-        public readonly ?string $term           = null,
-        public readonly ?int    $categoryId     = null,
-        public readonly bool    $includeChildren = true,
-        public readonly string  $sort           = self::SORT_RELEVANCE,
-        public readonly int     $page           = 1,
-        public readonly int     $perPage        = 20,
-        public readonly string  $paginationUrl  = '',
-        public readonly string  $paginationQuery = '',
+        public readonly ?string $term = null,
+        public readonly ?int $categoryId = null,
+        public readonly bool $includeChildren = true,
+        public readonly string $sort = self::SORT_RELEVANCE,
+        public readonly int $page = 1,
+        public readonly int $perPage = 20,
+        public readonly string $paginationUrl = '',
+        public readonly string $paginationQuery = '',
     ) {}
 
     public static function fromArray(array $payload): self
     {
         return new self(
-            term:             $payload['term'] ?? null,
-            categoryId:       isset($payload['category_id']) ? (int) $payload['category_id'] : null,
-            includeChildren:  (bool) ($payload['include_children'] ?? true),
-            sort:             self::normalizeSort($payload['sort'] ?? self::SORT_RELEVANCE),
-            page:             max(1, (int) ($payload['page'] ?? 1)),
-            perPage:          max(1, min(50, (int) ($payload['per_page'] ?? 20))),
-            paginationUrl:    (string) ($payload['pagination_url'] ?? ''),
-            paginationQuery:  (string) ($payload['pagination_query'] ?? ''),
+            term: $payload['term'] ?? null,
+            categoryId: isset($payload['category_id']) ? (int) $payload['category_id'] : null,
+            includeChildren: (bool) ($payload['include_children'] ?? true),
+            sort: self::normalizeSort($payload['sort'] ?? self::SORT_RELEVANCE),
+            page: max(1, (int) ($payload['page'] ?? 1)),
+            perPage: max(1, min(50, (int) ($payload['per_page'] ?? 20))),
+            paginationUrl: (string) ($payload['pagination_url'] ?? ''),
+            paginationQuery: (string) ($payload['pagination_query'] ?? ''),
         );
     }
 

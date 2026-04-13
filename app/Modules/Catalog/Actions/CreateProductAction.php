@@ -11,4 +11,3 @@ class CreateProductAction
         return Product::create($payload);
     }
 }
-

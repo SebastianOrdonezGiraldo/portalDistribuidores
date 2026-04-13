@@ -3,6 +3,7 @@
 namespace App\Modules\Company\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Modules\Company\Http\Requests\StoreCompanyBranchRequest;
 use App\Modules\Company\Http\Requests\UpdateCompanyBranchRequest;
 use App\Modules\Company\Models\CompanyBranch;
@@ -15,7 +16,7 @@ class CompanyBranchController extends Controller
     {
         $this->authorize('manageBranches');
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         $branches = CompanyBranch::query()
@@ -32,7 +33,7 @@ class CompanyBranchController extends Controller
         $this->authorize('manageBranches');
 
         return view('empresa.branches.form', [
-            'branch' => new CompanyBranch(),
+            'branch' => new CompanyBranch,
         ]);
     }
 
@@ -40,7 +41,7 @@ class CompanyBranchController extends Controller
     {
         $this->authorize('manageBranches');
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         $payload = $request->validated();
@@ -70,7 +71,7 @@ class CompanyBranchController extends Controller
         $this->authorize('manageBranches');
         $this->authorizeBranchBelongsToCompany($branch);
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         $payload = $request->validated();
@@ -104,7 +105,7 @@ class CompanyBranchController extends Controller
         $this->authorize('manageBranches');
         $this->authorizeBranchBelongsToCompany($branch);
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         CompanyBranch::where('distributor_id', $user->distributor_id)
@@ -117,7 +118,7 @@ class CompanyBranchController extends Controller
 
     private function authorizeBranchBelongsToCompany(CompanyBranch $branch): void
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         abort_unless(

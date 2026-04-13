@@ -22,11 +22,13 @@ class ProductAttribute extends Model
         'slug',
     ];
 
+    /** @return HasMany<ProductAttributeValue, $this> */
     public function values(): HasMany
     {
         return $this->hasMany(ProductAttributeValue::class)->orderBy('value');
     }
 
+    /** @return HasMany<Product, $this> */
     public function products(): HasMany
     {
         return $this->hasMany(Product::class, 'variant_attribute_id');

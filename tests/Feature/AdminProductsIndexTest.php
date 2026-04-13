@@ -3,9 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductAttribute;
 use App\Modules\Catalog\Models\ProductAttributeValue;
-use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Categories\Models\Category;
 use Barryvdh\DomPDF\Facade\Pdf;

@@ -5,6 +5,7 @@ namespace App\Modules\Orders\Mail;
 use App\Modules\Orders\Models\Order;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
@@ -17,8 +18,7 @@ class OrderCreatedNotificationMail extends Mailable
     public function __construct(
         public readonly Order $order,
         public readonly string $pdfContents,
-    ) {
-    }
+    ) {}
 
     public function envelope(): Envelope
     {
@@ -41,7 +41,7 @@ class OrderCreatedNotificationMail extends Mailable
     public function attachments(): array
     {
         return [
-            \Illuminate\Mail\Mailables\Attachment::fromData(
+            Attachment::fromData(
                 fn () => $this->pdfContents,
                 $this->order->oc_number.'.pdf',
             )

@@ -50,8 +50,7 @@ class SafeUploadValidator
         UploadedFile $file,
         string $attribute = 'tech_sheet',
         string $label = 'documento PDF',
-    ): void
-    {
+    ): void {
         $normalizedLabel = trim($label) !== '' ? $label : 'documento PDF';
         $mimeType = Str::lower((string) $file->getMimeType());
 

@@ -17,11 +17,13 @@ class AddServerTiming
         self::addMetric($request, 'total', $totalMs, 'Total request time');
 
         $metrics = $request->attributes->get('server_timing_metrics', []);
+
         if (! is_array($metrics) || $metrics === []) {
             return $response;
         }
 
         $parts = [];
+
         foreach ($metrics as $metric) {
             if (! is_array($metric) || ! isset($metric['name'], $metric['dur'])) {
                 continue;
@@ -56,6 +58,7 @@ class AddServerTiming
     public static function addMetric(Request $request, string $name, float $durationMs, ?string $description = null): void
     {
         $metrics = $request->attributes->get('server_timing_metrics', []);
+
         if (! is_array($metrics)) {
             $metrics = [];
         }
