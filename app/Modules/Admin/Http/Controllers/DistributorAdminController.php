@@ -111,6 +111,9 @@ class DistributorAdminController extends Controller
         ]);
     }
 
+    /**
+     * @param EloquentCollection<int, Distributor> $distributors
+     */
     private function hydrateRecentOrders(EloquentCollection $distributors): void
     {
         if ($distributors->isEmpty()) {
@@ -147,9 +150,7 @@ class DistributorAdminController extends Controller
             ->groupBy('distributor_id')
             ->map(function (Collection $rows): array {
                 $counts = $rows->mapWithKeys(function ($row): array {
-                    $status = is_string($row->status)
-                        ? $row->status
-                        : $row->status->value;
+                    $status = $row->status->value;
 
                     return [$status => (int) $row->total];
                 });
