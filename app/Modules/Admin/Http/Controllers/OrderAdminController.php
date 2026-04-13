@@ -321,8 +321,8 @@ class OrderAdminController extends Controller
                 }
 
                 return $product->variants->map(function (ProductVariant $variant) use ($baseLabel): array {
-                    $attributeName = $variant->attributeValue?->attribute->name ?? 'Variante';
-                    $attributeValue = $variant->attributeValue->value ?? ('#'.$variant->id);
+                    $attributeName = $variant->attributeValue?->attribute?->name ?? 'Variante';
+                    $attributeValue = $variant->attributeValue?->value ?? ('#'.$variant->id);
 
                     return [
                         'ref' => 'v:'.$variant->id,

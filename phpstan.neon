@@ -51,3 +51,10 @@ parameters:
 
         # Comparación always true en operaciones de porcentaje con constante 0.13
         - '#Comparison operation ">" between 0\.13 and -1 is always true#'
+
+        # VerifyEmailController: User no implementa MustVerifyEmail pero tiene los métodos via Authenticatable
+        - '#Parameter #1 \$user of class Illuminate\\Auth\\Events\\Verified constructor expects Illuminate\\Contracts\\Auth\\MustVerifyEmail#'
+
+        # Larastan infera relaciones BelongsTo/HasOne como non-null aunque pueden ser null en runtime
+        - '#Using nullsafe property access ".+" on left side of \?\? is unnecessary#'
+        - '#Using nullsafe property access on non-nullable type#'

@@ -204,7 +204,7 @@ class DashboardDataService
             ->merge(
                 $recentOrders->map(fn (Order $order) => [
                     'title' => 'Pedido '.$order->oc_number,
-                    'description' => ($order->distributor->name ?? 'Distribuidor').' registró una orden.',
+                    'description' => ($order->distributor?->name ?? 'Distribuidor').' registró una orden.',
                     'status' => $order->status,
                     'created_at' => $order->created_at,
                 ])
