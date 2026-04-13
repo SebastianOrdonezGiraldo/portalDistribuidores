@@ -5,6 +5,7 @@ namespace App\Modules\Orders\Models;
 use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Shared\Enums\OrderStatus;
+use Carbon\Carbon;
 use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property float $total_amount
  * @property string|null $pdf_path
  * @property string|null $oc_number
- * @property \Carbon\Carbon $created_at
+ * @property Carbon $created_at
  * @property float|null $revenue
  * @property int|null $orders
  * @property float|null $total

@@ -3,6 +3,7 @@
 namespace App\Modules\Orders\Models;
 
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $to_status
  * @property string|null $from_status
  * @property string|null $note
- * @property \Carbon\Carbon $created_at
+ * @property Carbon $created_at
  */
 class OrderStatusHistory extends Model
 {
