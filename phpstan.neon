@@ -1,0 +1,17 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app
+
+    level: 5
+
+    ignoreErrors:
+        # Relaciones Eloquent dinámicas no inferibles sin plugin completo
+        - '#Call to an undefined method Illuminate\\Database\\Eloquent\\Relations\\.*#'
+        # Propiedades mágicas de Eloquent ($model->attribute)
+        - '#Access to an undefined property App\\Models\\.*::\$.*#'
+
+    checkMissingIterableValueType: false
+    checkGenericClassInNonGenericObjectType: false
