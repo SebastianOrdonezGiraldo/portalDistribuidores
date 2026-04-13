@@ -112,7 +112,7 @@ class DistributorAdminController extends Controller
     }
 
     /**
-     * @param EloquentCollection<int, Distributor> $distributors
+     * @param  EloquentCollection<int, Distributor>  $distributors
      */
     private function hydrateRecentOrders(EloquentCollection $distributors): void
     {
