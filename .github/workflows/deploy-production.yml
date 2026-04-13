@@ -15,8 +15,45 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ─────────────────────────────────────────────────────────────────
+  # Job 1: Notificación de aprobación pendiente
+  # ─────────────────────────────────────────────────────────────────
+  notify_pending:
+    name: Notificar aprobación pendiente
+    if: >-
+      ${{
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'master'
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Slack — aprobación requerida
+        if: vars.SLACK_NOTIFICATIONS_ENABLED == 'true'
+        uses: slackapi/slack-github-action@v2.1.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "⏳ *Deploy a Producción requiere aprobación manual*",
+              "attachments": [{
+                "color": "#f0ad4e",
+                "fields": [
+                  {"title": "Repositorio", "value": "${{ github.repository }}", "short": true},
+                  {"title": "Commit",      "value": "${{ github.event.workflow_run.head_sha }}", "short": true},
+                  {"title": "Autor",       "value": "${{ github.event.workflow_run.actor.login }}", "short": true},
+                  {"title": "Aprobar en", "value": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}", "short": false}
+                ]
+              }]
+            }
+
+  # ─────────────────────────────────────────────────────────────────
+  # Job 2: Deploy (requiere aprobación del environment "production")
+  # ─────────────────────────────────────────────────────────────────
   deploy:
     name: Deploy production via SSH
+    needs: notify_pending
     if: >-
       ${{
         github.event.workflow_run.conclusion == 'success' &&
@@ -25,6 +62,7 @@ jobs:
       }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    environment: production
     env:
       DEPLOY_URL: https://pedidos.importcorporalmedical.com
       SSH_HOST: ${{ secrets.VPS_HOST_PRODUCTION || secrets.VPS_HOST }}
@@ -34,6 +72,25 @@ jobs:
       SSH_PASSPHRASE: ${{ secrets.VPS_SSH_PASSPHRASE_PRODUCTION || secrets.VPS_SSH_PASSPHRASE }}
 
     steps:
+      - name: Notify Slack — deploy iniciado
+        if: vars.SLACK_NOTIFICATIONS_ENABLED == 'true'
+        uses: slackapi/slack-github-action@v2.1.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "🚀 *Deploy a Producción aprobado e iniciado*",
+              "attachments": [{
+                "color": "#5865f2",
+                "fields": [
+                  {"title": "Repositorio", "value": "${{ github.repository }}", "short": true},
+                  {"title": "Commit",      "value": "${{ github.event.workflow_run.head_sha }}", "short": true},
+                  {"title": "Aprobado por","value": "${{ github.actor }}", "short": true}
+                ]
+              }]
+            }
+
       - name: Check SSH port reachability
         run: |
           set -euo pipefail
@@ -53,6 +110,7 @@ jobs:
           exit 1
 
       - name: Deploy production on VPS
+        id: deploy
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ env.SSH_HOST }}
@@ -75,20 +133,85 @@ jobs:
 
             sudo bash deploy.sh
 
-      - name: Smoke check production
+      - name: Health check production
+        id: health
         run: |
-          for attempt in 1 2 3 4 5; do
+          set -euo pipefail
+          echo "Esperando que la aplicacion arranque..."
+          sleep 15
+
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
             status_code="$(curl --silent --show-error --output /dev/null --write-out "%{http_code}" --max-time 20 "$DEPLOY_URL" || true)"
-            echo "Intento ${attempt}: HTTP ${status_code}"
+            echo "Intento ${attempt}/10: HTTP ${status_code}"
 
             case "$status_code" in
               200|301|302)
+                echo "Health check OK"
                 exit 0
                 ;;
             esac
 
-            sleep 5
+            sleep 10
           done
 
-          echo "Smoke check fallido para ${DEPLOY_URL}"
+          echo "::error title=Health check fallido::La aplicacion no respondio con HTTP 2xx/3xx en ${DEPLOY_URL} despues de 10 intentos."
           exit 1
+
+      - name: Rollback automático si el health check falla
+        if: failure() && steps.deploy.outcome == 'success'
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ env.SSH_KEY }}
+          passphrase: ${{ env.SSH_PASSPHRASE }}
+          port: ${{ env.SSH_PORT }}
+          protocol: tcp4
+          command_timeout: 10m
+          script: |
+            set -e
+            cd /var/www/portalDistribuidores
+            echo "Iniciando rollback de produccion..."
+            if [ -f rollback.sh ]; then
+              sudo bash rollback.sh
+            else
+              git stash || true
+              sudo bash deploy.sh
+            fi
+
+      - name: Notify Slack — deploy exitoso
+        if: success() && vars.SLACK_NOTIFICATIONS_ENABLED == 'true'
+        uses: slackapi/slack-github-action@v2.1.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "✅ *Producción deploy exitoso*",
+              "attachments": [{
+                "color": "#36a64f",
+                "fields": [
+                  {"title": "URL",    "value": "${{ env.DEPLOY_URL }}", "short": true},
+                  {"title": "Commit", "value": "${{ github.event.workflow_run.head_sha }}", "short": true}
+                ]
+              }]
+            }
+
+      - name: Notify Slack — deploy fallido
+        if: failure() && vars.SLACK_NOTIFICATIONS_ENABLED == 'true'
+        uses: slackapi/slack-github-action@v2.1.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "🔴 *Producción deploy FALLIDO — se ejecutó rollback*",
+              "attachments": [{
+                "color": "#d9534f",
+                "fields": [
+                  {"title": "Repositorio", "value": "${{ github.repository }}", "short": true},
+                  {"title": "Commit",      "value": "${{ github.event.workflow_run.head_sha }}", "short": true},
+                  {"title": "Run",         "value": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}", "short": false}
+                ]
+              }]
+            }
