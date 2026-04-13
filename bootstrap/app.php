@@ -139,8 +139,12 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Cuando el token CSRF expira (sesion vencida), redirigir al login en lugar de mostrar 419.
         $exceptions->render(function (TokenMismatchException $e, $request) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Tu sesión ha expirado. Por favor inicia sesión nuevamente.'], 419);
+            }
+
             return redirect()->route('login')->withErrors([
-                'email' => 'Tu sesion ha expirado. Por favor inicia sesion nuevamente.',
+                'email' => 'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
             ]);
         });
     })->create();
