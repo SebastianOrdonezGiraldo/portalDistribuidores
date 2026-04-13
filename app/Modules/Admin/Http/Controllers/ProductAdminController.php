@@ -600,6 +600,7 @@ class ProductAdminController extends Controller
 
     /**
      * @param  array{q: ?string, category_id: ?int, status: ?string, media: ?string, stock: ?string, sort: string, per_page: int}  $filters
+     * @return Builder<Product>
      */
     private function buildFilteredQuery(array $filters): Builder
     {
@@ -616,6 +617,10 @@ class ProductAdminController extends Controller
             ->when($filters['stock'] === 'unknown', fn ($query) => $query->whereNull('stock'));
     }
 
+    /**
+     * @param  Builder<Product>  $query
+     * @return Builder<Product>
+     */
     private function applySortToProductQuery(Builder $query, string $sort): Builder
     {
         return match ($sort) {

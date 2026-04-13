@@ -225,14 +225,14 @@ class UpdateOrderAction
         $products = Product::query()
             ->active()
             ->whereIn('id', array_values(array_unique($productIds)))
-            ->withCount(['variants as active_variants_count' => fn ($query) => $query->active()])
+            ->withCount(['variants as active_variants_count' => fn ($query) => $query->where('is_active', true)])
             ->get()
             ->keyBy('id');
 
         $variants = ProductVariant::query()
             ->active()
             ->whereIn('id', array_values(array_unique($variantIds)))
-            ->whereHas('product', fn ($query) => $query->active())
+            ->whereHas('product', fn ($query) => $query->where('is_active', true))
             ->with('product:id,name,sku,price', 'attributeValue.attribute')
             ->get()
             ->keyBy('id');

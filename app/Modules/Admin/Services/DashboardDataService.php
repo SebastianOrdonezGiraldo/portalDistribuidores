@@ -85,10 +85,10 @@ class DashboardDataService
             ->first();
 
         return [
-            'current_revenue' => (float) ($current?->revenue ?? 0),
-            'previous_revenue' => (float) ($previous?->revenue ?? 0),
-            'current_orders' => (int) ($current?->orders ?? 0),
-            'previous_orders' => (int) ($previous?->orders ?? 0),
+            'current_revenue' => (float) ($current->revenue ?? 0),
+            'previous_revenue' => (float) ($previous->revenue ?? 0),
+            'current_orders' => (int) ($current->orders ?? 0),
+            'previous_orders' => (int) ($previous->orders ?? 0),
             'range_label' => 'Desde '.$currentStart->format('d/m').' al '.$currentEnd->format('d/m'),
         ];
     }
@@ -204,7 +204,7 @@ class DashboardDataService
             ->merge(
                 $recentOrders->map(fn (Order $order) => [
                     'title' => 'Pedido '.$order->oc_number,
-                    'description' => ($order->distributor?->name ?? 'Distribuidor').' registró una orden.',
+                    'description' => ($order->distributor->name ?? 'Distribuidor').' registró una orden.',
                     'status' => $order->status,
                     'created_at' => $order->created_at,
                 ])

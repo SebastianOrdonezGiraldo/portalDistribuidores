@@ -23,7 +23,7 @@ class RoleMiddleware
         }
 
         if ($user->isDistributor() && $user->distributor && ! $user->distributor->isActive()) {
-            return $this->logout($request, $this->distributorAccessMessage($user->distributor?->status));
+            return $this->logout($request, $this->distributorAccessMessage($user->distributor->status));
         }
 
         if (! in_array($user->role->value, $roles, true)) {

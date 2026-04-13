@@ -78,7 +78,9 @@ class DistributorAdminController extends Controller
             ->paginate((int) $filters['per_page'])
             ->withQueryString();
 
-        $this->hydrateRecentOrders($distributors->getCollection());
+        /** @var EloquentCollection<int, Distributor> $paginatedItems */
+        $paginatedItems = $distributors->getCollection();
+        $this->hydrateRecentOrders($paginatedItems);
 
         $metrics = [
             'total_distributors' => (clone $filteredQuery)->count(),
@@ -145,9 +147,9 @@ class DistributorAdminController extends Controller
             ->groupBy('distributor_id')
             ->map(function (Collection $rows): array {
                 $counts = $rows->mapWithKeys(function ($row): array {
-                    $status = $row->status instanceof \BackedEnum
-                        ? $row->status->value
-                        : (string) $row->status;
+                    $status = is_string($row->status)
+                        ? $row->status
+                        : $row->status->value;
 
                     return [$status => (int) $row->total];
                 });

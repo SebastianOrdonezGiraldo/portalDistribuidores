@@ -78,7 +78,7 @@ class ProductController extends Controller
 
         $mainPhoto = $product->primaryPhoto ?? $product->photos->first();
         $galleryPhotos = $product->photos->take(10);
-        $categoryName = $product->category?->name ?? 'Sin categoría';
+        $categoryName = $product->category->name ?? 'Sin categoría';
         $brand = $commercial['brand'] ?? 'Marca no especificada';
         $unitLabel = $commercial['unit'] ?? 'unidades';
         $unitLabelLower = Str::lower($unitLabel);
@@ -91,7 +91,7 @@ class ProductController extends Controller
 
         $activeVariants = $product->activeVariantsCollection();
         $hasVariants = $activeVariants->isNotEmpty();
-        $variantAttributeName = $product->variantAttribute?->name ?? 'Variante';
+        $variantAttributeName = $product->variantAttribute->name ?? 'Variante';
         $minVariantPrice = $hasVariants ? (float) ($activeVariants->min('price') ?? 0) : null;
         $maxVariantPrice = $hasVariants ? (float) ($activeVariants->max('price') ?? 0) : null;
         $price = $hasVariants ? (float) ($minVariantPrice ?? 0) : (float) $product->price;
