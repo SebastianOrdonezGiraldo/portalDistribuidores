@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
+use App\Modules\Shared\Enums\DistributorStatus;
 use App\Modules\Shared\Enums\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -169,6 +170,106 @@ class AdminUsersTest extends TestCase
             'id' => $created->id,
             'role' => UserRole::Admin->value,
             'distributor_id' => null,
+        ]);
+    }
+
+    public function test_admin_edit_view_shows_distributor_registration_data(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $distributor = Distributor::create([
+            'name' => 'Empresa Verificar SA',
+            'status' => 'pending_review',
+            'nit' => '900123456',
+            'city' => 'Bogotá',
+            'address' => 'Calle 100 # 20-30',
+            'phone' => '3001234567',
+            'contact_email' => 'contacto@empresaverificar.com',
+            'contact_name' => 'Carlos Pérez',
+        ]);
+
+        $user = User::factory()->create([
+            'role' => UserRole::Distributor,
+            'distributor_id' => $distributor->id,
+        ]);
+
+        $response = $this->actingAs($admin)->get('/admin/users/'.$user->id.'/edit');
+
+        $response->assertOk();
+        $response->assertSee('Empresa Verificar SA');
+        $response->assertSee('900123456');
+        $response->assertSee('Bogotá');
+        $response->assertSee('Calle 100 # 20-30');
+        $response->assertSee('3001234567');
+        $response->assertSee('contacto@empresaverificar.com');
+        $response->assertSee('Carlos Pérez');
+        $response->assertSee('Pendiente de revisión');
+    }
+
+    public function test_admin_can_update_distributor_status_from_user_edit(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $distributor = Distributor::create([
+            'name' => 'Distribuidor Activar',
+            'status' => 'pending_review',
+        ]);
+
+        $user = User::factory()->create([
+            'role' => UserRole::Distributor,
+            'distributor_id' => $distributor->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->put('/admin/users/'.$user->id, [
+                '_token' => 'test-token',
+                'name' => $user->name,
+                'email' => $user->email,
+                'password' => '',
+                'role' => 'distributor',
+                'distributor_id' => $distributor->id,
+                'distributor_status' => 'active',
+                'after_save' => 'index',
+            ])
+            ->assertRedirect('/admin/users');
+
+        $this->assertDatabaseHas('distributors', [
+            'id' => $distributor->id,
+            'status' => DistributorStatus::Active->value,
+        ]);
+    }
+
+    public function test_admin_cannot_set_invalid_distributor_status(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $distributor = Distributor::create([
+            'name' => 'Distribuidor Estado Inválido',
+            'status' => 'pending_review',
+        ]);
+
+        $user = User::factory()->create([
+            'role' => UserRole::Distributor,
+            'distributor_id' => $distributor->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->put('/admin/users/'.$user->id, [
+                '_token' => 'test-token',
+                'name' => $user->name,
+                'email' => $user->email,
+                'password' => '',
+                'role' => 'distributor',
+                'distributor_id' => $distributor->id,
+                'distributor_status' => 'estado_invalido',
+            ])
+            ->assertSessionHasErrors('distributor_status');
+
+        $this->assertDatabaseHas('distributors', [
+            'id' => $distributor->id,
+            'status' => 'pending_review',
         ]);
     }
 
