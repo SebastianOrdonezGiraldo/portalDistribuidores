@@ -10,7 +10,7 @@
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="stat-pill">Modo: {{ $isEdit ? 'Edición' : 'Creación' }}</span>
                     @if($isEdit)
-                        <span class="stat-pill">Usuarios: {{ number_format((int) ($distributor->users_count ?? 0)) }}</span>
+                        <span class="stat-pill">Usuario: {{ number_format((int) ($distributor->user_count ?? 0)) }}</span>
                         <span class="stat-pill">Pedidos: {{ number_format((int) ($distributor->orders_count ?? 0)) }}</span>
                     @endif
                 </div>
@@ -79,8 +79,8 @@
                     </div>
                     @if($isEdit)
                         <div class="flex items-center justify-between">
-                            <span class="text-slate-500">Usuarios vinculados</span>
-                            <span class="font-medium text-slate-900">{{ number_format((int) ($distributor->users_count ?? 0)) }}</span>
+                            <span class="text-slate-500">Usuario vinculado</span>
+                            <span class="font-medium text-slate-900">{{ ($distributor->user_count ?? 0) ? 'Sí' : 'No' }}</span>
                         </div>
                         <div class="flex items-center justify-between">
                             <span class="text-slate-500">Pedidos registrados</span>

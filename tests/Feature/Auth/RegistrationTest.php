@@ -4,7 +4,7 @@ namespace Tests\Feature\Auth;
 
 use App\Models\User;
 use App\Modules\AuthAccess\Mail\DistributorRegistrationNotificationMail;
-use App\Modules\Shared\Enums\CompanyRole;
+use App\Modules\AuthAccess\Mail\EmailVerificationCodeMail;
 use App\Modules\Shared\Enums\DistributorStatus;
 use App\Modules\Shared\Enums\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -47,6 +47,8 @@ class RegistrationTest extends TestCase
 
     public function test_new_users_can_register(): void
     {
+        Mail::fake();
+
         $response = $this->post('/register', [
             'name' => 'Juan Pérez',
             'company_name' => 'Distribuciones Prueba SAS',
@@ -60,12 +62,17 @@ class RegistrationTest extends TestCase
         ]);
 
         $this->assertGuest();
-        $response->assertRedirect(route('register.pending', absolute: false));
+        $response->assertRedirect(route('register.verify-email', absolute: false));
 
         $user = User::query()->where('email', 'registro@example.com')->firstOrFail();
         $this->assertSame(UserRole::Distributor, $user->role);
-        $this->assertSame(CompanyRole::AdminEmpresa, $user->company_role);
         $this->assertNotNull($user->distributor_id);
+        $this->assertNotNull($user->email_verification_code);
+        $this->assertNotNull($user->email_verification_code_expires_at);
+
+        Mail::assertSent(EmailVerificationCodeMail::class, function (EmailVerificationCodeMail $mail) use ($user): bool {
+            return $mail->user->id === $user->id;
+        });
 
         $this->assertDatabaseHas('distributors', [
             'id' => $user->distributor_id,

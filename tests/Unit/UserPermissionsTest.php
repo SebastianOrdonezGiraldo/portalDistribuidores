@@ -3,17 +3,10 @@
 namespace Tests\Unit;
 
 use App\Models\User;
-use App\Modules\Shared\Enums\CompanyRole;
 use App\Modules\Shared\Enums\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-/**
- * Tests unitarios para los métodos de permisos del modelo User.
- *
- * Cubre todas las combinaciones de UserRole × CompanyRole que el dominio
- * contempla, asegurando que ninguna regla de negocio se rompa en silencio.
- */
 class UserPermissionsTest extends TestCase
 {
     use RefreshDatabase;
@@ -49,30 +42,16 @@ class UserPermissionsTest extends TestCase
         $this->assertTrue($user->canCreateOrders());
     }
 
-    public function test_distributor_without_company_role_can_create_orders(): void
+    public function test_active_distributor_can_create_orders(): void
     {
-        $user = User::factory()->make(['company_role' => null]);
+        $user = User::factory()->make(['is_active' => true]);
 
         $this->assertTrue($user->canCreateOrders());
     }
 
-    public function test_distributor_with_admin_empresa_role_can_create_orders(): void
+    public function test_inactive_distributor_cannot_create_orders(): void
     {
-        $user = User::factory()->make(['company_role' => CompanyRole::AdminEmpresa]);
-
-        $this->assertTrue($user->canCreateOrders());
-    }
-
-    public function test_distributor_with_usuario_comercial_role_can_create_orders(): void
-    {
-        $user = User::factory()->make(['company_role' => CompanyRole::UsuarioComercial]);
-
-        $this->assertTrue($user->canCreateOrders());
-    }
-
-    public function test_distributor_with_solo_lectura_cannot_create_orders(): void
-    {
-        $user = User::factory()->make(['company_role' => CompanyRole::SoloLectura]);
+        $user = User::factory()->inactive()->make();
 
         $this->assertFalse($user->canCreateOrders());
     }
@@ -81,23 +60,23 @@ class UserPermissionsTest extends TestCase
     // canEditCompany
     // ──────────────────────────────────────────────────────────────────────────
 
-    public function test_admin_empresa_can_edit_company(): void
+    public function test_active_distributor_with_distributor_id_can_edit_company(): void
     {
-        $user = User::factory()->make(['company_role' => CompanyRole::AdminEmpresa]);
+        $user = User::factory()->make(['distributor_id' => 1, 'is_active' => true]);
 
         $this->assertTrue($user->canEditCompany());
     }
 
-    public function test_usuario_comercial_cannot_edit_company(): void
+    public function test_distributor_without_distributor_id_cannot_edit_company(): void
     {
-        $user = User::factory()->make(['company_role' => CompanyRole::UsuarioComercial]);
+        $user = User::factory()->make(['distributor_id' => null]);
 
         $this->assertFalse($user->canEditCompany());
     }
 
-    public function test_distributor_without_company_role_cannot_edit_company(): void
+    public function test_inactive_distributor_cannot_edit_company(): void
     {
-        $user = User::factory()->make(['company_role' => null]);
+        $user = User::factory()->inactive()->make(['distributor_id' => 1]);
 
         $this->assertFalse($user->canEditCompany());
     }
@@ -113,30 +92,16 @@ class UserPermissionsTest extends TestCase
         $this->assertTrue($user->canReorder());
     }
 
-    public function test_distributor_without_company_role_can_reorder(): void
+    public function test_active_distributor_can_reorder(): void
     {
-        $user = User::factory()->make(['company_role' => null]);
+        $user = User::factory()->make(['is_active' => true]);
 
         $this->assertTrue($user->canReorder());
     }
 
-    public function test_admin_empresa_can_reorder(): void
+    public function test_inactive_distributor_cannot_reorder(): void
     {
-        $user = User::factory()->make(['company_role' => CompanyRole::AdminEmpresa]);
-
-        $this->assertTrue($user->canReorder());
-    }
-
-    public function test_usuario_comercial_can_reorder(): void
-    {
-        $user = User::factory()->make(['company_role' => CompanyRole::UsuarioComercial]);
-
-        $this->assertTrue($user->canReorder());
-    }
-
-    public function test_solo_lectura_cannot_reorder(): void
-    {
-        $user = User::factory()->make(['company_role' => CompanyRole::SoloLectura]);
+        $user = User::factory()->inactive()->make();
 
         $this->assertFalse($user->canReorder());
     }
@@ -152,16 +117,16 @@ class UserPermissionsTest extends TestCase
         $this->assertTrue($user->canManageLists());
     }
 
-    public function test_distributor_without_company_role_can_manage_lists(): void
+    public function test_active_distributor_can_manage_lists(): void
     {
-        $user = User::factory()->make(['company_role' => null]);
+        $user = User::factory()->make(['is_active' => true]);
 
         $this->assertTrue($user->canManageLists());
     }
 
-    public function test_solo_lectura_cannot_manage_lists(): void
+    public function test_inactive_distributor_cannot_manage_lists(): void
     {
-        $user = User::factory()->make(['company_role' => CompanyRole::SoloLectura]);
+        $user = User::factory()->inactive()->make();
 
         $this->assertFalse($user->canManageLists());
     }
@@ -170,111 +135,46 @@ class UserPermissionsTest extends TestCase
     // canManageBranches
     // ──────────────────────────────────────────────────────────────────────────
 
-    public function test_admin_empresa_can_manage_branches(): void
+    public function test_active_distributor_with_distributor_id_can_manage_branches(): void
     {
-        $user = User::factory()->make(['company_role' => CompanyRole::AdminEmpresa]);
+        $user = User::factory()->make(['distributor_id' => 1, 'is_active' => true]);
 
         $this->assertTrue($user->canManageBranches());
     }
 
-    public function test_usuario_comercial_cannot_manage_branches(): void
+    public function test_distributor_without_distributor_id_cannot_manage_branches(): void
     {
-        $user = User::factory()->make(['company_role' => CompanyRole::UsuarioComercial]);
+        $user = User::factory()->make(['distributor_id' => null]);
 
         $this->assertFalse($user->canManageBranches());
     }
 
-    public function test_distributor_without_company_role_cannot_manage_branches(): void
+    public function test_inactive_distributor_cannot_manage_branches(): void
     {
-        $user = User::factory()->make(['company_role' => null]);
+        $user = User::factory()->inactive()->make(['distributor_id' => 1]);
 
         $this->assertFalse($user->canManageBranches());
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // canApproveOrders
+    // canApproveOrders / orderRequiresApproval
     // ──────────────────────────────────────────────────────────────────────────
 
-    public function test_admin_empresa_can_approve_orders(): void
+    public function test_no_user_can_approve_orders(): void
     {
-        $user = User::factory()->make(['company_role' => CompanyRole::AdminEmpresa]);
+        $admin = User::factory()->admin()->make();
+        $distributor = User::factory()->make(['distributor_id' => 1]);
 
-        $this->assertTrue($user->canApproveOrders());
+        $this->assertFalse($admin->canApproveOrders());
+        $this->assertFalse($distributor->canApproveOrders());
     }
 
-    public function test_usuario_comercial_cannot_approve_orders(): void
+    public function test_orders_never_require_approval(): void
     {
-        $user = User::factory()->make(['company_role' => CompanyRole::UsuarioComercial]);
+        $admin = User::factory()->admin()->make();
+        $distributor = User::factory()->make(['distributor_id' => 1]);
 
-        $this->assertFalse($user->canApproveOrders());
-    }
-
-    public function test_solo_lectura_cannot_approve_orders(): void
-    {
-        $user = User::factory()->make(['company_role' => CompanyRole::SoloLectura]);
-
-        $this->assertFalse($user->canApproveOrders());
-    }
-
-    public function test_distributor_without_company_role_cannot_approve_orders(): void
-    {
-        $user = User::factory()->make(['company_role' => null]);
-
-        $this->assertFalse($user->canApproveOrders());
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // orderRequiresApproval
-    // ──────────────────────────────────────────────────────────────────────────
-
-    public function test_usuario_comercial_orders_require_approval(): void
-    {
-        $user = User::factory()->make(['company_role' => CompanyRole::UsuarioComercial]);
-
-        $this->assertTrue($user->orderRequiresApproval());
-    }
-
-    public function test_admin_empresa_orders_do_not_require_approval(): void
-    {
-        $user = User::factory()->make(['company_role' => CompanyRole::AdminEmpresa]);
-
-        $this->assertFalse($user->orderRequiresApproval());
-    }
-
-    public function test_distributor_without_company_role_orders_do_not_require_approval(): void
-    {
-        $user = User::factory()->make(['company_role' => null]);
-
-        $this->assertFalse($user->orderRequiresApproval());
-    }
-
-    public function test_admin_user_orders_never_require_approval(): void
-    {
-        $user = User::factory()->admin()->make();
-
-        $this->assertFalse($user->orderRequiresApproval());
-    }
-
-    public function test_solo_lectura_orders_do_not_require_approval(): void
-    {
-        // SoloLectura no puede crear órdenes, pero no las marca como pendientes de aprobación.
-        $user = User::factory()->make(['company_role' => CompanyRole::SoloLectura]);
-
-        $this->assertFalse($user->orderRequiresApproval());
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // isCompanyAdmin
-    // ──────────────────────────────────────────────────────────────────────────
-
-    public function test_is_company_admin_requires_distributor_role_and_admin_empresa(): void
-    {
-        $admin = User::factory()->admin()->make(['company_role' => CompanyRole::AdminEmpresa]);
-        $distAdminEmpresa = User::factory()->make(['company_role' => CompanyRole::AdminEmpresa]);
-        $distNoRole = User::factory()->make(['company_role' => null]);
-
-        $this->assertFalse($admin->isCompanyAdmin(), 'Un admin global no es company admin');
-        $this->assertTrue($distAdminEmpresa->isCompanyAdmin());
-        $this->assertFalse($distNoRole->isCompanyAdmin());
+        $this->assertFalse($admin->orderRequiresApproval());
+        $this->assertFalse($distributor->orderRequiresApproval());
     }
 }

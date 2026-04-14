@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modules\AuthAccess\Mail\DistributorRegistrationNotificationMail;
+use App\Modules\AuthAccess\Mail\EmailVerificationCodeMail;
 use App\Modules\AuthAccess\Models\Distributor;
-use App\Modules\Shared\Enums\CompanyRole;
 use App\Modules\Shared\Enums\DistributorStatus;
 use App\Modules\Shared\Enums\UserRole;
 use Illuminate\Http\RedirectResponse;
@@ -82,7 +82,6 @@ class RegisteredUserController extends Controller
                 'email' => $payload['email'],
                 'password' => Hash::make($payload['password']),
                 'role' => UserRole::Distributor,
-                'company_role' => CompanyRole::AdminEmpresa,
                 'distributor_id' => $distributor->id,
                 'is_active' => true,
             ]);
@@ -92,9 +91,26 @@ class RegisteredUserController extends Controller
 
         $this->notifyAdminOfNewRegistration($distributor);
 
-        return redirect()
-            ->route('register.pending')
-            ->with('status', 'Recibimos tu solicitud. Validaremos tus datos y activaremos tu acceso.');
+        $user = $distributor->user;
+        $code = $user->generateEmailVerificationCode();
+
+        $this->sendVerificationCode($user, $code);
+
+        $request->session()->put('verify_email_user_id', $user->id);
+
+        return redirect()->route('register.verify-email');
+    }
+
+    private function sendVerificationCode(User $user, string $code): void
+    {
+        try {
+            Mail::to($user->email)->send(new EmailVerificationCodeMail($user, $code));
+        } catch (\Throwable $exception) {
+            Log::error('email_verification_code.send.failed', [
+                'user_id' => $user->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 
     private function ensurePublicRegistrationIsEnabled(): void

@@ -18,7 +18,6 @@ use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Policies\OrderPolicy;
 use App\Modules\Orders\Services\Cart\CartService;
 use App\Modules\Shared\Contracts\SearchEngineInterface;
-use App\Modules\Shared\Enums\OrderStatus;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -120,25 +119,12 @@ class AppServiceProvider extends ServiceProvider
                     ->get(['id', 'name'])
                 );
             }
-            $pendingApprovalCount = 0;
-            $user = auth()->user();
-
-            if ($user && $user->isDistributor() && $user->canApproveOrders() && $user->distributor_id) {
-                $cacheKey = 'pending_approval_count_distributor_'.$user->distributor_id;
-                $pendingApprovalCount = Cache::remember($cacheKey, 60, static function () use ($user): int {
-                    return (int) Order::query()
-                        ->where('distributor_id', $user->distributor_id)
-                        ->where('status', OrderStatus::PendingApproval)
-                        ->count();
-                });
-            }
-
             $view->with([
                 'navCartCount' => $count,
                 'cartCount' => $count,
                 'footerTopCategories' => $footerTopCategories,
                 'headerQuickCategories' => $headerQuickCategories,
-                'pendingApprovalCount' => $pendingApprovalCount,
+                'pendingApprovalCount' => 0,
             ]);
         });
     }

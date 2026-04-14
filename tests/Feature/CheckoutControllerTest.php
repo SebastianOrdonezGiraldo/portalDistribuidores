@@ -6,7 +6,6 @@ use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Company\Models\CompanyBranch;
-use App\Modules\Shared\Enums\CompanyRole;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -19,27 +18,6 @@ class CheckoutControllerTest extends TestCase
     {
         parent::setUp();
         $this->withoutMiddleware(ValidateCsrfToken::class);
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // Acceso sin permisos
-    // ──────────────────────────────────────────────────────────────────────────
-
-    public function test_checkout_redirects_when_user_cannot_create_orders(): void
-    {
-        $distributor = Distributor::factory()->create();
-        $user = User::factory()->create([
-            'distributor_id' => $distributor->id,
-            'company_role' => CompanyRole::SoloLectura,
-        ]);
-
-        $product = Product::factory()->create();
-        $this->actingAs($user)->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 1]);
-
-        $this->actingAs($user)
-            ->get(route('checkout.show'))
-            ->assertRedirect(route('empresa.dashboard'))
-            ->assertSessionHasErrors();
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -95,7 +73,6 @@ class CheckoutControllerTest extends TestCase
         $user = User::factory()->create(['distributor_id' => $distributor->id]);
         $product = Product::factory()->create();
 
-        // Crea dos sucursales
         CompanyBranch::create([
             'distributor_id' => $distributor->id,
             'name' => 'Sucursal B',
@@ -134,28 +111,11 @@ class CheckoutControllerTest extends TestCase
             ->assertViewHas('distributor', null);
     }
 
-    public function test_checkout_distributor_without_company_role_can_access(): void
+    public function test_checkout_distributor_can_access(): void
     {
         $distributor = Distributor::factory()->create();
         $user = User::factory()->create([
             'distributor_id' => $distributor->id,
-            'company_role' => null,
-        ]);
-        $product = Product::factory()->create();
-
-        $this->actingAs($user)->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 1]);
-
-        $this->actingAs($user)
-            ->get(route('checkout.show'))
-            ->assertOk();
-    }
-
-    public function test_checkout_admin_empresa_can_access(): void
-    {
-        $distributor = Distributor::factory()->create();
-        $user = User::factory()->create([
-            'distributor_id' => $distributor->id,
-            'company_role' => CompanyRole::AdminEmpresa,
         ]);
         $product = Product::factory()->create();
 

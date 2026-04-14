@@ -52,10 +52,10 @@ class Distributor extends Model
         return $this->status === DistributorStatus::Active;
     }
 
-    /** @return HasMany<User, $this> */
-    public function users(): HasMany
+    /** @return HasOne<User, $this> */
+    public function user(): HasOne
     {
-        return $this->hasMany(User::class);
+        return $this->hasOne(User::class);
     }
 
     /** @return HasMany<Order, $this> */

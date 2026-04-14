@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Orders\Models\Order;
-use App\Modules\Shared\Enums\CompanyRole;
 use App\Modules\Shared\Enums\UserRole;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,15 +11,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
  * @property string $name
  * @property string $email
  * @property UserRole $role
- * @property CompanyRole|null $company_role
  * @property int|null $distributor_id
  * @property bool $is_active
+ * @property Carbon|null $email_verified_at
+ * @property string|null $email_verification_code
+ * @property Carbon|null $email_verification_code_expires_at
  */
 class User extends Authenticatable
 {
@@ -36,10 +38,11 @@ class User extends Authenticatable
         'name',
         'email',
         'role',
-        'company_role',
         'distributor_id',
         'is_active',
         'password',
+        'email_verification_code',
+        'email_verification_code_expires_at',
     ];
 
     /**
@@ -61,11 +64,38 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'email_verification_code_expires_at' => 'datetime',
             'is_active' => 'boolean',
             'password' => 'hashed',
             'role' => UserRole::class,
-            'company_role' => CompanyRole::class,
         ];
+    }
+
+    public function generateEmailVerificationCode(): string
+    {
+        $code = (string) random_int(100000, 999999);
+
+        $this->update([
+            'email_verification_code' => $code,
+            'email_verification_code_expires_at' => now()->addMinutes(15),
+        ]);
+
+        return $code;
+    }
+
+    public function hasValidVerificationCode(string $code): bool
+    {
+        return $this->email_verification_code === $code
+            && $this->email_verification_code_expires_at !== null
+            && $this->email_verification_code_expires_at->isFuture();
+    }
+
+    public function clearEmailVerificationCode(): void
+    {
+        $this->update([
+            'email_verification_code' => null,
+            'email_verification_code_expires_at' => null,
+        ]);
     }
 
     /** @return BelongsTo<Distributor, $this> */
@@ -90,19 +120,9 @@ class User extends Authenticatable
         return $this->role === UserRole::Distributor;
     }
 
-    public function companyRole(): ?CompanyRole
-    {
-        return $this->company_role;
-    }
-
     public function isActive(): bool
     {
         return (bool) $this->is_active;
-    }
-
-    public function isCompanyAdmin(): bool
-    {
-        return $this->isDistributor() && $this->company_role === CompanyRole::AdminEmpresa;
     }
 
     public function canCreateOrders(): bool
@@ -111,30 +131,14 @@ class User extends Authenticatable
             return false;
         }
 
-        if ($this->isAdmin()) {
-            return true;
-        }
-
-        if (! $this->isDistributor()) {
-            return false;
-        }
-
-        if ($this->company_role === null) {
-            return true;
-        }
-
-        return $this->company_role->canCreateOrders();
+        return $this->isAdmin() || $this->isDistributor();
     }
 
     public function canEditCompany(): bool
     {
-        if (! $this->isActive()) {
-            return false;
-        }
-
-        return $this->isDistributor()
-            && $this->company_role !== null
-            && $this->company_role->canEditCompany();
+        return $this->isActive()
+            && $this->isDistributor()
+            && $this->distributor_id !== null;
     }
 
     public function canReorder(): bool
@@ -143,20 +147,7 @@ class User extends Authenticatable
             return false;
         }
 
-        if ($this->isAdmin()) {
-            return true;
-        }
-
-        if (! $this->isDistributor()) {
-            return false;
-        }
-
-        // Legacy users without company_role can reorder
-        if ($this->company_role === null) {
-            return true;
-        }
-
-        return $this->company_role->canReorder();
+        return $this->isAdmin() || $this->isDistributor();
     }
 
     public function canManageLists(): bool
@@ -165,53 +156,23 @@ class User extends Authenticatable
             return false;
         }
 
-        if ($this->isAdmin()) {
-            return true;
-        }
-
-        if (! $this->isDistributor()) {
-            return false;
-        }
-
-        if ($this->company_role === null) {
-            return true;
-        }
-
-        return $this->company_role->canManageLists();
+        return $this->isAdmin() || $this->isDistributor();
     }
 
     public function canManageBranches(): bool
     {
-        if (! $this->isActive()) {
-            return false;
-        }
-
-        return $this->isDistributor()
-            && $this->company_role !== null
-            && $this->company_role->canManageBranches();
+        return $this->isActive()
+            && $this->isDistributor()
+            && $this->distributor_id !== null;
     }
 
     public function canApproveOrders(): bool
     {
-        if (! $this->isActive()) {
-            return false;
-        }
-
-        return $this->isDistributor()
-            && $this->company_role !== null
-            && $this->company_role->canApproveOrders();
+        return false;
     }
 
     public function orderRequiresApproval(): bool
     {
-        if (! $this->isActive()) {
-            return false;
-        }
-
-        if (! $this->isDistributor()) {
-            return false;
-        }
-
-        return $this->company_role?->requiresOrderApproval() ?? false;
+        return false;
     }
 }

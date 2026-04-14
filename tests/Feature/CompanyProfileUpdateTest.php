@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
-use App\Modules\Shared\Enums\CompanyRole;
 use App\Modules\Shared\Enums\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -13,13 +12,12 @@ class CompanyProfileUpdateTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_distributor_without_company_role_can_view_company_profile(): void
+    public function test_distributor_can_view_company_profile(): void
     {
         $distributor = Distributor::factory()->create();
 
         $user = User::factory()->create([
             'role' => UserRole::Distributor,
-            'company_role' => null,
             'distributor_id' => $distributor->id,
             'email_verified_at' => now(),
         ]);
@@ -30,7 +28,7 @@ class CompanyProfileUpdateTest extends TestCase
             ->assertSee('Datos de Empresa');
     }
 
-    public function test_distributor_without_company_role_can_update_profile_with_complete_master_data(): void
+    public function test_distributor_can_update_profile_with_complete_master_data(): void
     {
         $distributor = Distributor::create([
             'name' => 'Distribuidor Base',
@@ -45,7 +43,6 @@ class CompanyProfileUpdateTest extends TestCase
 
         $user = User::factory()->create([
             'role' => UserRole::Distributor,
-            'company_role' => null,
             'distributor_id' => $distributor->id,
             'email_verified_at' => now(),
         ]);
@@ -77,7 +74,7 @@ class CompanyProfileUpdateTest extends TestCase
         ]);
     }
 
-    public function test_company_admin_can_update_profile_with_numeric_nit(): void
+    public function test_distributor_can_update_profile_with_numeric_nit(): void
     {
         $distributor = Distributor::create([
             'name' => 'Distribuidor Base',
@@ -87,7 +84,6 @@ class CompanyProfileUpdateTest extends TestCase
 
         $user = User::factory()->create([
             'role' => UserRole::Distributor,
-            'company_role' => CompanyRole::AdminEmpresa,
             'distributor_id' => $distributor->id,
             'email_verified_at' => now(),
         ]);
@@ -129,7 +125,6 @@ class CompanyProfileUpdateTest extends TestCase
 
         $user = User::factory()->create([
             'role' => UserRole::Distributor,
-            'company_role' => CompanyRole::AdminEmpresa,
             'distributor_id' => $distributor->id,
             'email_verified_at' => now(),
         ]);
@@ -175,7 +170,6 @@ class CompanyProfileUpdateTest extends TestCase
 
         $user = User::factory()->create([
             'role' => UserRole::Distributor,
-            'company_role' => null,
             'distributor_id' => $distributor->id,
             'email_verified_at' => now(),
         ]);

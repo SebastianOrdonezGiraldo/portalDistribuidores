@@ -156,7 +156,6 @@ return [
         'password_confirmation' => 'confirmación de contraseña',
         'current_password' => 'contraseña actual',
         'role' => 'rol',
-        'company_role' => 'rol en empresa',
         'distributor_id' => 'distribuidor',
         'contact_name' => 'nombre de contacto',
         'contact_email' => 'correo de contacto',

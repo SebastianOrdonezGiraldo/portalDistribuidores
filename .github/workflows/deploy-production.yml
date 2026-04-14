@@ -62,7 +62,9 @@ jobs:
       }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    environment: production
+    environment:
+      name: production
+      url: ${{ env.DEPLOY_URL }}
     env:
       DEPLOY_URL: https://pedidos.importcorporalmedical.com
       SSH_HOST: ${{ secrets.VPS_HOST_PRODUCTION || secrets.VPS_HOST }}
