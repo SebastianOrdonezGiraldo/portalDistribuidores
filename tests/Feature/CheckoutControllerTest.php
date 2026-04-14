@@ -125,4 +125,103 @@ class CheckoutControllerTest extends TestCase
             ->get(route('checkout.show'))
             ->assertOk();
     }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Checkout refleja la cantidad actualizada en el carrito
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Reproduce el bug: el usuario agrega qty=1 desde el catálogo, luego cambia
+     * la cantidad a 5 en el carrito (PATCH cart.update) y va al checkout.
+     * Sin la corrección, checkout mostraría qty=1. Con la corrección, muestra 5.
+     */
+    public function test_checkout_reflects_quantity_updated_in_cart(): void
+    {
+        $product = Product::factory()->create(['price' => 10000, 'stock' => 50]);
+
+        // El catálogo siempre envía qty=1
+        $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 1]);
+
+        // El usuario edita la cantidad a 5 en la página del carrito
+        $lineKey = $product->id.'-0';
+        $this->patch(route('cart.update'), ['quantities' => [$lineKey => 5]]);
+
+        $response = $this->get(route('checkout.show'));
+        $response->assertOk();
+
+        $items = $response->viewData('items');
+        $this->assertCount(1, $items);
+        $this->assertEquals(5, $items->first()['qty']);
+        $this->assertEquals(50000.0, $response->viewData('total'));
+    }
+
+    public function test_checkout_reflects_quantity_when_redirected_via_redirect_checkout_flag(): void
+    {
+        $product = Product::factory()->create(['price' => 10000, 'stock' => 50]);
+
+        $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 1]);
+
+        $lineKey = $product->id.'-0';
+
+        // El botón "Continuar al checkout" envía redirect_checkout=1
+        $this->patch(route('cart.update'), [
+            'quantities'        => [$lineKey => 7],
+            'redirect_checkout' => '1',
+        ])->assertRedirect(route('checkout.show'));
+
+        $response = $this->get(route('checkout.show'));
+        $response->assertOk();
+
+        $items = $response->viewData('items');
+        $this->assertEquals(7, $items->first()['qty']);
+        $this->assertEquals(70000.0, $response->viewData('total'));
+    }
+
+    public function test_checkout_total_matches_updated_cart_quantities(): void
+    {
+        $productA = Product::factory()->create(['price' => 5000, 'stock' => 100]);
+        $productB = Product::factory()->create(['price' => 8000, 'stock' => 100]);
+
+        $this->post(route('cart.store'), ['product_id' => $productA->id, 'qty' => 1]);
+        $this->post(route('cart.store'), ['product_id' => $productB->id, 'qty' => 1]);
+
+        $lineKeyA = $productA->id.'-0';
+        $lineKeyB = $productB->id.'-0';
+
+        // Usuario actualiza ambas cantidades
+        $this->patch(route('cart.update'), [
+            'quantities' => [
+                $lineKeyA => 3,
+                $lineKeyB => 2,
+            ],
+        ]);
+
+        $response = $this->get(route('checkout.show'));
+        $response->assertOk();
+
+        // 3 × 5000 + 2 × 8000 = 31000
+        $this->assertEquals(31000.0, $response->viewData('total'));
+
+        $items = collect($response->viewData('items'));
+        $itemA = $items->first(fn ($item) => $item['product']->id === $productA->id);
+        $itemB = $items->first(fn ($item) => $item['product']->id === $productB->id);
+        $this->assertEquals(3, $itemA['qty']);
+        $this->assertEquals(2, $itemB['qty']);
+    }
+
+    public function test_checkout_still_shows_original_quantity_if_cart_not_updated(): void
+    {
+        $product = Product::factory()->create(['price' => 10000, 'stock' => 50]);
+
+        // Se agrega con qty=3 directamente desde ficha de producto
+        $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 3]);
+
+        // Sin ningún PATCH intermedio, checkout debe mostrar qty=3
+        $response = $this->get(route('checkout.show'));
+        $response->assertOk();
+
+        $items = $response->viewData('items');
+        $this->assertEquals(3, $items->first()['qty']);
+        $this->assertEquals(30000.0, $response->viewData('total'));
+    }
 }

@@ -364,4 +364,72 @@ class CartControllerTest extends TestCase
         $this->delete(route('cart.destroy', 'key-inexistente'))
             ->assertRedirect();
     }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // redirect_checkout: guardar cantidades y pasar directo al checkout
+    // ──────────────────────────────────────────────────────────────────────────
+
+    public function test_update_with_redirect_checkout_flag_redirects_to_checkout(): void
+    {
+        $product = Product::factory()->create(['price' => 5000, 'stock' => 20]);
+
+        $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 1]);
+
+        $lineKey = $product->id.'-0';
+
+        $this->patch(route('cart.update'), [
+            'quantities'        => [$lineKey => 5],
+            'redirect_checkout' => '1',
+        ])
+            ->assertRedirect(route('checkout.show'));
+    }
+
+    public function test_update_without_redirect_checkout_flag_stays_on_cart(): void
+    {
+        $product = Product::factory()->create(['price' => 5000, 'stock' => 20]);
+
+        $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 1]);
+
+        $lineKey = $product->id.'-0';
+
+        $this->patch(route('cart.update'), [
+            'quantities'        => [$lineKey => 3],
+            'redirect_checkout' => '0',
+        ])
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Carrito actualizado.');
+    }
+
+    public function test_update_with_redirect_checkout_persists_new_quantity_in_session(): void
+    {
+        $product = Product::factory()->create(['price' => 10000, 'stock' => 50]);
+
+        $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 1]);
+
+        $lineKey = $product->id.'-0';
+
+        $this->patch(route('cart.update'), [
+            'quantities'        => [$lineKey => 8],
+            'redirect_checkout' => '1',
+        ]);
+
+        $items = $this->get(route('cart.index'))->viewData('items');
+        $this->assertEquals(8, $items->first()['qty']);
+    }
+
+    public function test_update_with_redirect_checkout_and_stock_error_does_not_redirect_to_checkout(): void
+    {
+        $product = Product::factory()->create(['price' => 5000, 'stock' => 3]);
+
+        $this->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 1]);
+
+        $lineKey = $product->id.'-0';
+
+        $this->patch(route('cart.update'), [
+            'quantities'        => [$lineKey => 10],
+            'redirect_checkout' => '1',
+        ])
+            ->assertRedirect()
+            ->assertSessionHasErrors();
+    }
 }
