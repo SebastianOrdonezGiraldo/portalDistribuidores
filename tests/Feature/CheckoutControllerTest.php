@@ -165,7 +165,7 @@ class CheckoutControllerTest extends TestCase
 
         // El botón "Continuar al checkout" envía redirect_checkout=1
         $this->patch(route('cart.update'), [
-            'quantities'        => [$lineKey => 7],
+            'quantities' => [$lineKey => 7],
             'redirect_checkout' => '1',
         ])->assertRedirect(route('checkout.show'));
 

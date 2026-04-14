@@ -378,7 +378,7 @@ class CartControllerTest extends TestCase
         $lineKey = $product->id.'-0';
 
         $this->patch(route('cart.update'), [
-            'quantities'        => [$lineKey => 5],
+            'quantities' => [$lineKey => 5],
             'redirect_checkout' => '1',
         ])
             ->assertRedirect(route('checkout.show'));
@@ -393,7 +393,7 @@ class CartControllerTest extends TestCase
         $lineKey = $product->id.'-0';
 
         $this->patch(route('cart.update'), [
-            'quantities'        => [$lineKey => 3],
+            'quantities' => [$lineKey => 3],
             'redirect_checkout' => '0',
         ])
             ->assertRedirect()
@@ -409,7 +409,7 @@ class CartControllerTest extends TestCase
         $lineKey = $product->id.'-0';
 
         $this->patch(route('cart.update'), [
-            'quantities'        => [$lineKey => 8],
+            'quantities' => [$lineKey => 8],
             'redirect_checkout' => '1',
         ]);
 
@@ -426,7 +426,7 @@ class CartControllerTest extends TestCase
         $lineKey = $product->id.'-0';
 
         $this->patch(route('cart.update'), [
-            'quantities'        => [$lineKey => 10],
+            'quantities' => [$lineKey => 10],
             'redirect_checkout' => '1',
         ])
             ->assertRedirect()
