@@ -178,18 +178,18 @@ class AdminUsersTest extends TestCase
         $admin = User::factory()->admin()->create();
 
         $distributor = Distributor::create([
-            'name'          => 'Empresa Verificar SA',
-            'status'        => 'pending_review',
-            'nit'           => '900123456',
-            'city'          => 'Bogotá',
-            'address'       => 'Calle 100 # 20-30',
-            'phone'         => '3001234567',
+            'name' => 'Empresa Verificar SA',
+            'status' => 'pending_review',
+            'nit' => '900123456',
+            'city' => 'Bogotá',
+            'address' => 'Calle 100 # 20-30',
+            'phone' => '3001234567',
             'contact_email' => 'contacto@empresaverificar.com',
-            'contact_name'  => 'Carlos Pérez',
+            'contact_name' => 'Carlos Pérez',
         ]);
 
         $user = User::factory()->create([
-            'role'           => UserRole::Distributor,
+            'role' => UserRole::Distributor,
             'distributor_id' => $distributor->id,
         ]);
 
@@ -211,31 +211,31 @@ class AdminUsersTest extends TestCase
         $admin = User::factory()->admin()->create();
 
         $distributor = Distributor::create([
-            'name'   => 'Distribuidor Activar',
+            'name' => 'Distribuidor Activar',
             'status' => 'pending_review',
         ]);
 
         $user = User::factory()->create([
-            'role'           => UserRole::Distributor,
+            'role' => UserRole::Distributor,
             'distributor_id' => $distributor->id,
         ]);
 
         $this->actingAs($admin)
             ->withSession(['_token' => 'test-token'])
             ->put('/admin/users/'.$user->id, [
-                '_token'             => 'test-token',
-                'name'               => $user->name,
-                'email'              => $user->email,
-                'password'           => '',
-                'role'               => 'distributor',
-                'distributor_id'     => $distributor->id,
+                '_token' => 'test-token',
+                'name' => $user->name,
+                'email' => $user->email,
+                'password' => '',
+                'role' => 'distributor',
+                'distributor_id' => $distributor->id,
                 'distributor_status' => 'active',
-                'after_save'         => 'index',
+                'after_save' => 'index',
             ])
             ->assertRedirect('/admin/users');
 
         $this->assertDatabaseHas('distributors', [
-            'id'     => $distributor->id,
+            'id' => $distributor->id,
             'status' => DistributorStatus::Active->value,
         ]);
     }
@@ -245,30 +245,30 @@ class AdminUsersTest extends TestCase
         $admin = User::factory()->admin()->create();
 
         $distributor = Distributor::create([
-            'name'   => 'Distribuidor Estado Inválido',
+            'name' => 'Distribuidor Estado Inválido',
             'status' => 'pending_review',
         ]);
 
         $user = User::factory()->create([
-            'role'           => UserRole::Distributor,
+            'role' => UserRole::Distributor,
             'distributor_id' => $distributor->id,
         ]);
 
         $this->actingAs($admin)
             ->withSession(['_token' => 'test-token'])
             ->put('/admin/users/'.$user->id, [
-                '_token'             => 'test-token',
-                'name'               => $user->name,
-                'email'              => $user->email,
-                'password'           => '',
-                'role'               => 'distributor',
-                'distributor_id'     => $distributor->id,
+                '_token' => 'test-token',
+                'name' => $user->name,
+                'email' => $user->email,
+                'password' => '',
+                'role' => 'distributor',
+                'distributor_id' => $distributor->id,
                 'distributor_status' => 'estado_invalido',
             ])
             ->assertSessionHasErrors('distributor_status');
 
         $this->assertDatabaseHas('distributors', [
-            'id'     => $distributor->id,
+            'id' => $distributor->id,
             'status' => 'pending_review',
         ]);
     }
