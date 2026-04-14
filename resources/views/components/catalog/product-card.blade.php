@@ -23,7 +23,7 @@
         ? ['width' => $coverPhotoWidth, 'height' => $coverPhotoHeight]
         : ['width' => 1200, 'height' => 1200];
     $coverPhotoSrcset = null;
-    $coverPhotoSizes = '(min-width: 1280px) 25vw, (min-width: 640px) 50vw, 100vw';
+    $coverPhotoSizes = '(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, 50vw';
     $isLcpImage = (bool) $isLcpCandidate;
     $hasStock = is_numeric($product->stock ?? null) && (float) $product->stock > 0;
     $stockLabel = $hasStock ? 'En stock' : 'Agotado';
@@ -33,7 +33,7 @@
 @endphp
 
 <article class="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-panel">
-    <div class="relative flex aspect-square items-center justify-center overflow-hidden bg-slate-100 p-3">
+    <div class="relative flex aspect-square items-center justify-center overflow-hidden bg-slate-100 p-2 sm:p-3">
         <div class="absolute left-2.5 top-2.5 z-10">
             <x-ui.badge variant="neutral" class="!rounded-full !px-2 !py-0.5 !text-xs !font-medium !normal-case !tracking-normal">
                 {{ $product->category?->name ?? 'Sin categoría' }}
@@ -70,7 +70,7 @@
         @endif
     </div>
 
-    <div class="flex flex-1 flex-col p-3">
+    <div class="flex flex-1 flex-col p-2 sm:p-3">
         {{-- Stretched link: el ::after cubre toda la tarjeta (article es relative) --}}
         <h3 class="min-h-[2.5rem] overflow-hidden text-sm font-semibold leading-tight text-slate-900 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
             <a
@@ -94,16 +94,16 @@
             @endif
         </dl>
 
-        <div class="relative z-10 mt-2.5 flex items-end justify-between gap-2">
-            <div>
-                <p class="text-sm font-semibold {{ $stockLabelClasses }}">{{ $stockLabel }}</p>
+        <div class="relative z-10 mt-2 flex items-end justify-between gap-1.5 sm:mt-2.5 sm:gap-2">
+            <div class="min-w-0">
+                <p class="text-xs font-semibold sm:text-sm {{ $stockLabelClasses }}">{{ $stockLabel }}</p>
                 @if($isRangePrice)
-                    <p class="text-lg font-semibold tabular-nums tracking-tight text-slate-950 sm:text-xl">
+                    <p class="text-sm font-semibold tabular-nums tracking-tight text-slate-950 sm:text-base lg:text-lg">
                         ${{ number_format($minPrice, 0, ',', '.') }} – ${{ number_format($maxPrice, 0, ',', '.') }}
                     </p>
                     <p class="text-xs text-slate-500">Precio según variante</p>
                 @else
-                    <p class="text-lg font-semibold tabular-nums tracking-tight text-slate-950 sm:text-xl">
+                    <p class="text-sm font-semibold tabular-nums tracking-tight text-slate-950 sm:text-base lg:text-lg">
                         ${{ number_format($minPrice, 0, ',', '.') }}
                     </p>
                 @endif
