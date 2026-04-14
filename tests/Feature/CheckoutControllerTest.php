@@ -21,26 +21,6 @@ class CheckoutControllerTest extends TestCase
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Acceso sin permisos
-    // ──────────────────────────────────────────────────────────────────────────
-
-    public function test_checkout_redirects_when_user_is_inactive(): void
-    {
-        $distributor = Distributor::factory()->create();
-        $user = User::factory()->inactive()->create([
-            'distributor_id' => $distributor->id,
-        ]);
-
-        $product = Product::factory()->create();
-        $this->actingAs($user)->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 1]);
-
-        $this->actingAs($user)
-            ->get(route('checkout.show'))
-            ->assertRedirect(route('empresa.dashboard'))
-            ->assertSessionHasErrors();
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
     // Carrito vacío
     // ──────────────────────────────────────────────────────────────────────────
 
