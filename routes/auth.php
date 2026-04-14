@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
+use App\Http\Controllers\Auth\EmailVerificationCodeController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
 use App\Http\Controllers\Auth\NewPasswordController;
@@ -21,6 +22,17 @@ Route::middleware('guest')->group(function () {
 
         Route::get('register/pending', [RegisteredUserController::class, 'pending'])
             ->name('register.pending');
+
+        Route::get('register/verify-email', [EmailVerificationCodeController::class, 'show'])
+            ->name('register.verify-email');
+
+        Route::post('register/verify-email', [EmailVerificationCodeController::class, 'store'])
+            ->middleware('throttle:10,1')
+            ->name('register.verify-email.store');
+
+        Route::post('register/verify-email/resend', [EmailVerificationCodeController::class, 'resend'])
+            ->middleware('throttle:3,1')
+            ->name('register.verify-email.resend');
     }
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])

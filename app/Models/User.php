@@ -37,6 +37,8 @@ class User extends Authenticatable
         'distributor_id',
         'is_active',
         'password',
+        'email_verification_code',
+        'email_verification_code_expires_at',
     ];
 
     /**
@@ -58,10 +60,38 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'email_verification_code_expires_at' => 'datetime',
             'is_active' => 'boolean',
             'password' => 'hashed',
             'role' => UserRole::class,
         ];
+    }
+
+    public function generateEmailVerificationCode(): string
+    {
+        $code = (string) random_int(100000, 999999);
+
+        $this->update([
+            'email_verification_code' => $code,
+            'email_verification_code_expires_at' => now()->addMinutes(15),
+        ]);
+
+        return $code;
+    }
+
+    public function hasValidVerificationCode(string $code): bool
+    {
+        return $this->email_verification_code === $code
+            && $this->email_verification_code_expires_at !== null
+            && $this->email_verification_code_expires_at->isFuture();
+    }
+
+    public function clearEmailVerificationCode(): void
+    {
+        $this->update([
+            'email_verification_code' => null,
+            'email_verification_code_expires_at' => null,
+        ]);
     }
 
     /** @return BelongsTo<Distributor, $this> */
