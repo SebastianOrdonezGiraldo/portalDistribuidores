@@ -78,6 +78,91 @@
                 </div>
             </x-ui.card>
 
+            @if($isEdit && $user->role?->value === 'distributor' && $user->distributor)
+                <x-ui.card class="p-5">
+                    <h2 class="card-title">Datos de registro del distribuidor</h2>
+                    <p class="mt-1 text-sm text-slate-500">Información ingresada por el usuario al momento del registro. Solo lectura.</p>
+                    <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <span class="form-label">Razón social</span>
+                            <p class="mt-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800">{{ $user->distributor->name ?: '—' }}</p>
+                        </div>
+                        <div>
+                            <span class="form-label">NIT</span>
+                            <p class="mt-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800">{{ $user->distributor->nit ?: '—' }}</p>
+                        </div>
+                        <div>
+                            <span class="form-label">Ciudad</span>
+                            <p class="mt-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800">{{ $user->distributor->city ?: '—' }}</p>
+                        </div>
+                        <div>
+                            <span class="form-label">Dirección</span>
+                            <p class="mt-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800">{{ $user->distributor->address ?: '—' }}</p>
+                        </div>
+                        <div>
+                            <span class="form-label">Teléfono</span>
+                            <p class="mt-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800">{{ $user->distributor->phone ?: '—' }}</p>
+                        </div>
+                        <div>
+                            <span class="form-label">Correo de contacto</span>
+                            <p class="mt-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800">{{ $user->distributor->contact_email ?: '—' }}</p>
+                        </div>
+                        <div>
+                            <span class="form-label">Nombre de contacto</span>
+                            <p class="mt-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800">{{ $user->distributor->contact_name ?: '—' }}</p>
+                        </div>
+                        <div>
+                            <span class="form-label">Fecha de registro</span>
+                            <p class="mt-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800">{{ $user->created_at?->format('d/m/Y H:i') ?? '—' }}</p>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <span class="form-label">Correo verificado</span>
+                            @if($user->email_verified_at)
+                                <p class="mt-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800">
+                                    Sí — {{ $user->email_verified_at->format('d/m/Y H:i') }}
+                                </p>
+                            @else
+                                <p class="mt-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-amber-600">No verificado aún</p>
+                            @endif
+                        </div>
+                    </div>
+                </x-ui.card>
+
+                <x-ui.card class="p-5">
+                    @php
+                        $currentDistributorStatus = old('distributor_status', $user->distributor->status?->value);
+                        $statusOptions = [
+                            'pending_review' => 'Pendiente de revisión',
+                            'active'         => 'Activo',
+                            'rejected'       => 'Rechazado',
+                            'suspended'      => 'Suspendido',
+                        ];
+                        $statusVariants = [
+                            'pending_review' => 'warning',
+                            'active'         => 'success',
+                            'rejected'       => 'danger',
+                            'suspended'      => 'neutral',
+                        ];
+                    @endphp
+                    <div class="flex items-center justify-between">
+                        <h2 class="card-title">Estado de la cuenta</h2>
+                        <x-ui.badge :variant="$statusVariants[$currentDistributorStatus] ?? 'neutral'">
+                            {{ $statusOptions[$currentDistributorStatus] ?? $currentDistributorStatus }}
+                        </x-ui.badge>
+                    </div>
+                    <div class="mt-4">
+                        <label class="form-label" for="distributor-status">Cambiar estado *</label>
+                        <x-ui.select id="distributor-status" name="distributor_status">
+                            @foreach($statusOptions as $value => $label)
+                                <option value="{{ $value }}" @selected($currentDistributorStatus === $value)>{{ $label }}</option>
+                            @endforeach
+                        </x-ui.select>
+                        <p class="form-help">Activar la cuenta permite al distribuidor acceder al portal. Rechazar o suspender bloquea el acceso.</p>
+                        <x-input-error :messages="$errors->get('distributor_status')" />
+                    </div>
+                </x-ui.card>
+            @endif
+
             <x-ui.card class="p-5">
                 <h2 class="card-title">Seguridad</h2>
                 <div class="mt-4">
@@ -119,6 +204,22 @@
                             <span class="text-slate-500">Pedidos</span>
                             <span class="font-medium text-slate-900">{{ number_format((int) ($user->orders_count ?? 0)) }}</span>
                         </div>
+                        @if($user->distributor)
+                            @php
+                                $sideStatusVariants = [
+                                    'pending_review' => 'warning',
+                                    'active'         => 'success',
+                                    'rejected'       => 'danger',
+                                    'suspended'      => 'neutral',
+                                ];
+                            @endphp
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-500">Estado cuenta</span>
+                                <x-ui.badge :variant="$sideStatusVariants[$user->distributor->status?->value] ?? 'neutral'">
+                                    {{ $user->distributor->status?->label() ?? '—' }}
+                                </x-ui.badge>
+                            </div>
+                        @endif
                     @endif
                 </div>
             </x-ui.card>

@@ -133,7 +133,7 @@ class UserAdminController extends Controller
         $this->authorize('update', $user);
 
         return view('admin.users.form', [
-            'user' => $user->loadCount('orders'),
+            'user' => $user->loadCount('orders')->load('distributor'),
             'distributors' => Distributor::query()
                 ->where('status', 'active')
                 ->orWhere('id', $user->distributor_id)
@@ -159,7 +159,14 @@ class UserAdminController extends Controller
             unset($payload['password']);
         }
 
+        $distributorStatus = $payload['distributor_status'] ?? null;
+        unset($payload['distributor_status']);
+
         $user->update($payload);
+
+        if ($distributorStatus !== null && $user->distributor !== null) {
+            $user->distributor->update(['status' => $distributorStatus]);
+        }
 
         return $this->redirectAfterSave($request, $user, false);
     }
