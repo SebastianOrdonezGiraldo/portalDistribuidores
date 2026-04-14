@@ -80,10 +80,8 @@ class AdminUsersTest extends TestCase
     public function test_admin_can_choose_redirect_after_save_on_store_and_update(): void
     {
         $admin = User::factory()->admin()->create();
-        $distributor = Distributor::create([
-            'name' => 'Distribuidor Redirect',
-            'status' => 'active',
-        ]);
+        $distributorA = Distributor::create(['name' => 'Distribuidor Redirect A', 'status' => 'active']);
+        $distributorB = Distributor::create(['name' => 'Distribuidor Redirect B', 'status' => 'active']);
 
         $stayResponse = $this->actingAs($admin)
             ->withSession(['_token' => 'test-token'])
@@ -93,7 +91,7 @@ class AdminUsersTest extends TestCase
                 'email' => 'redirect.stay@example.com',
                 'password' => 'password123',
                 'role' => 'distributor',
-                'distributor_id' => $distributor->id,
+                'distributor_id' => $distributorA->id,
                 'after_save' => 'stay',
             ]);
 
@@ -108,7 +106,7 @@ class AdminUsersTest extends TestCase
                 'email' => 'redirect.new@example.com',
                 'password' => 'password123',
                 'role' => 'distributor',
-                'distributor_id' => $distributor->id,
+                'distributor_id' => $distributorB->id,
                 'after_save' => 'new',
             ])
             ->assertRedirect('/admin/users/create');
@@ -121,7 +119,7 @@ class AdminUsersTest extends TestCase
                 'email' => 'redirect.stay@example.com',
                 'password' => '',
                 'role' => 'distributor',
-                'distributor_id' => $distributor->id,
+                'distributor_id' => $distributorA->id,
                 'after_save' => 'index',
             ])
             ->assertRedirect('/admin/users');

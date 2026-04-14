@@ -224,11 +224,6 @@ class AdminDistributorsTest extends TestCase
             'email' => 'cliente.activacion@example.com',
         ]);
 
-        User::factory()->inactive()->create([
-            'distributor_id' => $distributor->id,
-            'email' => 'cliente.inactivo@example.com',
-        ]);
-
         $this->actingAs($admin)
             ->withSession(['_token' => 'test-token'])
             ->patch('/admin/distributors/'.$distributor->id.'/status', [

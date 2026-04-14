@@ -7,7 +7,6 @@ use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\OrderPdfGenerator;
-use App\Modules\Shared\Enums\CompanyRole;
 use App\Modules\Shared\Enums\OrderStatus;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -45,12 +44,11 @@ class OrderControllerTest extends TestCase
     // Helpers
     // ──────────────────────────────────────────────────────────────────────────
 
-    private function distributorWithUser(?CompanyRole $companyRole = null): array
+    private function distributorWithUser(): array
     {
         $distributor = Distributor::factory()->create();
         $user = User::factory()->create([
             'distributor_id' => $distributor->id,
-            'company_role' => $companyRole,
         ]);
 
         return [$distributor, $user];
@@ -71,18 +69,6 @@ class OrderControllerTest extends TestCase
     // ──────────────────────────────────────────────────────────────────────────
     // store – bloqueos y permisos
     // ──────────────────────────────────────────────────────────────────────────
-
-    public function test_solo_lectura_cannot_create_order(): void
-    {
-        [, $user] = $this->distributorWithUser(CompanyRole::SoloLectura);
-        $product = Product::factory()->create(['price' => 5000]);
-        $this->addProductToCart($user, $product);
-
-        $this->actingAs($user)
-            ->post(route('orders.store'), $this->validPayload)
-            ->assertRedirect(route('empresa.dashboard'))
-            ->assertSessionHasErrors();
-    }
 
     public function test_store_redirects_to_cart_when_no_items(): void
     {
@@ -129,7 +115,7 @@ class OrderControllerTest extends TestCase
     {
         Mail::fake();
 
-        [, $user] = $this->distributorWithUser(CompanyRole::AdminEmpresa);
+        [, $user] = $this->distributorWithUser();
         $product = Product::factory()->create([
             'price' => 10000,
             'stock' => 5,
@@ -144,11 +130,11 @@ class OrderControllerTest extends TestCase
         $this->assertEquals(3.0, (float) $product->fresh()->stock);
     }
 
-    public function test_order_is_created_with_submitted_status_when_no_approval_required(): void
+    public function test_order_is_created_with_submitted_status(): void
     {
         Mail::fake();
 
-        [, $user] = $this->distributorWithUser(CompanyRole::AdminEmpresa);
+        [, $user] = $this->distributorWithUser();
         $product = Product::factory()->create(['price' => 5000]);
         $this->addProductToCart($user, $product);
 
@@ -158,31 +144,7 @@ class OrderControllerTest extends TestCase
         $this->assertEquals(OrderStatus::Submitted, $order->status);
     }
 
-    public function test_order_gets_pending_approval_status_for_usuario_comercial(): void
-    {
-        [, $user] = $this->distributorWithUser(CompanyRole::UsuarioComercial);
-        $product = Product::factory()->create(['price' => 5000]);
-        $this->addProductToCart($user, $product);
-
-        $this->actingAs($user)->post(route('orders.store'), $this->validPayload);
-
-        $order = Order::query()->firstOrFail();
-        $this->assertEquals(OrderStatus::PendingApproval, $order->status);
-    }
-
-    public function test_usuario_comercial_redirects_to_empresa_orders_show(): void
-    {
-        [, $user] = $this->distributorWithUser(CompanyRole::UsuarioComercial);
-        $product = Product::factory()->create(['price' => 5000]);
-        $this->addProductToCart($user, $product);
-
-        $response = $this->actingAs($user)->post(route('orders.store'), $this->validPayload);
-
-        $order = Order::query()->firstOrFail();
-        $response->assertRedirect(route('empresa.orders.show', $order));
-    }
-
-    public function test_distributor_without_approval_requirement_redirects_to_submitted(): void
+    public function test_distributor_redirects_to_submitted_after_order_creation(): void
     {
         Mail::fake();
 

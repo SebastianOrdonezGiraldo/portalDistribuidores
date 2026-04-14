@@ -4,7 +4,6 @@ namespace Tests\Feature\Auth;
 
 use App\Models\User;
 use App\Modules\AuthAccess\Mail\DistributorRegistrationNotificationMail;
-use App\Modules\Shared\Enums\CompanyRole;
 use App\Modules\Shared\Enums\DistributorStatus;
 use App\Modules\Shared\Enums\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -64,7 +63,6 @@ class RegistrationTest extends TestCase
 
         $user = User::query()->where('email', 'registro@example.com')->firstOrFail();
         $this->assertSame(UserRole::Distributor, $user->role);
-        $this->assertSame(CompanyRole::AdminEmpresa, $user->company_role);
         $this->assertNotNull($user->distributor_id);
 
         $this->assertDatabaseHas('distributors', [

@@ -60,20 +60,20 @@ class DistributorAdminController extends Controller
             })
             ->when(! empty($filters['status']), fn ($query) => $query->where('status', $filters['status']))
             ->when($filters['status_group'] === 'non_active', fn ($query) => $query->where('status', '!=', DistributorStatus::Active->value))
-            ->when($filters['relation'] === 'with_users', fn ($query) => $query->has('users'))
-            ->when($filters['relation'] === 'without_users', fn ($query) => $query->doesntHave('users'))
+            ->when($filters['relation'] === 'with_users', fn ($query) => $query->has('user'))
+            ->when($filters['relation'] === 'without_users', fn ($query) => $query->doesntHave('user'))
             ->when($filters['relation'] === 'with_orders', fn ($query) => $query->has('orders'))
             ->when($filters['relation'] === 'without_orders', fn ($query) => $query->doesntHave('orders'));
 
         $distributors = (clone $filteredQuery)
-            ->withCount(['users', 'orders'])
+            ->withCount(['user', 'orders'])
             ->withSum('orders as orders_total_amount', 'total_amount')
             ->withMax('orders as latest_order_at', 'created_at')
             ->when($filters['sort'] === 'newest', fn ($query) => $query->latest())
             ->when($filters['sort'] === 'oldest', fn ($query) => $query->oldest())
             ->when($filters['sort'] === 'name_asc', fn ($query) => $query->orderBy('name'))
             ->when($filters['sort'] === 'name_desc', fn ($query) => $query->orderByDesc('name'))
-            ->when($filters['sort'] === 'users_desc', fn ($query) => $query->orderByDesc('users_count')->orderBy('name'))
+            ->when($filters['sort'] === 'users_desc', fn ($query) => $query->orderByDesc('user_count')->orderBy('name'))
             ->when($filters['sort'] === 'orders_desc', fn ($query) => $query->orderByDesc('orders_count')->orderBy('name'))
             ->paginate((int) $filters['per_page'])
             ->withQueryString();
@@ -86,7 +86,7 @@ class DistributorAdminController extends Controller
             'total_distributors' => (clone $filteredQuery)->count(),
             'active_distributors' => (clone $filteredQuery)->where('status', DistributorStatus::Active->value)->count(),
             'inactive_distributors' => (clone $filteredQuery)->where('status', '!=', DistributorStatus::Active->value)->count(),
-            'with_users' => (clone $filteredQuery)->has('users')->count(),
+            'with_users' => (clone $filteredQuery)->has('user')->count(),
             'with_orders' => (clone $filteredQuery)->has('orders')->count(),
         ];
 
@@ -189,7 +189,7 @@ class DistributorAdminController extends Controller
         $this->authorize('update', $distributor);
 
         return view('admin.distributors.form', [
-            'distributor' => $distributor->loadCount(['users', 'orders']),
+            'distributor' => $distributor->loadCount(['user', 'orders']),
             'statusOptions' => $this->statusLabels(),
         ]);
     }
@@ -206,12 +206,8 @@ class DistributorAdminController extends Controller
     {
         $this->authorize('delete', $distributor);
 
-        $usersCount = $distributor->users()->count();
-
-        if ($usersCount > 0) {
-            $label = $usersCount === 1 ? 'usuario asociado' : 'usuarios asociados';
-
-            return back()->with('error', "No se puede eliminar el distribuidor porque tiene {$usersCount} {$label}. Desactívalo o reasigna esos usuarios primero.");
+        if ($distributor->user()->exists()) {
+            return back()->with('error', 'No se puede eliminar el distribuidor porque tiene un usuario asociado. Desactívalo o elimina ese usuario primero.');
         }
 
         $ordersCount = $distributor->orders()->count();
@@ -241,7 +237,7 @@ class DistributorAdminController extends Controller
         $status = DistributorStatus::from($payload['status']);
 
         if ($previousStatus !== DistributorStatus::Active && $status === DistributorStatus::Active) {
-            $this->notifyUsersAccountActivated($distributor->fresh('users') ?? $distributor);
+            $this->notifyUsersAccountActivated($distributor->fresh('user') ?? $distributor);
         }
 
         $message = match ($status) {
@@ -287,24 +283,20 @@ class DistributorAdminController extends Controller
 
     private function notifyUsersAccountActivated(Distributor $distributor): void
     {
-        $users = $distributor->users()
-            ->where('is_active', true)
-            ->get(['id', 'name', 'email', 'distributor_id']);
+        $user = $distributor->user()->where('is_active', true)->first(['id', 'name', 'email', 'distributor_id']);
 
-        foreach ($users as $user) {
-            if (! filter_var((string) $user->email, FILTER_VALIDATE_EMAIL)) {
-                continue;
-            }
+        if (! $user || ! filter_var((string) $user->email, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
 
-            try {
-                Mail::to($user->email)->send(new DistributorAccountActivatedMail($user, $distributor));
-            } catch (\Throwable $exception) {
-                Log::error('distributor.activation_email.failed', [
-                    'distributor_id' => $distributor->id,
-                    'user_id' => $user->id,
-                    'error' => $exception->getMessage(),
-                ]);
-            }
+        try {
+            Mail::to($user->email)->send(new DistributorAccountActivatedMail($user, $distributor));
+        } catch (\Throwable $exception) {
+            Log::error('distributor.activation_email.failed', [
+                'distributor_id' => $distributor->id,
+                'user_id' => $user->id,
+                'error' => $exception->getMessage(),
+            ]);
         }
     }
 }

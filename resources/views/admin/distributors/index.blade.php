@@ -163,7 +163,7 @@
                                 <p class="text-xs text-slate-500">ID #{{ $distributor->id }}</p>
                             </td>
                             <td data-label="Estado"><x-ui.status-badge :status="$statusValue" /></td>
-                            <td data-label="Usuarios" class="font-medium text-slate-900">{{ number_format((int) $distributor->users_count) }}</td>
+                            <td data-label="Usuarios" class="font-medium text-slate-900">{{ (int) $distributor->user_count ? 'Sí' : 'No' }}</td>
                             <td data-label="Pedidos" class="font-medium text-slate-900">{{ number_format((int) $distributor->orders_count) }}</td>
                             <td data-label="Creacion">
                                 <p>{{ $distributor->created_at?->format('d/m/Y H:i') }}</p>
@@ -221,8 +221,8 @@
                                                         <p class="mt-1 text-sm font-semibold text-slate-900">{{ number_format((int) $distributor->orders_count) }}</p>
                                                     </div>
                                                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                                        <p class="text-xs uppercase tracking-wide text-slate-500">Usuarios</p>
-                                                        <p class="mt-1 text-sm font-semibold text-slate-900">{{ number_format((int) $distributor->users_count) }}</p>
+                                                        <p class="text-xs uppercase tracking-wide text-slate-500">Usuario</p>
+                                                        <p class="mt-1 text-sm font-semibold text-slate-900">{{ (int) $distributor->user_count ? 'Sí' : 'No' }}</p>
                                                     </div>
                                                 </div>
                                                 <dl class="mt-4 grid gap-3 text-sm md:grid-cols-2">

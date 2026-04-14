@@ -10,7 +10,6 @@ use App\Modules\Orders\Jobs\GenerateOrderPdfJob;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Orders\Services\OrderPdfGenerator;
-use App\Modules\Shared\Enums\CompanyRole;
 use App\Modules\Shared\Enums\OrderStatus;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -32,12 +31,11 @@ class CompanyOrderControllerTest extends TestCase
     // Helpers
     // ──────────────────────────────────────────────────────────────────────────
 
-    private function makeDistributorWithUser(?CompanyRole $role = null): array
+    private function makeDistributorWithUser(): array
     {
         $distributor = Distributor::factory()->create();
         $user = User::factory()->create([
             'distributor_id' => $distributor->id,
-            'company_role' => $role,
         ]);
 
         return [$distributor, $user];
@@ -152,7 +150,7 @@ class CompanyOrderControllerTest extends TestCase
 
     public function test_edit_renders_for_pending_approval_order(): void
     {
-        [$distA, $userA] = $this->makeDistributorWithUser(CompanyRole::UsuarioComercial);
+        [$distA, $userA] = $this->makeDistributorWithUser();
         $order = $this->makeOrderWithItem($distA, [
             'status' => OrderStatus::PendingApproval,
         ]);
@@ -165,7 +163,7 @@ class CompanyOrderControllerTest extends TestCase
 
     public function test_edit_redirects_when_order_status_is_not_editable(): void
     {
-        [$distA, $userA] = $this->makeDistributorWithUser(CompanyRole::UsuarioComercial);
+        [$distA, $userA] = $this->makeDistributorWithUser();
         $order = $this->makeOrderWithItem($distA, [
             'status' => OrderStatus::Submitted,
         ]);
@@ -178,7 +176,7 @@ class CompanyOrderControllerTest extends TestCase
 
     public function test_update_pending_approval_order_updates_fields_items_and_invalidates_pdf(): void
     {
-        [$distA, $userA] = $this->makeDistributorWithUser(CompanyRole::UsuarioComercial);
+        [$distA, $userA] = $this->makeDistributorWithUser();
         $order = $this->makeOrderWithItem($distA, [
             'status' => OrderStatus::PendingApproval,
             'pdf_path' => 'orders/old-cotizacion.pdf',
@@ -246,7 +244,7 @@ class CompanyOrderControllerTest extends TestCase
 
     public function test_update_pending_approval_order_can_remove_existing_item_and_add_new_product(): void
     {
-        [$distA, $userA] = $this->makeDistributorWithUser(CompanyRole::UsuarioComercial);
+        [$distA, $userA] = $this->makeDistributorWithUser();
         $order = $this->makeOrderWithItem($distA, [
             'status' => OrderStatus::PendingApproval,
         ]);
@@ -309,7 +307,7 @@ class CompanyOrderControllerTest extends TestCase
 
     public function test_update_rejected_order_resubmits_for_approval_and_clears_reject_note(): void
     {
-        [$distA, $userA] = $this->makeDistributorWithUser(CompanyRole::UsuarioComercial);
+        [$distA, $userA] = $this->makeDistributorWithUser();
         $order = $this->makeOrderWithItem($distA, [
             'status' => OrderStatus::Rejected,
             'approval_note' => 'Falta presupuesto',
@@ -358,7 +356,7 @@ class CompanyOrderControllerTest extends TestCase
 
     public function test_update_rejects_when_all_item_quantities_are_zero(): void
     {
-        [$distA, $userA] = $this->makeDistributorWithUser(CompanyRole::UsuarioComercial);
+        [$distA, $userA] = $this->makeDistributorWithUser();
         $order = $this->makeOrderWithItem($distA, [
             'status' => OrderStatus::PendingApproval,
         ]);
@@ -460,16 +458,6 @@ class CompanyOrderControllerTest extends TestCase
     // ──────────────────────────────────────────────────────────────────────────
     // reorder
     // ──────────────────────────────────────────────────────────────────────────
-
-    public function test_solo_lectura_cannot_reorder(): void
-    {
-        [$distA, $userA] = $this->makeDistributorWithUser(CompanyRole::SoloLectura);
-        $order = $this->makeOrderWithItem($distA);
-
-        $this->actingAs($userA)
-            ->post(route('empresa.orders.reorder', $order))
-            ->assertForbidden();
-    }
 
     public function test_reorder_warns_when_order_has_no_items(): void
     {

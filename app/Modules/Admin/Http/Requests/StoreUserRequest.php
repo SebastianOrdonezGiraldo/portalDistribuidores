@@ -20,7 +20,7 @@ class StoreUserRequest extends FormRequest
             'email' => ['required', 'email', 'max:160', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'max:255'],
             'role' => ['required', Rule::enum(UserRole::class)],
-            'distributor_id' => ['nullable', 'integer', 'exists:distributors,id', 'required_if:role,'.UserRole::Distributor->value],
+            'distributor_id' => ['nullable', 'integer', 'exists:distributors,id', 'required_if:role,'.UserRole::Distributor->value, 'unique:users,distributor_id'],
         ];
     }
 }
