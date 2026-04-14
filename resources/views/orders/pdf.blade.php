@@ -89,16 +89,16 @@
                         @endif
                     </td>
                     <td class="num">{{ (int) $line['item']->qty }}</td>
-                    <td class="num">${{ number_format($line['valorUnit'], 2, '.', ',') }}</td>
-                    <td class="num">${{ number_format($line['valorIva'], 2, '.', ',') }}</td>
-                    <td class="num">${{ number_format($line['valorTotal'], 2, '.', ',') }}</td>
+                    <td class="num">${{ number_format($line['valorUnit'], 0, ',', '.') }}</td>
+                    <td class="num">${{ number_format($line['valorIva'], 0, ',', '.') }}</td>
+                    <td class="num">${{ number_format($line['valorTotal'], 0, ',', '.') }}</td>
                 </tr>
             @endforeach
         </tbody>
         <tfoot>
             <tr>
                 <th colspan="5" class="num">Total CTC</th>
-                <th class="num">${{ number_format($totalFinal, 2, '.', ',') }}</th>
+                <th class="num">${{ number_format($totalFinal, 0, ',', '.') }}</th>
             </tr>
         </tfoot>
     </table>
