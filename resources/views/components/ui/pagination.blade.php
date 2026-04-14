@@ -1,14 +1,27 @@
 @props(['paginator'])
 
 @php
-    $onEachSide = 1;
-    $paged = $paginator->onEachSide($onEachSide);
-    $elements = $paged->elements();
-    $currentPage = $paginator->currentPage();
-    $lastPage = $paginator->lastPage();
-    $from = $paginator->firstItem();
-    $to = $paginator->lastItem();
-    $total = $paginator->total();
+    use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+    use Illuminate\Pagination\UrlWindow;
+
+    $isLengthAware = $paginator instanceof LengthAwarePaginator;
+
+    if ($isLengthAware) {
+        $paginator->onEachSide(1);
+        $window   = UrlWindow::make($paginator);
+        $elements = array_filter([
+            $window['first'],
+            is_array($window['slider']) ? '...' : null,
+            $window['slider'],
+            is_array($window['last'])   ? '...' : null,
+            $window['last'],
+        ]);
+
+        $currentPage = $paginator->currentPage();
+        $from        = $paginator->firstItem();
+        $to          = $paginator->lastItem();
+        $total       = $paginator->total();
+    }
 @endphp
 
 @if($paginator && $paginator->hasPages())
@@ -17,19 +30,21 @@
         aria-label="Paginación"
         role="navigation"
     >
-        {{-- Contador de resultados --}}
-        <p class="order-2 text-sm text-slate-500 sm:order-1">
-            Mostrando
-            <span class="font-semibold text-slate-800">{{ number_format($from, 0, ',', '.') }}</span>
-            –
-            <span class="font-semibold text-slate-800">{{ number_format($to, 0, ',', '.') }}</span>
-            de
-            <span class="font-semibold text-slate-800">{{ number_format($total, 0, ',', '.') }}</span>
-            resultados
-        </p>
+        {{-- Contador de resultados (solo en paginador completo) --}}
+        @if($isLengthAware)
+            <p class="order-2 text-sm text-slate-500 sm:order-1">
+                Mostrando
+                <span class="font-semibold text-slate-800">{{ number_format($from ?? 0, 0, ',', '.') }}</span>
+                –
+                <span class="font-semibold text-slate-800">{{ number_format($to ?? 0, 0, ',', '.') }}</span>
+                de
+                <span class="font-semibold text-slate-800">{{ number_format($total ?? 0, 0, ',', '.') }}</span>
+                resultados
+            </p>
+        @endif
 
         {{-- Botones de paginación --}}
-        <div class="order-1 flex items-center gap-1 sm:order-2" role="list">
+        <div class="{{ $isLengthAware ? 'order-1 sm:order-2' : '' }} flex items-center gap-1">
 
             {{-- Anterior --}}
             @if($paginator->onFirstPage())
@@ -51,28 +66,30 @@
                 </a>
             @endif
 
-            {{-- Números de página --}}
-            @foreach($elements as $element)
-                @if(is_string($element))
-                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-sm text-slate-400 select-none">…</span>
-                @elseif(is_array($element))
-                    @foreach($element as $page => $url)
-                        @if($page === $currentPage)
-                            <span
-                                class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-brand-primary bg-brand-primary text-sm font-semibold text-white"
-                                aria-current="page"
-                                aria-label="Página {{ $page }}, página actual"
-                            >{{ $page }}</span>
-                        @else
-                            <a
-                                href="{{ $url }}"
-                                class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus-ring"
-                                aria-label="Ir a página {{ $page }}"
-                            >{{ $page }}</a>
-                        @endif
-                    @endforeach
-                @endif
-            @endforeach
+            {{-- Números de página (solo en paginador completo) --}}
+            @if($isLengthAware)
+                @foreach($elements as $element)
+                    @if(is_string($element))
+                        <span class="inline-flex h-9 w-9 select-none items-center justify-center rounded-lg text-sm text-slate-400">…</span>
+                    @elseif(is_array($element))
+                        @foreach($element as $page => $url)
+                            @if($page === $currentPage)
+                                <span
+                                    class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-brand-primary bg-brand-primary text-sm font-semibold text-white"
+                                    aria-current="page"
+                                    aria-label="Página {{ $page }}, página actual"
+                                >{{ $page }}</span>
+                            @else
+                                <a
+                                    href="{{ $url }}"
+                                    class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus-ring"
+                                    aria-label="Ir a página {{ $page }}"
+                                >{{ $page }}</a>
+                            @endif
+                        @endforeach
+                    @endif
+                @endforeach
+            @endif
 
             {{-- Siguiente --}}
             @if($paginator->hasMorePages())
