@@ -27,12 +27,15 @@
 <body>
     @php
         $formatMoney = static fn ($value): string => is_numeric($value)
-            ? '$'.number_format((float) $value, 2, ',', '.')
+            ? '$'.number_format((float) $value, 0, ',', '.')
             : 'Sin definir';
 
-        $formatStock = static fn ($value): string => is_numeric($value)
-            ? number_format((float) $value, 2, ',', '.')
-            : 'Sin definir';
+        $formatStock = static function ($value): string {
+            if (!is_numeric($value)) return 'Sin definir';
+            $n = (float) $value;
+            $decimals = abs($n - round($n)) < 0.00001 ? 0 : 2;
+            return number_format($n, $decimals, ',', '.');
+        };
     @endphp
 
     <div class="header">
@@ -72,7 +75,8 @@
             </td>
             <td>
                 <div class="kpi-label">Stock total</div>
-                <div class="kpi-value">{{ number_format((float) $totals['total_stock'], 2, ',', '.') }}</div>
+                @php $ts = (float) $totals['total_stock']; @endphp
+                <div class="kpi-value">{{ number_format($ts, abs($ts - round($ts)) < 0.00001 ? 0 : 2, ',', '.') }}</div>
             </td>
         </tr>
     </table>
