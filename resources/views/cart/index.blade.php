@@ -123,8 +123,9 @@
                     <div class="mt-4 space-y-2">
                         <a href="{{ route('catalog.index') }}" class="btn btn-ghost w-full justify-center">Seguir comprando</a>
                         <x-ui.button type="submit" variant="secondary" class="w-full justify-center" data-loading-label="Actualizando...">Actualizar carrito</x-ui.button>
-                        <a href="{{ route('checkout.show') }}" class="btn btn-primary w-full justify-center">Continuar al checkout</a>
+                        <x-ui.button type="submit" variant="primary" class="w-full justify-center" data-loading-label="Procesando..." data-checkout-submit>Continuar al checkout</x-ui.button>
                     </div>
+                    <input type="hidden" name="redirect_checkout" value="0" data-redirect-checkout-input>
                 </x-ui.card>
             </aside>
         </form>
@@ -233,6 +234,22 @@
             cartForm.querySelectorAll('[data-cart-qty]').forEach((input) => {
                 input.addEventListener('input', refreshCartSummary);
                 input.addEventListener('change', refreshCartSummary);
+            });
+
+            const checkoutSubmitButton = cartForm.querySelector('[data-checkout-submit]');
+            const updateCartButton = cartForm.querySelector('[data-loading-label="Actualizando..."]');
+            const redirectCheckoutInput = cartForm.querySelector('[data-redirect-checkout-input]');
+
+            checkoutSubmitButton?.addEventListener('click', () => {
+                if (redirectCheckoutInput) {
+                    redirectCheckoutInput.value = '1';
+                }
+            });
+
+            updateCartButton?.addEventListener('click', () => {
+                if (redirectCheckoutInput) {
+                    redirectCheckoutInput.value = '0';
+                }
             });
 
             document.querySelectorAll('[data-cart-remove]').forEach((button) => {

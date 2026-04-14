@@ -98,6 +98,10 @@ class CartController extends Controller
             return back()->withErrors($exception->getMessage());
         }
 
+        if ($request->boolean('redirect_checkout')) {
+            return redirect()->route('checkout.show');
+        }
+
         return back()->with('status', 'Carrito actualizado.');
     }
 
