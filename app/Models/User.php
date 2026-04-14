@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -19,9 +20,9 @@ use Illuminate\Notifications\Notifiable;
  * @property UserRole $role
  * @property int|null $distributor_id
  * @property bool $is_active
- * @property \Illuminate\Support\Carbon|null $email_verified_at
+ * @property Carbon|null $email_verified_at
  * @property string|null $email_verification_code
- * @property \Illuminate\Support\Carbon|null $email_verification_code_expires_at
+ * @property Carbon|null $email_verification_code_expires_at
  */
 class User extends Authenticatable
 {
