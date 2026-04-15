@@ -119,22 +119,41 @@
                         No disponible
                     </span>
                 @else
-                    <form action="{{ route('cart.store') }}" method="POST" class="relative z-10">
+                    <form action="{{ route('cart.store') }}" method="POST" class="cart-qty-form relative z-10">
                         @csrf
                         <input type="hidden" name="product_id" value="{{ $product->id }}">
                         <input type="hidden" name="unit_label" value="unidad">
-                        <input type="hidden" name="qty" value="1">
-                        <button
-                            type="submit"
-                            class="inline-flex h-10 w-10 min-h-[2.5rem] min-w-[2.5rem] items-center justify-center rounded-lg border border-brand-primary bg-brand-primary text-white transition hover:bg-brand-hover focus-ring"
-                            aria-label="Agregar {{ $product->name }} al carrito"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                                <circle cx="10" cy="20.5" r="1.25"></circle>
-                                <circle cx="17.5" cy="20.5" r="1.25"></circle>
-                                <path d="M3 3h2l2.3 10.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 7H7.2"></path>
-                            </svg>
-                        </button>
+                        <input type="hidden" name="qty" value="1" class="cart-qty-value">
+
+                        <div class="flex items-center gap-1">
+                            {{-- Control de cantidad: solo visible en PC al hacer hover --}}
+                            <div class="cart-qty-control flex items-center rounded-lg border border-slate-200 bg-white shadow-sm">
+                                <button
+                                    type="button"
+                                    class="cart-qty-minus flex h-8 w-7 items-center justify-center text-base font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 active:bg-slate-200"
+                                    aria-label="Reducir cantidad"
+                                >−</button>
+                                <span class="cart-qty-display w-6 select-none text-center text-sm font-bold tabular-nums text-slate-800">1</span>
+                                <button
+                                    type="button"
+                                    class="cart-qty-plus flex h-8 w-7 items-center justify-center text-base font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 active:bg-slate-200"
+                                    aria-label="Aumentar cantidad"
+                                >+</button>
+                            </div>
+
+                            {{-- Botón carrito --}}
+                            <button
+                                type="submit"
+                                class="inline-flex h-10 w-10 min-h-[2.5rem] min-w-[2.5rem] items-center justify-center rounded-lg border border-brand-primary bg-brand-primary text-white transition hover:bg-brand-hover focus-ring"
+                                aria-label="Agregar {{ $product->name }} al carrito"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                    <circle cx="10" cy="20.5" r="1.25"></circle>
+                                    <circle cx="17.5" cy="20.5" r="1.25"></circle>
+                                    <path d="M3 3h2l2.3 10.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 7H7.2"></path>
+                                </svg>
+                            </button>
+                        </div>
                     </form>
                 @endif
             </div>
