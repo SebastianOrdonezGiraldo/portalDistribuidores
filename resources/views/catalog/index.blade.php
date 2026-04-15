@@ -372,26 +372,8 @@
         </div>
 
         <header class="catalog-section-intro">
-            @if($selectedCategory)
-                <div class="flex flex-wrap items-center gap-2">
-                    <h1 class="catalog-section-intro-title">{{ $selectedCategory->name }}</h1>
-                    <a href="{{ $allCategoriesUrl }}" class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs text-slate-500 transition hover:border-slate-300 hover:text-slate-700">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                        Limpiar
-                    </a>
-                </div>
-                <p class="catalog-section-intro-subtitle">
-                    {{ number_format($resultsTotal, 0, ',', '.') }} {{ $resultsTotal === 1 ? 'producto encontrado' : 'productos encontrados' }} en esta categoría.
-                </p>
-            @elseif(filled($search->term))
-                <h1 class="catalog-section-intro-title">Resultados para "{{ $search->term }}"</h1>
-                <p class="catalog-section-intro-subtitle">
-                    {{ number_format($resultsTotal, 0, ',', '.') }} {{ $resultsTotal === 1 ? 'producto encontrado' : 'productos encontrados' }}.
-                </p>
-            @else
-                <h1 class="catalog-section-intro-title">Catálogo de Productos</h1>
-                <p class="catalog-section-intro-subtitle">Búsqueda rápida con filtros por categoría y carga directa al carrito de pedido.</p>
-            @endif
+            <h1 class="catalog-section-intro-title">Catálogo de Productos</h1>
+            <p class="catalog-section-intro-subtitle">Búsqueda rápida con filtros por categoría y carga directa al carrito de pedido.</p>
         </header>
 
         @if($products->isEmpty())
