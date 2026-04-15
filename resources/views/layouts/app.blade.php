@@ -181,6 +181,17 @@
 
                     <div class="ml-auto flex shrink-0 items-center gap-2">
                         @if($isAuthenticated)
+                            @if($isDistributor)
+                                <span class="hidden items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 lg:flex" title="{{ $user->distributor?->name }}">
+                                    {{ Str::limit($user->distributor?->name ?? 'Mi empresa', 22) }}
+                                </span>
+                                <a href="{{ route('cart.index') }}" class="btn btn-ghost !min-h-10 !px-2 relative" aria-label="Carrito de pedido" data-cart-target>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                                    @if(($navCartCount ?? 0) > 0)
+                                        <span class="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand-primary text-[10px] font-bold leading-none text-white" data-cart-badge>{{ $navCartCount }}</span>
+                                    @endif
+                                </a>
+                            @endif
                             <div class="relative" x-data="{ profileMenuOpen: false }" @keydown.escape.window="profileMenuOpen = false">
                                 <button
                                     type="button"
@@ -206,13 +217,33 @@
                                     x-transition:leave-end="opacity-0 scale-95 translate-y-1"
                                     @click.outside="profileMenuOpen = false"
                                     role="menu"
-                                    class="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-panel"
+                                    class="absolute right-0 z-40 mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-panel"
                                 >
-                                    <a href="{{ route('profile.edit') }}" role="menuitem" class="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-ring">Perfil</a>
-                                    <form method="POST" action="{{ route('logout') }}" class="mt-1 border-t border-slate-100 pt-1">
-                                        @csrf
-                                        <button type="submit" role="menuitem" class="block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 focus-ring">Cerrar sesión</button>
-                                    </form>
+                                    <div class="border-b border-slate-100 px-4 py-3">
+                                        <p class="truncate text-sm font-semibold text-slate-900">{{ $user->name }}</p>
+                                        <p class="truncate text-xs text-slate-500">{{ $user->email }}</p>
+                                        @if($isDistributor)
+                                            <span class="mt-2 inline-flex items-center gap-1 rounded-full bg-brand-primary/10 px-2.5 py-0.5 text-xs font-medium text-brand-dark">
+                                                {{ $user->distributor?->name ?? 'Distribuidor' }}
+                                            </span>
+                                        @elseif($isAdmin)
+                                            <span class="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
+                                                Administrador
+                                            </span>
+                                        @endif
+                                    </div>
+                                    <div class="p-1">
+                                        <a href="{{ route('profile.edit') }}" role="menuitem" class="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-ring">Mi perfil</a>
+                                        @if($isDistributor)
+                                            <a href="{{ route('empresa.profile.edit') }}" role="menuitem" class="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-ring">Datos de empresa</a>
+                                        @endif
+                                    </div>
+                                    <div class="border-t border-slate-100 p-1">
+                                        <form method="POST" action="{{ route('logout') }}">
+                                            @csrf
+                                            <button type="submit" role="menuitem" class="block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 focus-ring">Cerrar sesión</button>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
                         @else
