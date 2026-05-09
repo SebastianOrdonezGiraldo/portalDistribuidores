@@ -54,16 +54,20 @@
             <td>{{ $order->company_nit ?? '-' }}</td>
         </tr>
         <tr>
-            <td class="label">Correo</td>
-            <td>{{ $order->contact_email ?? '-' }}</td>
             <td class="label">Contacto</td>
             <td>{{ $order->contact_name ?? '-' }}</td>
+            <td class="label">Teléfono</td>
+            <td>{{ $order->phone ?? '-' }}</td>
+        </tr>
+        <tr>
+            <td class="label">Correo</td>
+            <td>{{ $order->contact_email ?? '-' }}</td>
+            <td class="label">Ciudad / Depto</td>
+            <td>{{ $order->city ?? '-' }} / {{ $order->department ?? '-' }}</td>
         </tr>
         <tr>
             <td class="label">Dirección</td>
-            <td>{{ $order->company_address ?? '-' }}</td>
-            <td class="label">Ciudad / Depto</td>
-            <td>{{ $order->city ?? '-' }} / {{ $order->department ?? '-' }}</td>
+            <td colspan="3">{{ $order->company_address ?? '-' }}</td>
         </tr>
     </table>
 

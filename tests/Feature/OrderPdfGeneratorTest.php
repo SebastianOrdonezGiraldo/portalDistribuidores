@@ -35,6 +35,37 @@ class OrderPdfGeneratorTest extends TestCase
         $this->assertSame('s3-private', OrderPdfGenerator::diskName());
     }
 
+    public function test_order_pdf_view_includes_customer_phone(): void
+    {
+        $order = Order::factory()->create([
+            'oc_number' => 'CTC-000321',
+            'phone' => '300 123 4567',
+        ]);
+        $item = OrderItem::factory()->for($order)->create([
+            'qty' => 1,
+            'price_each' => 1000,
+            'subtotal' => 1000,
+        ]);
+
+        $this->view('orders.pdf', [
+            'order' => $order,
+            'logoBase64' => null,
+            'lineItems' => collect([
+                [
+                    'item' => $item,
+                    'valorUnit' => 884.96,
+                    'valorIva' => 115.04,
+                    'valorTotal' => 1000.0,
+                    'valorTotalLinea' => 1000.0,
+                ],
+            ]),
+            'totalFinal' => 1000.0,
+            'vatRate' => 0.13,
+        ])
+            ->assertSee('Teléfono')
+            ->assertSee('300 123 4567');
+    }
+
     public function test_generator_regenerates_pdf_when_order_data_changes(): void
     {
         Storage::fake('private');
