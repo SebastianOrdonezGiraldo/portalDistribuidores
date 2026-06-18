@@ -3,6 +3,7 @@
 namespace App\Modules\Orders\Services;
 
 use App\Modules\Orders\Models\Order;
+use App\Modules\Orders\Support\OrderLineVat;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -10,8 +11,6 @@ use RuntimeException;
 
 class OrderPdfGenerator
 {
-    private const VAT_RATE = 0.13;
-
     public static function diskName(): string
     {
         return (string) config('filesystems.order_pdfs_disk', 'private');
@@ -56,8 +55,6 @@ class OrderPdfGenerator
 
     private function buildViewData(Order $order): array
     {
-        $vatRate = self::VAT_RATE;
-        $vatDivisor = $vatRate > -1 ? (1 + $vatRate) : 1.0;
         $logoPath = public_path('images/import-corporal-logo.png');
         $logoBase64 = null;
 
@@ -65,20 +62,10 @@ class OrderPdfGenerator
             $logoBase64 = 'data:image/png;base64,'.base64_encode((string) file_get_contents($logoPath));
         }
 
-        $lineItems = $order->items->map(function ($item) use ($vatDivisor) {
-            $valorUnitConIva = (float) $item->price_each;
-            $valorUnit = round($valorUnitConIva / $vatDivisor, 2);
-            $valorIva = round($valorUnitConIva - $valorUnit, 2);
-            $valorTotal = round($valorUnit + $valorIva, 2);
-            $valorTotalLinea = round((float) $item->qty * $valorTotal, 2);
-
-            return [
+        $lineItems = $order->items->map(function ($item) {
+            return array_merge([
                 'item' => $item,
-                'valorUnit' => $valorUnit,
-                'valorIva' => $valorIva,
-                'valorTotal' => $valorTotal,
-                'valorTotalLinea' => $valorTotalLinea,
-            ];
+            ], OrderLineVat::amountsForItem($item));
         });
 
         $totalFinal = (float) $order->items->sum(fn ($item) => (float) $item->subtotal);
@@ -88,7 +75,7 @@ class OrderPdfGenerator
             'logoBase64' => $logoBase64,
             'lineItems' => $lineItems,
             'totalFinal' => $totalFinal,
-            'vatRate' => $vatRate,
+            'vatRate' => OrderLineVat::DEFAULT_RATE,
         ];
     }
 

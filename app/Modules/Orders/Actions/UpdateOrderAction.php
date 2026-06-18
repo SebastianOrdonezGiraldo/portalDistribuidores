@@ -8,6 +8,7 @@ use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Orders\Services\OrderInventoryService;
+use App\Modules\Orders\Support\OrderLineVat;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Support\Collection;
@@ -156,6 +157,8 @@ class UpdateOrderAction
                 'unit_label' => $unitLabel,
                 'price_each' => $priceEach,
                 'subtotal' => round($qty * $priceEach, 2),
+                'is_vat_excluded_snapshot' => (bool) ($existing->is_vat_excluded_snapshot ?? false),
+                'vat_rate_snapshot' => (float) ($existing->vat_rate_snapshot ?? OrderLineVat::DEFAULT_RATE),
             ];
         }
 
@@ -233,7 +236,7 @@ class UpdateOrderAction
             ->active()
             ->whereIn('id', array_values(array_unique($variantIds)))
             ->whereHas('product', fn ($query) => $query->where('is_active', true))
-            ->with('product:id,name,sku,price', 'attributeValue.attribute')
+            ->with('product:id,name,sku,price,is_vat_excluded', 'attributeValue.attribute')
             ->get()
             ->keyBy('id');
 
@@ -254,7 +257,7 @@ class UpdateOrderAction
 
                 $priceEach = (float) $product->price;
 
-                $prepared[] = [
+                $prepared[] = array_merge([
                     'product_id' => $product->id,
                     'product_variant_id' => null,
                     'product_name_snapshot' => $product->name,
@@ -265,7 +268,7 @@ class UpdateOrderAction
                     'unit_label' => $row['unit_label'],
                     'price_each' => $priceEach,
                     'subtotal' => round($row['qty'] * $priceEach, 2),
-                ];
+                ], OrderLineVat::snapshotAttributes($product));
 
                 continue;
             }
@@ -286,7 +289,7 @@ class UpdateOrderAction
 
             $priceEach = (float) $variant->price;
 
-            $prepared[] = [
+            $prepared[] = array_merge([
                 'product_id' => $product->id,
                 'product_variant_id' => $variant->id,
                 'product_name_snapshot' => $product->name,
@@ -297,7 +300,7 @@ class UpdateOrderAction
                 'unit_label' => $row['unit_label'],
                 'price_each' => $priceEach,
                 'subtotal' => round($row['qty'] * $priceEach, 2),
-            ];
+            ], OrderLineVat::snapshotAttributes($product));
         }
 
         return $prepared;

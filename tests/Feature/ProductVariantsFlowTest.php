@@ -100,6 +100,7 @@ class ProductVariantsFlowTest extends TestCase
             'category_id' => $category->id,
             'variant_attribute_id' => $attribute->id,
             'price' => 15000,
+            'is_vat_excluded' => true,
             'is_active' => true,
         ]);
 
@@ -146,7 +147,10 @@ class ProductVariantsFlowTest extends TestCase
             'price_each' => 15000.00,
             'qty' => 2.00,
             'subtotal' => 30000.00,
+            'is_vat_excluded_snapshot' => true,
         ]);
+
+        $this->assertSame(0.0, (float) $order->items()->firstOrFail()->vat_rate_snapshot);
         $this->assertEquals(1.0, (float) $variant->fresh()->stock);
         Mail::assertSent(OrderCreatedNotificationMail::class);
         Mail::assertSent(OrderCreatedCustomerQuotationMail::class);

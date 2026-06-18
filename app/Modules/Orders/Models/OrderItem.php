@@ -30,6 +30,8 @@ class OrderItem extends Model
         'unit_label',
         'price_each',
         'subtotal',
+        'is_vat_excluded_snapshot',
+        'vat_rate_snapshot',
     ];
 
     protected function casts(): array
@@ -38,6 +40,8 @@ class OrderItem extends Model
             'qty' => 'integer',
             'price_each' => 'decimal:2',
             'subtotal' => 'decimal:2',
+            'is_vat_excluded_snapshot' => 'boolean',
+            'vat_rate_snapshot' => 'decimal:4',
         ];
     }
 

@@ -24,6 +24,7 @@ class ProductFactory extends Factory
             'price' => fake()->numberBetween(1000, 100000),
             'stock' => fake()->numberBetween(1, 500),
             'is_active' => true,
+            'is_vat_excluded' => false,
         ];
     }
 

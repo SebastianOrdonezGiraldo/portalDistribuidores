@@ -4,6 +4,8 @@
         $indexContextQuery = $indexContextQuery ?? [];
         $isActiveRaw = old('is_active', $product->is_active ?? true);
         $isActiveChecked = filter_var($isActiveRaw, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
+        $isVatExcludedRaw = old('is_vat_excluded', $product->is_vat_excluded ?? false);
+        $isVatExcludedChecked = filter_var($isVatExcludedRaw, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
         $selectedCategoryId = old('category_id', $product->category_id);
         $selectedCategory = $categories->firstWhere('id', (int) $selectedCategoryId);
         $initialCategoryName = $selectedCategory?->name ?? $product->category?->name ?? 'Sin categoría seleccionada';
@@ -114,6 +116,17 @@
                             <span class="ml-1 font-semibold text-slate-700" data-live-stock-output>Sin definir</span>
                         </p>
                         <x-input-error :messages="$errors->get('stock')" />
+                    </div>
+                    <div class="sm:col-span-2">
+                        <input type="hidden" name="is_vat_excluded" value="0">
+                        <x-ui.checkbox
+                            name="is_vat_excluded"
+                            value="1"
+                            :checked="$isVatExcludedChecked ?? false"
+                            label="Producto excluido de IVA"
+                        />
+                        <p class="form-help">Marca esta opcion si la venta del producto no causa IVA. El precio se conservara tal cual.</p>
+                        <x-input-error :messages="$errors->get('is_vat_excluded')" />
                     </div>
                 </div>
             </x-ui.card>
@@ -435,6 +448,7 @@
                 <div class="mt-3 space-y-2 text-sm">
                     <div class="flex items-center justify-between"><span class="text-slate-500">Modo</span><span class="font-medium text-slate-900">{{ $isEdit ? 'Edición' : 'Creación' }}</span></div>
                     <div class="flex items-center justify-between"><span class="text-slate-500">Activo</span><x-ui.status-badge :status="($isActiveChecked ?? false) ? 'active' : 'inactive'" /></div>
+                    <div class="flex items-center justify-between"><span class="text-slate-500">IVA</span><span class="font-medium text-slate-900">{{ ($isVatExcludedChecked ?? false) ? 'Excluido de IVA' : 'IVA incluido' }}</span></div>
                     <div class="flex items-center justify-between"><span class="text-slate-500">Precio</span><span class="font-medium text-slate-900" data-live-price-output-sidebar>$0</span></div>
                     <div class="flex items-center justify-between"><span class="text-slate-500">Stock</span><span class="font-medium text-slate-900" data-live-stock-output-sidebar>Sin definir</span></div>
                     @if($isEdit)

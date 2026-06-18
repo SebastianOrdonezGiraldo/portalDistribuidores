@@ -255,8 +255,7 @@
                                 data-default-value="{{ $formattedPrice }}"
                             >{{ $formattedPrice }}</span>
                             <span class="text-sm text-slate-500">
-                                / {{ $unitLabelLower }}
-                                @if(! $hasVariants) · IVA incluido @endif
+                                / {{ $unitLabelLower }} · {{ $vatLabel }}
                             </span>
                         </div>
                         @if($hasVariants)
@@ -772,7 +771,7 @@
                     data-variant-mobile-price-target
                     data-default-value="{{ $formattedPrice }}"
                 >{{ $formattedPrice }}</p>
-                <p class="truncate text-xs text-slate-500">por {{ $unitLabelLower }}</p>
+                <p class="truncate text-xs text-slate-500">por {{ $unitLabelLower }} · {{ $vatLabel }}</p>
             </div>
 
             @if($canBuy)

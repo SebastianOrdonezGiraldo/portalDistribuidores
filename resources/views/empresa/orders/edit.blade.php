@@ -115,7 +115,11 @@
                                 @endif
                             </div>
                             <div class="flex items-center gap-2">
-                                <p class="text-xs text-slate-600">Precio unitario: <strong>${{ number_format((float) $item->price_each, 0, ',', '.') }}</strong></p>
+                                <p class="text-xs text-slate-600">
+                                    Precio unitario:
+                                    <strong>${{ number_format((float) $item->price_each, 0, ',', '.') }}</strong>
+                                    · {{ \App\Modules\Orders\Support\OrderLineVat::label((bool) $item->is_vat_excluded_snapshot) }}
+                                </p>
                                 <button type="button" class="btn btn-ghost !px-2 !py-1 text-xs" data-remove-existing-item>Quitar</button>
                             </div>
                         </div>

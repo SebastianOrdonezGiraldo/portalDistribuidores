@@ -147,6 +147,7 @@ class ProductBulkImportService
                     'price' => (float) $rowPayload['price'],
                     'stock' => $rowPayload['stock'] !== null ? (float) $rowPayload['stock'] : null,
                     'is_active' => (bool) ($rowPayload['is_active'] ?? true),
+                    'is_vat_excluded' => (bool) ($rowPayload['is_vat_excluded'] ?? false),
                 ];
 
                 if ($action === 'create') {
@@ -204,6 +205,7 @@ class ProductBulkImportService
         $price = $this->normalizeNullableDecimal($this->cell($row, $headerIndexes, 'price'));
         $stock = $this->normalizeNullableDecimal($this->cell($row, $headerIndexes, 'stock'));
         [$isActive, $isActiveInvalid] = $this->normalizeNullableBoolean($this->cell($row, $headerIndexes, 'is_active'));
+        [$isVatExcluded, $isVatExcludedInvalid] = $this->normalizeNullableBoolean($this->cell($row, $headerIndexes, 'is_vat_excluded'));
 
         return [
             'action' => $action,
@@ -217,6 +219,8 @@ class ProductBulkImportService
             'stock' => $stock,
             'is_active' => $isActive,
             'is_active_invalid' => $isActiveInvalid,
+            'is_vat_excluded' => $isVatExcluded,
+            'is_vat_excluded_invalid' => $isVatExcludedInvalid,
         ];
     }
 
@@ -227,6 +231,10 @@ class ProductBulkImportService
     {
         if (($rowPayload['is_active_invalid'] ?? false) === true) {
             return 'El campo is_active debe ser 1/0, true/false o si/no.';
+        }
+
+        if (($rowPayload['is_vat_excluded_invalid'] ?? false) === true) {
+            return 'El campo is_vat_excluded debe ser 1/0, true/false o si/no.';
         }
 
         if (($rowPayload['category_invalid'] ?? false) === true) {
@@ -243,6 +251,7 @@ class ProductBulkImportService
             'price' => ['required', 'numeric', 'min:0', 'max:9999999'],
             'stock' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
             'is_active' => ['nullable', 'boolean'],
+            'is_vat_excluded' => ['nullable', 'boolean'],
         ], [
             'action.required' => 'El campo action es obligatorio.',
             'action.in' => 'El campo action debe ser upsert, create o update.',
