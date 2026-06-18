@@ -118,7 +118,7 @@
                         @if($item['variant_label'])
                             <p class="text-xs text-slate-500">{{ $item['variant_label'] }}</p>
                         @endif
-                        <p class="text-xs text-slate-500">{{ (int) $item['qty'] }} {{ $item['unit_label'] }} x ${{ number_format((float) $item['unit_price'], 0, ',', '.') }}</p>
+                        <p class="text-xs text-slate-500">{{ (int) $item['qty'] }} {{ $item['unit_label'] }} x ${{ number_format((float) $item['unit_price'], 0, ',', '.') }} · {{ $item['vat_label'] }}</p>
                         <p class="mt-1 font-semibold text-slate-900">Subtotal: ${{ number_format((float) $item['subtotal'], 0, ',', '.') }}</p>
                     </div>
                 @endforeach

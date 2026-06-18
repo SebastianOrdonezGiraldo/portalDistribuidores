@@ -31,6 +31,8 @@ class OrderItemFactory extends Factory
             'unit_label' => 'unidades',
             'price_each' => $priceEach,
             'subtotal' => $qty * $priceEach,
+            'is_vat_excluded_snapshot' => false,
+            'vat_rate_snapshot' => '0.1300',
         ];
     }
 }

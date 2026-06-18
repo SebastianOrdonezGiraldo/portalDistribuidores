@@ -63,7 +63,7 @@
                                         @endif
                                         <p class="mt-1 text-sm font-semibold text-slate-900">
                                             ${{ number_format((float) $item['unit_price'], 0, ',', '.') }}
-                                            <span class="font-normal text-slate-500">/ {{ $item['unit_label'] }}</span>
+                                            <span class="font-normal text-slate-500">/ {{ $item['unit_label'] }} · {{ $item['vat_label'] }}</span>
                                         </p>
                                     </div>
                                 </div>

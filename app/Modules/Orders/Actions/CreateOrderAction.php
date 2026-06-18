@@ -10,6 +10,7 @@ use App\Modules\Orders\Events\OrderPlaced;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\OrderInventoryService;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
+use App\Modules\Orders\Support\OrderLineVat;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Support\Collection;
@@ -104,7 +105,7 @@ class CreateOrderAction
                 $qty = max(1, (int) $item['qty']);
                 $subtotal = $qty * $priceEach;
 
-                $order->items()->create([
+                $order->items()->create(array_merge([
                     'product_id' => $product->id,
                     'product_variant_id' => $variant?->id,
                     'product_name_snapshot' => $product->name,
@@ -115,7 +116,7 @@ class CreateOrderAction
                     'unit_label' => $item['unit_label'] ?? 'unidades',
                     'price_each' => $priceEach,
                     'subtotal' => $subtotal,
-                ]);
+                ], OrderLineVat::snapshotAttributes($product)));
             }
 
             $order->update([

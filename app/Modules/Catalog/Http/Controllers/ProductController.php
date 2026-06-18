@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Categories\Queries\CategoryBreadcrumbsQuery;
 use App\Modules\Documents\Services\TechSheetDownloadService;
+use App\Modules\Orders\Support\OrderLineVat;
 use App\Modules\Shared\Enums\DocumentType;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -99,6 +100,7 @@ class ProductController extends Controller
         $formattedPrice = $isRangePrice
             ? '$'.number_format($price, 0, ',', '.').' – $'.number_format((float) $maxVariantPrice, 0, ',', '.')
             : '$'.number_format($price, 0, ',', '.');
+        $vatLabel = OrderLineVat::label((bool) $product->is_vat_excluded);
 
         $stock = $hasVariants ? null : ($commercial['stock'] ?? null);
         $canBuy = $hasVariants
@@ -160,7 +162,7 @@ class ProductController extends Controller
             'minMultiple', 'stepValue',
             'discountPercent', 'promoLabel', 'activeVariants', 'hasVariants',
             'variantAttributeName', 'minVariantPrice', 'maxVariantPrice',
-            'price', 'isRangePrice', 'formattedPrice', 'stock', 'canBuy',
+            'price', 'isRangePrice', 'formattedPrice', 'vatLabel', 'stock', 'canBuy',
             'isLowStock', 'availability', 'stockLabel', 'documents',
             'manual', 'productVideo', 'secondaryDocuments', 'documentTypeLabels',
             'specRows', 'sections',

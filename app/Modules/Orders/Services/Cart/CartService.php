@@ -4,6 +4,7 @@ namespace App\Modules\Orders\Services\Cart;
 
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
+use App\Modules\Orders\Support\OrderLineVat;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Session;
@@ -142,6 +143,8 @@ class CartService
      *   qty: int,
      *   unit_label: string,
      *   unit_price: float,
+     *   vat_label: string,
+     *   is_vat_excluded: bool,
      *   subtotal: float,
      *   available_qty: int|null
      * }>
@@ -224,6 +227,7 @@ class CartService
                     ? $attributeName.': '.$valueName
                     : $valueName;
                 $availableQty = $this->resolveStockLimit($product, $variant);
+                $isVatExcluded = (bool) $product->is_vat_excluded;
 
                 return [
                     'line_key' => $lineKey,
@@ -233,6 +237,8 @@ class CartService
                     'qty' => $qty,
                     'unit_label' => $item['unit_label'] ?? 'unidades',
                     'unit_price' => $unitPrice,
+                    'vat_label' => OrderLineVat::label($isVatExcluded),
+                    'is_vat_excluded' => $isVatExcluded,
                     'subtotal' => $qty * $unitPrice,
                     'available_qty' => $availableQty,
                 ];

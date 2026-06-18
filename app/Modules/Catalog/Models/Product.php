@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\DB;
  * @property string|null $brand
  * @property string $sku
  * @property bool $is_active
+ * @property bool $is_vat_excluded
  * @property int|null $category_id
  * @property int|null $variant_attribute_id
  * @property int $active_variants_count
@@ -45,12 +46,14 @@ class Product extends Model
         'price',
         'stock',
         'is_active',
+        'is_vat_excluded',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'is_vat_excluded' => 'boolean',
             'price' => 'decimal:2',
             'stock' => 'decimal:2',
         ];

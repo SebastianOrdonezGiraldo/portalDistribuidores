@@ -322,7 +322,12 @@
                                 </div>
                             </td>
                             <td data-label="Categoría">{{ $product->category?->name ?? '-' }}</td>
-                            <td data-label="Precio" class="font-medium text-slate-900">${{ number_format((float) $product->price, 0, ',', '.') }}</td>
+                            <td data-label="Precio" class="font-medium text-slate-900">
+                                ${{ number_format((float) $product->price, 0, ',', '.') }}
+                                <span class="mt-1 block text-xs font-normal text-slate-500">
+                                    {{ $product->is_vat_excluded ? 'Excluido de IVA' : 'IVA incluido' }}
+                                </span>
+                            </td>
                             <td data-label="Stock">
                                 @if(! $hasActiveVariants)
                                     <form
