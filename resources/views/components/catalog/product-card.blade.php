@@ -30,6 +30,7 @@
     $stockLabelClasses = $hasStock
         ? 'text-emerald-700'
         : 'text-red-700';
+    $vatLabel = \App\Modules\Orders\Support\OrderLineVat::label((bool) $product->is_vat_excluded);
 @endphp
 
 <article class="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-panel">
@@ -107,6 +108,7 @@
                         ${{ number_format($minPrice, 0, ',', '.') }}
                     </p>
                 @endif
+                <p class="text-xs text-slate-500">{{ $vatLabel }}</p>
             </div>
 
             <div class="relative z-10 flex items-center gap-2">

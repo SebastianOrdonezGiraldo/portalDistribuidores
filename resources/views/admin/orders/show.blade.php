@@ -158,7 +158,12 @@
                                         @endif
                                     </td>
                                     <td data-label="Cantidad">{{ $formatQuantity($item->qty) }} {{ $item->unit_label }}</td>
-                                    <td data-label="Precio">${{ number_format((float) $item->price_each, 0, ',', '.') }}</td>
+                                    <td data-label="Precio">
+                                        ${{ number_format((float) $item->price_each, 0, ',', '.') }}
+                                        <span class="mt-1 block text-xs text-slate-500">
+                                            {{ \App\Modules\Orders\Support\OrderLineVat::label((bool) $item->is_vat_excluded_snapshot) }}
+                                        </span>
+                                    </td>
                                     <td data-label="Subtotal" class="font-semibold text-slate-900">${{ number_format((float) $item->subtotal, 0, ',', '.') }}</td>
                                 </tr>
                             @endforeach

@@ -453,6 +453,30 @@ class AdminProductEditorTest extends TestCase
         Storage::disk('private')->assertExists($document->path);
     }
 
+    public function test_admin_can_mark_product_as_vat_excluded(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+
+        $payload = array_merge($this->validProductPayload($category), [
+            'sku' => 'SKU-VAT-EXCLUDED-001',
+            'is_vat_excluded' => 1,
+        ]);
+
+        $response = $this->actingAs($admin)->post('/admin/products', $payload);
+
+        $product = Product::query()->where('sku', 'SKU-VAT-EXCLUDED-001')->firstOrFail();
+
+        $response->assertRedirect('/admin/products/'.$product->id.'/edit');
+        $this->assertTrue((bool) $product->is_vat_excluded);
+
+        $this->actingAs($admin)
+            ->get('/admin/products/'.$product->id.'/edit')
+            ->assertOk()
+            ->assertSee('Producto excluido de IVA')
+            ->assertSee('Excluido de IVA');
+    }
+
     public function test_admin_update_replaces_existing_manual_document(): void
     {
         Storage::fake('private');

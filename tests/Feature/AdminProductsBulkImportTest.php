@@ -24,7 +24,7 @@ class AdminProductsBulkImportTest extends TestCase
         $response->assertOk();
         $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
         $this->assertStringContainsString(
-            'action;sku;name;brand;description;category_id;price;stock;is_active',
+            'action;sku;name;brand;description;category_id;price;stock;is_active;is_vat_excluded',
             $response->streamedContent(),
         );
     }
@@ -90,6 +90,40 @@ class AdminProductsBulkImportTest extends TestCase
             'brand' => 'Marca B',
             'price' => 25000.00,
             'is_active' => false,
+        ]);
+    }
+
+    public function test_admin_can_bulk_import_vat_excluded_products_from_csv(): void
+    {
+        $this->withoutMiddleware(ValidateCsrfToken::class);
+
+        $admin = User::factory()->admin()->create();
+        $category = Category::create([
+            'parent_id' => null,
+            'name' => 'Categoria IVA Excluido',
+            'slug' => 'categoria-iva-excluido',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $csvContent = implode("\n", [
+            'action;sku;name;brand;description;category_id;price;stock;is_active;is_vat_excluded',
+            "upsert;SKU-IVA-EXC-001;Producto IVA Excluido;Marca IVA;Alta con IVA excluido;{$category->id};34000;5;1;si",
+        ]);
+
+        $file = UploadedFile::fake()->createWithContent('products-import-vat.csv', $csvContent);
+
+        $response = $this->actingAs($admin)
+            ->post('/admin/products/import', [
+                'default_action' => 'upsert',
+                'file' => $file,
+            ]);
+
+        $response->assertRedirect('/admin/products');
+        $this->assertDatabaseHas('products', [
+            'sku' => 'SKU-IVA-EXC-001',
+            'price' => 34000.00,
+            'is_vat_excluded' => true,
         ]);
     }
 

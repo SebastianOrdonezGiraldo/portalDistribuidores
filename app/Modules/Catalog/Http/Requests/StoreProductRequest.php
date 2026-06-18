@@ -16,6 +16,7 @@ class StoreProductRequest extends FormRequest
     {
         $this->merge([
             'has_variants' => $this->boolean('has_variants'),
+            'is_vat_excluded' => $this->boolean('is_vat_excluded'),
         ]);
     }
 
@@ -83,6 +84,7 @@ class StoreProductRequest extends FormRequest
                 'max:9999999',
             ],
             'is_active' => ['nullable', 'boolean'],
+            'is_vat_excluded' => ['nullable', 'boolean'],
             'video_url' => ['nullable', 'url', 'max:255'],
         ], $this->productUploadRules());
     }

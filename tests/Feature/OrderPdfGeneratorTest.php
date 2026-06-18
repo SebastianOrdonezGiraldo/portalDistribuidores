@@ -195,6 +195,59 @@ class OrderPdfGeneratorTest extends TestCase
         $this->assertSame('%PDF-VIEW-DATA', Storage::disk('private')->get($path));
     }
 
+    public function test_generator_keeps_vat_excluded_items_at_full_unit_value_without_vat(): void
+    {
+        Storage::fake('private');
+        Storage::fake('public');
+
+        config([
+            'filesystems.order_pdfs_disk' => 'private',
+        ]);
+
+        $order = Order::factory()->create([
+            'oc_number' => 'CTC-VAT-EXC',
+        ]);
+
+        OrderItem::factory()->for($order)->create([
+            'product_name_snapshot' => 'Producto Excluido',
+            'sku_snapshot' => 'SKU-EXC',
+            'qty' => 2,
+            'price_each' => 34000,
+            'subtotal' => 68000,
+            'is_vat_excluded_snapshot' => true,
+            'vat_rate_snapshot' => 0,
+        ]);
+
+        Pdf::shouldReceive('loadView')
+            ->once()
+            ->with('orders.pdf', Mockery::on(function (array $data): bool {
+                $this->assertSame(34000.0, $data['lineItems'][0]['valorUnit']);
+                $this->assertSame(0.0, $data['lineItems'][0]['valorIva']);
+                $this->assertSame(34000.0, $data['lineItems'][0]['valorTotal']);
+                $this->assertSame(68000.0, $data['lineItems'][0]['valorTotalLinea']);
+                $this->assertSame(68000.0, $data['totalFinal']);
+
+                return true;
+            }))
+            ->andReturnUsing(function () {
+                $pdfMock = Mockery::mock(DomPdfWrapper::class);
+                $pdfMock->shouldReceive('setPaper')
+                    ->once()
+                    ->with('a4', 'portrait')
+                    ->andReturnSelf();
+                $pdfMock->shouldReceive('output')
+                    ->once()
+                    ->andReturn('%PDF-VAT-EXCLUDED');
+
+                return $pdfMock;
+            });
+
+        $path = (new OrderPdfGenerator)->generate($order);
+
+        $this->assertSame('orders/CTC-VAT-EXC.pdf', $path);
+        $this->assertSame('%PDF-VAT-EXCLUDED', Storage::disk('private')->get($path));
+    }
+
     public function test_generator_migrates_legacy_public_pdf_before_regenerating_and_deletes_public_copy(): void
     {
         Storage::fake('private');

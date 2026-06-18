@@ -13,6 +13,7 @@ use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\Cart\CartService;
 use App\Modules\Orders\Services\OrderPdfGenerator;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
+use App\Modules\Orders\Support\OrderLineVat;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Http\RedirectResponse;
@@ -187,27 +188,28 @@ class CompanyOrderController extends Controller
                     ->orderBy('id'),
             ])
             ->orderBy('name')
-            ->get(['id', 'name', 'sku', 'price']);
+            ->get(['id', 'name', 'sku', 'price', 'is_vat_excluded']);
 
         return $products
             ->flatMap(function (Product $product) {
                 $baseLabel = trim("{$product->sku} · {$product->name}");
+                $taxLabel = OrderLineVat::label((bool) $product->is_vat_excluded);
 
                 if ((int) ($product->active_variants_count ?? 0) === 0) {
                     return [[
                         'ref' => 'p:'.$product->id,
-                        'label' => $baseLabel,
+                        'label' => "{$baseLabel} · {$taxLabel}",
                         'price' => (float) $product->price,
                     ]];
                 }
 
-                return $product->variants->map(function (ProductVariant $variant) use ($baseLabel): array {
+                return $product->variants->map(function (ProductVariant $variant) use ($baseLabel, $taxLabel): array {
                     $attributeName = $variant->attributeValue?->attribute?->name ?? 'Variante';
                     $attributeValue = $variant->attributeValue?->value ?? ('#'.$variant->id);
 
                     return [
                         'ref' => 'v:'.$variant->id,
-                        'label' => "{$baseLabel} · {$attributeName}: {$attributeValue}",
+                        'label' => "{$baseLabel} · {$attributeName}: {$attributeValue} · {$taxLabel}",
                         'price' => (float) $variant->price,
                     ];
                 });

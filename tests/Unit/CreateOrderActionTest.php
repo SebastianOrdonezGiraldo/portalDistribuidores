@@ -74,9 +74,45 @@ class CreateOrderActionTest extends TestCase
             'unit_label' => 'cajas',
             'price_each' => 10000,
             'subtotal' => 20000,
+            'is_vat_excluded_snapshot' => false,
         ]);
 
+        $this->assertSame(0.13, (float) $order->items()->firstOrFail()->vat_rate_snapshot);
+
         Event::assertDispatched(OrderPlaced::class, fn (OrderPlaced $event) => $event->order->is($order));
+    }
+
+    public function test_execute_persists_vat_excluded_snapshot_without_changing_final_total(): void
+    {
+        Event::fake([OrderPlaced::class]);
+
+        $user = $this->makeDistributorUser();
+        $product = Product::factory()->create([
+            'price' => 34000,
+            'stock' => 10,
+            'is_active' => true,
+            'is_vat_excluded' => true,
+        ]);
+
+        $statusService = $this->createMock(OrderStatusTransitionService::class);
+        $statusService->expects($this->once())->method('recordInitialStatus');
+
+        $inventoryService = $this->createMock(OrderInventoryService::class);
+        $inventoryService->expects($this->once())->method('decreaseForOrder');
+
+        $action = new CreateOrderAction($statusService, $inventoryService);
+
+        $order = $action->execute($user, $this->makeOrderData([
+            ['product_id' => $product->id, 'variant_id' => null, 'qty' => 2, 'unit_label' => 'unidades'],
+        ]));
+
+        $item = $order->items()->firstOrFail();
+
+        $this->assertSame('68000.00', $order->total_amount);
+        $this->assertTrue((bool) $item->is_vat_excluded_snapshot);
+        $this->assertSame(0.0, (float) $item->vat_rate_snapshot);
+        $this->assertSame('34000.00', $item->price_each);
+        $this->assertSame('68000.00', $item->subtotal);
     }
 
     public function test_execute_creates_pending_approval_order_without_inventory_decrease_or_event(): void
