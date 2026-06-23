@@ -42,6 +42,12 @@ Route::get('/documents/tech-sheet/{productDocument}', TechSheetDownloadControlle
 Route::get('/documents/manual/{productDocument}', TechSheetDownloadController::class)
     ->middleware(['throttle:api-endpoints', 'suspicious_automation'])
     ->name('documents.manual.download');
+Route::get('/documents/invima/{productDocument}', TechSheetDownloadController::class)
+    ->middleware(['throttle:api-endpoints', 'suspicious_automation'])
+    ->name('documents.invima.download');
+Route::get('/documents/quick-guide/{productDocument}', TechSheetDownloadController::class)
+    ->middleware(['throttle:api-endpoints', 'suspicious_automation'])
+    ->name('documents.quick-guide.download');
 
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
 Route::post('/cart', [CartController::class, 'store'])

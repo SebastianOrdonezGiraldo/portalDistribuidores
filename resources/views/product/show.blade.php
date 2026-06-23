@@ -528,6 +528,8 @@
              Sección: Documentos — ⚠️ Afecta descargas de PDF protegidas
              Si se modifica la ruta route('documents.tech-sheet.download')
              o route('documents.manual.download')
+             o route('documents.invima.download')
+             o route('documents.quick-guide.download')
              también se debe actualizar el controlador de documentos.
         ────────────────────────────────────────────────────────────────── --}}
         <section id="documentos" class="scroll-mt-32 card overflow-hidden">
@@ -551,7 +553,7 @@
 
             <div class="px-6 py-5 sm:px-7 sm:py-6">
                 @php
-                    $hasAnyDocument = $techSheet || $manual || $productVideo || $secondaryDocuments->isNotEmpty();
+                    $hasAnyDocument = $techSheet || $manual || $productVideo || $invima || $quickGuide || $secondaryDocuments->isNotEmpty();
                 @endphp
 
                 @if(! $hasAnyDocument)
@@ -566,7 +568,7 @@
                         </div>
                     </div>
                 @else
-                    {{-- Grid principal: Ficha técnica + Manual de usuario + Video de apoyo --}}
+                    {{-- Grid principal: Ficha técnica + Manual de usuario + Video de apoyo + INVIMA + Guía rápida --}}
                     <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
 
                         {{-- Tarjeta izquierda: Ficha técnica --}}
@@ -682,6 +684,83 @@
                                             </a>
                                         @else
                                             <p class="text-xs text-slate-400">Sin video disponible para este producto</p>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Tarjeta: INVIMA --}}
+                        <div class="group relative overflow-hidden rounded-2xl border transition {{ $invima ? 'border-emerald-200 bg-emerald-50/70 hover:border-emerald-300' : 'border-slate-200 bg-slate-50' }}">
+                            <div class="flex items-start gap-4 p-5">
+                                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl {{ $invima ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-200 text-slate-400' }}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                        <path d="m9 12 2 2 4-5"/>
+                                    </svg>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <p class="font-semibold text-slate-900">INVIMA</p>
+                                        <span class="rounded-md border border-emerald-200 bg-white px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-emerald-700">PDF</span>
+                                    </div>
+                                    <p class="mt-0.5 text-xs text-slate-500">Registro sanitario y soporte regulatorio del producto</p>
+
+                                    <div class="mt-3">
+                                        @if($invima)
+                                            <a
+                                                href="{{ route('documents.invima.download', $invima) }}"
+                                                class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-white px-3.5 py-2 text-sm font-semibold text-emerald-700 shadow-sm transition hover:border-emerald-400 hover:bg-emerald-50/70 focus-ring sm:w-auto"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M12 3v12"/>
+                                                    <path d="m7 10 5 5 5-5"/>
+                                                    <path d="M5 21h14"/>
+                                                </svg>
+                                                Descargar INVIMA
+                                            </a>
+                                        @else
+                                            <p class="text-xs text-slate-400">No disponible por ahora</p>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Tarjeta: Guía rápida --}}
+                        <div class="group relative overflow-hidden rounded-2xl border transition {{ $quickGuide ? 'border-sky-200 bg-sky-50/70 hover:border-sky-300' : 'border-slate-200 bg-slate-50' }}">
+                            <div class="flex items-start gap-4 p-5">
+                                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl {{ $quickGuide ? 'bg-sky-100 text-sky-600' : 'bg-slate-200 text-slate-400' }}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                        <path d="M8 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+                                        <path d="M18 3h-6a2 2 0 0 0-2 2v6"/>
+                                        <path d="M14 3v4h4"/>
+                                        <path d="M8 15h8"/>
+                                        <path d="M8 18h5"/>
+                                    </svg>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <p class="font-semibold text-slate-900">Guía rápida</p>
+                                        <span class="rounded-md border border-sky-200 bg-white px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-sky-700">PDF</span>
+                                    </div>
+                                    <p class="mt-0.5 text-xs text-slate-500">Resumen operativo para consulta rápida del producto</p>
+
+                                    <div class="mt-3">
+                                        @if($quickGuide)
+                                            <a
+                                                href="{{ route('documents.quick-guide.download', $quickGuide) }}"
+                                                class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-sky-300 bg-white px-3.5 py-2 text-sm font-semibold text-sky-700 shadow-sm transition hover:border-sky-400 hover:bg-sky-50/70 focus-ring sm:w-auto"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M12 3v12"/>
+                                                    <path d="m7 10 5 5 5-5"/>
+                                                    <path d="M5 21h14"/>
+                                                </svg>
+                                                Descargar guía rápida
+                                            </a>
+                                        @else
+                                            <p class="text-xs text-slate-400">No disponible por ahora</p>
                                         @endif
                                     </div>
                                 </div>

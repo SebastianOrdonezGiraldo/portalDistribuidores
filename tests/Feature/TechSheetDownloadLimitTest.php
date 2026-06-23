@@ -8,6 +8,7 @@ use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductDocument;
 use App\Modules\Categories\Models\Category;
 use App\Modules\Documents\Models\DocumentDownload;
+use App\Modules\Shared\Enums\DocumentType;
 use App\Modules\Shared\Enums\UserRole;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -49,6 +50,30 @@ class TechSheetDownloadLimitTest extends TestCase
             ->assertDownload('manual.pdf');
     }
 
+    public function test_guest_can_download_active_invima_document(): void
+    {
+        Storage::fake('public');
+        Storage::fake('private');
+
+        ['document' => $document] = $this->createProtectedDocument(DocumentType::Invima->value, 'invima.pdf');
+
+        $this->get(route('documents.invima.download', $document))
+            ->assertOk()
+            ->assertDownload('invima.pdf');
+    }
+
+    public function test_guest_can_download_active_quick_guide_document(): void
+    {
+        Storage::fake('public');
+        Storage::fake('private');
+
+        ['document' => $document] = $this->createProtectedDocument(DocumentType::QuickGuide->value, 'guia-rapida.pdf');
+
+        $this->get(route('documents.quick-guide.download', $document))
+            ->assertOk()
+            ->assertDownload('guia-rapida.pdf');
+    }
+
     public function test_distributor_can_download_a_tech_sheet_two_times_per_month(): void
     {
         Storage::fake('public');
@@ -84,6 +109,39 @@ class TechSheetDownloadLimitTest extends TestCase
             ->assertDownload('manual.pdf');
 
         $this->assertDatabaseCount('document_downloads', 0);
+    }
+
+    public function test_distributor_can_download_invima_and_quick_guide_without_consuming_quota(): void
+    {
+        Storage::fake('public');
+        Storage::fake('private');
+
+        $user = $this->createDistributorUser();
+        ['product' => $product, 'document' => $invima] = $this->createProtectedDocument(DocumentType::Invima->value, 'invima.pdf');
+        $quickGuide = $this->attachProtectedDocument($product, DocumentType::QuickGuide->value, 'guia-rapida.pdf');
+
+        $this->actingAs($user)
+            ->get(route('documents.invima.download', $invima))
+            ->assertOk()
+            ->assertDownload('invima.pdf');
+
+        $this->actingAs($user)
+            ->get(route('documents.quick-guide.download', $quickGuide))
+            ->assertOk()
+            ->assertDownload('guia-rapida.pdf');
+
+        $this->assertDatabaseCount('document_downloads', 0);
+    }
+
+    public function test_document_download_route_rejects_mismatched_document_type(): void
+    {
+        Storage::fake('public');
+        Storage::fake('private');
+
+        ['document' => $document] = $this->createProtectedDocument(DocumentType::Invima->value, 'invima.pdf');
+
+        $this->get(route('documents.manual.download', $document))
+            ->assertNotFound();
     }
 
     public function test_distributor_cannot_download_more_than_two_times_per_month(): void
@@ -200,12 +258,28 @@ class TechSheetDownloadLimitTest extends TestCase
             ->assertSee(route('documents.manual.download', $document), false);
     }
 
+    public function test_product_page_lists_invima_and_quick_guide_download_links(): void
+    {
+        Storage::fake('public');
+        Storage::fake('private');
+
+        ['product' => $product, 'document' => $invima] = $this->createProtectedDocument(DocumentType::Invima->value, 'invima.pdf');
+        $quickGuide = $this->attachProtectedDocument($product, DocumentType::QuickGuide->value, 'guia-rapida.pdf');
+
+        $this->get(route('products.show', $product))
+            ->assertOk()
+            ->assertSeeText('Descargar INVIMA')
+            ->assertSee(route('documents.invima.download', $invima), false)
+            ->assertSeeText('Descargar guía rápida')
+            ->assertSee(route('documents.quick-guide.download', $quickGuide), false);
+    }
+
     /**
      * @return array{product: Product, document: ProductDocument}
      */
     private function createTechSheetDocument(): array
     {
-        return $this->createProtectedDocument('tech_sheet', 'a.pdf');
+        return $this->createProtectedDocument(DocumentType::TechSheet->value, 'a.pdf');
     }
 
     /**
@@ -229,16 +303,22 @@ class TechSheetDownloadLimitTest extends TestCase
             'is_active' => true,
         ]);
 
+        $document = $this->attachProtectedDocument($product, $type, $filename);
+
+        return compact('product', 'document');
+    }
+
+    private function attachProtectedDocument(Product $product, string $type, string $filename): ProductDocument
+    {
         $path = 'products/documents/'.$filename;
         Storage::disk('private')->put($path, 'PDF');
-        $document = ProductDocument::create([
+
+        return ProductDocument::create([
             'product_id' => $product->id,
             'type' => $type,
             'path' => $path,
             'filename' => $filename,
         ]);
-
-        return compact('product', 'document');
     }
 
     private function createDistributorUser(?Distributor $distributor = null): User

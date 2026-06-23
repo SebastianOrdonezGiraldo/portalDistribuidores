@@ -453,6 +453,30 @@ class AdminProductEditorTest extends TestCase
         Storage::disk('private')->assertExists($document->path);
     }
 
+    public function test_admin_can_store_product_with_invima_and_quick_guide_documents(): void
+    {
+        Storage::fake('private');
+
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+
+        $response = $this->actingAs($admin)
+            ->post('/admin/products', array_merge($this->validProductPayload($category), [
+                'invima' => $this->fakePdfUpload('invima.pdf'),
+                'quick_guide' => $this->fakePdfUpload('guia-rapida.pdf'),
+            ]));
+
+        $product = Product::query()->where('sku', 'SKU-NEW-001')->firstOrFail();
+        $invima = $product->documents()->where('type', 'invima')->first();
+        $quickGuide = $product->documents()->where('type', 'quick_guide')->first();
+
+        $response->assertRedirect('/admin/products/'.$product->id.'/edit');
+        $this->assertNotNull($invima);
+        $this->assertNotNull($quickGuide);
+        Storage::disk('private')->assertExists($invima->path);
+        Storage::disk('private')->assertExists($quickGuide->path);
+    }
+
     public function test_admin_can_mark_product_as_vat_excluded(): void
     {
         $admin = User::factory()->admin()->create();
@@ -519,6 +543,62 @@ class AdminProductEditorTest extends TestCase
         $this->assertSame(1, $product->fresh()->documents()->where('type', 'manual')->count());
     }
 
+    public function test_admin_update_replaces_existing_invima_and_quick_guide_documents(): void
+    {
+        Storage::fake('private');
+
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProduct($category, 'SKU-REGULATORY-UPDATE-001');
+
+        Storage::disk('private')->put('products/documents/invima-anterior.pdf', '%PDF-1.4 old invima');
+        Storage::disk('private')->put('products/documents/guia-anterior.pdf', '%PDF-1.4 old guide');
+        $existingInvima = $product->documents()->create([
+            'type' => 'invima',
+            'path' => 'products/documents/invima-anterior.pdf',
+            'filename' => 'invima-anterior.pdf',
+        ]);
+        $existingQuickGuide = $product->documents()->create([
+            'type' => 'quick_guide',
+            'path' => 'products/documents/guia-anterior.pdf',
+            'filename' => 'guia-anterior.pdf',
+        ]);
+
+        $payload = [
+            'name' => 'Producto Editor',
+            'brand' => 'Marca Regulatoria',
+            'sku' => 'SKU-REGULATORY-UPDATE-001',
+            'description' => 'Producto con documentos regulatorios actualizados',
+            'category_id' => $category->id,
+            'price' => 10000,
+            'stock' => 15,
+            'is_active' => 1,
+            'invima' => $this->fakePdfUpload('invima-nuevo.pdf'),
+            'quick_guide' => $this->fakePdfUpload('guia-nueva.pdf'),
+        ];
+
+        $response = $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->put('/admin/products/'.$product->id, array_merge($payload, ['_token' => 'test-token']));
+
+        $updatedInvima = $product->fresh()->documents()->where('type', 'invima')->first();
+        $updatedQuickGuide = $product->fresh()->documents()->where('type', 'quick_guide')->first();
+
+        $response->assertRedirect('/admin/products/'.$product->id.'/edit');
+        $this->assertNotNull($updatedInvima);
+        $this->assertNotNull($updatedQuickGuide);
+        $this->assertSame($existingInvima->id, $updatedInvima->id);
+        $this->assertSame($existingQuickGuide->id, $updatedQuickGuide->id);
+        $this->assertNotSame($existingInvima->path, $updatedInvima->path);
+        $this->assertNotSame($existingQuickGuide->path, $updatedQuickGuide->path);
+        Storage::disk('private')->assertMissing($existingInvima->path);
+        Storage::disk('private')->assertMissing($existingQuickGuide->path);
+        Storage::disk('private')->assertExists($updatedInvima->path);
+        Storage::disk('private')->assertExists($updatedQuickGuide->path);
+        $this->assertSame(1, $product->fresh()->documents()->where('type', 'invima')->count());
+        $this->assertSame(1, $product->fresh()->documents()->where('type', 'quick_guide')->count());
+    }
+
     public function test_store_product_shows_clear_error_when_tech_sheet_exceeds_individual_limit(): void
     {
         $admin = User::factory()->admin()->create();
@@ -552,6 +632,26 @@ class AdminProductEditorTest extends TestCase
             ->assertRedirect('/admin/products/create')
             ->assertSessionHasErrors([
                 'manual' => 'El manual de usuario debe pesar como maximo '.ProductUploadLimits::manualMaxSizeLabel().'.',
+            ]);
+    }
+
+    public function test_store_product_shows_clear_error_when_invima_and_quick_guide_exceed_individual_limits(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+
+        $response = $this->actingAs($admin)
+            ->from('/admin/products/create')
+            ->post('/admin/products', array_merge($this->validProductPayload($category), [
+                'invima' => UploadedFile::fake()->create('invima.pdf', ProductUploadLimits::invimaMaxSizeKb() + 1, 'application/pdf'),
+                'quick_guide' => UploadedFile::fake()->create('guia-rapida.pdf', ProductUploadLimits::quickGuideMaxSizeKb() + 1, 'application/pdf'),
+            ]));
+
+        $response
+            ->assertRedirect('/admin/products/create')
+            ->assertSessionHasErrors([
+                'invima' => 'El INVIMA debe pesar como maximo '.ProductUploadLimits::invimaMaxSizeLabel().'.',
+                'quick_guide' => 'La guia rapida del producto debe pesar como maximo '.ProductUploadLimits::quickGuideMaxSizeLabel().'.',
             ]);
     }
 

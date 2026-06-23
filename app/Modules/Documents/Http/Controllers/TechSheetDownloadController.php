@@ -5,6 +5,7 @@ namespace App\Modules\Documents\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Catalog\Models\ProductDocument;
 use App\Modules\Documents\Services\TechSheetDownloadService;
+use App\Modules\Shared\Enums\DocumentType;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,12 +23,10 @@ class TechSheetDownloadController extends Controller
     ): StreamedResponse|RedirectResponse {
         $productDocument->loadMissing('product');
 
-        if ($request->routeIs('documents.tech-sheet.download') && ! $productDocument->isTechSheet()) {
-            abort(404);
-        }
-
-        if ($request->routeIs('documents.manual.download') && ! $productDocument->isManual()) {
-            abort(404);
+        foreach ($this->routeDocumentTypes() as $routeName => $documentType) {
+            if ($request->routeIs($routeName) && $productDocument->type !== $documentType->value) {
+                abort(404);
+            }
         }
 
         $this->authorize('download', $productDocument);
@@ -109,6 +108,19 @@ class TechSheetDownloadController extends Controller
     private function normalizePath(?string $path): string
     {
         return rtrim(ltrim(trim((string) $path), '/'), '/');
+    }
+
+    /**
+     * @return array<string, DocumentType>
+     */
+    private function routeDocumentTypes(): array
+    {
+        return [
+            'documents.tech-sheet.download' => DocumentType::TechSheet,
+            'documents.manual.download' => DocumentType::Manual,
+            'documents.invima.download' => DocumentType::Invima,
+            'documents.quick-guide.download' => DocumentType::QuickGuide,
+        ];
     }
 
     /**
