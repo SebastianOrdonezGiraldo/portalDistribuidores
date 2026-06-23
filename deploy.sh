@@ -24,6 +24,8 @@ QUEUE_SERVICE=""
 PHP_FPM_SERVICE=""
 DEPLOY_CREATE_DB_BACKUP=""
 DEPLOY_DB_BACKUP_DIR=""
+DEPLOY_BRANCH_VALUE="${DEPLOY_BRANCH:-}"
+DEPLOY_TARGET_SHA_VALUE="${DEPLOY_TARGET_SHA:-}"
 
 APP_ENV_VALUE=""
 APP_DEBUG_VALUE=""
@@ -417,9 +419,14 @@ fi
 log_ok "Working tree limpio"
 
 log_step "Resolviendo rama actual..."
-BRANCH="$(run_as_app "\"$GIT_BIN\" rev-parse --abbrev-ref HEAD" 2>/dev/null || true)"
-if [[ -z "$BRANCH" || "$BRANCH" == "HEAD" ]]; then
-    BRANCH="$(run_as_app "\"$GIT_BIN\" symbolic-ref --short refs/remotes/origin/HEAD | sed 's@^origin/@@'" 2>/dev/null || true)"
+BRANCH="$DEPLOY_BRANCH_VALUE"
+if [[ -n "$BRANCH" ]]; then
+    log_ok "Rama solicitada por workflow: $BRANCH"
+else
+    BRANCH="$(run_as_app "\"$GIT_BIN\" rev-parse --abbrev-ref HEAD" 2>/dev/null || true)"
+    if [[ -z "$BRANCH" || "$BRANCH" == "HEAD" ]]; then
+        BRANCH="$(run_as_app "\"$GIT_BIN\" symbolic-ref --short refs/remotes/origin/HEAD | sed 's@^origin/@@'" 2>/dev/null || true)"
+    fi
 fi
 [[ -n "$BRANCH" ]] || fail "No se pudo determinar la rama actual del repositorio"
 
@@ -432,6 +439,13 @@ case "$DEPLOY_ENV_NAME" in
         ;;
 esac
 log_ok "Rama valida para $DEPLOY_ENV_NAME: $BRANCH"
+
+if [[ -n "$DEPLOY_TARGET_SHA_VALUE" ]]; then
+    if [[ ! "$DEPLOY_TARGET_SHA_VALUE" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
+        fail "DEPLOY_TARGET_SHA debe ser un SHA Git hexadecimal de 7 a 40 caracteres. Valor recibido: $DEPLOY_TARGET_SHA_VALUE"
+    fi
+    log_ok "Commit objetivo recibido: $DEPLOY_TARGET_SHA_VALUE"
+fi
 
 if [[ ! -f "$APP_DIR/vendor/autoload.php" ]]; then
     log_step "Bootstrap inicial: instalando dependencias PHP antes del primer artisan..."
@@ -447,8 +461,19 @@ log_ok "Aplicacion en mantenimiento"
 
 log_step "Actualizando codigo fuente..."
 run_as_app "\"$GIT_BIN\" fetch --prune origin"
-run_as_app "\"$GIT_BIN\" reset --hard origin/\"$BRANCH\""
+if [[ -n "$DEPLOY_TARGET_SHA_VALUE" ]]; then
+    TARGET_COMMIT="$(run_as_app "target=$(shell_escape "$DEPLOY_TARGET_SHA_VALUE"); \"$GIT_BIN\" rev-parse \"\${target}^{commit}\"")"
+    run_as_app "target=$(shell_escape "$TARGET_COMMIT"); \"$GIT_BIN\" merge-base --is-ancestor \"\$target\" origin/\"$BRANCH\"" \
+        || fail "El commit objetivo $TARGET_COMMIT no pertenece a origin/$BRANCH. Se aborta para no desplegar un commit incorrecto."
+    run_as_app "target=$(shell_escape "$TARGET_COMMIT"); \"$GIT_BIN\" reset --hard \"\$target\""
+else
+    run_as_app "\"$GIT_BIN\" reset --hard origin/\"$BRANCH\""
+fi
 COMMIT="$(run_as_app "\"$GIT_BIN\" rev-parse --short HEAD")"
+COMMIT_FULL="$(run_as_app "\"$GIT_BIN\" rev-parse HEAD")"
+if [[ -n "${TARGET_COMMIT:-}" && "$COMMIT_FULL" != "$TARGET_COMMIT" ]]; then
+    fail "El VPS quedo en $COMMIT_FULL, pero el deploy esperaba $TARGET_COMMIT."
+fi
 log_ok "Codigo actualizado al commit $COMMIT"
 
 log_step "Instalando dependencias PHP..."
