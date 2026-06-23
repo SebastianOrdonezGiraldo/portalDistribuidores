@@ -42,9 +42,19 @@ class ProductDocument extends Model
         return $this->type === DocumentType::Manual->value;
     }
 
+    public function isInvima(): bool
+    {
+        return $this->type === DocumentType::Invima->value;
+    }
+
+    public function isQuickGuide(): bool
+    {
+        return $this->type === DocumentType::QuickGuide->value;
+    }
+
     public function isProtected(): bool
     {
-        return $this->isTechSheet() || $this->isManual();
+        return in_array($this->type, DocumentType::protectedValues(), true);
     }
 
     public function shouldTrackDownloads(): bool

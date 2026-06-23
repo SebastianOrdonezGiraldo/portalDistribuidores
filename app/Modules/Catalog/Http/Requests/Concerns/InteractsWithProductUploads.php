@@ -34,6 +34,20 @@ trait InteractsWithProductUploads
                 'mimetypes:application/pdf,application/x-pdf',
                 'max:'.ProductUploadLimits::manualMaxSizeKb(),
             ],
+            'invima' => [
+                'nullable',
+                'file',
+                'mimes:pdf',
+                'mimetypes:application/pdf,application/x-pdf',
+                'max:'.ProductUploadLimits::invimaMaxSizeKb(),
+            ],
+            'quick_guide' => [
+                'nullable',
+                'file',
+                'mimes:pdf',
+                'mimetypes:application/pdf,application/x-pdf',
+                'max:'.ProductUploadLimits::quickGuideMaxSizeKb(),
+            ],
         ];
     }
 
@@ -59,6 +73,16 @@ trait InteractsWithProductUploads
             'manual.mimes' => 'El manual de usuario debe estar en formato PDF.',
             'manual.mimetypes' => 'El manual de usuario debe estar en formato PDF.',
             'manual.max' => 'El manual de usuario debe pesar como maximo '.ProductUploadLimits::manualMaxSizeLabel().'.',
+            'invima.file' => 'El INVIMA debe cargarse como un archivo adjunto.',
+            'invima.uploaded' => ProductUploadLimits::invimaUploadFailedMessage(),
+            'invima.mimes' => 'El INVIMA debe estar en formato PDF.',
+            'invima.mimetypes' => 'El INVIMA debe estar en formato PDF.',
+            'invima.max' => 'El INVIMA debe pesar como maximo '.ProductUploadLimits::invimaMaxSizeLabel().'.',
+            'quick_guide.file' => 'La guia rapida del producto debe cargarse como un archivo adjunto.',
+            'quick_guide.uploaded' => ProductUploadLimits::quickGuideUploadFailedMessage(),
+            'quick_guide.mimes' => 'La guia rapida del producto debe estar en formato PDF.',
+            'quick_guide.mimetypes' => 'La guia rapida del producto debe estar en formato PDF.',
+            'quick_guide.max' => 'La guia rapida del producto debe pesar como maximo '.ProductUploadLimits::quickGuideMaxSizeLabel().'.',
         ];
     }
 }
