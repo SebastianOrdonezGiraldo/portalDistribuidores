@@ -1,6 +1,10 @@
 name: CI
 
 on:
+  schedule:
+    # Runs daily without triggering deploy workflows because deploys require workflow_run.event == 'push'.
+    - cron: "0 12 * * *"
+  workflow_dispatch:
   pull_request:
     branches:
       - develop
