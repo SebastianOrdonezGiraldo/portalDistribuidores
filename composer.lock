@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ef189c427d432c447cee52a4bb307dcd",
+    "content-hash": "f69bfbc5cab7b530509ad3502a787bb1",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -4128,16 +4128,16 @@
         },
         {
             "name": "resend/resend-php",
-            "version": "v0.12.0",
+            "version": "v1.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/resend/resend-php.git",
-                "reference": "37fb79bb8160ce2de521bf37484ba59e89236521"
+                "reference": "87d29d98271a0ab1c09cdbee102daa2f9b3419db"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/resend/resend-php/zipball/37fb79bb8160ce2de521bf37484ba59e89236521",
-                "reference": "37fb79bb8160ce2de521bf37484ba59e89236521",
+                "url": "https://api.github.com/repos/resend/resend-php/zipball/87d29d98271a0ab1c09cdbee102daa2f9b3419db",
+                "reference": "87d29d98271a0ab1c09cdbee102daa2f9b3419db",
                 "shasum": ""
             },
             "require": {
@@ -4147,7 +4147,7 @@
             "require-dev": {
                 "friendsofphp/php-cs-fixer": "^3.13",
                 "mockery/mockery": "^1.6",
-                "pestphp/pest": "^2.0"
+                "pestphp/pest": "^1.0|^2.0|^3.0|^4.0"
             },
             "type": "library",
             "autoload": {
@@ -4179,9 +4179,9 @@
             ],
             "support": {
                 "issues": "https://github.com/resend/resend-php/issues",
-                "source": "https://github.com/resend/resend-php/tree/v0.12.0"
+                "source": "https://github.com/resend/resend-php/tree/v1.3.0"
             },
-            "time": "2024-03-04T03:16:28+00:00"
+            "time": "2026-04-11T10:48:32+00:00"
         },
         {
             "name": "sabberworm/php-css-parser",
