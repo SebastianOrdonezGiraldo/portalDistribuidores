@@ -48,6 +48,15 @@ class ProductDocumentPolicyTest extends TestCase
         $this->assertTrue($this->policy->download(null, $document));
     }
 
+    public function test_download_allows_guest_for_regulatory_protected_documents_of_active_product(): void
+    {
+        foreach ([DocumentType::Invima, DocumentType::QuickGuide] as $documentType) {
+            $document = $this->makeDocumentWithProduct($documentType->value, true);
+
+            $this->assertTrue($this->policy->download(null, $document));
+        }
+    }
+
     public function test_download_allows_admin_for_protected_documents_of_active_product(): void
     {
         $admin = User::factory()->admin()->make();

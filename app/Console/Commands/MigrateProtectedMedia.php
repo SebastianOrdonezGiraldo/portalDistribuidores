@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Modules\Catalog\Models\ProductDocument;
 use App\Modules\Orders\Models\Order;
+use App\Modules\Shared\Enums\DocumentType;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 use League\Flysystem\UnableToCheckExistence;
@@ -40,7 +41,7 @@ class MigrateProtectedMedia extends Command
 
         $this->components->info('Migrando documentos protegidos de producto...');
         ProductDocument::query()
-            ->whereIn('type', ['tech_sheet', 'manual'])
+            ->whereIn('type', DocumentType::protectedValues())
             ->whereNotNull('path')
             ->orderBy('id')
             ->chunkById(100, function ($documents) use (&$stats, $techSheetDisk, $keepPublic): void {

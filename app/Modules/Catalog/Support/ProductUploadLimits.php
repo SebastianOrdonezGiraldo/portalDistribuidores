@@ -24,6 +24,16 @@ class ProductUploadLimits
         return max(1, (int) config('product_uploads.manual.max_size_kb', 20480));
     }
 
+    public static function invimaMaxSizeKb(): int
+    {
+        return max(1, (int) config('product_uploads.invima.max_size_kb', 5120));
+    }
+
+    public static function quickGuideMaxSizeKb(): int
+    {
+        return max(1, (int) config('product_uploads.quick_guide.max_size_kb', 5120));
+    }
+
     public static function requestMaxKb(): int
     {
         return max(1, (int) config('product_uploads.request_max_kb', 61440));
@@ -42,6 +52,16 @@ class ProductUploadLimits
     public static function manualMaxSizeLabel(): string
     {
         return self::formatKilobytes(self::manualMaxSizeKb());
+    }
+
+    public static function invimaMaxSizeLabel(): string
+    {
+        return self::formatKilobytes(self::invimaMaxSizeKb());
+    }
+
+    public static function quickGuideMaxSizeLabel(): string
+    {
+        return self::formatKilobytes(self::quickGuideMaxSizeKb());
     }
 
     public static function requestMaxSizeLabel(): string
@@ -74,6 +94,18 @@ class ProductUploadLimits
             .'Reduce el archivo a maximo '.self::manualMaxSizeLabel().' e intentalo nuevamente.';
     }
 
+    public static function invimaUploadFailedMessage(): string
+    {
+        return 'El INVIMA no se pudo cargar porque supera el limite del servidor. '
+            .'Reduce el archivo a maximo '.self::invimaMaxSizeLabel().' e intentalo nuevamente.';
+    }
+
+    public static function quickGuideUploadFailedMessage(): string
+    {
+        return 'La guia rapida del producto no se pudo cargar porque supera el limite del servidor. '
+            .'Reduce el archivo a maximo '.self::quickGuideMaxSizeLabel().' e intentalo nuevamente.';
+    }
+
     /**
      * @return array{
      *     photo_max_files: int,
@@ -83,6 +115,10 @@ class ProductUploadLimits
      *     tech_sheet_max_size_label: string,
      *     manual_max_size_kb: int,
      *     manual_max_size_label: string,
+     *     invima_max_size_kb: int,
+     *     invima_max_size_label: string,
+     *     quick_guide_max_size_kb: int,
+     *     quick_guide_max_size_label: string,
      *     request_max_kb: int,
      *     request_max_size_label: string
      * }
@@ -97,6 +133,10 @@ class ProductUploadLimits
             'tech_sheet_max_size_label' => self::techSheetMaxSizeLabel(),
             'manual_max_size_kb' => self::manualMaxSizeKb(),
             'manual_max_size_label' => self::manualMaxSizeLabel(),
+            'invima_max_size_kb' => self::invimaMaxSizeKb(),
+            'invima_max_size_label' => self::invimaMaxSizeLabel(),
+            'quick_guide_max_size_kb' => self::quickGuideMaxSizeKb(),
+            'quick_guide_max_size_label' => self::quickGuideMaxSizeLabel(),
             'request_max_kb' => self::requestMaxKb(),
             'request_max_size_label' => self::requestMaxSizeLabel(),
         ];

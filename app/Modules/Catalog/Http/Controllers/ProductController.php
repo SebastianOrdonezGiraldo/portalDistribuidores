@@ -33,7 +33,7 @@ class ProductController extends Controller
         }
 
         $breadcrumbs = $breadcrumbsQuery->execute($product->category);
-        $techSheet = $product->documents->firstWhere('type', 'tech_sheet');
+        $techSheet = $product->documents->firstWhere('type', DocumentType::TechSheet->value);
         $remainingDownloads = null;
         $techSheetMonthlyLimit = $downloadService->monthlyLimit();
         $commercialSnapshot = $this->buildCommercialSnapshot($product);
@@ -129,11 +129,21 @@ class ProductController extends Controller
 
         $documents = $product->documents;
         $manual = $documents->firstWhere('type', DocumentType::Manual->value);
+        $invima = $documents->firstWhere('type', DocumentType::Invima->value);
+        $quickGuide = $documents->firstWhere('type', DocumentType::QuickGuide->value);
         $productVideo = $product->videos->first();
+        $primaryDocumentTypes = [
+            DocumentType::TechSheet->value,
+            DocumentType::Manual->value,
+            DocumentType::Invima->value,
+            DocumentType::QuickGuide->value,
+        ];
         $secondaryDocuments = $documents->filter(
-            fn ($doc) => ! in_array($doc->type, [DocumentType::TechSheet->value, DocumentType::Manual->value], true)
+            fn ($doc) => ! in_array($doc->type, $primaryDocumentTypes, true)
                 && (! $techSheet || $doc->id !== $techSheet->id)
                 && (! $manual || $doc->id !== $manual->id)
+                && (! $invima || $doc->id !== $invima->id)
+                && (! $quickGuide || $doc->id !== $quickGuide->id)
         );
 
         $documentTypeLabels = [
@@ -141,6 +151,8 @@ class ProductController extends Controller
             'catalog' => 'Catálogo',
             'certificate' => 'Certificado',
             'manual' => 'Manual de usuario',
+            'invima' => 'INVIMA',
+            'quick_guide' => 'Guía rápida del producto',
         ];
 
         $specRows = [
@@ -164,7 +176,7 @@ class ProductController extends Controller
             'variantAttributeName', 'minVariantPrice', 'maxVariantPrice',
             'price', 'isRangePrice', 'formattedPrice', 'vatLabel', 'stock', 'canBuy',
             'isLowStock', 'availability', 'stockLabel', 'documents',
-            'manual', 'productVideo', 'secondaryDocuments', 'documentTypeLabels',
+            'manual', 'invima', 'quickGuide', 'productVideo', 'secondaryDocuments', 'documentTypeLabels',
             'specRows', 'sections',
         );
     }

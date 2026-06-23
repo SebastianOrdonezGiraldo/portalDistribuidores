@@ -311,7 +311,9 @@
                 <p class="mt-2 text-sm text-slate-600">
                     Limites vigentes: hasta {{ $uploadLimits['photo_max_files'] }} fotos de {{ $uploadLimits['photo_max_size_label'] }} cada una,
                     1 ficha técnica PDF de {{ $uploadLimits['tech_sheet_max_size_label'] }},
-                    1 manual de usuario PDF de {{ $uploadLimits['manual_max_size_label'] }}
+                    1 manual de usuario PDF de {{ $uploadLimits['manual_max_size_label'] }},
+                    1 INVIMA PDF de {{ $uploadLimits['invima_max_size_label'] }},
+                    1 guía rápida PDF de {{ $uploadLimits['quick_guide_max_size_label'] }}
                     y una carga total maxima de {{ $uploadLimits['request_max_size_label'] }}.
                 </p>
                 <div class="mt-4 grid gap-4 sm:grid-cols-2">
@@ -359,6 +361,34 @@
                         />
                         <p class="form-help">Archivo PDF hasta {{ $uploadLimits['manual_max_size_label'] }}.</p>
                         <x-input-error :messages="$errors->get('manual')" />
+                    </div>
+                    <div>
+                        <label class="form-label" for="invima">INVIMA (PDF)</label>
+                        <x-ui.input
+                            id="invima"
+                            type="file"
+                            name="invima"
+                            accept="application/pdf"
+                            data-max-size-kb="{{ $uploadLimits['invima_max_size_kb'] }}"
+                            data-max-size-text="{{ $uploadLimits['invima_max_size_label'] }}"
+                            data-upload-label="INVIMA"
+                        />
+                        <p class="form-help">Archivo PDF hasta {{ $uploadLimits['invima_max_size_label'] }}.</p>
+                        <x-input-error :messages="$errors->get('invima')" />
+                    </div>
+                    <div>
+                        <label class="form-label" for="quick_guide">Guía rápida del producto (PDF)</label>
+                        <x-ui.input
+                            id="quick_guide"
+                            type="file"
+                            name="quick_guide"
+                            accept="application/pdf"
+                            data-max-size-kb="{{ $uploadLimits['quick_guide_max_size_kb'] }}"
+                            data-max-size-text="{{ $uploadLimits['quick_guide_max_size_label'] }}"
+                            data-upload-label="guía rápida del producto"
+                        />
+                        <p class="form-help">Archivo PDF hasta {{ $uploadLimits['quick_guide_max_size_label'] }}.</p>
+                        <x-input-error :messages="$errors->get('quick_guide')" />
                     </div>
                 </div>
 
