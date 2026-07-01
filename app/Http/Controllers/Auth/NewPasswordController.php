@@ -17,7 +17,17 @@ use Illuminate\View\View;
 class NewPasswordController extends Controller
 {
     /**
-     * Display the password reset view.
+     * Mostrar formulario para nueva contrasena.
+     *
+     * @group Autenticacion
+     *
+     * @unauthenticated
+     *
+     * @urlParam token string required Token de recuperacion.
+     *
+     * @queryParam email string required Correo del usuario. Example: usuario@example.com
+     *
+     * @response 200 {"content":"Vista HTML de nueva contrasena"}
      */
     public function create(Request $request): View
     {
@@ -25,7 +35,19 @@ class NewPasswordController extends Controller
     }
 
     /**
-     * Handle an incoming new password request.
+     * Guardar nueva contrasena.
+     *
+     * @group Autenticacion
+     *
+     * @unauthenticated
+     *
+     * @bodyParam token string required Token de recuperacion.
+     * @bodyParam email string required Correo del usuario. Example: usuario@example.com
+     * @bodyParam password string required Nueva contrasena. Example: secret123
+     * @bodyParam password_confirmation string required Confirmacion. Example: secret123
+     *
+     * @response 302 {"redirect":"login"}
+     * @response 422 {"message":"Token o datos invalidos"}
      *
      * @throws ValidationException
      */

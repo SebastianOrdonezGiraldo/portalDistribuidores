@@ -11,6 +11,16 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProductImportController extends Controller
 {
+    /**
+     * Descargar plantilla de importacion de productos.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @response 200 {"content":"Descarga CSV plantilla"}
+     * @response 403 {"message":"No autorizado"}
+     */
     public function downloadTemplate(): StreamedResponse
     {
         $this->authorize('create', Product::class);
@@ -30,6 +40,20 @@ class ProductImportController extends Controller
         ]);
     }
 
+    /**
+     * Importar productos desde CSV.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @bodyParam file file required Archivo CSV.
+     * @bodyParam default_action string Accion por defecto: upsert, create, update. Example: upsert
+     *
+     * @response 302 {"redirect":"admin.products.index"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Archivo o datos invalidos"}
+     */
     public function import(
         ImportProductsRequest $request,
         ProductBulkImportService $bulkImportService,

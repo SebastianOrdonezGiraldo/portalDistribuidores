@@ -14,6 +14,26 @@ use Illuminate\View\View;
 
 class CatalogController extends Controller
 {
+    /**
+     * Consultar catalogo publico.
+     *
+     * Devuelve HTML completo o JSON parcial cuando la solicitud es AJAX.
+     *
+     * @group Catalogo publico
+     *
+     * @unauthenticated
+     *
+     * @queryParam term string Texto de busqueda. Example: guantes
+     * @queryParam category_id integer ID de categoria. Example: 3
+     * @queryParam include_children boolean Incluye subcategorias. Example: true
+     * @queryParam sort string Orden: relevance, newest, price_asc, price_desc. Example: relevance
+     * @queryParam page integer Pagina. Example: 1
+     * @queryParam per_page integer Resultados por pagina, maximo 50. Example: 20
+     *
+     * @response 200 {"content":"Vista HTML del catalogo o payload JSON AJAX"}
+     * @response 422 {"message":"Filtros invalidos"}
+     * @response 429 {"message":"Has realizado demasiados intentos."}
+     */
     public function __invoke(
         ProductSearchRequest $request,
         SearchEngineInterface $searchEngine,

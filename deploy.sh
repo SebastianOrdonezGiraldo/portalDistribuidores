@@ -500,6 +500,12 @@ log_step "Migrando media protegida fuera del disco public..."
 run_as_app "\"$PHP_BIN\" artisan protected-media:migrate --no-interaction"
 log_ok "Media protegida migrada"
 
+if [[ "$(read_env_value SCRIBE_ENABLED)" == "true" ]]; then
+    log_step "Generando documentacion Scribe..."
+    run_as_app "\"$PHP_BIN\" artisan scribe:generate --no-interaction"
+    log_ok "Documentacion Scribe generada"
+fi
+
 log_step "Regenerando caches de Laravel..."
 run_as_app "\"$PHP_BIN\" artisan config:cache"
 run_as_app "\"$PHP_BIN\" artisan route:cache"

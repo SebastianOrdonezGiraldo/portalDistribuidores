@@ -40,7 +40,13 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->reportable(function (Throwable $e): void {
-            app()->make(ScoutApmAgent::class)->recordThrowable($e);
+            $scoutMonitorEnabled = filter_var(config('scout_apm.monitor', false), FILTER_VALIDATE_BOOL);
+
+            if (! $scoutMonitorEnabled || ! app()->bound(ScoutApmAgent::class)) {
+                return;
+            }
+
+            app(ScoutApmAgent::class)->recordThrowable($e);
         });
 
         // Handle 404 Not Found errors with custom view

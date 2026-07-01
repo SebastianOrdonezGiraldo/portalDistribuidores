@@ -25,6 +25,22 @@ class CategoryAdminController extends Controller
         private readonly CategoryDescendantsQuery $categoryDescendantsQuery,
     ) {}
 
+    /**
+     * Listar categorias.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @queryParam q string Busqueda por nombre. Example: cardiologia
+     * @queryParam status string active o inactive. Example: active
+     * @queryParam with_products string yes o no. Example: yes
+     * @queryParam sort string tree, name_asc, name_desc, updated_desc, updated_asc. Example: tree
+     *
+     * @response 200 {"content":"Vista HTML de categorias"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Filtros invalidos"}
+     */
     public function index(Request $request, CategoryTreeQuery $treeQuery): View
     {
         $this->authorize('viewAny', Category::class);
@@ -88,6 +104,24 @@ class CategoryAdminController extends Controller
         ]);
     }
 
+    /**
+     * Crear categoria.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @bodyParam parent_id integer Categoria padre. Example: 1
+     * @bodyParam name string required Nombre. Example: Insumos
+     * @bodyParam slug string Slug opcional. Example: insumos
+     * @bodyParam is_active boolean Estado activo. Example: true
+     * @bodyParam sort_order integer Orden manual. Example: 10
+     * @bodyParam synonyms string Sinonimos separados por coma. Example: suministros, consumibles
+     *
+     * @response 302 {"redirect":"admin.categories.index|admin.categories.edit|admin.categories.create"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Datos invalidos"}
+     */
     public function store(StoreCategoryRequest $request, CreateCategoryAction $action): RedirectResponse
     {
         $this->authorize('create', Category::class);
@@ -108,6 +142,27 @@ class CategoryAdminController extends Controller
         ]);
     }
 
+    /**
+     * Actualizar categoria.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam category integer required ID de categoria. Example: 3
+     *
+     * @bodyParam parent_id integer Categoria padre. Example: 1
+     * @bodyParam name string required Nombre. Example: Insumos
+     * @bodyParam slug string Slug opcional. Example: insumos
+     * @bodyParam is_active boolean Estado activo. Example: true
+     * @bodyParam sort_order integer Orden manual. Example: 10
+     * @bodyParam synonyms string Sinonimos separados por coma. Example: suministros, consumibles
+     *
+     * @response 302 {"redirect":"admin.categories.index|admin.categories.edit|admin.categories.create"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 404 {"message":"Categoria no encontrada"}
+     * @response 422 {"message":"Datos invalidos"}
+     */
     public function update(UpdateCategoryRequest $request, Category $category, UpdateCategoryAction $action): RedirectResponse
     {
         $this->authorize('update', $category);
@@ -127,6 +182,20 @@ class CategoryAdminController extends Controller
         return $this->redirectAfterSave($request, $category, false);
     }
 
+    /**
+     * Eliminar categoria.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam category integer required ID de categoria. Example: 3
+     *
+     * @response 302 {"redirect":"admin.categories.index|back"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 404 {"message":"Categoria no encontrada"}
+     * @response 422 {"message":"No se puede eliminar por relaciones existentes"}
+     */
     public function destroy(Category $category): RedirectResponse
     {
         $this->authorize('delete', $category);
@@ -165,6 +234,21 @@ class CategoryAdminController extends Controller
         return redirect()->route('admin.categories.index')->with('status', 'Categoría eliminada.');
     }
 
+    /**
+     * Cambiar estado de categoria.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam category integer required ID de categoria. Example: 3
+     *
+     * @bodyParam is_active boolean required Nuevo estado. Example: false
+     *
+     * @response 302 {"redirect":"back"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Datos invalidos"}
+     */
     public function setStatus(Request $request, Category $category): RedirectResponse
     {
         $this->authorize('update', $category);

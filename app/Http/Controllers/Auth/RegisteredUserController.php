@@ -22,7 +22,16 @@ use Illuminate\View\View;
 class RegisteredUserController extends Controller
 {
     /**
-     * Display the registration view.
+     * Mostrar formulario de registro publico.
+     *
+     * Solo existe cuando `AUTH_ALLOW_PUBLIC_REGISTRATION=true`.
+     *
+     * @group Autenticacion
+     *
+     * @unauthenticated
+     *
+     * @response 200 {"content":"Vista HTML de registro"}
+     * @response 404 {"message":"Registro publico deshabilitado"}
      */
     public function create(): View
     {
@@ -32,7 +41,14 @@ class RegisteredUserController extends Controller
     }
 
     /**
-     * Display the registration submitted view.
+     * Mostrar estado de registro pendiente.
+     *
+     * @group Autenticacion
+     *
+     * @unauthenticated
+     *
+     * @response 200 {"content":"Vista HTML de registro pendiente"}
+     * @response 404 {"message":"Registro publico deshabilitado"}
      */
     public function pending(): View
     {
@@ -42,7 +58,28 @@ class RegisteredUserController extends Controller
     }
 
     /**
-     * Handle an incoming registration request.
+     * Registrar distribuidor.
+     *
+     * Crea distribuidor pendiente, usuario asociado y envia codigo de verificacion de correo.
+     *
+     * @group Autenticacion
+     *
+     * @unauthenticated
+     *
+     * @bodyParam name string required Nombre del contacto. Example: Ana Perez
+     * @bodyParam email string required Correo unico. Example: ana@example.com
+     * @bodyParam password string required Contrasena con confirmacion. Example: secret123
+     * @bodyParam password_confirmation string required Confirmacion de contrasena. Example: secret123
+     * @bodyParam company_name string required Nombre de la empresa. Example: Distribuciones Medicas SAS
+     * @bodyParam nit string required NIT solo numerico y unico. Example: 900123456
+     * @bodyParam city string required Ciudad solo letras. Example: Bogota
+     * @bodyParam address string Direccion. Example: Calle 100 # 10-20
+     * @bodyParam phone string required Telefono solo numerico. Example: 3001234567
+     *
+     * @response 302 {"redirect":"register.verify-email"}
+     * @response 404 {"message":"Registro publico deshabilitado"}
+     * @response 422 {"message":"Datos invalidos"}
+     * @response 429 {"message":"Has realizado demasiados intentos."}
      *
      * @throws ValidationException
      */

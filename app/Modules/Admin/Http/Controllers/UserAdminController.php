@@ -16,6 +16,24 @@ use Illuminate\View\View;
 
 class UserAdminController extends Controller
 {
+    /**
+     * Listar usuarios.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @queryParam q string Busqueda por nombre o email. Example: admin
+     * @queryParam role string Rol. Example: admin
+     * @queryParam distributor_link string linked o unlinked. Example: linked
+     * @queryParam distributor_id integer ID de distribuidor. Example: 7
+     * @queryParam sort string Orden. Example: newest
+     * @queryParam per_page integer Tamano de pagina. Example: 15
+     *
+     * @response 200 {"content":"Vista HTML de usuarios"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Filtros invalidos"}
+     */
     public function index(Request $request): View
     {
         $this->authorize('viewAny', User::class);
@@ -112,6 +130,23 @@ class UserAdminController extends Controller
         ]);
     }
 
+    /**
+     * Crear usuario.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @bodyParam name string required Nombre. Example: Admin Import
+     * @bodyParam email string required Correo unico. Example: admin@example.com
+     * @bodyParam password string required Contrasena minima de 8 caracteres. Example: secret123
+     * @bodyParam role string required Rol. Example: distributor
+     * @bodyParam distributor_id integer ID requerido si rol es distributor. Example: 7
+     *
+     * @response 302 {"redirect":"admin.users.index|admin.users.edit|admin.users.create"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Datos invalidos"}
+     */
     public function store(StoreUserRequest $request): RedirectResponse
     {
         $this->authorize('create', User::class);
@@ -143,6 +178,27 @@ class UserAdminController extends Controller
         ]);
     }
 
+    /**
+     * Actualizar usuario.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam user integer required ID de usuario. Example: 12
+     *
+     * @bodyParam name string required Nombre. Example: Admin Import
+     * @bodyParam email string required Correo unico. Example: admin@example.com
+     * @bodyParam password string Nueva contrasena opcional. Example: secret123
+     * @bodyParam role string required Rol. Example: distributor
+     * @bodyParam distributor_id integer ID requerido si rol es distributor. Example: 7
+     * @bodyParam distributor_status string Estado del distribuidor asociado. Example: active
+     *
+     * @response 302 {"redirect":"admin.users.index|admin.users.edit|admin.users.create"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 404 {"message":"Usuario no encontrado"}
+     * @response 422 {"message":"Datos invalidos"}
+     */
     public function update(UpdateUserRequest $request, User $user): RedirectResponse
     {
         $this->authorize('update', $user);
@@ -171,6 +227,20 @@ class UserAdminController extends Controller
         return $this->redirectAfterSave($request, $user, false);
     }
 
+    /**
+     * Eliminar usuario.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam user integer required ID de usuario. Example: 12
+     *
+     * @response 302 {"redirect":"admin.users.index|back"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 404 {"message":"Usuario no encontrado"}
+     * @response 422 {"message":"No puedes eliminar tu propio usuario administrador."}
+     */
     public function destroy(User $user): RedirectResponse
     {
         $this->authorize('delete', $user);

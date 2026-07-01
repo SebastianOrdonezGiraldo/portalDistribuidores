@@ -906,6 +906,7 @@ systemctl restart php8.3-fpm
 - **Configuraciones de Nginx:** [`deploy/nginx.production.conf`](./deploy/nginx.production.conf) y [`deploy/nginx.staging.conf`](./deploy/nginx.staging.conf) — plantillas separadas por ambiente.
 - **Workers systemd:** [`deploy/laravel-queue-prod.service`](./deploy/laravel-queue-prod.service) y [`deploy/laravel-queue-staging.service`](./deploy/laravel-queue-staging.service) — unit files separados por ambiente.
 - **Worker Supervisor:** [`deploy/laravel-queue-supervisor.conf`](./deploy/laravel-queue-supervisor.conf) — configuración alternativa con Supervisor.
+- **Documentacion HTTP/OpenAPI:** [`docs/documentacion-api.md`](./docs/documentacion-api.md) — explica como generar y proteger `/docs`, `/docs.openapi` y `/docs.postman` con Scribe.
 - **Colección Postman:** [`postman/PortalDistribuidores.postman_collection.json`](./postman/PortalDistribuidores.postman_collection.json) — rutas principales del proyecto documentadas.
 
 ---

@@ -12,6 +12,16 @@ class DashboardController extends Controller
         private readonly DashboardDataService $dashboardData,
     ) {}
 
+    /**
+     * Ver dashboard administrativo.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @response 200 {"content":"Vista HTML con KPIs administrativos"}
+     * @response 403 {"message":"No autorizado"}
+     */
     public function __invoke(): View
     {
         return view('admin.dashboard', $this->dashboardData->getData());

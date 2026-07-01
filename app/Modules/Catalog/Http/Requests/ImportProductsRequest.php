@@ -38,4 +38,18 @@ class ImportProductsRequest extends FormRequest
             ],
         ];
     }
+
+    public function bodyParameters(): array
+    {
+        return [
+            'file' => [
+                'description' => 'Archivo CSV o TXT con los productos a importar.',
+                'example' => null,
+            ],
+            'default_action' => [
+                'description' => 'Accion por defecto para filas sin accion explicita: upsert, create o update.',
+                'example' => 'upsert',
+            ],
+        ];
+    }
 }

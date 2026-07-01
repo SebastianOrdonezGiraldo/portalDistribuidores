@@ -24,6 +24,24 @@ class DistributorAdminController extends Controller
 {
     private const RECENT_ORDERS_LIMIT = 5;
 
+    /**
+     * Listar distribuidores.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @queryParam q string Busqueda por nombre. Example: Distribuciones
+     * @queryParam status string Estado exacto. Example: active
+     * @queryParam status_group string Grupo de estado. Example: non_active
+     * @queryParam relation string with_users, without_users, with_orders, without_orders. Example: with_users
+     * @queryParam sort string Orden. Example: newest
+     * @queryParam per_page integer Tamano de pagina. Example: 15
+     *
+     * @response 200 {"content":"Vista HTML de distribuidores"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Filtros invalidos"}
+     */
     public function index(Request $request): View
     {
         $this->authorize('viewAny', Distributor::class);
@@ -176,6 +194,20 @@ class DistributorAdminController extends Controller
         ]);
     }
 
+    /**
+     * Crear distribuidor.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @bodyParam name string required Nombre. Example: Distribuciones Medicas SAS
+     * @bodyParam status string required Estado. Example: active
+     *
+     * @response 302 {"redirect":"admin.distributors.index|admin.distributors.edit|admin.distributors.create"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Datos invalidos"}
+     */
     public function store(StoreDistributorRequest $request): RedirectResponse
     {
         $this->authorize('create', Distributor::class);
@@ -194,6 +226,23 @@ class DistributorAdminController extends Controller
         ]);
     }
 
+    /**
+     * Actualizar distribuidor.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam distributor integer required ID de distribuidor. Example: 7
+     *
+     * @bodyParam name string required Nombre. Example: Distribuciones Medicas SAS
+     * @bodyParam status string required Estado. Example: active
+     *
+     * @response 302 {"redirect":"admin.distributors.index|admin.distributors.edit|admin.distributors.create"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 404 {"message":"Distribuidor no encontrado"}
+     * @response 422 {"message":"Datos invalidos"}
+     */
     public function update(UpdateDistributorRequest $request, Distributor $distributor): RedirectResponse
     {
         $this->authorize('update', $distributor);
@@ -202,6 +251,20 @@ class DistributorAdminController extends Controller
         return $this->redirectAfterSave($request, $distributor, false);
     }
 
+    /**
+     * Eliminar distribuidor.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam distributor integer required ID de distribuidor. Example: 7
+     *
+     * @response 302 {"redirect":"admin.distributors.index|back"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 404 {"message":"Distribuidor no encontrado"}
+     * @response 422 {"message":"No se puede eliminar por usuario o pedidos asociados"}
+     */
     public function destroy(Distributor $distributor): RedirectResponse
     {
         $this->authorize('delete', $distributor);
@@ -223,6 +286,23 @@ class DistributorAdminController extends Controller
         return redirect()->route('admin.distributors.index')->with('status', 'Distribuidor eliminado.');
     }
 
+    /**
+     * Cambiar estado de distribuidor.
+     *
+     * Al activar, intenta notificar al usuario asociado.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam distributor integer required ID de distribuidor. Example: 7
+     *
+     * @bodyParam status string required Nuevo estado. Example: active
+     *
+     * @response 302 {"redirect":"back"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Estado invalido"}
+     */
     public function setStatus(Request $request, Distributor $distributor): RedirectResponse
     {
         $this->authorize('update', $distributor);

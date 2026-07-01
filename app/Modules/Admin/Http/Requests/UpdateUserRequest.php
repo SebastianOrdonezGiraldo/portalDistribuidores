@@ -29,4 +29,34 @@ class UpdateUserRequest extends FormRequest
             'distributor_status' => ['nullable', Rule::enum(DistributorStatus::class)],
         ];
     }
+
+    public function bodyParameters(): array
+    {
+        return [
+            'name' => [
+                'description' => 'Nombre del usuario.',
+                'example' => 'Ana Gomez',
+            ],
+            'email' => [
+                'description' => 'Correo unico para iniciar sesion.',
+                'example' => 'ana@example.com',
+            ],
+            'password' => [
+                'description' => 'Nueva contrasena. Se omite para conservar la actual.',
+                'example' => 'secret-password',
+            ],
+            'role' => [
+                'description' => 'Rol asignado al usuario.',
+                'example' => UserRole::Distributor->value,
+            ],
+            'distributor_id' => [
+                'description' => 'ID del distribuidor asociado cuando el rol es distribuidor.',
+                'example' => 7,
+            ],
+            'distributor_status' => [
+                'description' => 'Estado del distribuidor asociado.',
+                'example' => DistributorStatus::Active->value,
+            ],
+        ];
+    }
 }

@@ -14,7 +14,14 @@ use Illuminate\View\View;
 class EmailVerificationCodeController extends Controller
 {
     /**
-     * Show the code entry form.
+     * Mostrar formulario de codigo de verificacion.
+     *
+     * @group Autenticacion
+     *
+     * @unauthenticated
+     *
+     * @response 200 {"content":"Vista HTML para ingresar codigo"}
+     * @response 302 {"redirect":"register"}
      */
     public function show(Request $request): RedirectResponse|View
     {
@@ -43,7 +50,17 @@ class EmailVerificationCodeController extends Controller
     }
 
     /**
-     * Validate the submitted code and mark the email as verified.
+     * Verificar correo con codigo.
+     *
+     * @group Autenticacion
+     *
+     * @unauthenticated
+     *
+     * @bodyParam code string required Codigo numerico de 6 digitos. Example: 123456
+     *
+     * @response 302 {"redirect":"register.pending"}
+     * @response 422 {"message":"El codigo es incorrecto o ha expirado."}
+     * @response 429 {"message":"Has realizado demasiados intentos."}
      */
     public function store(Request $request): RedirectResponse
     {
@@ -85,7 +102,14 @@ class EmailVerificationCodeController extends Controller
     }
 
     /**
-     * Resend a new verification code.
+     * Reenviar codigo de verificacion.
+     *
+     * @group Autenticacion
+     *
+     * @unauthenticated
+     *
+     * @response 302 {"redirect":"back"}
+     * @response 429 {"message":"Has realizado demasiados intentos."}
      */
     public function resend(Request $request): RedirectResponse
     {

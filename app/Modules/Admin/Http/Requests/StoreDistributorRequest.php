@@ -23,4 +23,18 @@ class StoreDistributorRequest extends FormRequest
             ))],
         ];
     }
+
+    public function bodyParameters(): array
+    {
+        return [
+            'name' => [
+                'description' => 'Nombre de la empresa distribuidora.',
+                'example' => 'Distribuciones Demo SAS',
+            ],
+            'status' => [
+                'description' => 'Estado operativo del distribuidor.',
+                'example' => DistributorStatus::Active->value,
+            ],
+        ];
+    }
 }

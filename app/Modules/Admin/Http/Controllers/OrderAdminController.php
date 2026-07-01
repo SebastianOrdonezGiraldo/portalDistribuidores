@@ -27,6 +27,25 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class OrderAdminController extends Controller
 {
+    /**
+     * Listar pedidos en admin.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @queryParam q string Busqueda por OC, empresa, contacto o correo. Example: OC-2026
+     * @queryParam status string Estado del pedido. Example: submitted
+     * @queryParam distributor_id integer ID de distribuidor. Example: 7
+     * @queryParam date_from date Fecha inicial. Example: 2026-01-01
+     * @queryParam date_to date Fecha final. Example: 2026-01-31
+     * @queryParam sort string Orden. Example: newest
+     * @queryParam per_page integer Tamano de pagina. Example: 20
+     *
+     * @response 200 {"content":"Vista HTML de pedidos admin"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Filtros invalidos"}
+     */
     public function index(Request $request): View
     {
         $this->authorize('viewAny', Order::class);
@@ -117,6 +136,19 @@ class OrderAdminController extends Controller
         ]);
     }
 
+    /**
+     * Ver pedido en admin.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam order integer required ID de pedido. Example: 100
+     *
+     * @response 200 {"content":"Vista HTML del pedido admin"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 404 {"message":"Pedido no encontrado"}
+     */
     public function show(Order $order): View
     {
         $this->authorize('view', $order);
@@ -265,6 +297,30 @@ class OrderAdminController extends Controller
         ]);
     }
 
+    /**
+     * Actualizar pedido desde admin.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam order integer required ID de pedido. Example: 100
+     *
+     * @bodyParam contact_name string required Contacto. Example: Ana Perez
+     * @bodyParam contact_email string required Correo. Example: ana@example.com
+     * @bodyParam phone string required Telefono. Example: 3001234567
+     * @bodyParam company_name string required Empresa. Example: Distribuciones Medicas SAS
+     * @bodyParam company_nit string required NIT. Example: 900123456
+     * @bodyParam company_address string required Direccion. Example: Calle 100 # 10-20
+     * @bodyParam city string required Ciudad. Example: Bogota
+     * @bodyParam department string required Departamento. Example: Cundinamarca
+     * @bodyParam items array required Items existentes.
+     * @bodyParam new_items array Items nuevos desde catalogo.
+     *
+     * @response 302 {"redirect":"admin.orders.show"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Datos invalidos"}
+     */
     public function update(
         UpdateAdminOrderRequest $request,
         Order $order,
@@ -337,6 +393,22 @@ class OrderAdminController extends Controller
             ->all();
     }
 
+    /**
+     * Cambiar estado de pedido.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam order integer required ID de pedido. Example: 100
+     *
+     * @bodyParam status string required Estado destino. Example: sold
+     * @bodyParam note string Nota de transicion. Example: Validado con compras
+     *
+     * @response 302 {"redirect":"back"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Estado invalido o transicion no permitida"}
+     */
     public function updateStatus(
         Request $request,
         Order $order,
@@ -370,6 +442,19 @@ class OrderAdminController extends Controller
         return back()->with('status', "Pedido {$order->oc_number} actualizado a {$targetStatus->label()}.");
     }
 
+    /**
+     * Descargar PDF de pedido desde admin.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam order integer required ID de pedido. Example: 100
+     *
+     * @response 200 {"content":"Descarga binaria PDF"}
+     * @response 302 {"redirect":"back","message":"PDF en generacion"}
+     * @response 403 {"message":"No autorizado"}
+     */
     public function downloadPdf(Order $order, OrderPdfGenerator $pdfGenerator): StreamedResponse|RedirectResponse
     {
         $this->authorize('view', $order);
@@ -391,6 +476,20 @@ class OrderAdminController extends Controller
         return $disk->download($path, $order->oc_number.'.pdf');
     }
 
+    /**
+     * Eliminar pedido.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam order integer required ID de pedido. Example: 100
+     *
+     * @response 302 {"redirect":"admin.orders.index|back"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 404 {"message":"Pedido no encontrado"}
+     * @response 422 {"message":"No se pudo eliminar por relaciones existentes"}
+     */
     public function destroy(Order $order): RedirectResponse
     {
         $this->authorize('delete', $order);

@@ -16,6 +16,23 @@ use Throwable;
 
 class TechSheetDownloadController extends Controller
 {
+    /**
+     * Descargar documento protegido de producto.
+     *
+     * Valida el tipo de documento segun la ruta, aplica policy y controla limites mensuales cuando corresponde.
+     *
+     * @group Documentos
+     *
+     * @authenticated
+     *
+     * @urlParam productDocument integer required ID del documento. Example: 25
+     *
+     * @response 200 {"content":"Descarga binaria del documento"}
+     * @response 302 {"redirect":"back","message":"Documento no disponible o limite alcanzado"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 404 {"message":"Documento no encontrado o tipo incorrecto"}
+     * @response 429 {"message":"Has realizado demasiados intentos."}
+     */
     public function __invoke(
         Request $request,
         ProductDocument $productDocument,

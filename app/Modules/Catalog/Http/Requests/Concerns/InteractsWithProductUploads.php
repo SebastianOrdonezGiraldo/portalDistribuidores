@@ -85,4 +85,34 @@ trait InteractsWithProductUploads
             'quick_guide.max' => 'La guia rapida del producto debe pesar como maximo '.ProductUploadLimits::quickGuideMaxSizeLabel().'.',
         ];
     }
+
+    protected function productUploadBodyParameters(): array
+    {
+        return [
+            'photos' => [
+                'description' => 'Imagenes del producto. Maximo '.ProductUploadLimits::photoMaxFiles().' archivos.',
+                'example' => null,
+            ],
+            'photos.*' => [
+                'description' => 'Archivo de imagen JPG, PNG, GIF, WEBP o AVIF.',
+                'example' => null,
+            ],
+            'tech_sheet' => [
+                'description' => 'Ficha tecnica en PDF.',
+                'example' => null,
+            ],
+            'manual' => [
+                'description' => 'Manual de usuario en PDF.',
+                'example' => null,
+            ],
+            'invima' => [
+                'description' => 'Documento INVIMA en PDF.',
+                'example' => null,
+            ],
+            'quick_guide' => [
+                'description' => 'Guia rapida en PDF.',
+                'example' => null,
+            ],
+        ];
+    }
 }

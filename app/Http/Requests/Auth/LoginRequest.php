@@ -36,6 +36,24 @@ class LoginRequest extends FormRequest
         ];
     }
 
+    public function bodyParameters(): array
+    {
+        return [
+            'email' => [
+                'description' => 'Correo registrado del usuario.',
+                'example' => 'admin@example.com',
+            ],
+            'password' => [
+                'description' => 'Contrasena del usuario.',
+                'example' => 'secret-password',
+            ],
+            'remember' => [
+                'description' => 'Mantiene la sesion activa mediante cookie persistente.',
+                'example' => true,
+            ],
+        ];
+    }
+
     /**
      * Attempt to authenticate the request's credentials.
      *
