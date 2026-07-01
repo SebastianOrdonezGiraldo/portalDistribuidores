@@ -12,7 +12,13 @@ use Illuminate\View\View;
 class AuthenticatedSessionController extends Controller
 {
     /**
-     * Display the login view.
+     * Mostrar formulario de login.
+     *
+     * @group Autenticacion
+     *
+     * @unauthenticated
+     *
+     * @response 200 {"content":"Vista HTML del login"}
      */
     public function create(): View
     {
@@ -20,7 +26,20 @@ class AuthenticatedSessionController extends Controller
     }
 
     /**
-     * Handle an incoming authentication request.
+     * Iniciar sesion.
+     *
+     * Autentica con sesion web y redirige al dashboard segun el rol.
+     *
+     * @group Autenticacion
+     *
+     * @unauthenticated
+     *
+     * @bodyParam email string required Correo del usuario. Example: admin@importcorporal.test
+     * @bodyParam password string required Contrasena del usuario. Example: secret
+     *
+     * @response 302 {"redirect":"dashboard"}
+     * @response 422 {"message":"Credenciales invalidas o campos requeridos"}
+     * @response 429 {"message":"Has realizado demasiados intentos."}
      */
     public function store(LoginRequest $request): RedirectResponse
     {
@@ -32,7 +51,13 @@ class AuthenticatedSessionController extends Controller
     }
 
     /**
-     * Destroy an authenticated session.
+     * Cerrar sesion.
+     *
+     * @group Autenticacion
+     *
+     * @authenticated
+     *
+     * @response 302 {"redirect":"/"}
      */
     public function destroy(Request $request): RedirectResponse
     {

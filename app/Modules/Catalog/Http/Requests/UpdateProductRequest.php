@@ -81,6 +81,80 @@ class UpdateProductRequest extends FormRequest
         ], $this->productUploadRules());
     }
 
+    public function bodyParameters(): array
+    {
+        return array_merge([
+            'name' => [
+                'description' => 'Nombre visible del producto.',
+                'example' => 'Guante nitrilo azul',
+            ],
+            'brand' => [
+                'description' => 'Marca comercial del producto.',
+                'example' => 'DemoMed',
+            ],
+            'sku' => [
+                'description' => 'SKU unico del producto.',
+                'example' => 'GUA-NIT-AZ',
+            ],
+            'description' => [
+                'description' => 'Descripcion comercial o tecnica del producto.',
+                'example' => 'Guante de nitrilo para uso medico.',
+            ],
+            'category_id' => [
+                'description' => 'ID de la categoria asociada.',
+                'example' => 3,
+            ],
+            'has_variants' => [
+                'description' => 'Indica si el producto se cotiza mediante variantes.',
+                'example' => true,
+            ],
+            'variant_attribute_id' => [
+                'description' => 'ID del atributo usado para las variantes existentes.',
+                'example' => 2,
+            ],
+            'new_variant_attribute_name' => [
+                'description' => 'Nombre de un nuevo atributo de variante cuando no se usa uno existente.',
+                'example' => 'Talla',
+            ],
+            'variants' => [
+                'description' => 'Lista completa de variantes del producto.',
+                'example' => [['value' => 'M', 'price' => 12000, 'stock' => 50]],
+            ],
+            'variants.*.value' => [
+                'description' => 'Valor visible de la variante.',
+                'example' => 'M',
+            ],
+            'variants.*.price' => [
+                'description' => 'Precio de la variante.',
+                'example' => 12000,
+            ],
+            'variants.*.stock' => [
+                'description' => 'Stock disponible de la variante.',
+                'example' => 50,
+            ],
+            'price' => [
+                'description' => 'Precio del producto cuando no maneja variantes.',
+                'example' => 12000,
+            ],
+            'stock' => [
+                'description' => 'Stock del producto cuando no maneja variantes.',
+                'example' => 50,
+            ],
+            'is_active' => [
+                'description' => 'Indica si el producto queda visible en catalogo.',
+                'example' => true,
+            ],
+            'is_vat_excluded' => [
+                'description' => 'Indica si el producto esta excluido de IVA.',
+                'example' => false,
+            ],
+            'video_url' => [
+                'description' => 'URL opcional de video del producto.',
+                'example' => 'https://example.com/video',
+            ],
+        ], $this->productUploadBodyParameters());
+    }
+
     public function messages(): array
     {
         return $this->productUploadMessages();

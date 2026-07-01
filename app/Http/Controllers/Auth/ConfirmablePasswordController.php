@@ -12,7 +12,13 @@ use Illuminate\View\View;
 class ConfirmablePasswordController extends Controller
 {
     /**
-     * Show the confirm password view.
+     * Mostrar formulario de confirmacion de contrasena.
+     *
+     * @group Autenticacion
+     *
+     * @authenticated
+     *
+     * @response 200 {"content":"Vista HTML de confirmacion de contrasena"}
      */
     public function show(): View
     {
@@ -20,7 +26,20 @@ class ConfirmablePasswordController extends Controller
     }
 
     /**
-     * Confirm the user's password.
+     * Confirmar contrasena antes de accion sensible.
+     *
+     * Valida la contrasena actual del usuario autenticado y marca la sesion como confirmada.
+     *
+     * @group Autenticacion
+     *
+     * @authenticated
+     *
+     * @bodyParam password string required Contrasena actual del usuario. Example: secret
+     *
+     * @response 302 {"redirect":"dashboard"}
+     * @response 422 {"message":"La contrasena proporcionada es incorrecta."}
+     *
+     * @throws ValidationException
      */
     public function store(Request $request): RedirectResponse
     {

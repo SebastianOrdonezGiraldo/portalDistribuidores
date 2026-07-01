@@ -10,7 +10,16 @@ use Illuminate\View\View;
 class EmailVerificationPromptController extends Controller
 {
     /**
-     * Display the email verification prompt.
+     * Mostrar aviso de verificacion de correo.
+     *
+     * Si el correo ya esta verificado, redirige al dashboard.
+     *
+     * @group Autenticacion
+     *
+     * @authenticated
+     *
+     * @response 200 {"content":"Vista HTML de aviso de verificacion"}
+     * @response 302 {"redirect":"dashboard"}
      */
     public function __invoke(Request $request): RedirectResponse|View
     {

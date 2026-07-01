@@ -31,6 +31,25 @@ use Illuminate\View\View;
 
 class ProductAdminController extends Controller
 {
+    /**
+     * Listar productos.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @queryParam q string Busqueda por SKU o nombre. Example: CAT
+     * @queryParam category_id integer ID de categoria. Example: 3
+     * @queryParam status string active o inactive. Example: active
+     * @queryParam media string Filtro de media. Example: with_photo
+     * @queryParam stock string Filtro de stock. Example: in_stock
+     * @queryParam sort string Orden. Example: newest
+     * @queryParam per_page integer Tamano de pagina. Example: 20
+     *
+     * @response 200 {"content":"Vista HTML de productos"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Filtros invalidos"}
+     */
     public function index(Request $request): View
     {
         $this->authorize('viewAny', Product::class);
@@ -97,6 +116,19 @@ class ProductAdminController extends Controller
         ]);
     }
 
+    /**
+     * Descargar inventario en PDF.
+     *
+     * Usa los mismos filtros del listado de productos.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @response 200 {"content":"Descarga binaria PDF"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Filtros invalidos"}
+     */
     public function downloadInventoryPdf(
         Request $request,
         InventoryPdfGenerator $inventoryPdfGenerator,
@@ -142,6 +174,36 @@ class ProductAdminController extends Controller
         ));
     }
 
+    /**
+     * Crear producto.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @bodyParam name string required Nombre. Example: Guante quirurgico
+     * @bodyParam brand string Marca. Example: Import
+     * @bodyParam sku string required SKU unico. Example: GUA-001
+     * @bodyParam description string Descripcion. Example: Caja x 100 unidades
+     * @bodyParam category_id integer required ID de categoria. Example: 3
+     * @bodyParam price number Precio si no tiene variantes. Example: 15000
+     * @bodyParam stock number Stock si no tiene variantes. Example: 100
+     * @bodyParam has_variants boolean Indica variantes. Example: false
+     * @bodyParam variants array Variantes cuando `has_variants=true`.
+     * @bodyParam is_active boolean Publicado. Example: true
+     * @bodyParam is_vat_excluded boolean Excluido de IVA. Example: false
+     * @bodyParam photos file[] Fotos del producto.
+     * @bodyParam tech_sheet file Ficha tecnica.
+     * @bodyParam manual file Manual.
+     * @bodyParam invima file Documento INVIMA.
+     * @bodyParam quick_guide file Guia rapida.
+     * @bodyParam video_url string URL de video. Example: https://example.com/video
+     *
+     * @response 302 {"redirect":"admin.products.edit|admin.products.index|admin.products.create|products.show"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 413 {"message":"Archivo demasiado grande"}
+     * @response 422 {"message":"Datos invalidos"}
+     */
     public function store(
         StoreProductRequest $request,
         CreateProductAction $createAction,
@@ -182,6 +244,31 @@ class ProductAdminController extends Controller
         ));
     }
 
+    /**
+     * Actualizar producto.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam product integer required ID de producto. Example: 10
+     *
+     * @bodyParam name string required Nombre. Example: Guante quirurgico
+     * @bodyParam sku string required SKU unico. Example: GUA-001
+     * @bodyParam category_id integer required ID de categoria. Example: 3
+     * @bodyParam price number Precio si no tiene variantes. Example: 15000
+     * @bodyParam stock number Stock si no tiene variantes. Example: 100
+     * @bodyParam has_variants boolean Indica variantes. Example: false
+     * @bodyParam variants array Variantes cuando `has_variants=true`.
+     * @bodyParam is_active boolean Publicado. Example: true
+     * @bodyParam photos file[] Fotos nuevas.
+     *
+     * @response 302 {"redirect":"admin.products.edit|admin.products.index|admin.products.create|products.show"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 404 {"message":"Producto no encontrado"}
+     * @response 413 {"message":"Archivo demasiado grande"}
+     * @response 422 {"message":"Datos invalidos"}
+     */
     public function update(
         UpdateProductRequest $request,
         Product $product,
@@ -210,6 +297,19 @@ class ProductAdminController extends Controller
         return $this->redirectAfterSave($request, $product, false);
     }
 
+    /**
+     * Eliminar producto.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam product integer required ID de producto. Example: 10
+     *
+     * @response 302 {"redirect":"admin.products.index"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 404 {"message":"Producto no encontrado"}
+     */
     public function destroy(Request $request, Product $product): RedirectResponse
     {
         $this->authorize('delete', $product);
@@ -225,6 +325,21 @@ class ProductAdminController extends Controller
             ->with('status', 'Producto eliminado.');
     }
 
+    /**
+     * Validar disponibilidad de SKU.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @queryParam sku string required SKU a validar. Example: GUA-001
+     * @queryParam ignore integer Producto a ignorar en edicion. Example: 10
+     *
+     * @response 200 {"available":true,"message":"SKU disponible."}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Datos invalidos"}
+     * @response 429 {"message":"Has realizado demasiados intentos."}
+     */
     public function checkSku(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Product::class);
@@ -245,6 +360,21 @@ class ProductAdminController extends Controller
         ]);
     }
 
+    /**
+     * Cambiar estado de producto.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam product integer required ID de producto. Example: 10
+     *
+     * @bodyParam is_active boolean required Nuevo estado. Example: false
+     *
+     * @response 302 {"redirect":"back"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Datos invalidos"}
+     */
     public function setStatus(Request $request, Product $product): RedirectResponse
     {
         $this->authorize('update', $product);
@@ -259,6 +389,21 @@ class ProductAdminController extends Controller
         return back()->with('status', $isActive ? 'Producto activado.' : 'Producto desactivado.');
     }
 
+    /**
+     * Actualizar stock de producto simple.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam product integer required ID de producto. Example: 10
+     *
+     * @bodyParam stock number Stock nuevo o nulo. Example: 120
+     *
+     * @response 302 {"redirect":"admin.products.index"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Datos invalidos o producto con variantes"}
+     */
     public function setStock(
         Request $request,
         Product $product,
@@ -288,6 +433,23 @@ class ProductAdminController extends Controller
             ->with('status', 'Stock actualizado.');
     }
 
+    /**
+     * Actualizar stock de variantes.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam product integer required ID de producto. Example: 10
+     *
+     * @bodyParam variants array required Lista de variantes activas con stock.
+     * @bodyParam variants[].id integer required ID de variante. Example: 30
+     * @bodyParam variants[].stock number Stock nuevo o nulo. Example: 50
+     *
+     * @response 302 {"redirect":"admin.products.index"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Datos invalidos"}
+     */
     public function setVariantStocks(
         Request $request,
         Product $product,
@@ -338,6 +500,20 @@ class ProductAdminController extends Controller
             ->with('status', 'Stock por variantes actualizado.');
     }
 
+    /**
+     * Ejecutar accion masiva sobre productos.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @bodyParam action string required activate, deactivate o delete. Example: activate
+     * @bodyParam product_ids integer[] required IDs de productos. Example: [10,11]
+     *
+     * @response 302 {"redirect":"admin.products.index"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Datos invalidos"}
+     */
     public function bulkAction(Request $request): RedirectResponse
     {
         $this->authorize('viewAny', Product::class);

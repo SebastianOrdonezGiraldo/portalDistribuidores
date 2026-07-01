@@ -92,7 +92,10 @@ jobs:
               echo "AUTH_ALLOW_PUBLIC_REGISTRATION=true" >> .env
             fi
 
-            sudo bash deploy.sh
+            sudo env \
+              DEPLOY_BRANCH="${{ github.event.workflow_run.head_branch }}" \
+              DEPLOY_TARGET_SHA="${{ github.event.workflow_run.head_sha }}" \
+              bash deploy.sh
 
       - name: Health check staging
         id: health

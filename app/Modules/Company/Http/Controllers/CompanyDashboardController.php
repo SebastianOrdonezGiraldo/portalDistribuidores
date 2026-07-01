@@ -11,6 +11,16 @@ use Illuminate\View\View;
 
 class CompanyDashboardController extends Controller
 {
+    /**
+     * Ver dashboard de empresa.
+     *
+     * @group Empresa
+     *
+     * @authenticated
+     *
+     * @response 200 {"content":"Vista HTML con KPIs y pedidos recientes"}
+     * @response 403 {"message":"Rol no autorizado"}
+     */
     public function __invoke(): View
     {
         /** @var User $user */

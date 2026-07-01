@@ -24,6 +24,40 @@ class UpdateCompanyProfileRequest extends FormRequest
         ];
     }
 
+    public function bodyParameters(): array
+    {
+        return [
+            'name' => [
+                'description' => 'Nombre o razon social de la empresa.',
+                'example' => 'Distribuciones Demo SAS',
+            ],
+            'nit' => [
+                'description' => 'NIT o cedula, solo numeros.',
+                'example' => '900123456',
+            ],
+            'address' => [
+                'description' => 'Direccion principal de la empresa.',
+                'example' => 'Calle 10 #20-30',
+            ],
+            'city' => [
+                'description' => 'Ciudad principal de operacion.',
+                'example' => 'Bogota',
+            ],
+            'phone' => [
+                'description' => 'Telefono principal de contacto.',
+                'example' => '+57 300 123 4567',
+            ],
+            'contact_email' => [
+                'description' => 'Correo del contacto principal.',
+                'example' => 'compras@example.com',
+            ],
+            'contact_name' => [
+                'description' => 'Nombre del contacto principal.',
+                'example' => 'Ana Gomez',
+            ],
+        ];
+    }
+
     public function messages(): array
     {
         return [

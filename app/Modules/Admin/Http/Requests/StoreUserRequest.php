@@ -23,4 +23,30 @@ class StoreUserRequest extends FormRequest
             'distributor_id' => ['nullable', 'integer', 'exists:distributors,id', 'required_if:role,'.UserRole::Distributor->value, 'unique:users,distributor_id'],
         ];
     }
+
+    public function bodyParameters(): array
+    {
+        return [
+            'name' => [
+                'description' => 'Nombre del usuario.',
+                'example' => 'Ana Gomez',
+            ],
+            'email' => [
+                'description' => 'Correo unico para iniciar sesion.',
+                'example' => 'ana@example.com',
+            ],
+            'password' => [
+                'description' => 'Contrasena inicial del usuario.',
+                'example' => 'secret-password',
+            ],
+            'role' => [
+                'description' => 'Rol asignado al usuario.',
+                'example' => UserRole::Distributor->value,
+            ],
+            'distributor_id' => [
+                'description' => 'ID del distribuidor asociado cuando el rol es distribuidor.',
+                'example' => 7,
+            ],
+        ];
+    }
 }

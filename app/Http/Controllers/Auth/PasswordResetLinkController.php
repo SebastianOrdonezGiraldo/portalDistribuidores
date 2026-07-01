@@ -12,7 +12,13 @@ use Illuminate\View\View;
 class PasswordResetLinkController extends Controller
 {
     /**
-     * Display the password reset link request view.
+     * Mostrar solicitud de recuperacion.
+     *
+     * @group Autenticacion
+     *
+     * @unauthenticated
+     *
+     * @response 200 {"content":"Vista HTML de recuperacion de contrasena"}
      */
     public function create(): View
     {
@@ -20,7 +26,16 @@ class PasswordResetLinkController extends Controller
     }
 
     /**
-     * Handle an incoming password reset link request.
+     * Enviar enlace de recuperacion.
+     *
+     * @group Autenticacion
+     *
+     * @unauthenticated
+     *
+     * @bodyParam email string required Correo del usuario. Example: usuario@example.com
+     *
+     * @response 302 {"redirect":"back"}
+     * @response 422 {"message":"Correo invalido"}
      *
      * @throws ValidationException
      */

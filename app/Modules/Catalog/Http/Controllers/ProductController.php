@@ -18,6 +18,25 @@ use Illuminate\View\View;
 
 class ProductController extends Controller
 {
+    /**
+     * Ver detalle de producto.
+     *
+     * Devuelve la ficha comercial del producto o listas parciales AJAX de relacionados/alternativas.
+     *
+     * @group Catalogo publico
+     *
+     * @unauthenticated
+     *
+     * @urlParam product integer required ID del producto activo. Example: 10
+     *
+     * @queryParam list string Lista AJAX a cargar: related o alternatives. Example: related
+     * @queryParam related_page integer Pagina de relacionados. Example: 1
+     * @queryParam alternatives_page integer Pagina de alternativas. Example: 1
+     *
+     * @response 200 {"content":"Vista HTML de producto o payload JSON AJAX"}
+     * @response 404 {"message":"Producto no encontrado o inactivo"}
+     * @response 422 {"message":"Parametros invalidos"}
+     */
     public function show(
         Request $request,
         Product $product,
