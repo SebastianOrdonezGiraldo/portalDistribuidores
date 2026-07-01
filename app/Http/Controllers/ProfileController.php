@@ -11,7 +11,13 @@ use Illuminate\View\View;
 class ProfileController extends Controller
 {
     /**
-     * Display the user's profile form.
+     * Mostrar formulario de perfil de usuario.
+     *
+     * @group Autenticacion
+     *
+     * @authenticated
+     *
+     * @response 200 {"content":"Vista HTML del perfil"}
      */
     public function edit(Request $request): View
     {
@@ -21,7 +27,19 @@ class ProfileController extends Controller
     }
 
     /**
-     * Update the user's profile information.
+     * Actualizar perfil del usuario autenticado.
+     *
+     * Si se cambia el email, se marca como no verificado.
+     *
+     * @group Autenticacion
+     *
+     * @authenticated
+     *
+     * @bodyParam name string required Nombre del usuario. Example: Carlos Perez
+     * @bodyParam email string required Correo electronico unico. Example: carlos@example.com
+     *
+     * @response 302 {"redirect":"profile.edit", "status":"profile-updated"}
+     * @response 422 {"message":"Datos invalidos"}
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {

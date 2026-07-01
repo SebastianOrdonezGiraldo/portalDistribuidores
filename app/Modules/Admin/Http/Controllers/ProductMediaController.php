@@ -13,6 +13,20 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProductMediaController extends Controller
 {
+    /**
+     * Eliminar foto de producto.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam product integer required ID de producto. Example: 10
+     * @urlParam photo integer required ID de foto. Example: 20
+     *
+     * @response 302 {"redirect":"back"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 404 {"message":"Foto no encontrada para el producto"}
+     */
     public function destroyPhoto(Product $product, ProductPhoto $photo): RedirectResponse
     {
         $this->authorize('update', $product);
@@ -40,6 +54,20 @@ class ProductMediaController extends Controller
         return back()->with('status', 'Foto eliminada.');
     }
 
+    /**
+     * Eliminar documento de producto.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam product integer required ID de producto. Example: 10
+     * @urlParam document integer required ID de documento. Example: 25
+     *
+     * @response 302 {"redirect":"back"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 404 {"message":"Documento no encontrado para el producto"}
+     */
     public function destroyDocument(Product $product, ProductDocument $document): RedirectResponse
     {
         $this->authorize('update', $product);
@@ -60,6 +88,21 @@ class ProductMediaController extends Controller
         return back()->with('status', 'Documento eliminado.');
     }
 
+    /**
+     * Descargar documento de producto desde admin.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam product integer required ID de producto. Example: 10
+     * @urlParam document integer required ID de documento. Example: 25
+     *
+     * @response 200 {"content":"Descarga binaria del documento"}
+     * @response 302 {"redirect":"back","message":"Documento no recuperable"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 404 {"message":"Documento no encontrado para el producto"}
+     */
     public function downloadDocument(Product $product, ProductDocument $document): StreamedResponse|RedirectResponse
     {
         $this->authorize('update', $product);
@@ -90,6 +133,20 @@ class ProductMediaController extends Controller
         return $disk->download($document->path, $document->filename);
     }
 
+    /**
+     * Eliminar video de producto.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam product integer required ID de producto. Example: 10
+     * @urlParam video integer required ID de video. Example: 5
+     *
+     * @response 302 {"redirect":"back"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 404 {"message":"Video no encontrado para el producto"}
+     */
     public function destroyVideo(Product $product, ProductVideo $video): RedirectResponse
     {
         $this->authorize('update', $product);

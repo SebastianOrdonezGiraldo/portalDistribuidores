@@ -20,6 +20,20 @@ class UpdateCartRequest extends FormRequest
         ];
     }
 
+    public function bodyParameters(): array
+    {
+        return [
+            'quantities' => [
+                'description' => 'Mapa de lineas del carrito y su nueva cantidad. Enviar 0 elimina la linea.',
+                'example' => ['12-25' => 5],
+            ],
+            'quantities.*' => [
+                'description' => 'Cantidad nueva para la linea indicada.',
+                'example' => 5,
+            ],
+        ];
+    }
+
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {

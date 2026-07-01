@@ -12,6 +12,16 @@ use Illuminate\View\View;
 
 class CompanyBranchController extends Controller
 {
+    /**
+     * Listar sucursales de empresa.
+     *
+     * @group Empresa
+     *
+     * @authenticated
+     *
+     * @response 200 {"content":"Vista HTML de sucursales"}
+     * @response 403 {"message":"No autorizado"}
+     */
     public function index(): View
     {
         $this->authorize('manageBranches');
@@ -37,6 +47,22 @@ class CompanyBranchController extends Controller
         ]);
     }
 
+    /**
+     * Crear sucursal.
+     *
+     * @group Empresa
+     *
+     * @authenticated
+     *
+     * @bodyParam name string required Nombre de sucursal. Example: Sede Norte
+     * @bodyParam address string Direccion. Example: Calle 100 # 10-20
+     * @bodyParam city string Ciudad. Example: Bogota
+     * @bodyParam is_default boolean Marca como predeterminada. Example: true
+     *
+     * @response 302 {"redirect":"empresa.branches.index"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Datos invalidos"}
+     */
     public function store(StoreCompanyBranchRequest $request): RedirectResponse
     {
         $this->authorize('manageBranches');
@@ -66,6 +92,25 @@ class CompanyBranchController extends Controller
         return view('empresa.branches.form', compact('branch'));
     }
 
+    /**
+     * Actualizar sucursal.
+     *
+     * @group Empresa
+     *
+     * @authenticated
+     *
+     * @urlParam branch integer required ID de sucursal propia. Example: 5
+     *
+     * @bodyParam name string required Nombre de sucursal. Example: Sede Norte
+     * @bodyParam address string Direccion. Example: Calle 100 # 10-20
+     * @bodyParam city string Ciudad. Example: Bogota
+     * @bodyParam is_default boolean Marca como predeterminada. Example: true
+     *
+     * @response 302 {"redirect":"empresa.branches.index"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 404 {"message":"Sucursal no encontrada"}
+     * @response 422 {"message":"Datos invalidos"}
+     */
     public function update(UpdateCompanyBranchRequest $request, CompanyBranch $branch): RedirectResponse
     {
         $this->authorize('manageBranches');
@@ -88,6 +133,19 @@ class CompanyBranchController extends Controller
             ->with('status', 'Sucursal actualizada correctamente.');
     }
 
+    /**
+     * Eliminar sucursal.
+     *
+     * @group Empresa
+     *
+     * @authenticated
+     *
+     * @urlParam branch integer required ID de sucursal propia. Example: 5
+     *
+     * @response 302 {"redirect":"empresa.branches.index"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 404 {"message":"Sucursal no encontrada"}
+     */
     public function destroy(CompanyBranch $branch): RedirectResponse
     {
         $this->authorize('manageBranches');
@@ -100,6 +158,19 @@ class CompanyBranchController extends Controller
             ->with('status', "Sucursal \"{$name}\" eliminada.");
     }
 
+    /**
+     * Definir sucursal predeterminada.
+     *
+     * @group Empresa
+     *
+     * @authenticated
+     *
+     * @urlParam branch integer required ID de sucursal propia. Example: 5
+     *
+     * @response 302 {"redirect":"back"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 404 {"message":"Sucursal no encontrada"}
+     */
     public function setDefault(CompanyBranch $branch): RedirectResponse
     {
         $this->authorize('manageBranches');

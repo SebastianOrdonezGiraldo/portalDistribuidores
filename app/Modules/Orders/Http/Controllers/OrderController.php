@@ -24,6 +24,30 @@ class OrderController extends Controller
 
     private const SESSION_EXPIRED_MESSAGE = 'Tu sesión expiró o ya no es válida. Inicia sesión para continuar con tu pedido.';
 
+    /**
+     * Crear pedido/cotizacion desde el carrito.
+     *
+     * Crea el pedido, limpia el carrito y dispara generacion de PDF/notificaciones por evento.
+     *
+     * @group Carrito y pedidos
+     *
+     * @unauthenticated
+     *
+     * @bodyParam contact_name string required Nombre de contacto. Example: Ana Perez
+     * @bodyParam contact_email string required Correo de contacto. Example: ana@example.com
+     * @bodyParam phone string required Telefono. Example: 3001234567
+     * @bodyParam company_name string required Empresa. Example: Distribuciones Medicas SAS
+     * @bodyParam company_nit string required NIT/Cedula numerico. Example: 900123456
+     * @bodyParam company_address string required Direccion. Example: Calle 100 # 10-20
+     * @bodyParam city string required Ciudad. Example: Bogota
+     * @bodyParam department string required Departamento configurado. Example: Cundinamarca
+     * @bodyParam notes string Notas del pedido. Example: Entregar en recepcion
+     *
+     * @response 302 {"redirect":"orders.submitted|empresa.orders.show|cart.index"}
+     * @response 403 {"message":"Rol sin permisos para crear pedidos"}
+     * @response 422 {"message":"Datos invalidos o carrito vacio"}
+     * @response 429 {"message":"Has realizado demasiados intentos."}
+     */
     public function store(
         StoreOrderRequest $request,
         CartService $cartService,
@@ -78,6 +102,19 @@ class OrderController extends Controller
             ->with('status', 'Orden creada correctamente. Estamos procesando la cotización.');
     }
 
+    /**
+     * Ver confirmacion de pedido creado.
+     *
+     * @group Carrito y pedidos
+     *
+     * @unauthenticated
+     *
+     * @urlParam order integer required ID del pedido. Example: 100
+     *
+     * @response 200 {"content":"Vista HTML de confirmacion"}
+     * @response 302 {"redirect":"login"}
+     * @response 403 {"message":"No autorizado"}
+     */
     public function submitted(Order $order): View|RedirectResponse
     {
         if (! $this->canAccessOrder($order)) {
@@ -89,6 +126,19 @@ class OrderController extends Controller
         return view('orders.submitted', ['order' => $order]);
     }
 
+    /**
+     * Ver detalle de pedido.
+     *
+     * @group Carrito y pedidos
+     *
+     * @unauthenticated
+     *
+     * @urlParam order integer required ID del pedido. Example: 100
+     *
+     * @response 200 {"content":"Vista HTML del pedido"}
+     * @response 302 {"redirect":"login"}
+     * @response 403 {"message":"No autorizado"}
+     */
     public function show(Order $order): View|RedirectResponse
     {
         if (! $this->canAccessOrder($order)) {
@@ -100,6 +150,21 @@ class OrderController extends Controller
         return view('orders.show', ['order' => $order]);
     }
 
+    /**
+     * Descargar PDF del pedido.
+     *
+     * Genera el PDF si no existe y devuelve descarga desde el disco privado configurado.
+     *
+     * @group Carrito y pedidos
+     *
+     * @unauthenticated
+     *
+     * @urlParam order integer required ID del pedido. Example: 100
+     *
+     * @response 200 {"content":"Descarga binaria PDF"}
+     * @response 302 {"redirect":"back|login"}
+     * @response 403 {"message":"No autorizado"}
+     */
     public function downloadPdf(Order $order, OrderPdfGenerator $pdfGenerator): StreamedResponse|RedirectResponse
     {
         if (! $this->canAccessOrder($order)) {

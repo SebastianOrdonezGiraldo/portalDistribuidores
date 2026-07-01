@@ -15,6 +15,15 @@ use Illuminate\View\View;
 
 class CartController extends Controller
 {
+    /**
+     * Ver carrito.
+     *
+     * @group Carrito y pedidos
+     *
+     * @unauthenticated
+     *
+     * @response 200 {"content":"Vista HTML del carrito"}
+     */
     public function index(CartService $cartService): View
     {
         return view('cart.index', [
@@ -23,6 +32,25 @@ class CartController extends Controller
         ]);
     }
 
+    /**
+     * Agregar producto al carrito.
+     *
+     * Puede responder JSON para solicitudes AJAX o redirect para formularios web.
+     *
+     * @group Carrito y pedidos
+     *
+     * @unauthenticated
+     *
+     * @bodyParam product_id integer required ID del producto. Example: 10
+     * @bodyParam variant_id integer ID de variante activa cuando el producto tiene variantes. Example: 30
+     * @bodyParam qty integer required Cantidad. Example: 2
+     * @bodyParam unit_label string Unidad mostrada. Example: unidades
+     *
+     * @response 200 {"ok":true,"message":"Producto agregado al carrito.","cart_count":1}
+     * @response 302 {"redirect":"back"}
+     * @response 422 {"ok":false,"message":"El producto no esta disponible."}
+     * @response 429 {"message":"Has realizado demasiados intentos."}
+     */
     public function store(AddToCartRequest $request, CartService $cartService): JsonResponse|RedirectResponse
     {
         $product = Product::query()->findOrFail($request->integer('product_id'));
@@ -90,6 +118,20 @@ class CartController extends Controller
         return back()->with('status', 'Producto agregado al carrito.');
     }
 
+    /**
+     * Actualizar cantidades del carrito.
+     *
+     * @group Carrito y pedidos
+     *
+     * @unauthenticated
+     *
+     * @bodyParam quantities object required Mapa lineKey => cantidad. Example: {"10-0":2}
+     * @bodyParam redirect_checkout boolean Redirige al checkout despues de actualizar. Example: true
+     *
+     * @response 302 {"redirect":"back|checkout"}
+     * @response 422 {"message":"Formato de linea o cantidad invalida"}
+     * @response 429 {"message":"Has realizado demasiados intentos."}
+     */
     public function update(UpdateCartRequest $request, CartService $cartService): RedirectResponse
     {
         try {
@@ -105,6 +147,19 @@ class CartController extends Controller
         return back()->with('status', 'Carrito actualizado.');
     }
 
+    /**
+     * Eliminar linea del carrito.
+     *
+     * @group Carrito y pedidos
+     *
+     * @unauthenticated
+     *
+     * @urlParam lineKey string required Identificador interno de linea `producto-variante`. Example: 10-0
+     *
+     * @response 302 {"redirect":"back"}
+     * @response 422 {"message":"Formato de linea de carrito invalido."}
+     * @response 429 {"message":"Has realizado demasiados intentos."}
+     */
     public function destroy(string $lineKey, CartService $cartService): RedirectResponse
     {
         if (preg_match('/^\d+-\d+$/', $lineKey) !== 1) {

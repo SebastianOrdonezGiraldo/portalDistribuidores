@@ -37,6 +37,80 @@ class UpdateAdminOrderRequest extends FormRequest
         ];
     }
 
+    public function bodyParameters(): array
+    {
+        return [
+            'contact_name' => [
+                'description' => 'Nombre de la persona de contacto.',
+                'example' => 'Ana Gomez',
+            ],
+            'contact_email' => [
+                'description' => 'Correo de contacto para la cotizacion.',
+                'example' => 'compras@example.com',
+            ],
+            'phone' => [
+                'description' => 'Telefono de contacto.',
+                'example' => '+57 300 123 4567',
+            ],
+            'company_name' => [
+                'description' => 'Razon social o nombre de la empresa solicitante.',
+                'example' => 'Distribuciones Demo SAS',
+            ],
+            'company_nit' => [
+                'description' => 'NIT o cedula, solo numeros.',
+                'example' => '900123456',
+            ],
+            'company_address' => [
+                'description' => 'Direccion de la empresa.',
+                'example' => 'Calle 10 #20-30',
+            ],
+            'city' => [
+                'description' => 'Ciudad de entrega o contacto.',
+                'example' => 'Bogota',
+            ],
+            'department' => [
+                'description' => 'Departamento colombiano configurado en el sistema.',
+                'example' => 'Cundinamarca',
+            ],
+            'notes' => [
+                'description' => 'Notas opcionales para el pedido.',
+                'example' => 'Actualizar cantidades solicitadas.',
+            ],
+            'items' => [
+                'description' => 'Lineas existentes del pedido que se actualizaran.',
+                'example' => [['id' => 100, 'qty' => 3, 'unit_label' => 'caja']],
+            ],
+            'items.*.id' => [
+                'description' => 'ID de la linea existente.',
+                'example' => 100,
+            ],
+            'items.*.qty' => [
+                'description' => 'Nueva cantidad de la linea. Cero retira la linea.',
+                'example' => 3,
+            ],
+            'items.*.unit_label' => [
+                'description' => 'Unidad visible para la linea.',
+                'example' => 'caja',
+            ],
+            'new_items' => [
+                'description' => 'Lineas nuevas que se agregaran desde catalogo.',
+                'example' => [['catalog_ref' => 'p:12', 'qty' => 2, 'unit_label' => 'unidad']],
+            ],
+            'new_items.*.catalog_ref' => [
+                'description' => 'Referencia de catalogo con prefijo p: para producto o v: para variante.',
+                'example' => 'p:12',
+            ],
+            'new_items.*.qty' => [
+                'description' => 'Cantidad de la nueva linea.',
+                'example' => 2,
+            ],
+            'new_items.*.unit_label' => [
+                'description' => 'Unidad visible para la nueva linea.',
+                'example' => 'unidad',
+            ],
+        ];
+    }
+
     public function withValidator($validator): void
     {
         $validator->after(function ($validator): void {

@@ -20,4 +20,26 @@ class UpdateCompanyBranchRequest extends FormRequest
             'is_default' => ['nullable', 'boolean'],
         ];
     }
+
+    public function bodyParameters(): array
+    {
+        return [
+            'name' => [
+                'description' => 'Nombre interno de la sucursal.',
+                'example' => 'Principal',
+            ],
+            'address' => [
+                'description' => 'Direccion de la sucursal.',
+                'example' => 'Calle 10 #20-30',
+            ],
+            'city' => [
+                'description' => 'Ciudad de la sucursal.',
+                'example' => 'Bogota',
+            ],
+            'is_default' => [
+                'description' => 'Marca la sucursal como predeterminada para la empresa.',
+                'example' => true,
+            ],
+        ];
+    }
 }

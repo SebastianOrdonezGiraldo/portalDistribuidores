@@ -30,6 +30,28 @@ class AddToCartRequest extends FormRequest
         ];
     }
 
+    public function bodyParameters(): array
+    {
+        return [
+            'product_id' => [
+                'description' => 'ID del producto que se agregara al carrito.',
+                'example' => 12,
+            ],
+            'variant_id' => [
+                'description' => 'ID de la variante seleccionada cuando el producto maneja variantes activas.',
+                'example' => 25,
+            ],
+            'qty' => [
+                'description' => 'Cantidad solicitada del producto o variante.',
+                'example' => 10,
+            ],
+            'unit_label' => [
+                'description' => 'Unidad visible para la linea del carrito.',
+                'example' => 'caja',
+            ],
+        ];
+    }
+
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {

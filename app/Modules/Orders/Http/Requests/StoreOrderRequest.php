@@ -29,6 +29,48 @@ class StoreOrderRequest extends FormRequest
         ];
     }
 
+    public function bodyParameters(): array
+    {
+        return [
+            'contact_name' => [
+                'description' => 'Nombre de la persona de contacto.',
+                'example' => 'Ana Gomez',
+            ],
+            'contact_email' => [
+                'description' => 'Correo de contacto para la cotizacion.',
+                'example' => 'compras@example.com',
+            ],
+            'phone' => [
+                'description' => 'Telefono de contacto.',
+                'example' => '+57 300 123 4567',
+            ],
+            'company_name' => [
+                'description' => 'Razon social o nombre de la empresa solicitante.',
+                'example' => 'Distribuciones Demo SAS',
+            ],
+            'company_nit' => [
+                'description' => 'NIT o cedula, solo numeros.',
+                'example' => '900123456',
+            ],
+            'company_address' => [
+                'description' => 'Direccion de la empresa.',
+                'example' => 'Calle 10 #20-30',
+            ],
+            'city' => [
+                'description' => 'Ciudad de entrega o contacto.',
+                'example' => 'Bogota',
+            ],
+            'department' => [
+                'description' => 'Departamento colombiano configurado en el sistema.',
+                'example' => 'Cundinamarca',
+            ],
+            'notes' => [
+                'description' => 'Notas opcionales para el pedido.',
+                'example' => 'Entregar en horario de oficina.',
+            ],
+        ];
+    }
+
     public function messages(): array
     {
         return [

@@ -25,6 +25,20 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CompanyOrderController extends Controller
 {
+    /**
+     * Listar pedidos de empresa.
+     *
+     * @group Empresa
+     *
+     * @authenticated
+     *
+     * @queryParam q string Busqueda por OC, empresa o contacto. Example: OC-2026
+     * @queryParam status string Estado del pedido. Example: submitted
+     *
+     * @response 200 {"content":"Vista HTML de pedidos"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Filtros invalidos"}
+     */
     public function index(Request $request): View
     {
         $this->authorize('viewAny', Order::class);
@@ -81,6 +95,19 @@ class CompanyOrderController extends Controller
         ]);
     }
 
+    /**
+     * Ver pedido de empresa.
+     *
+     * @group Empresa
+     *
+     * @authenticated
+     *
+     * @urlParam order integer required ID de pedido propio. Example: 100
+     *
+     * @response 200 {"content":"Vista HTML del pedido"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 404 {"message":"Pedido no encontrado"}
+     */
     public function show(Order $order): View
     {
         $this->authorize('view', $order);
@@ -123,6 +150,32 @@ class CompanyOrderController extends Controller
         ]);
     }
 
+    /**
+     * Actualizar cotizacion de empresa.
+     *
+     * Solo aplica a pedidos en estados editables por empresa.
+     *
+     * @group Empresa
+     *
+     * @authenticated
+     *
+     * @urlParam order integer required ID de pedido propio. Example: 100
+     *
+     * @bodyParam contact_name string required Contacto. Example: Ana Perez
+     * @bodyParam contact_email string required Correo. Example: ana@example.com
+     * @bodyParam phone string required Telefono. Example: 3001234567
+     * @bodyParam company_name string required Empresa. Example: Distribuciones Medicas SAS
+     * @bodyParam company_nit string required NIT. Example: 900123456
+     * @bodyParam company_address string required Direccion. Example: Calle 100 # 10-20
+     * @bodyParam city string required Ciudad. Example: Bogota
+     * @bodyParam department string required Departamento. Example: Cundinamarca
+     * @bodyParam items array required Items existentes de la cotizacion.
+     * @bodyParam new_items array Items nuevos desde catalogo.
+     *
+     * @response 302 {"redirect":"empresa.orders.show"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Datos invalidos"}
+     */
     public function update(
         UpdateCompanyOrderRequest $request,
         Order $order,
@@ -218,6 +271,19 @@ class CompanyOrderController extends Controller
             ->all();
     }
 
+    /**
+     * Descargar PDF de pedido de empresa.
+     *
+     * @group Empresa
+     *
+     * @authenticated
+     *
+     * @urlParam order integer required ID de pedido propio. Example: 100
+     *
+     * @response 200 {"content":"Descarga binaria PDF"}
+     * @response 302 {"redirect":"back","message":"PDF en generacion"}
+     * @response 403 {"message":"No autorizado"}
+     */
     public function downloadPdf(Order $order, OrderPdfGenerator $pdfGenerator): StreamedResponse|RedirectResponse
     {
         $this->authorize('view', $order);
@@ -239,6 +305,20 @@ class CompanyOrderController extends Controller
         return $disk->download($path, $order->oc_number.'.pdf');
     }
 
+    /**
+     * Reordenar pedido.
+     *
+     * Agrega al carrito los productos activos disponibles del pedido.
+     *
+     * @group Empresa
+     *
+     * @authenticated
+     *
+     * @urlParam order integer required ID de pedido propio. Example: 100
+     *
+     * @response 302 {"redirect":"cart.index|catalog.index"}
+     * @response 403 {"message":"Tu rol no permite reordenar."}
+     */
     public function reorder(Order $order, CartService $cartService): RedirectResponse
     {
         $this->authorize('view', $order);

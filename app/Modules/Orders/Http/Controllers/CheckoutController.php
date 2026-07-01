@@ -10,6 +10,18 @@ use Illuminate\View\View;
 
 class CheckoutController extends Controller
 {
+    /**
+     * Mostrar checkout.
+     *
+     * Requiere carrito con items. Usuarios empresa con rol sin permisos de compra son redirigidos.
+     *
+     * @group Carrito y pedidos
+     *
+     * @unauthenticated
+     *
+     * @response 200 {"content":"Vista HTML de checkout"}
+     * @response 302 {"redirect":"catalog.index|empresa.dashboard"}
+     */
     public function __invoke(CartService $cartService): View|RedirectResponse
     {
         /** @var User|null $user */

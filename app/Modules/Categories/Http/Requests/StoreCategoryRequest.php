@@ -24,6 +24,36 @@ class StoreCategoryRequest extends FormRequest
         ];
     }
 
+    public function bodyParameters(): array
+    {
+        return [
+            'parent_id' => [
+                'description' => 'ID de la categoria padre. Se omite para categorias raiz.',
+                'example' => 1,
+            ],
+            'name' => [
+                'description' => 'Nombre visible de la categoria.',
+                'example' => 'Insumos medicos',
+            ],
+            'slug' => [
+                'description' => 'Slug opcional; si se omite se genera desde el nombre.',
+                'example' => 'insumos-medicos',
+            ],
+            'is_active' => [
+                'description' => 'Indica si la categoria queda visible en catalogo.',
+                'example' => true,
+            ],
+            'sort_order' => [
+                'description' => 'Orden manual de aparicion.',
+                'example' => 10,
+            ],
+            'synonyms' => [
+                'description' => 'Sinonimos separados por coma para mejorar busqueda.',
+                'example' => 'material medico, suministros',
+            ],
+        ];
+    }
+
     public function payload(): array
     {
         return [
