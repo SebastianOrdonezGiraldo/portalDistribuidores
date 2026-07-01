@@ -48,6 +48,13 @@ trait InteractsWithProductUploads
                 'mimetypes:application/pdf,application/x-pdf',
                 'max:'.ProductUploadLimits::quickGuideMaxSizeKb(),
             ],
+            'calibration_document' => [
+                'nullable',
+                'file',
+                'mimes:pdf',
+                'mimetypes:application/pdf,application/x-pdf',
+                'max:'.ProductUploadLimits::calibrationDocumentMaxSizeKb(),
+            ],
         ];
     }
 
@@ -83,6 +90,11 @@ trait InteractsWithProductUploads
             'quick_guide.mimes' => 'La guia rapida del producto debe estar en formato PDF.',
             'quick_guide.mimetypes' => 'La guia rapida del producto debe estar en formato PDF.',
             'quick_guide.max' => 'La guia rapida del producto debe pesar como maximo '.ProductUploadLimits::quickGuideMaxSizeLabel().'.',
+            'calibration_document.file' => 'El documento de calibracion debe cargarse como un archivo adjunto.',
+            'calibration_document.uploaded' => ProductUploadLimits::calibrationDocumentUploadFailedMessage(),
+            'calibration_document.mimes' => 'El documento de calibracion debe estar en formato PDF.',
+            'calibration_document.mimetypes' => 'El documento de calibracion debe estar en formato PDF.',
+            'calibration_document.max' => 'El documento de calibracion debe pesar como maximo '.ProductUploadLimits::calibrationDocumentMaxSizeLabel().'.',
         ];
     }
 
@@ -111,6 +123,10 @@ trait InteractsWithProductUploads
             ],
             'quick_guide' => [
                 'description' => 'Guia rapida en PDF.',
+                'example' => null,
+            ],
+            'calibration_document' => [
+                'description' => 'Documento de calibracion en PDF.',
                 'example' => null,
             ],
         ];

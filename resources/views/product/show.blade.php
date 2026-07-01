@@ -530,6 +530,7 @@
              o route('documents.manual.download')
              o route('documents.invima.download')
              o route('documents.quick-guide.download')
+             o route('documents.calibration-document.download')
              también se debe actualizar el controlador de documentos.
         ────────────────────────────────────────────────────────────────── --}}
         <section id="documentos" class="scroll-mt-32 card overflow-hidden">
@@ -553,7 +554,7 @@
 
             <div class="px-6 py-5 sm:px-7 sm:py-6">
                 @php
-                    $hasAnyDocument = $techSheet || $manual || $productVideo || $invima || $quickGuide || $secondaryDocuments->isNotEmpty();
+                    $hasAnyDocument = $techSheet || $manual || $productVideo || $invima || $quickGuide || $calibrationDocument || $secondaryDocuments->isNotEmpty();
                 @endphp
 
                 @if(! $hasAnyDocument)
@@ -568,7 +569,7 @@
                         </div>
                     </div>
                 @else
-                    {{-- Grid principal: Ficha técnica + Manual de usuario + Video de apoyo + INVIMA + Guía rápida --}}
+                    {{-- Grid principal: Ficha técnica + Manual de usuario + Video de apoyo + INVIMA + Guía rápida + Calibración --}}
                     <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
 
                         {{-- Tarjeta izquierda: Ficha técnica --}}
@@ -758,6 +759,45 @@
                                                     <path d="M5 21h14"/>
                                                 </svg>
                                                 Descargar guía rápida
+                                            </a>
+                                        @else
+                                            <p class="text-xs text-slate-400">No disponible por ahora</p>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Tarjeta: Documento de calibracion --}}
+                        <div class="group relative overflow-hidden rounded-2xl border transition {{ $calibrationDocument ? 'border-cyan-200 bg-cyan-50/70 hover:border-cyan-300' : 'border-slate-200 bg-slate-50' }}">
+                            <div class="flex items-start gap-4 p-5">
+                                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl {{ $calibrationDocument ? 'bg-cyan-100 text-cyan-700' : 'bg-slate-200 text-slate-400' }}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                        <path d="M14 2v6h6"/>
+                                        <path d="M9 15.5l1.6 1.6L15 12.7"/>
+                                        <path d="M8 10h8"/>
+                                    </svg>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <p class="font-semibold text-slate-900">Documento de calibracion</p>
+                                        <span class="rounded-md border border-cyan-200 bg-white px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-cyan-700">PDF</span>
+                                    </div>
+                                    <p class="mt-0.5 text-xs text-slate-500">Soporte de calibración y trazabilidad del producto</p>
+
+                                    <div class="mt-3">
+                                        @if($calibrationDocument)
+                                            <a
+                                                href="{{ route('documents.calibration-document.download', $calibrationDocument) }}"
+                                                class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-cyan-300 bg-white px-3.5 py-2 text-sm font-semibold text-cyan-700 shadow-sm transition hover:border-cyan-400 hover:bg-cyan-50/70 focus-ring sm:w-auto"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M12 3v12"/>
+                                                    <path d="m7 10 5 5 5-5"/>
+                                                    <path d="M5 21h14"/>
+                                                </svg>
+                                                Documento de calibracion
                                             </a>
                                         @else
                                             <p class="text-xs text-slate-400">No disponible por ahora</p>

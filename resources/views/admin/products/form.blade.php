@@ -313,7 +313,8 @@
                     1 ficha técnica PDF de {{ $uploadLimits['tech_sheet_max_size_label'] }},
                     1 manual de usuario PDF de {{ $uploadLimits['manual_max_size_label'] }},
                     1 INVIMA PDF de {{ $uploadLimits['invima_max_size_label'] }},
-                    1 guía rápida PDF de {{ $uploadLimits['quick_guide_max_size_label'] }}
+                    1 guía rápida PDF de {{ $uploadLimits['quick_guide_max_size_label'] }},
+                    1 documento de calibracion PDF de {{ $uploadLimits['calibration_document_max_size_label'] }}
                     y una carga total maxima de {{ $uploadLimits['request_max_size_label'] }}.
                 </p>
                 <div class="mt-4 grid gap-4 sm:grid-cols-2">
@@ -389,6 +390,20 @@
                         />
                         <p class="form-help">Archivo PDF hasta {{ $uploadLimits['quick_guide_max_size_label'] }}.</p>
                         <x-input-error :messages="$errors->get('quick_guide')" />
+                    </div>
+                    <div>
+                        <label class="form-label" for="calibration_document">Documento de calibracion (PDF)</label>
+                        <x-ui.input
+                            id="calibration_document"
+                            type="file"
+                            name="calibration_document"
+                            accept="application/pdf"
+                            data-max-size-kb="{{ $uploadLimits['calibration_document_max_size_kb'] }}"
+                            data-max-size-text="{{ $uploadLimits['calibration_document_max_size_label'] }}"
+                            data-upload-label="documento de calibracion"
+                        />
+                        <p class="form-help">Archivo PDF hasta {{ $uploadLimits['calibration_document_max_size_label'] }}.</p>
+                        <x-input-error :messages="$errors->get('calibration_document')" />
                     </div>
                 </div>
 
