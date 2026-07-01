@@ -35,7 +35,15 @@ Thumbs.db
 # Archivos de desarrollo local en Windows (no pertenecen al servidor)
 php.ini
 ngrok.exe
+.ngrok.exe.old
 run-artisan.ps1
+start.ps1
+
+# Reportes temporales de auditoria
+.tmp-lighthouse-*.json
+
+# Postman (Scribe genera la coleccion automaticamente)
+postman/
 
 # Material sensible
 *.pem
