@@ -52,6 +52,11 @@ class ProductDocument extends Model
         return $this->type === DocumentType::QuickGuide->value;
     }
 
+    public function isCalibrationDocument(): bool
+    {
+        return $this->type === DocumentType::CalibrationDocument->value;
+    }
+
     public function isProtected(): bool
     {
         return in_array($this->type, DocumentType::protectedValues(), true);

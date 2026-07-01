@@ -74,6 +74,18 @@ class TechSheetDownloadLimitTest extends TestCase
             ->assertDownload('guia-rapida.pdf');
     }
 
+    public function test_guest_can_download_active_calibration_document(): void
+    {
+        Storage::fake('public');
+        Storage::fake('private');
+
+        ['document' => $document] = $this->createProtectedDocument(DocumentType::CalibrationDocument->value, 'calibracion.pdf');
+
+        $this->get(route('documents.calibration-document.download', $document))
+            ->assertOk()
+            ->assertDownload('calibracion.pdf');
+    }
+
     public function test_distributor_can_download_a_tech_sheet_two_times_per_month(): void
     {
         Storage::fake('public');
@@ -111,7 +123,7 @@ class TechSheetDownloadLimitTest extends TestCase
         $this->assertDatabaseCount('document_downloads', 0);
     }
 
-    public function test_distributor_can_download_invima_and_quick_guide_without_consuming_quota(): void
+    public function test_distributor_can_download_invima_quick_guide_and_calibration_without_consuming_quota(): void
     {
         Storage::fake('public');
         Storage::fake('private');
@@ -119,6 +131,7 @@ class TechSheetDownloadLimitTest extends TestCase
         $user = $this->createDistributorUser();
         ['product' => $product, 'document' => $invima] = $this->createProtectedDocument(DocumentType::Invima->value, 'invima.pdf');
         $quickGuide = $this->attachProtectedDocument($product, DocumentType::QuickGuide->value, 'guia-rapida.pdf');
+        $calibrationDocument = $this->attachProtectedDocument($product, DocumentType::CalibrationDocument->value, 'calibracion.pdf');
 
         $this->actingAs($user)
             ->get(route('documents.invima.download', $invima))
@@ -129,6 +142,11 @@ class TechSheetDownloadLimitTest extends TestCase
             ->get(route('documents.quick-guide.download', $quickGuide))
             ->assertOk()
             ->assertDownload('guia-rapida.pdf');
+
+        $this->actingAs($user)
+            ->get(route('documents.calibration-document.download', $calibrationDocument))
+            ->assertOk()
+            ->assertDownload('calibracion.pdf');
 
         $this->assertDatabaseCount('document_downloads', 0);
     }
@@ -258,20 +276,23 @@ class TechSheetDownloadLimitTest extends TestCase
             ->assertSee(route('documents.manual.download', $document), false);
     }
 
-    public function test_product_page_lists_invima_and_quick_guide_download_links(): void
+    public function test_product_page_lists_invima_quick_guide_and_calibration_download_links(): void
     {
         Storage::fake('public');
         Storage::fake('private');
 
         ['product' => $product, 'document' => $invima] = $this->createProtectedDocument(DocumentType::Invima->value, 'invima.pdf');
         $quickGuide = $this->attachProtectedDocument($product, DocumentType::QuickGuide->value, 'guia-rapida.pdf');
+        $calibrationDocument = $this->attachProtectedDocument($product, DocumentType::CalibrationDocument->value, 'calibracion.pdf');
 
         $this->get(route('products.show', $product))
             ->assertOk()
             ->assertSeeText('Descargar INVIMA')
             ->assertSee(route('documents.invima.download', $invima), false)
             ->assertSeeText('Descargar guía rápida')
-            ->assertSee(route('documents.quick-guide.download', $quickGuide), false);
+            ->assertSee(route('documents.quick-guide.download', $quickGuide), false)
+            ->assertSeeText('Documento de calibracion')
+            ->assertSee(route('documents.calibration-document.download', $calibrationDocument), false);
     }
 
     /**

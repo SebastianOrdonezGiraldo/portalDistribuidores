@@ -50,7 +50,7 @@ class ProductDocumentPolicyTest extends TestCase
 
     public function test_download_allows_guest_for_regulatory_protected_documents_of_active_product(): void
     {
-        foreach ([DocumentType::Invima, DocumentType::QuickGuide] as $documentType) {
+        foreach ([DocumentType::Invima, DocumentType::QuickGuide, DocumentType::CalibrationDocument] as $documentType) {
             $document = $this->makeDocumentWithProduct($documentType->value, true);
 
             $this->assertTrue($this->policy->download(null, $document));

@@ -997,7 +997,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const manualInput = productForm.querySelector('#manual');
         const invimaInput = productForm.querySelector('#invima');
         const quickGuideInput = productForm.querySelector('#quick_guide');
-        const documentInputs = [techSheetInput, manualInput, invimaInput, quickGuideInput].filter(Boolean);
+        const calibrationDocumentInput = productForm.querySelector('#calibration_document');
+        const documentInputs = [techSheetInput, manualInput, invimaInput, quickGuideInput, calibrationDocumentInput].filter(Boolean);
         const totalMaxKb = Number(productForm.dataset.totalMaxKb || 0);
         const totalMaxText = productForm.dataset.totalMaxText || `${totalMaxKb / 1024} MB`;
 

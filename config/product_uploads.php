@@ -22,5 +22,9 @@ return [
         'max_size_kb' => 5120,
     ],
 
+    'calibration_document' => [
+        'max_size_kb' => 5120,
+    ],
+
     'request_max_kb' => 61440,
 ];
