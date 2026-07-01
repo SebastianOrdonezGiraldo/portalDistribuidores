@@ -39,6 +39,10 @@ return [
                     'reset-password*',
                     'register*',
                     'email/verification-notification',
+                    'verify-email*',
+                    'confirm-password',
+                    'password',
+                    'profile',
                     'catalog',
                     'products/*',
                     'documents/*',
@@ -62,7 +66,6 @@ return [
             'exclude' => [
                 'GET /',
                 'dashboard',
-                'profile.*',
                 'logout.get',
                 'empresa/usuarios',
                 'empresa/usuarios/*',
@@ -114,7 +117,7 @@ return [
         'assets_directory' => null,
 
         // Middleware to attach to the docs endpoint (if `add_routes` is true).
-        'middleware' => ['web', 'auth', 'verified', 'role:admin'],
+        'middleware' => ['web'],
     ],
 
     'external' => [
