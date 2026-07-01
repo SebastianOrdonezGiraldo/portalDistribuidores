@@ -173,7 +173,7 @@ class ProductController extends Controller
             'catalog' => 'Catálogo',
             'certificate' => 'Certificado',
             'manual' => 'Manual de usuario',
-            'invima' => 'INVIMA',
+            'invima' => 'Registro INVIMA',
             'quick_guide' => 'Guía rápida del producto',
             'calibration_document' => 'Documento de calibracion',
         ];
