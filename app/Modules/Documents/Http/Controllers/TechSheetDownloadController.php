@@ -137,6 +137,7 @@ class TechSheetDownloadController extends Controller
             'documents.manual.download' => DocumentType::Manual,
             'documents.invima.download' => DocumentType::Invima,
             'documents.quick-guide.download' => DocumentType::QuickGuide,
+            'documents.calibration-document.download' => DocumentType::CalibrationDocument,
         ];
     }
 

@@ -103,7 +103,7 @@ class MigrateProtectedMediaCommandTest extends TestCase
             ->assertExitCode(0);
     }
 
-    public function test_command_migrates_invima_and_quick_guide_documents_from_public_disk(): void
+    public function test_command_migrates_regulatory_and_calibration_documents_from_public_disk(): void
     {
         config([
             'filesystems.tech_sheets_disk' => 'private',
@@ -129,7 +129,7 @@ class MigrateProtectedMediaCommandTest extends TestCase
             'is_active' => true,
         ]);
 
-        foreach ([DocumentType::Invima->value, DocumentType::QuickGuide->value] as $type) {
+        foreach ([DocumentType::Invima->value, DocumentType::QuickGuide->value, DocumentType::CalibrationDocument->value] as $type) {
             $path = "products/documents/{$type}.pdf";
             Storage::disk('public')->put($path, 'PDF');
 
@@ -147,7 +147,9 @@ class MigrateProtectedMediaCommandTest extends TestCase
 
         Storage::disk('private')->assertExists('products/documents/invima.pdf');
         Storage::disk('private')->assertExists('products/documents/quick_guide.pdf');
+        Storage::disk('private')->assertExists('products/documents/calibration_document.pdf');
         Storage::disk('public')->assertMissing('products/documents/invima.pdf');
         Storage::disk('public')->assertMissing('products/documents/quick_guide.pdf');
+        Storage::disk('public')->assertMissing('products/documents/calibration_document.pdf');
     }
 }

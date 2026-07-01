@@ -197,6 +197,7 @@ class ProductAdminController extends Controller
      * @bodyParam manual file Manual.
      * @bodyParam invima file Documento INVIMA.
      * @bodyParam quick_guide file Guia rapida.
+     * @bodyParam calibration_document file Documento de calibracion.
      * @bodyParam video_url string URL de video. Example: https://example.com/video
      *
      * @response 302 {"redirect":"admin.products.edit|admin.products.index|admin.products.create|products.show"}
@@ -613,6 +614,10 @@ class ProductAdminController extends Controller
         if ($request->hasFile('quick_guide')) {
             $attachProtectedProductDocumentAction->execute($product, $request->file('quick_guide'), DocumentType::QuickGuide, 'quick_guide');
         }
+
+        if ($request->hasFile('calibration_document')) {
+            $attachProtectedProductDocumentAction->execute($product, $request->file('calibration_document'), DocumentType::CalibrationDocument, 'calibration_document');
+        }
     }
 
     private function redirectAfterSave(Request $request, Product $product, bool $created): RedirectResponse
@@ -655,6 +660,7 @@ class ProductAdminController extends Controller
             'manual',
             'invima',
             'quick_guide',
+            'calibration_document',
             'video_url',
             'has_variants',
             'variant_attribute_id',

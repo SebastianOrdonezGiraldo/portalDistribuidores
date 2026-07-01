@@ -150,12 +150,14 @@ class ProductController extends Controller
         $manual = $documents->firstWhere('type', DocumentType::Manual->value);
         $invima = $documents->firstWhere('type', DocumentType::Invima->value);
         $quickGuide = $documents->firstWhere('type', DocumentType::QuickGuide->value);
+        $calibrationDocument = $documents->firstWhere('type', DocumentType::CalibrationDocument->value);
         $productVideo = $product->videos->first();
         $primaryDocumentTypes = [
             DocumentType::TechSheet->value,
             DocumentType::Manual->value,
             DocumentType::Invima->value,
             DocumentType::QuickGuide->value,
+            DocumentType::CalibrationDocument->value,
         ];
         $secondaryDocuments = $documents->filter(
             fn ($doc) => ! in_array($doc->type, $primaryDocumentTypes, true)
@@ -163,6 +165,7 @@ class ProductController extends Controller
                 && (! $manual || $doc->id !== $manual->id)
                 && (! $invima || $doc->id !== $invima->id)
                 && (! $quickGuide || $doc->id !== $quickGuide->id)
+                && (! $calibrationDocument || $doc->id !== $calibrationDocument->id)
         );
 
         $documentTypeLabels = [
@@ -170,8 +173,9 @@ class ProductController extends Controller
             'catalog' => 'Catálogo',
             'certificate' => 'Certificado',
             'manual' => 'Manual de usuario',
-            'invima' => 'INVIMA',
+            'invima' => 'Registro INVIMA',
             'quick_guide' => 'Guía rápida del producto',
+            'calibration_document' => 'Documento de calibracion',
         ];
 
         $specRows = [
@@ -195,7 +199,7 @@ class ProductController extends Controller
             'variantAttributeName', 'minVariantPrice', 'maxVariantPrice',
             'price', 'isRangePrice', 'formattedPrice', 'vatLabel', 'stock', 'canBuy',
             'isLowStock', 'availability', 'stockLabel', 'documents',
-            'manual', 'invima', 'quickGuide', 'productVideo', 'secondaryDocuments', 'documentTypeLabels',
+            'manual', 'invima', 'quickGuide', 'calibrationDocument', 'productVideo', 'secondaryDocuments', 'documentTypeLabels',
             'specRows', 'sections',
         );
     }

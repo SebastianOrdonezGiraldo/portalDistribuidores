@@ -8,6 +8,7 @@ enum DocumentType: string
     case Manual = 'manual';
     case Invima = 'invima';
     case QuickGuide = 'quick_guide';
+    case CalibrationDocument = 'calibration_document';
 
     public function label(): string
     {
@@ -16,6 +17,7 @@ enum DocumentType: string
             DocumentType::Manual => 'Manual de usuario',
             DocumentType::Invima => 'INVIMA',
             DocumentType::QuickGuide => 'Guía rápida del producto',
+            DocumentType::CalibrationDocument => 'Documento de calibracion',
         };
     }
 
@@ -29,6 +31,7 @@ enum DocumentType: string
             self::Manual->value,
             self::Invima->value,
             self::QuickGuide->value,
+            self::CalibrationDocument->value,
         ];
     }
 }

@@ -453,7 +453,7 @@ class AdminProductEditorTest extends TestCase
         Storage::disk('private')->assertExists($document->path);
     }
 
-    public function test_admin_can_store_product_with_invima_and_quick_guide_documents(): void
+    public function test_admin_can_store_product_with_invima_quick_guide_and_calibration_documents(): void
     {
         Storage::fake('private');
 
@@ -464,17 +464,21 @@ class AdminProductEditorTest extends TestCase
             ->post('/admin/products', array_merge($this->validProductPayload($category), [
                 'invima' => $this->fakePdfUpload('invima.pdf'),
                 'quick_guide' => $this->fakePdfUpload('guia-rapida.pdf'),
+                'calibration_document' => $this->fakePdfUpload('calibracion.pdf'),
             ]));
 
         $product = Product::query()->where('sku', 'SKU-NEW-001')->firstOrFail();
         $invima = $product->documents()->where('type', 'invima')->first();
         $quickGuide = $product->documents()->where('type', 'quick_guide')->first();
+        $calibrationDocument = $product->documents()->where('type', 'calibration_document')->first();
 
         $response->assertRedirect('/admin/products/'.$product->id.'/edit');
         $this->assertNotNull($invima);
         $this->assertNotNull($quickGuide);
+        $this->assertNotNull($calibrationDocument);
         Storage::disk('private')->assertExists($invima->path);
         Storage::disk('private')->assertExists($quickGuide->path);
+        Storage::disk('private')->assertExists($calibrationDocument->path);
     }
 
     public function test_admin_can_mark_product_as_vat_excluded(): void
@@ -543,7 +547,7 @@ class AdminProductEditorTest extends TestCase
         $this->assertSame(1, $product->fresh()->documents()->where('type', 'manual')->count());
     }
 
-    public function test_admin_update_replaces_existing_invima_and_quick_guide_documents(): void
+    public function test_admin_update_replaces_existing_invima_quick_guide_and_calibration_documents(): void
     {
         Storage::fake('private');
 
@@ -553,6 +557,7 @@ class AdminProductEditorTest extends TestCase
 
         Storage::disk('private')->put('products/documents/invima-anterior.pdf', '%PDF-1.4 old invima');
         Storage::disk('private')->put('products/documents/guia-anterior.pdf', '%PDF-1.4 old guide');
+        Storage::disk('private')->put('products/documents/calibracion-anterior.pdf', '%PDF-1.4 old calibration');
         $existingInvima = $product->documents()->create([
             'type' => 'invima',
             'path' => 'products/documents/invima-anterior.pdf',
@@ -562,6 +567,11 @@ class AdminProductEditorTest extends TestCase
             'type' => 'quick_guide',
             'path' => 'products/documents/guia-anterior.pdf',
             'filename' => 'guia-anterior.pdf',
+        ]);
+        $existingCalibrationDocument = $product->documents()->create([
+            'type' => 'calibration_document',
+            'path' => 'products/documents/calibracion-anterior.pdf',
+            'filename' => 'calibracion-anterior.pdf',
         ]);
 
         $payload = [
@@ -575,6 +585,7 @@ class AdminProductEditorTest extends TestCase
             'is_active' => 1,
             'invima' => $this->fakePdfUpload('invima-nuevo.pdf'),
             'quick_guide' => $this->fakePdfUpload('guia-nueva.pdf'),
+            'calibration_document' => $this->fakePdfUpload('calibracion-nueva.pdf'),
         ];
 
         $response = $this->actingAs($admin)
@@ -583,20 +594,27 @@ class AdminProductEditorTest extends TestCase
 
         $updatedInvima = $product->fresh()->documents()->where('type', 'invima')->first();
         $updatedQuickGuide = $product->fresh()->documents()->where('type', 'quick_guide')->first();
+        $updatedCalibrationDocument = $product->fresh()->documents()->where('type', 'calibration_document')->first();
 
         $response->assertRedirect('/admin/products/'.$product->id.'/edit');
         $this->assertNotNull($updatedInvima);
         $this->assertNotNull($updatedQuickGuide);
+        $this->assertNotNull($updatedCalibrationDocument);
         $this->assertSame($existingInvima->id, $updatedInvima->id);
         $this->assertSame($existingQuickGuide->id, $updatedQuickGuide->id);
+        $this->assertSame($existingCalibrationDocument->id, $updatedCalibrationDocument->id);
         $this->assertNotSame($existingInvima->path, $updatedInvima->path);
         $this->assertNotSame($existingQuickGuide->path, $updatedQuickGuide->path);
+        $this->assertNotSame($existingCalibrationDocument->path, $updatedCalibrationDocument->path);
         Storage::disk('private')->assertMissing($existingInvima->path);
         Storage::disk('private')->assertMissing($existingQuickGuide->path);
+        Storage::disk('private')->assertMissing($existingCalibrationDocument->path);
         Storage::disk('private')->assertExists($updatedInvima->path);
         Storage::disk('private')->assertExists($updatedQuickGuide->path);
+        Storage::disk('private')->assertExists($updatedCalibrationDocument->path);
         $this->assertSame(1, $product->fresh()->documents()->where('type', 'invima')->count());
         $this->assertSame(1, $product->fresh()->documents()->where('type', 'quick_guide')->count());
+        $this->assertSame(1, $product->fresh()->documents()->where('type', 'calibration_document')->count());
     }
 
     public function test_store_product_shows_clear_error_when_tech_sheet_exceeds_individual_limit(): void
@@ -635,7 +653,7 @@ class AdminProductEditorTest extends TestCase
             ]);
     }
 
-    public function test_store_product_shows_clear_error_when_invima_and_quick_guide_exceed_individual_limits(): void
+    public function test_store_product_shows_clear_error_when_invima_quick_guide_and_calibration_exceed_individual_limits(): void
     {
         $admin = User::factory()->admin()->create();
         $category = $this->createCategory();
@@ -645,6 +663,7 @@ class AdminProductEditorTest extends TestCase
             ->post('/admin/products', array_merge($this->validProductPayload($category), [
                 'invima' => UploadedFile::fake()->create('invima.pdf', ProductUploadLimits::invimaMaxSizeKb() + 1, 'application/pdf'),
                 'quick_guide' => UploadedFile::fake()->create('guia-rapida.pdf', ProductUploadLimits::quickGuideMaxSizeKb() + 1, 'application/pdf'),
+                'calibration_document' => UploadedFile::fake()->create('calibracion.pdf', ProductUploadLimits::calibrationDocumentMaxSizeKb() + 1, 'application/pdf'),
             ]));
 
         $response
@@ -652,6 +671,7 @@ class AdminProductEditorTest extends TestCase
             ->assertSessionHasErrors([
                 'invima' => 'El INVIMA debe pesar como maximo '.ProductUploadLimits::invimaMaxSizeLabel().'.',
                 'quick_guide' => 'La guia rapida del producto debe pesar como maximo '.ProductUploadLimits::quickGuideMaxSizeLabel().'.',
+                'calibration_document' => 'El documento de calibracion debe pesar como maximo '.ProductUploadLimits::calibrationDocumentMaxSizeLabel().'.',
             ]);
     }
 
