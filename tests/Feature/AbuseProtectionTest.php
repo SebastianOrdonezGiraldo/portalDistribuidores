@@ -116,9 +116,9 @@ class AbuseProtectionTest extends TestCase
             'Accept' => 'application/json',
         ]);
 
-        $this->withHeaders($headers)->get('/catalog')->assertOk();
-        $this->withHeaders($headers)->get('/catalog')->assertOk();
-        $this->withHeaders($headers)->get('/catalog')->assertStatus(429);
+        $this->withHeaders($headers)->get('/')->assertOk();
+        $this->withHeaders($headers)->get('/')->assertOk();
+        $this->withHeaders($headers)->get('/')->assertStatus(429);
     }
 
     public function test_suspicious_automation_user_agent_gets_throttled(): void
@@ -132,9 +132,9 @@ class AbuseProtectionTest extends TestCase
             'User-Agent' => 'curl/8.6.0',
         ];
 
-        $this->withHeaders($headers)->get('/catalog')->assertOk();
-        $this->withHeaders($headers)->get('/catalog')->assertOk();
-        $this->withHeaders($headers)->get('/catalog')->assertStatus(429);
+        $this->withHeaders($headers)->get('/')->assertOk();
+        $this->withHeaders($headers)->get('/')->assertOk();
+        $this->withHeaders($headers)->get('/')->assertStatus(429);
     }
 
     public function test_ai_generation_like_payloads_are_rate_limited(): void
