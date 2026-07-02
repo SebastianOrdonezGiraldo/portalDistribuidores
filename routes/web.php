@@ -9,13 +9,11 @@ use App\Modules\Orders\Http\Controllers\CheckoutController;
 use App\Modules\Orders\Http\Controllers\OrderController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    if (auth()->check()) {
-        return redirect()->route('dashboard');
-    }
+Route::get('/', CatalogController::class)
+    ->middleware(['throttle:catalog-scraping', 'suspicious_automation'])
+    ->name('catalog.index');
 
-    return redirect()->route('catalog.index');
-});
+Route::redirect('/catalog', '/', 301);
 
 Route::get('/dashboard', function () {
     if (auth()->user()->isAdmin()) {
@@ -29,10 +27,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
 });
-
-Route::get('/catalog', CatalogController::class)
-    ->middleware(['throttle:catalog-scraping', 'suspicious_automation'])
-    ->name('catalog.index');
 Route::get('/products/{product}', [ProductController::class, 'show'])
     ->middleware(['throttle:catalog-scraping', 'suspicious_automation'])
     ->name('products.show');
