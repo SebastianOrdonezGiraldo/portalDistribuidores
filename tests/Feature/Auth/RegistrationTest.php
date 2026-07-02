@@ -19,7 +19,11 @@ class RegistrationTest extends TestCase
     {
         $response = $this->get('/register');
 
-        $response->assertStatus(200);
+        $response->assertStatus(200)
+            ->assertSee('data-guest-brand-shell', false)
+            ->assertSee('Solicitud comercial')
+            ->assertSee('Obligatorio')
+            ->assertSee('Opcional');
     }
 
     public function test_registration_sends_admin_notification_email(): void

@@ -1,18 +1,30 @@
-@props(['title', 'subtitle' => null])
+@props([
+    'title',
+    'subtitle' => null,
+    'eyebrow' => 'Centro operativo',
+    'variant' => 'default',
+])
 
-<header {{ $attributes->merge(['class' => 'mb-5 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between']) }}>
-    <div class="space-y-1">
-        <h1 class="text-balance text-2xl font-semibold tracking-tight text-slate-900">{{ $title }}</h1>
+<header {{ $attributes->merge(['class' => 'operational-header mb-5']) }}>
+    <div class="operational-header-main">
+        @if($eyebrow)
+            <p class="operational-header-eyebrow">{{ $eyebrow }}</p>
+        @endif
+
+        <h1 class="operational-header-title text-balance">{{ $title }}</h1>
         @if($subtitle)
-            <p class="max-w-2xl text-sm text-slate-600">{{ $subtitle }}</p>
+            <p class="operational-header-subtitle">{{ $subtitle }}</p>
         @endif
         @if (isset($meta))
-            <div class="pt-1 text-xs text-slate-500">{{ $meta }}</div>
+            <div class="operational-header-meta">{{ $meta }}</div>
+        @endif
+        @if (isset($flow))
+            <div class="mt-4">{{ $flow }}</div>
         @endif
     </div>
 
     @if (isset($actions))
-        <div class="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+        <div class="operational-header-actions">
             {{ $actions }}
         </div>
     @endif

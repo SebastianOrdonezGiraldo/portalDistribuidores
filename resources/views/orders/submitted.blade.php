@@ -6,19 +6,22 @@
     @endphp
 
     <x-slot name="header">
-        <x-ui.page-header title="Solicitud enviada" subtitle="Tu solicitud de cotización fue recibida y está en gestión.">
+        <x-ui.page-header title="Solicitud enviada" subtitle="Tu solicitud de cotización fue recibida y está en gestión." eyebrow="Flujo de pedido">
             <x-slot name="actions">
                 <a href="{{ route('orders.show', $order) }}" class="btn btn-secondary">Ver detalles del pedido</a>
+            </x-slot>
+            <x-slot name="flow">
+                <x-ui.flow-steps current="submitted" />
             </x-slot>
         </x-ui.page-header>
     </x-slot>
 
     <section class="mx-auto max-w-3xl">
-        <x-ui.card class="overflow-hidden">
-            <div class="border-b border-emerald-200 bg-emerald-50 px-6 py-6">
+        <x-ui.card class="overflow-hidden" padding="none" variant="highlight">
+            <div class="border-b border-brand-primary/15 bg-brand-mist px-6 py-6">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Solicitud recibida</p>
-                <h1 class="mt-2 text-2xl font-semibold text-emerald-900">¡Solicitud enviada con éxito!</h1>
-                <p class="mt-2 text-sm text-emerald-800">
+                <h1 class="mt-2 font-display text-2xl font-semibold text-brand-ink">Solicitud enviada con éxito</h1>
+                <p class="mt-2 text-sm text-slate-700">
                     Su solicitud de cotización ha sido recibida. Estamos generando el PDF y te llegará también por correo.
                 </p>
             </div>

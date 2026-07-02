@@ -868,6 +868,32 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
+        const clearProductSkeletons = () => {
+            productList.querySelectorAll('[data-product-skeleton]').forEach((node) => node.remove());
+        };
+
+        const showProductSkeletons = () => {
+            const grid = productList.querySelector('[data-product-grid]');
+            if (!grid) {
+                return;
+            }
+
+            clearProductSkeletons();
+
+            const skeletonMarkup = Array.from({ length: 5 }).map(() => `
+                <article data-product-skeleton class="product-grid-skeleton-card">
+                    <div class="skeleton aspect-square w-full"></div>
+                    <div class="mt-3 space-y-2">
+                        <div class="skeleton h-4 w-4/5"></div>
+                        <div class="skeleton h-3 w-2/3"></div>
+                        <div class="skeleton h-8 w-full"></div>
+                    </div>
+                </article>
+            `).join('');
+
+            grid.insertAdjacentHTML('beforeend', skeletonMarkup);
+        };
+
         const loadMore = async () => {
             if (loading || productList.dataset.hasMore !== 'true') {
                 return;
@@ -875,6 +901,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             loading = true;
             setButtonLoading(true);
+            showProductSkeletons();
 
             const params = new URLSearchParams(productList.dataset.baseQuery || '');
             const pageParam = productList.dataset.pageParam || 'page';
@@ -902,6 +929,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const grid = productList.querySelector('[data-product-grid]');
                 const controls = productList.querySelector('[data-product-list-controls]');
 
+                clearProductSkeletons();
                 grid?.insertAdjacentHTML('beforeend', payload.html || '');
 
                 if (controls) {
@@ -918,6 +946,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch {
                 // Keep the current controls so the user can retry manually.
             } finally {
+                clearProductSkeletons();
                 loading = false;
                 setButtonLoading(false);
             }

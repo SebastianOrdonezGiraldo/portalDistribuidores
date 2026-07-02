@@ -1,4 +1,4 @@
-@props(['padding' => 'md'])
+@props(['padding' => 'md', 'variant' => 'default'])
 
 @php
     $paddings = [
@@ -7,9 +7,17 @@
         'md' => 'p-5',
         'lg' => 'p-6',
     ];
+
+    $variants = [
+        'default' => '',
+        'subtle' => 'card-subtle',
+        'metric' => 'card-metric',
+        'command' => 'card-command',
+        'highlight' => 'card-highlight',
+    ];
 @endphp
 
-<section {{ $attributes->merge(['class' => 'card '.($paddings[$padding] ?? $paddings['md'])]) }}>
+<section {{ $attributes->merge(['class' => trim('card '.($variants[$variant] ?? '').' '.($paddings[$padding] ?? $paddings['md']))]) }}>
     @if (isset($header))
         <header class="card-header">
             {{ $header }}
