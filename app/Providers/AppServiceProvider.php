@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password;
 use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
@@ -35,11 +36,16 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(SearchEngineInterface::class, PostgresSearchEngine::class);
+
+        if (! app()->environment(['local', 'testing'])) {
+            $this->app->register(\Scoutapm\Laravel\Providers\ScoutApmServiceProvider::class);
+        }
     }
 
     public function boot(): void
     {
         $this->configureAbuseProtectionRateLimiters();
+        $this->configurePasswordDefaults();
 
         if (! app()->environment(['local', 'testing'])) {
             $violations = $this->runtimeSecurityViolations();
@@ -202,6 +208,19 @@ class AppServiceProvider extends ServiceProvider
                 Limit::perMinute($perMinute)->by("ai:minute:{$actor}"),
                 Limit::perHour($perHour)->by("ai:hour:{$actor}"),
             ];
+        });
+    }
+
+    private function configurePasswordDefaults(): void
+    {
+        Password::defaults(function () {
+            $rule = Password::min(8);
+
+            if ((bool) config('app.env') !== 'testing') {
+                $rule->mixedCase()->letters()->numbers()->symbols();
+            }
+
+            return $rule;
         });
     }
 

@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Hash;
 
 /**
  * @property int $id
@@ -76,7 +77,7 @@ class User extends Authenticatable
         $code = (string) random_int(100000, 999999);
 
         $this->update([
-            'email_verification_code' => $code,
+            'email_verification_code' => Hash::make($code),
             'email_verification_code_expires_at' => now()->addMinutes(15),
         ]);
 
@@ -85,9 +86,19 @@ class User extends Authenticatable
 
     public function hasValidVerificationCode(string $code): bool
     {
-        return $this->email_verification_code === $code
-            && $this->email_verification_code_expires_at !== null
-            && $this->email_verification_code_expires_at->isFuture();
+        if ($this->email_verification_code_expires_at === null) {
+            return false;
+        }
+
+        if (! $this->email_verification_code_expires_at->isFuture()) {
+            return false;
+        }
+
+        if (! is_string($this->email_verification_code) || $this->email_verification_code === '') {
+            return false;
+        }
+
+        return Hash::check($code, $this->email_verification_code);
     }
 
     public function clearEmailVerificationCode(): void
