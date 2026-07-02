@@ -1,8 +1,7 @@
 <x-guest-layout>
     <div class="mb-6">
-        <p class="text-xs font-bold uppercase tracking-[0.14em] text-brand-aubergine">Acceso seguro</p>
-        <h1 class="mt-1 font-display text-2xl font-semibold text-brand-ink">Portal B2B médico</h1>
-        <p class="mt-1 text-sm text-slate-600">Ingresa para operar catálogo, pedidos CTC y documentos comerciales.</p>
+        <h1 class="text-2xl font-semibold text-slate-900">Acceso al Portal B2B</h1>
+        <p class="mt-1 text-sm text-slate-600">Ingresa con tu cuenta para operar catálogo, pedidos y documentos.</p>
     </div>
 
     <x-auth-session-status :status="session('status')" class="mb-4" />
@@ -11,14 +10,14 @@
         @csrf
 
         <div>
-            <x-input-label for="email" :value="__('Correo electrónico')" required />
+            <x-input-label for="email" :value="__('Correo electrónico')" />
             <x-text-input id="email" class="mt-1 block w-full" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" />
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
         <div>
             <div class="flex items-center justify-between">
-                <x-input-label for="password" :value="__('Contraseña')" required />
+                <x-input-label for="password" :value="__('Contraseña')" />
                 @if (Route::has('password.request'))
                     <a href="{{ route('password.request') }}" class="text-xs font-medium text-slate-600 hover:text-slate-900">¿Olvidaste tu contraseña?</a>
                 @endif

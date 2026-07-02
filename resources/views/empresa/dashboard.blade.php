@@ -1,15 +1,8 @@
 <x-app-layout>
-    @php
-        $cartCount = (int) ($navCartCount ?? 0);
-        $newOrderHref = $cartCount > 0 ? route('checkout.show') : route('catalog.index');
-        $newOrderLabel = $cartCount > 0 ? 'Nuevo pedido' : 'Iniciar desde catálogo';
-    @endphp
-
     <x-slot name="header">
         <x-ui.page-header
             title="Panel de Empresa"
             :subtitle="$distributor->name ?? 'Mi empresa'"
-            eyebrow="Operación comercial"
         >
             <x-slot name="meta">
                 <div class="flex flex-wrap items-center gap-2">
@@ -23,7 +16,7 @@
             </x-slot>
             <x-slot name="actions">
                 <a href="{{ route('empresa.orders.index') }}" class="btn btn-secondary">Ver historial</a>
-                <a href="{{ $newOrderHref }}" class="btn btn-primary">{{ $newOrderLabel }}</a>
+                <a href="{{ route('checkout.show') }}" class="btn btn-primary">Nuevo pedido</a>
             </x-slot>
         </x-ui.page-header>
     </x-slot>
@@ -98,28 +91,28 @@
             <x-ui.card class="p-5">
                 <h2 class="card-title">Accesos Rápidos</h2>
                 <div class="mt-4 grid gap-2 sm:grid-cols-2">
-                    <a href="{{ route('empresa.orders.index') }}" class="admin-quick-link">
+                    <a href="{{ route('empresa.orders.index') }}" class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-900">
                         <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
                         </span>
                         Historial de pedidos
                     </a>
                     @if(auth()->user()?->canCreateOrders())
-                        <a href="{{ $newOrderHref }}" class="admin-quick-link">
+                        <a href="{{ route('checkout.show') }}" class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-900">
                             <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
                             </span>
-                            {{ $newOrderLabel }}
+                            Nuevo pedido
                         </a>
                     @endif
-                    <a href="{{ route('catalog.index') }}" class="admin-quick-link">
+                    <a href="{{ route('catalog.index') }}" class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-900">
                         <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-dark">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                         </span>
                         Catálogo de productos
                     </a>
                     @can('manageBranches')
-                        <a href="{{ route('empresa.branches.index') }}" class="admin-quick-link">
+                        <a href="{{ route('empresa.branches.index') }}" class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-900">
                             <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                             </span>
@@ -127,7 +120,7 @@
                         </a>
                     @endcan
                     @can('editCompany', \App\Modules\AuthAccess\Models\Distributor::class)
-                        <a href="{{ route('empresa.profile.edit') }}" class="admin-quick-link">
+                        <a href="{{ route('empresa.profile.edit') }}" class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-900">
                             <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
                             </span>
@@ -135,7 +128,7 @@
                         </a>
                     @endcan
                     @if($latestOrderWithPdf)
-                        <a href="{{ route('empresa.orders.pdf', $latestOrderWithPdf) }}" class="admin-quick-link">
+                        <a href="{{ route('empresa.orders.pdf', $latestOrderWithPdf) }}" class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-900">
                             <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-600">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
                             </span>

@@ -32,10 +32,6 @@ class DistributorCatalogCartUiTest extends TestCase
         $response->assertOk();
         $response->assertSee('data-cart-target', false);
         $response->assertSee('data-cart-badge', false);
-        $response->assertSee('data-sidebar-new-order-link', false);
-        $response->assertSee('Iniciar Pedido');
-        $response->assertSee('Agrega productos primero');
-        $response->assertDontSee('href="'.route('checkout.show').'"', false);
         $response->assertSee('>0<', false);
     }
 

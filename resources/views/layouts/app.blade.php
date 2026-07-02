@@ -22,30 +22,25 @@
     $isAuthenticated = auth()->check();
     $isAdmin = $user?->isAdmin();
     $isDistributor = $user?->isDistributor();
-    $cartCount = (int) ($navCartCount ?? 0);
-    $checkoutNavHref = $cartCount > 0 ? route('checkout.show') : route('catalog.index');
-    $checkoutNavHint = $cartCount > 0 ? 'Completar datos comerciales' : 'Agrega productos primero';
 @endphp
 
 <div class="app-shell relative min-h-dvh">
     <x-ui.flash-stack />
 
     @if($isAuthenticated)
-        <div data-sidebar-overlay class="fixed inset-0 z-40 hidden bg-slate-950/50 lg:hidden" aria-hidden="true"></div>
+        <div data-sidebar-overlay class="fixed inset-0 z-40 hidden bg-slate-950/45 lg:hidden" aria-hidden="true"></div>
 
-        <aside id="app-sidebar" data-sidebar class="fixed inset-y-0 left-0 z-50 flex w-64 max-w-[calc(100vw-2rem)] -translate-x-full pointer-events-none flex-col border-r border-brand-primary/20 bg-white/95 shadow-panel backdrop-blur transition-transform duration-200 ease-out lg:translate-x-0 lg:pointer-events-auto">
-        <div class="sidebar-brand-panel">
-            <a href="{{ route('dashboard') }}" class="flex min-w-0 items-center gap-3 rounded-xl focus-ring">
-                <span class="sidebar-brand-mark">
-                    <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-10 w-auto object-contain">
-                </span>
-                <span class="min-w-0">
-                    <span class="block truncate font-display text-sm font-semibold leading-tight text-white">Portal Distribuidores</span>
-                    <span class="block truncate text-xs text-white/70">Import Corporal Medical SAS</span>
-                </span>
+        <aside id="app-sidebar" data-sidebar class="fixed inset-y-0 left-0 z-50 flex w-60 max-w-[calc(100vw-2rem)] -translate-x-full pointer-events-none flex-col border-r border-slate-200 bg-white shadow-panel transition-transform duration-200 ease-out lg:translate-x-0 lg:pointer-events-auto">
+        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <a href="{{ route('dashboard') }}" class="flex min-w-0 items-center gap-3 focus-ring rounded-lg">
+                <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-9 w-auto">
+                <div class="min-w-0">
+                    <p class="truncate text-sm font-semibold leading-tight text-slate-900">Portal Distribuidores</p>
+                    <p class="truncate text-xs text-slate-500">Import Corporal Medical SAS</p>
+                </div>
             </a>
 
-            <button type="button" data-sidebar-close class="btn btn-ghost !min-h-10 !px-2 text-white hover:bg-white/10 hover:text-white lg:hidden" aria-label="Cerrar menú" aria-controls="app-sidebar">
+            <button type="button" data-sidebar-close class="btn btn-ghost !min-h-10 !px-2 lg:hidden" aria-label="Cerrar menú" aria-controls="app-sidebar">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 0 1 1.414 0L10 8.586l4.293-4.293a1 1 0 1 1 1.414 1.414L11.414 10l4.293 4.293a1 1 0 0 1-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 0 1-1.414-1.414L8.586 10 4.293 5.707a1 1 0 0 1 0-1.414Z" clip-rule="evenodd" /></svg>
             </button>
         </div>
@@ -54,19 +49,19 @@
             @if($isAdmin)
                 <p class="sidebar-section-label">Operación</p>
                 <div class="mt-2 space-y-0.5">
-                    <x-ui.sidebar-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')" hint="Resumen y alertas">
+                    <x-ui.sidebar-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
                         Inicio
                     </x-ui.sidebar-link>
-                    <x-ui.sidebar-link :href="route('admin.orders.index')" :active="request()->routeIs('admin.orders.*')" hint="CTC y estados">
+                    <x-ui.sidebar-link :href="route('admin.orders.index')" :active="request()->routeIs('admin.orders.*')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
                         Pedidos
                     </x-ui.sidebar-link>
-                    <x-ui.sidebar-link :href="route('admin.products.index')" :active="request()->routeIs('admin.products.*')" hint="Portafolio médico">
+                    <x-ui.sidebar-link :href="route('admin.products.index')" :active="request()->routeIs('admin.products.*')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
                         Productos
                     </x-ui.sidebar-link>
-                    <x-ui.sidebar-link :href="route('admin.categories.index')" :active="request()->routeIs('admin.categories.*')" hint="Taxonomía">
+                    <x-ui.sidebar-link :href="route('admin.categories.index')" :active="request()->routeIs('admin.categories.*')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                         Categorías
                     </x-ui.sidebar-link>
@@ -88,11 +83,11 @@
             @if($isDistributor)
                 <p class="sidebar-section-label">Mi Empresa</p>
                 <div class="mt-2 space-y-0.5">
-                    <x-ui.sidebar-link :href="route('empresa.dashboard')" :active="request()->routeIs('empresa.dashboard')" hint="Tu operación">
+                    <x-ui.sidebar-link :href="route('empresa.dashboard')" :active="request()->routeIs('empresa.dashboard')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
                         Inicio
                     </x-ui.sidebar-link>
-                    <x-ui.sidebar-link :href="route('empresa.orders.index')" :active="request()->routeIs('empresa.orders.*')" hint="Historial CTC">
+                    <x-ui.sidebar-link :href="route('empresa.orders.index')" :active="request()->routeIs('empresa.orders.*')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
                         Mis Pedidos
                     </x-ui.sidebar-link>
@@ -112,18 +107,18 @@
 
                 <p class="sidebar-section-label mt-5">Comercial</p>
                 <div class="mt-2 space-y-0.5">
-                    <x-ui.sidebar-link :href="route('catalog.index')" :active="request()->routeIs('catalog.*', 'products.show')" hint="Buscar y agregar">
+                    <x-ui.sidebar-link :href="route('catalog.index')" :active="request()->routeIs('catalog.*', 'products.show')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                         Catálogo
                     </x-ui.sidebar-link>
-                    <x-ui.sidebar-link :href="route('cart.index')" :active="request()->routeIs('cart.*')" hint="Productos seleccionados" data-cart-target>
+                    <x-ui.sidebar-link :href="route('cart.index')" :active="request()->routeIs('cart.*')" data-cart-target>
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                         Carrito
                         <x-ui.badge :variant="($navCartCount ?? 0) > 0 ? 'brand' : 'neutral'" class="ml-auto" data-cart-badge>{{ $navCartCount ?? 0 }}</x-ui.badge>
                     </x-ui.sidebar-link>
-                    <x-ui.sidebar-link :href="$checkoutNavHref" :active="request()->routeIs('checkout.*')" :hint="$checkoutNavHint" tone="command" data-sidebar-new-order-link>
+                    <x-ui.sidebar-link :href="route('checkout.show')" :active="request()->routeIs('checkout.*')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-                        {{ $cartCount > 0 ? 'Nuevo Pedido' : 'Iniciar Pedido' }}
+                        Nuevo Pedido
                     </x-ui.sidebar-link>
                 </div>
             @endif
@@ -137,13 +132,13 @@
             </div>
         </div>
 
-        <div class="border-t border-brand-primary/10 bg-brand-mist/50 px-4 py-4">
+        <div class="border-t border-slate-200 px-4 py-4">
             <div class="mb-3 flex items-center gap-3 px-1">
-                <span class="sidebar-user-mark">
+                <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-brand-primary/15 text-sm font-semibold text-brand-dark">
                     {{ strtoupper(substr($user->name, 0, 1)) }}
                 </span>
                 <div class="min-w-0">
-                    <p class="truncate text-sm font-semibold text-brand-ink">{{ $user->name }}</p>
+                    <p class="truncate text-sm font-semibold text-slate-900">{{ $user->name }}</p>
                     <p class="truncate text-xs text-slate-500">{{ $isDistributor ? ($user->distributor?->name ?? 'Distribuidor') : 'Administrador' }}</p>
                 </div>
             </div>
@@ -158,8 +153,8 @@
         </aside>
     @endif
 
-    <div class="flex min-h-dvh min-w-0 flex-col {{ $isAuthenticated ? 'lg:pl-64' : '' }}">
-        <header class="sticky top-0 z-30 border-b border-brand-primary/20 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/90">
+    <div class="flex min-h-dvh min-w-0 flex-col {{ $isAuthenticated ? 'lg:pl-60' : '' }}">
+        <header class="sticky top-0 z-30 border-b border-slate-200/95 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
             <div class="flex flex-col gap-2 px-3 py-3 sm:px-6 lg:px-8">
                 <div class="flex min-w-0 items-center gap-2 sm:gap-3">
                     @if($isAuthenticated)
@@ -195,7 +190,7 @@
                                     aria-haspopup="menu"
                                     aria-controls="profile-menu-panel"
                                 >
-                                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-brand-accent/20 bg-brand-accent/10 font-display text-sm font-bold text-brand-aubergine">
+                                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary/15 text-sm font-semibold text-brand-dark">
                                         {{ strtoupper(substr($user->name, 0, 1)) }}
                                     </span>
                                 </button>
@@ -267,7 +262,7 @@
             </div>
         </header>
 
-        <main class="motion-page min-w-0 flex-1 px-3 py-4 sm:px-6 sm:py-5 lg:px-8">
+        <main class="min-w-0 flex-1 px-3 py-4 sm:px-6 sm:py-5 lg:px-8">
             @if (isset($breadcrumbs))
                 <x-ui.breadcrumbs :items="$breadcrumbs" />
             @endif

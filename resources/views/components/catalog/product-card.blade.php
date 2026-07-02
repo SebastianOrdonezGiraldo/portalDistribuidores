@@ -33,8 +33,8 @@
     $vatLabel = \App\Modules\Orders\Support\OrderLineVat::label((bool) $product->is_vat_excluded);
 @endphp
 
-<article data-product-card class="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-brand-primary/10 bg-white shadow-soft transition hover:-translate-y-0.5 hover:border-brand-primary/40 hover:shadow-panel">
-    <div class="relative flex aspect-square items-center justify-center overflow-hidden bg-brand-mist/70 p-2 sm:p-3">
+<article class="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-panel">
+    <div class="relative flex aspect-square items-center justify-center overflow-hidden bg-slate-100 p-2 sm:p-3">
         <div class="absolute left-2.5 top-2.5 z-10">
             <x-ui.badge variant="neutral" class="!rounded-full !px-2 !py-0.5 !text-xs !font-medium !normal-case !tracking-normal">
                 {{ $product->category?->name ?? 'Sin categoría' }}
