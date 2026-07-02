@@ -2,12 +2,12 @@
 
 @php
     $iconBgColors = [
-        'brand'   => 'bg-brand-primary/10 text-brand-dark',
+        'brand'   => 'bg-brand-primary/20 text-brand-dark',
         'success' => 'bg-emerald-50 text-emerald-700',
         'warning' => 'bg-amber-50 text-amber-700',
         'danger'  => 'bg-red-50 text-red-700',
         'info'    => 'bg-sky-50 text-sky-700',
-        'neutral' => 'bg-slate-100 text-slate-600',
+        'neutral' => 'bg-brand-mist text-brand-primary',
     ];
     $iconBgClass = $iconBgColors[$accent ?? 'neutral'] ?? $iconBgColors['neutral'];
 
@@ -21,8 +21,8 @@
         }
     }
 
-    $cardBase = 'card overflow-hidden p-5 transition hover:-translate-y-0.5 hover:shadow-soft';
-    $linkExtra = $href ? 'block cursor-pointer hover:border-slate-300' : '';
+    $cardBase = 'card card-metric overflow-hidden p-5 transition hover:-translate-y-0.5 hover:shadow-soft';
+    $linkExtra = $href ? 'block cursor-pointer hover:border-brand-primary/40' : '';
 @endphp
 
 @php
@@ -56,7 +56,7 @@
             </div>
         </div>
         <p class="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $label }}</p>
-        <p class="mt-1 text-3xl font-semibold tabular-nums text-slate-900">{{ $value }}</p>
+        <p class="mt-1 font-display text-3xl font-semibold tabular-nums text-brand-ink">{{ $value }}</p>
         @if($hint && !$trend)
             <p class="mt-1 text-xs text-slate-500">{{ $hint }}</p>
         @endif
@@ -76,7 +76,7 @@
             @endif
         </div>
         <p class="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $label }}</p>
-        <p class="mt-1 text-3xl font-semibold tabular-nums text-slate-900">{{ $value }}</p>
+        <p class="mt-1 font-display text-3xl font-semibold tabular-nums text-brand-ink">{{ $value }}</p>
         @if($hint && !$trend)
             <p class="mt-1 text-xs text-slate-500">{{ $hint }}</p>
         @endif

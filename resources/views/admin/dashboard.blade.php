@@ -55,23 +55,22 @@
     @endphp
 
     <x-slot name="header">
-        <section class="admin-exec-hero">
-            <div class="admin-exec-hero-main">
-                <p class="admin-exec-hero-eyebrow">Resumen ejecutivo</p>
-                <h1 class="admin-exec-hero-title">Panel operativo</h1>
-                <p class="admin-exec-hero-subtitle">Visión comercial consolidada para administrar pedidos, catálogo y prioridades de seguimiento.</p>
-                <div class="admin-exec-hero-meta">
-                    <span class="stat-pill">Periodo: {{ $monthRangeLabel }}</span>
-                    <span class="stat-pill">Pedidos del mes: {{ number_format($currentMonthOrders) }}</span>
-                    <span class="stat-pill">Última orden: {{ $latestOrderAt?->diffForHumans() ?? 'Sin registros' }}</span>
-                    <span class="stat-pill">Catálogo: {{ $latestCatalogUpdateAt?->diffForHumans() ?? 'Sin cambios recientes' }}</span>
-                </div>
-            </div>
-            <div class="admin-exec-hero-actions">
+        <x-ui.page-header
+            title="Panel operativo"
+            subtitle="Visión comercial consolidada para administrar pedidos, catálogo y prioridades de seguimiento."
+            eyebrow="Resumen ejecutivo"
+        >
+            <x-slot name="meta">
+                <span class="stat-pill">Periodo: {{ $monthRangeLabel }}</span>
+                <span class="stat-pill">Pedidos del mes: {{ number_format($currentMonthOrders) }}</span>
+                <span class="stat-pill">Última orden: {{ $latestOrderAt?->diffForHumans() ?? 'Sin registros' }}</span>
+                <span class="stat-pill">Catálogo: {{ $latestCatalogUpdateAt?->diffForHumans() ?? 'Sin cambios recientes' }}</span>
+            </x-slot>
+            <x-slot name="actions">
                 <a href="{{ route('admin.orders.index') }}" class="btn btn-secondary">Ver pedidos</a>
                 <a href="{{ route('admin.products.create') }}" class="btn btn-primary">Nuevo producto</a>
-            </div>
-        </section>
+            </x-slot>
+        </x-ui.page-header>
     </x-slot>
 
     <section class="space-y-4">

@@ -63,11 +63,11 @@
         {{-- ──────────────────────────────────────────────────────────────
              HERO: imagen (izquierda) + info + compra (derecha)
         ────────────────────────────────────────────────────────────────── --}}
-        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] xl:grid-cols-[minmax(0,1.15fr)_minmax(22rem,26rem)]">
+        <section class="overflow-hidden rounded-2xl border border-brand-primary/20 bg-white shadow-soft lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] xl:grid-cols-[minmax(0,1.15fr)_minmax(22rem,26rem)]">
 
             {{-- Columna imagen --}}
-            <div class="relative flex flex-col border-b border-slate-200 bg-slate-50/80 lg:border-b-0 lg:border-r">
-                <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(54,177,187,0.15),transparent_45%),radial-gradient(circle_at_82%_88%,rgba(15,23,42,0.07),transparent_40%)]"></div>
+            <div class="relative flex flex-col border-b border-brand-primary/10 bg-brand-mist/60 lg:border-b-0 lg:border-r">
+                <div class="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(84,107,32,0.08)_1px,transparent_1px),linear-gradient(180deg,rgba(75,24,93,0.06)_1px,transparent_1px)] bg-[length:24px_24px]"></div>
 
                 {{-- Imagen principal --}}
                 <div class="group/img relative flex min-h-[18rem] flex-1 items-center justify-center overflow-hidden px-6 py-8 sm:min-h-[24rem] sm:px-10 sm:py-12">
@@ -237,7 +237,7 @@
 
                     {{-- Promo --}}
                     @if($promoLabel)
-                        <div class="mb-4 flex items-center gap-2 rounded-xl border border-brand-primary/25 bg-brand-primary/8 px-3.5 py-2.5">
+                        <div class="mb-4 flex items-center gap-2 rounded-xl border border-brand-primary/25 bg-brand-primary/10 px-3.5 py-2.5">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-brand-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                             </svg>
@@ -575,7 +575,7 @@
                         {{-- Tarjeta izquierda: Ficha técnica --}}
                         <div class="group relative overflow-hidden rounded-2xl border transition {{ $techSheet ? 'border-brand-primary/30 bg-brand-primary/5 hover:border-brand-primary/50' : 'border-slate-200 bg-slate-50' }}">
                             <div class="flex items-start gap-4 p-5">
-                                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl {{ $techSheet ? 'bg-brand-primary/15 text-brand-primary' : 'bg-slate-200 text-slate-400' }}">
+                                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl {{ $techSheet ? 'bg-brand-primary/20 text-brand-primary' : 'bg-slate-200 text-slate-400' }}">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                                         <polyline points="14 2 14 8 20 8"/>

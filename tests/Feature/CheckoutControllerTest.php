@@ -62,7 +62,11 @@ class CheckoutControllerTest extends TestCase
             ->assertViewHas('total')
             ->assertViewHas('distributor')
             ->assertViewHas('branches')
-            ->assertViewHas('departments');
+            ->assertViewHas('departments')
+            ->assertSee('data-flow-steps', false)
+            ->assertSee('data-current-step="checkout"', false)
+            ->assertSee('Obligatorio')
+            ->assertSee('Opcional');
 
         $this->assertEquals(45000.0, $response->viewData('total'));
     }

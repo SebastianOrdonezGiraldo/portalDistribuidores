@@ -23,7 +23,10 @@ class CartControllerTest extends TestCase
         $this->get(route('cart.index'))
             ->assertOk()
             ->assertViewIs('cart.index')
-            ->assertViewHas('items');
+            ->assertViewHas('items')
+            ->assertSee('data-flow-steps', false)
+            ->assertSee('data-current-step="cart"', false)
+            ->assertSee('Ir al catálogo');
     }
 
     public function test_cart_shows_added_product(): void

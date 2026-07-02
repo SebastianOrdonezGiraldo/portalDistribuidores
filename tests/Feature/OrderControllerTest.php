@@ -316,7 +316,9 @@ class OrderControllerTest extends TestCase
         $this->actingAs($user)
             ->get(route('orders.submitted', $order))
             ->assertOk()
-            ->assertViewIs('orders.submitted');
+            ->assertViewIs('orders.submitted')
+            ->assertSee('data-flow-steps', false)
+            ->assertSee('data-current-step="submitted"', false);
     }
 
     public function test_other_distributor_cannot_access_submitted_page(): void
