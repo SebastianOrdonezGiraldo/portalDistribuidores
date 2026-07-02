@@ -4,6 +4,7 @@ namespace App\Modules\Admin\Services;
 
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
+use App\Modules\Shared\Enums\DocumentType;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Barryvdh\DomPDF\PDF as DomPdfWrapper;
 use Illuminate\Support\Collection;
@@ -45,7 +46,8 @@ class InventoryPdfGenerator
      *     variant_value:?string,
      *     price:?float,
      *     stock:?float,
-     *     status:string
+     *     status:string,
+     *     documents:array<string, bool>
      * }>
      */
     private function buildRows(Collection $products): Collection
@@ -59,6 +61,14 @@ class InventoryPdfGenerator
                     'category' => $product->category?->name,
                     'variant_attribute' => $product->variantAttribute?->name,
                     'status' => $product->is_active ? 'Disponible' : 'Inactivo',
+                    'documents' => [
+                        'tech_sheet' => $product->documents->contains('type', DocumentType::TechSheet->value),
+                        'manual' => $product->documents->contains('type', DocumentType::Manual->value),
+                        'invima' => $product->documents->contains('type', DocumentType::Invima->value),
+                        'quick_guide' => $product->documents->contains('type', DocumentType::QuickGuide->value),
+                        'calibration_document' => $product->documents->contains('type', DocumentType::CalibrationDocument->value),
+                        'video' => $product->videos->isNotEmpty(),
+                    ],
                 ];
 
                 $variants = $product->variants
