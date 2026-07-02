@@ -143,6 +143,8 @@ class ProductAdminController extends Controller
             $this->buildFilteredQuery($filters)->with([
                 'category',
                 'variantAttribute',
+                'documents',
+                'videos',
                 'variants' => fn ($query) => $query
                     ->where('is_active', true)
                     ->with('attributeValue'),

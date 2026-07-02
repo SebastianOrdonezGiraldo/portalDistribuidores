@@ -92,6 +92,12 @@
                 <th class="num">Precio</th>
                 <th class="num">Stock</th>
                 <th>Estado</th>
+                <th style="width:20px;text-align:center;" title="Ficha técnica">FT</th>
+                <th style="width:20px;text-align:center;" title="Manual de usuario">MN</th>
+                <th style="width:20px;text-align:center;" title="INVIMA">IN</th>
+                <th style="width:20px;text-align:center;" title="Guía rápida">GP</th>
+                <th style="width:20px;text-align:center;" title="Calibración">DC</th>
+                <th style="width:20px;text-align:center;" title="Video">VD</th>
             </tr>
         </thead>
         <tbody>
@@ -111,10 +117,16 @@
                     <td class="num">{{ $formatMoney($row['price']) }}</td>
                     <td class="num">{{ $formatStock($row['stock']) }}</td>
                     <td>{{ $row['status'] }}</td>
+                    <td style="text-align:center;">{{ $row['documents']['tech_sheet'] ? '✓' : '—' }}</td>
+                    <td style="text-align:center;">{{ $row['documents']['manual'] ? '✓' : '—' }}</td>
+                    <td style="text-align:center;">{{ $row['documents']['invima'] ? '✓' : '—' }}</td>
+                    <td style="text-align:center;">{{ $row['documents']['quick_guide'] ? '✓' : '—' }}</td>
+                    <td style="text-align:center;">{{ $row['documents']['calibration_document'] ? '✓' : '—' }}</td>
+                    <td style="text-align:center;">{{ $row['documents']['video'] ? '✓' : '—' }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="8" class="muted">No hay productos para los filtros seleccionados.</td>
+                    <td colspan="14" class="muted">No hay productos para los filtros seleccionados.</td>
                 </tr>
             @endforelse
         </tbody>
