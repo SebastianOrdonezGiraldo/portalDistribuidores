@@ -5,7 +5,7 @@
     @endphp
 
     <x-slot name="header">
-        <x-ui.page-header title="Tu carrito" subtitle="Revisa cantidades y confirma el pedido antes de continuar a checkout." eyebrow="Flujo de pedido">
+        <x-ui.page-header title="Tu carrito" subtitle="Revisa cantidades y confirma el pedido antes de continuar a checkout.">
             <x-slot name="meta">
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="stat-pill">Productos: <span data-cart-products-count>{{ number_format($itemsCount) }}</span></span>
@@ -15,9 +15,6 @@
             </x-slot>
             <x-slot name="actions">
                 <a href="{{ route('catalog.index') }}" class="btn btn-secondary">Seguir comprando</a>
-            </x-slot>
-            <x-slot name="flow">
-                <x-ui.flow-steps current="cart" />
             </x-slot>
         </x-ui.page-header>
     </x-slot>
@@ -38,7 +35,7 @@
                     <h2 class="card-title">Productos agregados</h2>
                 </div>
 
-                <div class="motion-stagger mt-4 space-y-3">
+                <div class="mt-4 space-y-3">
                     @foreach($items as $item)
                         @php
                             $product = $item['product'];
@@ -104,7 +101,7 @@
             </x-ui.card>
 
             <aside class="min-w-0 max-w-full space-y-4 lg:sticky lg:top-24 lg:h-fit">
-                <x-ui.card variant="highlight" class="min-w-0 p-5">
+                <x-ui.card class="min-w-0 p-5">
                     <h2 class="card-title">Resumen comercial</h2>
 
                     <div class="mt-4 space-y-2 text-sm">

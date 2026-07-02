@@ -13,14 +13,10 @@ export default {
         extend: {
             colors: {
                 brand: {
-                    primary: '#546B20',
-                    hover: '#435619',
-                    dark: '#31420F',
-                    accent: '#A51C7B',
-                    aubergine: '#4B185D',
-                    ink: '#201727',
-                    surface: '#F7F8F2',
-                    mist: '#EDF2E4',
+                    primary: '#36B1BB',
+                    dark: '#0f6268',
+                    hover: '#2f9ca5',
+                    ink: '#050200',
                     canvas: '#FFFFFF',
                 },
                 state: {

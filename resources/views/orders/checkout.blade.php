@@ -5,12 +5,9 @@
     @endphp
 
     <x-slot name="header">
-        <x-ui.page-header title="Confirmar Pedido" subtitle="Verifica datos de contacto, dirección y observaciones antes de enviar la CTC." eyebrow="Flujo de pedido">
+        <x-ui.page-header title="Confirmar Pedido" subtitle="Verifica datos de contacto, dirección y observaciones antes de enviar la CTC.">
             <x-slot name="actions">
                 <a href="{{ route('cart.index') }}" class="btn btn-secondary">Volver al carrito</a>
-            </x-slot>
-            <x-slot name="flow">
-                <x-ui.flow-steps current="checkout" />
             </x-slot>
         </x-ui.page-header>
     </x-slot>
@@ -18,13 +15,13 @@
     <form action="{{ route('orders.store') }}" method="POST" data-loading-form class="grid gap-4 lg:grid-cols-[1.7fr_1fr]">
         @csrf
 
-        <x-ui.card class="p-5" variant="default">
+        <x-ui.card class="p-5">
             <h2 class="card-title">Datos comerciales</h2>
 
             {{-- Selector de sucursal (solo si la empresa tiene sucursales registradas) --}}
             @if(isset($branches) && $branches->isNotEmpty())
                 <div class="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3">
-                    <x-input-label class="mb-1" for="branch_select" :value="__('Dirección de entrega (sucursal)')" optional />
+                    <label class="form-label mb-1" for="branch_select">Dirección de entrega (sucursal)</label>
                     <select id="branch_select" class="form-input"
                         onchange="applyBranch(this)">
                         <option value="">— Ingresar dirección manualmente —</option>
@@ -46,12 +43,12 @@
 
             <div class="mt-4 grid gap-4 sm:grid-cols-2">
                 <div>
-                    <x-input-label for="company_name" :value="__('Razón social')" required />
+                    <label class="form-label" for="company_name">Razón social *</label>
                     <x-ui.input id="company_name" name="company_name" :value="old('company_name', $distributor?->name)" required />
                     <x-input-error :messages="$errors->get('company_name')" />
                 </div>
                 <div>
-                    <x-input-label for="company_nit" :value="__('NIT / Cédula')" required />
+                    <label class="form-label" for="company_nit">NIT / Cédula *</label>
                     <x-ui.input
                         id="company_nit"
                         name="company_nit"
@@ -65,36 +62,36 @@
                     <x-input-error :messages="$errors->get('company_nit')" />
                 </div>
                 <div>
-                    <x-input-label for="contact_name" :value="__('Nombre de contacto')" required />
+                    <label class="form-label" for="contact_name">Nombre de contacto *</label>
                     <x-ui.input id="contact_name" name="contact_name" :value="old('contact_name', $defaultContactName)" required />
                     <x-input-error :messages="$errors->get('contact_name')" />
                 </div>
                 <div>
-                    <x-input-label for="contact_email" :value="__('Correo de contacto')" required />
+                    <label class="form-label" for="contact_email">Correo de contacto *</label>
                     <x-ui.input id="contact_email" type="email" name="contact_email" :value="old('contact_email', $defaultContactEmail)" required />
                     <x-input-error :messages="$errors->get('contact_email')" />
                 </div>
                 <div>
-                    <x-input-label for="phone" :value="__('Teléfono')" required />
+                    <label class="form-label" for="phone">Teléfono *</label>
                     <x-ui.input id="phone" type="tel" name="phone" :value="old('phone', $distributor?->phone)" placeholder="300 000 0000" required />
                     <x-input-error :messages="$errors->get('phone')" />
                 </div>
                 <div>
-                    <x-input-label for="company_address" :value="__('Dirección')" required />
+                    <label class="form-label" for="company_address">Dirección *</label>
                     <x-ui.input id="company_address" name="company_address"
                         :value="old('company_address', $distributor?->address)"
                         required />
                     <x-input-error :messages="$errors->get('company_address')" />
                 </div>
                 <div>
-                    <x-input-label for="city" :value="__('Ciudad')" required />
+                    <label class="form-label" for="city">Ciudad *</label>
                     <x-ui.input id="city" name="city"
                         :value="old('city', $distributor?->city)"
                         required />
                     <x-input-error :messages="$errors->get('city')" />
                 </div>
                 <div>
-                    <x-input-label for="department" :value="__('Departamento')" required />
+                    <label class="form-label" for="department">Departamento *</label>
                     <x-ui.select id="department" name="department" required>
                         <option value="">Selecciona un departamento</option>
                         @foreach($departments as $department)
@@ -104,7 +101,7 @@
                     <x-input-error :messages="$errors->get('department')" />
                 </div>
                 <div class="sm:col-span-2">
-                    <x-input-label for="notes" :value="__('Observaciones operativas')" optional />
+                    <label class="form-label" for="notes">Observaciones operativas</label>
                     <x-ui.textarea id="notes" name="notes" rows="4">{{ old('notes') }}</x-ui.textarea>
                     <p class="form-help">Incluye referencias de entrega, horarios o datos de recepción.</p>
                     <x-input-error :messages="$errors->get('notes')" />
@@ -112,7 +109,7 @@
             </div>
         </x-ui.card>
 
-        <x-ui.card class="p-5" variant="highlight">
+        <x-ui.card class="p-5">
             <h2 class="card-title">Resumen del pedido</h2>
             <div class="mt-4 space-y-2">
                 @foreach($items as $item)

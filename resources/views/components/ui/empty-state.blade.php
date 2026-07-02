@@ -1,7 +1,7 @@
 @props(['title', 'description', 'compact' => false])
 
 <div {{ $attributes->merge(['class' => 'empty-state '.($compact ? 'p-6' : 'p-10')]) }}>
-    <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-brand-primary/20 bg-brand-mist text-brand-primary">
+    <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-400">
         @if(isset($icon))
             {{ $icon }}
         @else
