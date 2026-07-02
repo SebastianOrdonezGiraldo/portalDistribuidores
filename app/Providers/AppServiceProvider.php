@@ -30,6 +30,7 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use RuntimeException;
+use Scoutapm\Laravel\Providers\ScoutApmServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -38,7 +39,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(SearchEngineInterface::class, PostgresSearchEngine::class);
 
         if (! app()->environment(['local', 'testing'])) {
-            $this->app->register(\Scoutapm\Laravel\Providers\ScoutApmServiceProvider::class);
+            $this->app->register(ScoutApmServiceProvider::class);
         }
     }
 
@@ -216,7 +217,7 @@ class AppServiceProvider extends ServiceProvider
         Password::defaults(function () {
             $rule = Password::min(8);
 
-            if ((bool) config('app.env') !== 'testing') {
+            if (config('app.env') !== 'testing') {
                 $rule->mixedCase()->letters()->numbers()->symbols();
             }
 
