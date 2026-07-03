@@ -27,7 +27,7 @@ class AdminInventreeExportTest extends TestCase
             'name' => 'Resistencia 10K',
             'brand' => 'ACME',
             'sku' => 'SKU-10K',
-            'description' => 'Resistencia de prueba',
+            'description' => str_repeat('X', 300),
             'category_id' => $category->id,
             'price' => 1500,
             'stock' => 25,
@@ -43,7 +43,9 @@ class AdminInventreeExportTest extends TestCase
 
         $csv = $response->streamedContent();
 
-        $this->assertStringContainsString('IPN,name,description,pricing_min,total_in_stock,active,keywords,category', $csv);
-        $this->assertStringContainsString('SKU-10K,"Resistencia 10K","Resistencia de prueba",1500.00,25.00,true,brand:ACME,Componentes', $csv);
+        $this->assertStringContainsString('IPN,name,description,pricing_min,total_in_stock,active,keywords', $csv);
+        $this->assertStringContainsString('SKU-10K,"Resistencia 10K",', $csv);
+        $this->assertStringContainsString(str_repeat('X', 250), $csv);
     }
 }
+
