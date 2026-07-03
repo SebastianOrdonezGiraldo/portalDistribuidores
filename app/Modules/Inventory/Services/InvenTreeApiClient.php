@@ -51,7 +51,7 @@ class InvenTreeApiClient
         $this->ensureConfigured();
 
         return Http::baseUrl($this->baseUrl)
-            ->withToken($this->apiToken)
+            ->withToken($this->apiToken, 'Token')
             ->acceptJson()
             ->asJson()
             ->timeout($this->timeout)

@@ -14,11 +14,11 @@ class InvenTreeSyncService
         private readonly SyncStockFromInvenTreeAction $syncStock,
     ) {}
 
-    public function syncAll(?callable $onProgress = null): array
+    public function syncAll(string $type = 'all', ?callable $onProgress = null): array
     {
         $results = [
-            'products' => [],
-            'stock' => [],
+            'products' => $this->emptyProductStats(),
+            'stock' => $this->emptyStockStats(),
             'started_at' => now()->toIso8601String(),
             'finished_at' => null,
             'duration_ms' => 0,
@@ -29,21 +29,25 @@ class InvenTreeSyncService
         try {
             Log::info('InvenTree sync: iniciando sincronización completa');
 
-            $results['products'] = $this->syncProducts->execute(function (int $current, int $total, array $part) use ($onProgress): void {
-                if ($onProgress !== null) {
-                    $onProgress($current, $total, 'products', $part['name'] ?? '');
-                }
-            });
+            if ($type === 'all' || $type === 'products') {
+                $results['products'] = $this->syncProducts->execute(function (int $current, int $total, array $part) use ($onProgress): void {
+                    if ($onProgress !== null) {
+                        $onProgress($current, $total, 'products', $part['name'] ?? '');
+                    }
+                });
 
-            Log::info('InvenTree sync: productos sincronizados', $results['products']);
+                Log::info('InvenTree sync: productos sincronizados', $results['products']);
+            }
 
-            $results['stock'] = $this->syncStock->execute(function (int $current, int $total, array $part) use ($onProgress): void {
-                if ($onProgress !== null) {
-                    $onProgress($current, $total, 'stock', $part['name'] ?? '');
-                }
-            });
+            if ($type === 'all' || $type === 'stock') {
+                $results['stock'] = $this->syncStock->execute(function (int $current, int $total, array $part) use ($onProgress): void {
+                    if ($onProgress !== null) {
+                        $onProgress($current, $total, 'stock', $part['name'] ?? '');
+                    }
+                });
 
-            Log::info('InvenTree sync: stocks sincronizados', $results['stock']);
+                Log::info('InvenTree sync: stocks sincronizados', $results['stock']);
+            }
         } catch (\Throwable $e) {
             Log::error('InvenTree sync: error fatal', [
                 'error' => $e->getMessage(),
@@ -57,6 +61,31 @@ class InvenTreeSyncService
         $results['duration_ms'] = (int) ((microtime(true) - $start) * 1000);
 
         return $results;
+    }
+
+    private function emptyProductStats(): array
+    {
+        return [
+            'total' => 0,
+            'updated_price' => 0,
+            'updated_stock' => 0,
+            'updated_both' => 0,
+            'skipped' => 0,
+            'not_found' => 0,
+            'errors' => 0,
+        ];
+    }
+
+    private function emptyStockStats(): array
+    {
+        return [
+            'total' => 0,
+            'matched' => 0,
+            'updated' => 0,
+            'skipped_variants' => 0,
+            'unmatched' => 0,
+            'errors' => 0,
+        ];
     }
 
     public function testConnection(): array
