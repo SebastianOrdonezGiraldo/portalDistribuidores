@@ -4,6 +4,7 @@ namespace App\Modules\Catalog\Services;
 
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
+use App\Modules\Inventory\Models\StockMovement;
 use Illuminate\Support\Facades\DB;
 
 class ProductStockService
@@ -23,8 +24,20 @@ class ProductStockService
                 return false;
             }
 
+            if ($lockedProduct->inventree_stock !== null) {
+                return false;
+            }
+
+            $previousStock = (float) ($lockedProduct->stock ?? 0);
             $lockedProduct->stock = $this->normalizeStock($stock);
             $lockedProduct->save();
+
+            StockMovement::record(
+                product: $lockedProduct,
+                previousStock: $previousStock,
+                newStock: (float) ($lockedProduct->stock ?? 0),
+                source: 'admin_manual',
+            );
 
             return true;
         });
@@ -61,8 +74,17 @@ class ProductStockService
                     continue;
                 }
 
+                $previousStock = (float) ($variant->stock ?? 0);
                 $variant->stock = $this->normalizeStock($row['stock'] ?? null);
                 $variant->save();
+
+                StockMovement::record(
+                    product: $lockedProduct,
+                    variant: $variant,
+                    previousStock: $previousStock,
+                    newStock: (float) ($variant->stock ?? 0),
+                    source: 'admin_manual',
+                );
             }
 
             $stockValues = $variants

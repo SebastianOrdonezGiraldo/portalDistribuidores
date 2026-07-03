@@ -423,6 +423,12 @@ class ProductAdminController extends Controller
             ? (float) $payload['stock']
             : null;
 
+        if ($product->inventree_stock !== null) {
+            return redirect()
+                ->route('admin.products.index', $indexContextQuery)
+                ->with('error', 'Este producto está gestionado por InvenTree. El stock se sincroniza automáticamente desde el panel de InvenTree.');
+        }
+
         $updated = $stockService->updateSimpleProductStock($product, $stock);
 
         if (! $updated) {

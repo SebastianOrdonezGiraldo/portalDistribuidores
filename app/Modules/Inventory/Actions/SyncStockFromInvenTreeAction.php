@@ -3,6 +3,7 @@
 namespace App\Modules\Inventory\Actions;
 
 use App\Modules\Catalog\Models\Product;
+use App\Modules\Inventory\Models\StockMovement;
 use App\Modules\Inventory\Services\InvenTreeApiClient;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -19,6 +20,7 @@ class SyncStockFromInvenTreeAction
             'total' => 0,
             'matched' => 0,
             'updated' => 0,
+            'skipped_variants' => 0,
             'unmatched' => 0,
             'errors' => 0,
         ];
@@ -34,6 +36,16 @@ class SyncStockFromInvenTreeAction
 
         foreach ($parts as $index => $part) {
             try {
+                if (! empty($part['variant_of']) || ! empty($part['is_template'])) {
+                    $stats['skipped_variants']++;
+
+                    if ($onProgress !== null) {
+                        $onProgress($index + 1, $stats['total'], $part);
+                    }
+
+                    continue;
+                }
+
                 $sku = $part[$skuField] ?? $part['pk'] ?? '';
 
                 if ($sku === '') {
@@ -48,25 +60,16 @@ class SyncStockFromInvenTreeAction
                     continue;
                 }
 
-                $product = Product::where('sku', (string) $sku)->first();
+                $result = $this->syncProductStock((string) $sku, (float) $invenTreeStock);
 
-                if ($product === null) {
+                if ($result === 'updated') {
+                    $stats['matched']++;
+                    $stats['updated']++;
+                } elseif ($result === 'unchanged') {
+                    $stats['matched']++;
+                } else {
                     $stats['unmatched']++;
-                    continue;
                 }
-
-                $stats['matched']++;
-
-                DB::transaction(function () use ($product, $invenTreeStock): void {
-                    $currentStock = (float) ($product->stock ?? 0);
-                    $newStock = (float) $invenTreeStock;
-
-                    if (abs($currentStock - $newStock) > 0.001) {
-                        $product->update(['stock' => $newStock]);
-                    }
-                });
-
-                $stats['updated']++;
             } catch (\Throwable $e) {
                 $stats['errors']++;
                 Log::error('InvenTree stock sync error', [
@@ -82,5 +85,44 @@ class SyncStockFromInvenTreeAction
         }
 
         return $stats;
+    }
+
+    private function syncProductStock(string $sku, float $invenTreeStock): string
+    {
+        return DB::transaction(function () use ($sku, $invenTreeStock): string {
+            $product = Product::query()
+                ->where('sku', $sku)
+                ->lockForUpdate()
+                ->first();
+
+            if ($product === null) {
+                return 'not_found';
+            }
+
+            if ($product->hasConfigurableVariants()) {
+                return 'not_found';
+            }
+
+            $previousStock = (float) ($product->stock ?? 0);
+            $previousInvenTree = (float) ($product->inventree_stock ?? 0);
+
+            if (abs($previousInvenTree - $invenTreeStock) < 0.001) {
+                return 'unchanged';
+            }
+
+            $reserved = (float) ($product->reserved_stock ?? 0);
+            $product->inventree_stock = $invenTreeStock;
+            $product->stock = round(max(0, $invenTreeStock - $reserved), 2);
+            $product->save();
+
+            StockMovement::record(
+                product: $product->fresh(),
+                previousStock: $previousStock,
+                newStock: (float) $product->stock,
+                source: 'inventree_sync',
+            );
+
+            return 'updated';
+        });
     }
 }

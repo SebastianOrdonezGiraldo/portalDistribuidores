@@ -3,6 +3,7 @@
 namespace App\Modules\Inventory\Actions;
 
 use App\Modules\Catalog\Models\Product;
+use App\Modules\Categories\Models\Category;
 use App\Modules\Inventory\Services\InvenTreeApiClient;
 use App\Modules\Inventory\Services\InvenTreeMapper;
 use Illuminate\Support\Facades\DB;
@@ -34,6 +35,16 @@ class SyncProductsFromInvenTreeAction
 
         foreach ($parts as $index => $part) {
             try {
+                if (! empty($part['variant_of']) || ! empty($part['is_template'])) {
+                    $stats['skipped']++;
+
+                    if ($onProgress !== null) {
+                        $onProgress($index + 1, $stats['total'], $part);
+                    }
+
+                    continue;
+                }
+
                 $result = DB::transaction(function () use ($part): string {
                     return $this->syncPart($part);
                 });
@@ -69,7 +80,14 @@ class SyncProductsFromInvenTreeAction
             return 'skipped';
         }
 
-        $product = Product::where('sku', $sku)->first();
+        if (! isset($payload['category_id'])) {
+            $payload['category_id'] = $this->resolveDefaultCategoryId();
+        }
+
+        $product = Product::query()
+            ->where('sku', $sku)
+            ->lockForUpdate()
+            ->first();
 
         if ($product === null) {
             Product::create($payload);
@@ -88,6 +106,27 @@ class SyncProductsFromInvenTreeAction
         return 'updated';
     }
 
+    private function resolveDefaultCategoryId(): int
+    {
+        $categoryId = (int) config('services.inventree.default_category_id', 0);
+
+        if ($categoryId > 0) {
+            return $categoryId;
+        }
+
+        $category = Category::query()->first();
+
+        if ($category !== null) {
+            return $category->id;
+        }
+
+        return Category::create([
+            'name' => 'InvenTree',
+            'slug' => 'inventree',
+            'is_active' => true,
+        ])->id;
+    }
+
     private function hasChanges(Product $product, array $payload): bool
     {
         $fillable = $product->getFillable();
@@ -97,10 +136,18 @@ class SyncProductsFromInvenTreeAction
                 continue;
             }
 
-            $current = (string) $product->{$field};
-            $incoming = (string) $payload[$field];
+            $current = $product->{$field};
+            $incoming = $payload[$field];
 
-            if ($current !== $incoming) {
+            if (in_array($field, ['price', 'stock', 'inventree_stock', 'reserved_stock'], true)) {
+                if (abs((float) ($current ?? 0) - (float) ($incoming ?? 0)) > 0.0001) {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if ((string) $current !== (string) $incoming) {
                 return true;
             }
         }
