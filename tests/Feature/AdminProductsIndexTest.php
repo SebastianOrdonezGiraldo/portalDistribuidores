@@ -210,6 +210,18 @@ class AdminProductsIndexTest extends TestCase
         }
     }
 
+    public function test_admin_products_index_shows_inventree_csv_download_action(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $response = $this->actingAs($admin)
+            ->get('/admin/products');
+
+        $response->assertOk();
+        $response->assertSee('Descargar CSV InvenTree');
+        $response->assertSee(route('admin.inventory.export'), false);
+    }
+
     public function test_admin_can_filter_and_sort_products(): void
     {
         $admin = User::factory()->admin()->create();

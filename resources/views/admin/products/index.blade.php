@@ -14,6 +14,7 @@
                 <div class="flex flex-wrap items-center gap-2">
                     <a href="{{ route('admin.products.inventory.pdf', collect($indexContextQuery)->except('page')->all()) }}" class="btn btn-secondary w-full justify-center sm:w-auto">Descargar saldos PDF</a>
                     <a href="{{ route('admin.products.import.template') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Descargar plantilla CSV</a>
+                    <a href="{{ route('admin.inventory.export') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Descargar CSV InvenTree</a>
                     <form action="{{ route('admin.products.import') }}" method="POST" enctype="multipart/form-data" class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                         @csrf
                         <input type="hidden" name="default_action" value="upsert">
