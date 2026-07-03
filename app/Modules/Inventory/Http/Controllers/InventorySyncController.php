@@ -4,9 +4,11 @@ namespace App\Modules\Inventory\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Catalog\Models\Product;
+use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Inventory\Services\InvenTreeSyncService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -70,10 +72,10 @@ class InventorySyncController extends Controller
             }
 
             fwrite($output, "\xEF\xBB\xBF");
-            fputcsv($output, ['IPN', 'name', 'description', 'pricing_min', 'total_in_stock', 'active', 'keywords', 'category']);
+            fputcsv($output, ['IPN', 'name', 'pricing_min', 'total_in_stock', 'active']);
 
             Product::query()
-                ->with('category')
+                ->with(['variants.attributeValue'])
                 ->whereNotNull('sku')
                 ->where('sku', '!=', '')
                 ->orderBy('id')
@@ -82,13 +84,20 @@ class InventorySyncController extends Controller
                         fputcsv($output, [
                             $product->sku,
                             $product->name,
-                            $product->description ?? '',
                             $this->formatDecimal($product->price),
                             $this->formatDecimal($product->stock),
                             $product->is_active ? 'true' : 'false',
-                            $product->brand !== null && $product->brand !== '' ? 'brand:'.$product->brand : '',
-                            $product->category?->name ?? '',
                         ]);
+
+                        foreach ($product->variants as $variant) {
+                            fputcsv($output, [
+                                $this->buildVariantSku($product->sku, $variant),
+                                $this->buildVariantName($product->name, $variant),
+                                $this->formatDecimal($variant->price),
+                                $this->formatDecimal($variant->stock),
+                                $variant->is_active ? 'true' : 'false',
+                            ]);
+                        }
                     }
                 });
 
@@ -101,5 +110,23 @@ class InventorySyncController extends Controller
     private function formatDecimal(float|int|string|null $value): string
     {
         return number_format((float) ($value ?? 0), 2, '.', '');
+    }
+
+    private function buildVariantSku(string $parentSku, ProductVariant $variant): string
+    {
+        $suffix = Str::slug((string) ($variant->attributeValue?->value ?? 'variant-'.$variant->id));
+
+        if ($suffix === '') {
+            $suffix = 'variant-'.$variant->id;
+        }
+
+        return Str::limit($parentSku.'-'.$suffix, 100, '');
+    }
+
+    private function buildVariantName(string $parentName, ProductVariant $variant): string
+    {
+        $variantValue = (string) ($variant->attributeValue?->value ?? 'Variante');
+
+        return trim($parentName.' - '.$variantValue);
     }
 }
