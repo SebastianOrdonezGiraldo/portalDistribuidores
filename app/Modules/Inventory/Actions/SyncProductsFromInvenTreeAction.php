@@ -4,7 +4,6 @@ namespace App\Modules\Inventory\Actions;
 
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Inventory\Services\InvenTreeApiClient;
-use App\Modules\Inventory\Services\InvenTreeMapper;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -12,7 +11,6 @@ class SyncProductsFromInvenTreeAction
 {
     public function __construct(
         private readonly InvenTreeApiClient $apiClient,
-        private readonly InvenTreeMapper $mapper,
     ) {}
 
     public function execute(?callable $onProgress = null): array

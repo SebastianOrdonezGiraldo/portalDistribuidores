@@ -5,7 +5,6 @@ namespace Tests\Unit;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Inventory\Actions\SyncProductsFromInvenTreeAction;
 use App\Modules\Inventory\Services\InvenTreeApiClient;
-use App\Modules\Inventory\Services\InvenTreeMapper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -24,7 +23,6 @@ class SyncProductsFromInvenTreeActionTest extends TestCase
         $this->apiClient = $this->createMock(InvenTreeApiClient::class);
         $this->action = new SyncProductsFromInvenTreeAction(
             $this->apiClient,
-            new InvenTreeMapper,
         );
     }
 
