@@ -10,7 +10,7 @@ use Tests\TestCase;
 
 class InvenTreeSyncServiceTest extends TestCase
 {
-    public function test_sync_all_products_runs_only_products_phase(): void
+    public function test_sync_all_prices_runs_only_prices_phase(): void
     {
         $apiClient = $this->createMock(InvenTreeApiClient::class);
         $syncProducts = $this->createMock(SyncProductsFromInvenTreeAction::class);
@@ -25,9 +25,9 @@ class InvenTreeSyncServiceTest extends TestCase
 
         $service = new InvenTreeSyncService($apiClient, $syncProducts, $syncStock);
 
-        $results = $service->syncAll('products');
+        $results = $service->syncAll('prices');
 
-        $this->assertSame(1, $results['products']['total']);
+        $this->assertSame(1, $results['prices']['total']);
         $this->assertSame(0, $results['stock']['total']);
     }
 
@@ -48,7 +48,7 @@ class InvenTreeSyncServiceTest extends TestCase
 
         $results = $service->syncAll('stock');
 
-        $this->assertSame(0, $results['products']['total']);
+        $this->assertSame(0, $results['prices']['total']);
         $this->assertSame(1, $results['stock']['total']);
     }
 }

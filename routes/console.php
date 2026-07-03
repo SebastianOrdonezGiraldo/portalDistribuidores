@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schedule;
 
-Schedule::command('inventree:sync', ['--type' => 'stock'])
+Schedule::command('inventree:sync', ['--type' => 'all'])
     ->everyFiveMinutes()
     ->withoutOverlapping(15)
     ->environments(['production'])

@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Modules\Catalog\Models\Product;
+use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Inventory\Actions\SyncProductsFromInvenTreeAction;
 use App\Modules\Inventory\Services\InvenTreeApiClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -53,10 +54,11 @@ class SyncProductsFromInvenTreeActionTest extends TestCase
         $stats = $this->action->execute();
 
         $this->assertSame(1, $stats['total']);
+        $this->assertSame(1, $stats['matched']);
         $this->assertSame(1, $stats['updated_price']);
-        $this->assertSame(0, $stats['updated_stock']);
-        $this->assertSame(0, $stats['updated_both']);
         $this->assertSame(0, $stats['skipped']);
+        $this->assertSame(0, $stats['skipped_variants']);
+        $this->assertSame(0, $stats['unmatched']);
         $this->assertSame(0, $stats['not_found']);
         $this->assertSame(0, $stats['errors']);
 
@@ -90,9 +92,8 @@ class SyncProductsFromInvenTreeActionTest extends TestCase
 
         $stats = $this->action->execute();
 
-        $this->assertSame(0, $stats['updated_stock']);
         $this->assertSame(0, $stats['updated_price']);
-        $this->assertSame(0, $stats['updated_both']);
+        $this->assertSame(1, $stats['matched']);
         $this->assertSame(1, $stats['skipped']);
 
         $this->assertDatabaseHas('products', [
@@ -126,7 +127,7 @@ class SyncProductsFromInvenTreeActionTest extends TestCase
         $stats = $this->action->execute();
 
         $this->assertSame(1, $stats['updated_price']);
-        $this->assertSame(0, $stats['updated_stock']);
+        $this->assertSame(1, $stats['matched']);
 
         $this->assertDatabaseHas('products', [
             'sku' => 'SKU-001',
@@ -159,8 +160,7 @@ class SyncProductsFromInvenTreeActionTest extends TestCase
         $stats = $this->action->execute();
 
         $this->assertSame(0, $stats['updated_price']);
-        $this->assertSame(0, $stats['updated_stock']);
-        $this->assertSame(0, $stats['updated_both']);
+        $this->assertSame(1, $stats['matched']);
         $this->assertSame(1, $stats['skipped']);
         $this->assertSame(0, $stats['not_found']);
     }
@@ -184,8 +184,8 @@ class SyncProductsFromInvenTreeActionTest extends TestCase
 
         $this->assertSame(1, $stats['total']);
         $this->assertSame(1, $stats['not_found']);
+        $this->assertSame(1, $stats['unmatched']);
         $this->assertSame(0, $stats['updated_price']);
-        $this->assertSame(0, $stats['updated_stock']);
     }
 
     public function test_execute_skips_variant_parts(): void
@@ -206,9 +206,8 @@ class SyncProductsFromInvenTreeActionTest extends TestCase
         $stats = $this->action->execute();
 
         $this->assertSame(1, $stats['total']);
-        $this->assertSame(1, $stats['skipped']);
+        $this->assertSame(1, $stats['skipped_variants']);
         $this->assertSame(0, $stats['updated_price']);
-        $this->assertSame(0, $stats['updated_stock']);
     }
 
     public function test_execute_skips_template_parts(): void
@@ -229,7 +228,7 @@ class SyncProductsFromInvenTreeActionTest extends TestCase
         $stats = $this->action->execute();
 
         $this->assertSame(1, $stats['total']);
-        $this->assertSame(1, $stats['skipped']);
+        $this->assertSame(1, $stats['skipped_variants']);
     }
 
     public function test_execute_skips_part_with_empty_sku(): void
@@ -250,7 +249,46 @@ class SyncProductsFromInvenTreeActionTest extends TestCase
         $stats = $this->action->execute();
 
         $this->assertSame(1, $stats['total']);
-        $this->assertSame(1, $stats['skipped']);
+        $this->assertSame(1, $stats['unmatched']);
+    }
+
+    public function test_execute_skips_products_with_configurable_variants(): void
+    {
+        $product = Product::factory()->create([
+            'sku' => 'SKU-CONFIGURABLE',
+            'price' => 10000,
+            'stock' => 15,
+        ]);
+
+        ProductVariant::factory()->create([
+            'product_id' => $product->id,
+            'is_active' => true,
+            'stock' => 5,
+        ]);
+
+        $this->apiClient
+            ->method('getParts')
+            ->willReturn([
+                [
+                    'pk' => 5,
+                    'IPN' => 'SKU-CONFIGURABLE',
+                    'total_in_stock' => 20,
+                    'pricing_min' => '25000',
+                    'variant_of' => null,
+                    'is_template' => false,
+                ],
+            ]);
+
+        $stats = $this->action->execute();
+
+        $this->assertSame(1, $stats['skipped_variants']);
+        $this->assertSame(0, $stats['updated_price']);
+
+        $this->assertDatabaseHas('products', [
+            'sku' => 'SKU-CONFIGURABLE',
+            'price' => 10000,
+            'stock' => 15,
+        ]);
     }
 
     public function test_execute_invokes_progress_callback(): void

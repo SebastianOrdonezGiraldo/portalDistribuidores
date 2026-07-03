@@ -133,6 +133,45 @@ class AdminProductEditorTest extends TestCase
             ->assertRedirect(route('admin.products.index', $indexContext));
     }
 
+    public function test_admin_update_preserves_price_and_stock_for_inventree_managed_product(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProduct($category, 'SKU-INV-EDITOR-001');
+        $product->update([
+            'price' => 50000,
+            'stock' => 80,
+            'inventree_stock' => 100,
+            'reserved_stock' => 20,
+        ]);
+
+        $payload = [
+            'name' => 'Producto InvenTree Editado',
+            'brand' => 'Marca InvenTree',
+            'sku' => 'SKU-INV-EDITOR-001',
+            'description' => 'Solo cambia catalogo',
+            'category_id' => $category->id,
+            'price' => 99999,
+            'stock' => 1,
+            'is_active' => 1,
+        ];
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->put('/admin/products/'.$product->id, array_merge($payload, ['_token' => 'test-token']))
+            ->assertRedirect('/admin/products/'.$product->id.'/edit');
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'name' => 'Producto InvenTree Editado',
+            'brand' => 'Marca InvenTree',
+            'price' => 50000,
+            'stock' => 80,
+            'inventree_stock' => 100,
+            'reserved_stock' => 20,
+        ]);
+    }
+
     public function test_admin_can_deactivate_and_remove_product_media(): void
     {
         $admin = User::factory()->admin()->create();

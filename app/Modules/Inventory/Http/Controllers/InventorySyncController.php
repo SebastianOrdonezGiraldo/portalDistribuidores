@@ -27,7 +27,7 @@ class InventorySyncController extends Controller
     {
         $type = (string) $request->input('type', 'all');
 
-        if (! in_array($type, ['all', 'products', 'stock'], true)) {
+        if (! in_array($type, ['all', 'prices', 'stock'], true)) {
             $type = 'all';
         }
 

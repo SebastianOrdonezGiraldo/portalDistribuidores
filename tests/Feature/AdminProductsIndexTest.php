@@ -222,6 +222,36 @@ class AdminProductsIndexTest extends TestCase
         $response->assertSee(route('admin.inventory.export'), false);
     }
 
+    public function test_admin_products_index_marks_inventree_managed_stock_as_read_only(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = Category::create([
+            'parent_id' => null,
+            'name' => 'Categoria InvenTree Readonly',
+            'slug' => 'categoria-inventree-readonly',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $product = Product::create([
+            'name' => 'Producto Gestionado InvenTree',
+            'sku' => 'SKU-INV-READONLY',
+            'description' => 'Stock controlado por InvenTree',
+            'category_id' => $category->id,
+            'price' => 10000,
+            'stock' => 45,
+            'inventree_stock' => 50,
+            'reserved_stock' => 5,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get('/admin/products');
+
+        $response->assertOk();
+        $response->assertSee('Gestionado por InvenTree');
+        $response->assertDontSee(route('admin.products.stock', $product), false);
+    }
+
     public function test_admin_can_filter_and_sort_products(): void
     {
         $admin = User::factory()->admin()->create();

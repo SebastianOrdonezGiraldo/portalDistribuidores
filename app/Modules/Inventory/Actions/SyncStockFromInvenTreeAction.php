@@ -67,6 +67,8 @@ class SyncStockFromInvenTreeAction
                     $stats['updated']++;
                 } elseif ($result === 'unchanged') {
                     $stats['matched']++;
+                } elseif ($result === 'skipped_variant_product') {
+                    $stats['skipped_variants']++;
                 } else {
                     $stats['unmatched']++;
                 }
@@ -100,7 +102,7 @@ class SyncStockFromInvenTreeAction
             }
 
             if ($product->hasConfigurableVariants()) {
-                return 'not_found';
+                return 'skipped_variant_product';
             }
 
             $previousStock = (float) ($product->stock ?? 0);
