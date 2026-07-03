@@ -65,6 +65,10 @@ class ProductStockService
                 return false;
             }
 
+            if ($variants->contains(fn (ProductVariant $variant): bool => $variant->inventree_stock !== null)) {
+                return false;
+            }
+
             foreach ($rows as $row) {
                 $variantId = (int) ($row['id'] ?? 0);
                 /** @var ProductVariant|null $variant */

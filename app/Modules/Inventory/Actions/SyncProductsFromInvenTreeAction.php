@@ -17,10 +17,11 @@ class SyncProductsFromInvenTreeAction
     {
         $stats = [
             'total' => 0,
+            'matched' => 0,
             'updated_price' => 0,
-            'updated_stock' => 0,
-            'updated_both' => 0,
             'skipped' => 0,
+            'skipped_variants' => 0,
+            'unmatched' => 0,
             'not_found' => 0,
             'errors' => 0,
         ];
@@ -35,7 +36,7 @@ class SyncProductsFromInvenTreeAction
         foreach ($parts as $index => $part) {
             try {
                 if (! empty($part['variant_of']) || ! empty($part['is_template'])) {
-                    $stats['skipped']++;
+                    $stats['skipped_variants']++;
 
                     if ($onProgress !== null) {
                         $onProgress($index + 1, $stats['total'], $part);
@@ -49,13 +50,18 @@ class SyncProductsFromInvenTreeAction
                 });
 
                 if ($result === 'updated_price') {
+                    $stats['matched']++;
                     $stats['updated_price']++;
-                } elseif ($result === 'updated_stock') {
-                    $stats['updated_stock']++;
-                } elseif ($result === 'updated_both') {
-                    $stats['updated_both']++;
+                } elseif ($result === 'unchanged') {
+                    $stats['matched']++;
+                    $stats['skipped']++;
+                } elseif ($result === 'skipped_variant_product') {
+                    $stats['skipped_variants']++;
                 } elseif ($result === 'not_found') {
+                    $stats['unmatched']++;
                     $stats['not_found']++;
+                } elseif ($result === 'missing_sku') {
+                    $stats['unmatched']++;
                 } else {
                     $stats['skipped']++;
                 }
@@ -78,19 +84,24 @@ class SyncProductsFromInvenTreeAction
 
     private function syncPart(array $part): string
     {
-        $sku = $part['IPN'] ?? $part['pk'] ?? '';
+        $skuField = config('services.inventree.sku_field', 'IPN');
+        $sku = $part[$skuField] ?? $part['pk'] ?? '';
 
         if ($sku === '') {
-            return 'skipped';
+            return 'missing_sku';
         }
 
         $product = Product::query()
-            ->where('sku', $sku)
+            ->where('sku', (string) $sku)
             ->lockForUpdate()
             ->first();
 
         if ($product === null) {
             return 'not_found';
+        }
+
+        if ($product->hasConfigurableVariants()) {
+            return 'skipped_variant_product';
         }
 
         $invenTreePrice = $this->parsePrice($part);
@@ -106,7 +117,7 @@ class SyncProductsFromInvenTreeAction
         }
 
         if (! $priceChanged) {
-            return 'skipped';
+            return 'unchanged';
         }
 
         $product->save();

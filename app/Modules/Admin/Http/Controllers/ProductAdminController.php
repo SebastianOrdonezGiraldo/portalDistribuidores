@@ -285,12 +285,16 @@ class ProductAdminController extends Controller
     ): RedirectResponse {
         $this->authorize('update', $product);
 
-        $productPayload = $this->extractProductPayload($request);
+        $isInvenTreeManaged = $product->inventree_stock !== null;
+        $productPayload = $this->extractProductPayload($request, $isInvenTreeManaged);
         $validatedPayload = $request->validated();
 
-        $product = DB::transaction(function () use ($updateAction, $variantSyncService, $product, $productPayload, $validatedPayload) {
+        $product = DB::transaction(function () use ($updateAction, $variantSyncService, $product, $productPayload, $validatedPayload, $isInvenTreeManaged) {
             $updatedProduct = $updateAction->execute($product, $productPayload);
-            $variantSyncService->sync($updatedProduct, $validatedPayload);
+
+            if (! $isInvenTreeManaged) {
+                $variantSyncService->sync($updatedProduct, $validatedPayload);
+            }
 
             return $updatedProduct->refresh();
         });
@@ -501,7 +505,7 @@ class ProductAdminController extends Controller
         if (! $updated) {
             return redirect()
                 ->route('admin.products.index', $indexContextQuery)
-                ->with('error', 'Este producto no tiene variantes activas para actualizar.');
+                ->with('error', 'Este producto no tiene variantes activas editables para actualizar.');
         }
 
         return redirect()
@@ -660,7 +664,7 @@ class ProductAdminController extends Controller
         ];
     }
 
-    private function extractProductPayload(StoreProductRequest|UpdateProductRequest $request): array
+    private function extractProductPayload(StoreProductRequest|UpdateProductRequest $request, bool $preserveInvenTreeValues = false): array
     {
         $payload = $request->safe()->except([
             'photo',
@@ -675,6 +679,12 @@ class ProductAdminController extends Controller
             'new_variant_attribute_name',
             'variants',
         ]);
+
+        if ($preserveInvenTreeValues) {
+            unset($payload['price'], $payload['stock']);
+
+            return $payload;
+        }
 
         if ($request->boolean('has_variants')) {
             $payload['price'] = $this->resolveVariantBootstrapPrice((array) $request->input('variants', []));

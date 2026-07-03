@@ -17,7 +17,7 @@ class InvenTreeSyncService
     public function syncAll(string $type = 'all', ?callable $onProgress = null): array
     {
         $results = [
-            'products' => $this->emptyProductStats(),
+            'prices' => $this->emptyPriceStats(),
             'stock' => $this->emptyStockStats(),
             'started_at' => now()->toIso8601String(),
             'finished_at' => null,
@@ -27,16 +27,16 @@ class InvenTreeSyncService
         $start = microtime(true);
 
         try {
-            Log::info('InvenTree sync: iniciando sincronización completa');
+            Log::info('InvenTree sync: iniciando sincronización');
 
-            if ($type === 'all' || $type === 'products') {
-                $results['products'] = $this->syncProducts->execute(function (int $current, int $total, array $part) use ($onProgress): void {
+            if ($type === 'all' || $type === 'prices') {
+                $results['prices'] = $this->syncProducts->execute(function (int $current, int $total, array $part) use ($onProgress): void {
                     if ($onProgress !== null) {
-                        $onProgress($current, $total, 'products', $part['name'] ?? '');
+                        $onProgress($current, $total, 'prices', $part['name'] ?? '');
                     }
                 });
 
-                Log::info('InvenTree sync: productos sincronizados', $results['products']);
+                Log::info('InvenTree sync: precios sincronizados', $results['prices']);
             }
 
             if ($type === 'all' || $type === 'stock') {
@@ -63,14 +63,15 @@ class InvenTreeSyncService
         return $results;
     }
 
-    private function emptyProductStats(): array
+    private function emptyPriceStats(): array
     {
         return [
             'total' => 0,
+            'matched' => 0,
             'updated_price' => 0,
-            'updated_stock' => 0,
-            'updated_both' => 0,
             'skipped' => 0,
+            'skipped_variants' => 0,
+            'unmatched' => 0,
             'not_found' => 0,
             'errors' => 0,
         ];
@@ -91,12 +92,14 @@ class InvenTreeSyncService
     public function testConnection(): array
     {
         try {
-            $parts = $this->apiClient->getParts(['limit' => 1]);
+            $page = $this->apiClient->getPartsPage(['limit' => 1]);
+            $parts = $page['results'] ?? [];
 
             return [
                 'success' => true,
                 'message' => 'Conexión exitosa a InvenTree API',
-                'parts_count' => $parts[0]['pk'] ?? 0,
+                'parts_count' => count($parts),
+                'total_parts' => $page['count'] ?? null,
                 'server' => config('services.inventree.base_url'),
             ];
         } catch (\Throwable $e) {

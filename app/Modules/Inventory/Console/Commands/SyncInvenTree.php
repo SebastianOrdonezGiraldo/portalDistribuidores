@@ -8,11 +8,11 @@ use Illuminate\Console\Command;
 class SyncInvenTree extends Command
 {
     protected $signature = 'inventree:sync
-        {--type=all : all|products|stock}
+        {--type=all : all|prices|stock}
         {--test-connection : Solo probar conexión con InvenTree}
         {--no-detail : Suprimir salida detallada de resultados}';
 
-    protected $description = 'Sincroniza productos y stock desde InvenTree API';
+    protected $description = 'Sincroniza precios y stock desde InvenTree API';
 
     public function handle(InvenTreeSyncService $syncService): int
     {
@@ -22,8 +22,8 @@ class SyncInvenTree extends Command
 
         $type = (string) $this->option('type');
 
-        if (! in_array($type, ['all', 'products', 'stock'], true)) {
-            $this->error("Tipo inválido: {$type}. Usa all|products|stock.");
+        if (! in_array($type, ['all', 'prices', 'stock'], true)) {
+            $this->error("Tipo inválido: {$type}. Usa all|prices|stock.");
 
             return self::FAILURE;
         }
@@ -45,21 +45,23 @@ class SyncInvenTree extends Command
 
         if (! $this->option('no-detail') && ! $this->option('quiet')) {
             $this->table(
-                ['Fase', 'Total', 'Creados', 'Actualizados', 'Saltados', 'Errores'],
+                ['Fase', 'Total', 'Coincidencias', 'Actualizados', 'Omitidos variantes', 'Sin mapeo', 'Errores'],
                 [
                     [
-                        'Productos',
-                        $results['products']['total'] ?? 0,
-                        $results['products']['created'] ?? 0,
-                        $results['products']['updated'] ?? 0,
-                        $results['products']['skipped'] ?? 0,
-                        $results['products']['errors'] ?? 0,
+                        'Precios',
+                        $results['prices']['total'] ?? 0,
+                        $results['prices']['matched'] ?? 0,
+                        $results['prices']['updated_price'] ?? 0,
+                        $results['prices']['skipped_variants'] ?? 0,
+                        $results['prices']['unmatched'] ?? 0,
+                        $results['prices']['errors'] ?? 0,
                     ],
                     [
                         'Stock',
                         $results['stock']['total'] ?? 0,
-                        '-',
+                        $results['stock']['matched'] ?? 0,
                         $results['stock']['updated'] ?? 0,
+                        $results['stock']['skipped_variants'] ?? 0,
                         $results['stock']['unmatched'] ?? 0,
                         $results['stock']['errors'] ?? 0,
                     ],
