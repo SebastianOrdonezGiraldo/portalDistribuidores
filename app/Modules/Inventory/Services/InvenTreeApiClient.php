@@ -18,6 +18,8 @@ class InvenTreeApiClient
 
     private int $retrySleep;
 
+    private bool $verify;
+
     private ?string $validationError = null;
 
     public function __construct()
@@ -27,6 +29,7 @@ class InvenTreeApiClient
         $this->timeout = (int) config('services.inventree.timeout', 30);
         $this->retryTimes = (int) config('services.inventree.retry_times', 3);
         $this->retrySleep = (int) config('services.inventree.retry_sleep', 100);
+        $this->verify = (bool) config('services.inventree.verify', true);
 
         if ($this->baseUrl === '' || $this->apiToken === '') {
             $this->validationError = 'INVENTREE_BASE_URL y INVENTREE_API_TOKEN deben estar configurados en .env';
@@ -53,6 +56,7 @@ class InvenTreeApiClient
             ->asJson()
             ->timeout($this->timeout)
             ->retry($this->retryTimes, $this->retrySleep)
+            ->withOptions(['verify' => $this->verify])
             ->throw();
     }
 

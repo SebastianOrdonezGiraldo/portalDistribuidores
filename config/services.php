@@ -52,6 +52,7 @@ return [
         'timeout' => env('INVENTREE_TIMEOUT', 30),
         'retry_times' => env('INVENTREE_RETRY_TIMES', 3),
         'retry_sleep' => env('INVENTREE_RETRY_SLEEP', 100),
+        'verify' => env('INVENTREE_VERIFY_SSL', true),
     ],
 
 ];
