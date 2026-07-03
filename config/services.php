@@ -45,4 +45,13 @@ return [
         'measurement_id' => env('GOOGLE_ANALYTICS_MEASUREMENT_ID'),
     ],
 
+    'inventree' => [
+        'base_url' => env('INVENTREE_BASE_URL'),
+        'api_token' => env('INVENTREE_API_TOKEN'),
+        'sku_field' => env('INVENTREE_SKU_FIELD', 'IPN'),
+        'timeout' => env('INVENTREE_TIMEOUT', 30),
+        'retry_times' => env('INVENTREE_RETRY_TIMES', 3),
+        'retry_sleep' => env('INVENTREE_RETRY_SLEEP', 100),
+    ],
+
 ];
