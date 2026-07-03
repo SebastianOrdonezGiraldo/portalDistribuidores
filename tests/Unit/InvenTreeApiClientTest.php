@@ -30,7 +30,7 @@ class InvenTreeApiClientTest extends TestCase
             ]);
         });
 
-        $client = new InvenTreeApiClient();
+        $client = new InvenTreeApiClient;
 
         $client->getParts();
 
