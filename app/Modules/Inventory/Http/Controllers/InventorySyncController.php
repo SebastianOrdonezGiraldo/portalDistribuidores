@@ -75,7 +75,6 @@ class InventorySyncController extends Controller
             fputcsv($output, ['IPN', 'name', 'pricing_min', 'total_in_stock', 'active']);
 
             Product::query()
-                ->with(['variants.attributeValue'])
                 ->whereNotNull('sku')
                 ->where('sku', '!=', '')
                 ->orderBy('id')

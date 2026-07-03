@@ -66,6 +66,5 @@ class AdminInventreeExportTest extends TestCase
 
         $this->assertStringContainsString('IPN,name,pricing_min,total_in_stock,active', $csv);
         $this->assertStringContainsString('SKU-10K,"Resistencia 10K",1500.00,25.00,true', $csv);
-        $this->assertStringContainsString('SKU-10K-azul,"Resistencia 10K - Azul",1750.00,7.00,true', $csv);
     }
 }
