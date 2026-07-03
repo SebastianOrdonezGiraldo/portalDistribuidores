@@ -14,6 +14,11 @@ use App\Modules\Categories\Models\Category;
 use App\Modules\Categories\Policies\CategoryPolicy;
 use App\Modules\Company\Policies\CompanyPolicy;
 use App\Modules\Documents\Policies\ProductDocumentPolicy;
+use App\Modules\Inventory\Actions\SyncProductsFromInvenTreeAction;
+use App\Modules\Inventory\Actions\SyncStockFromInvenTreeAction;
+use App\Modules\Inventory\Console\Commands\SyncInvenTree;
+use App\Modules\Inventory\Services\InvenTreeApiClient;
+use App\Modules\Inventory\Services\InvenTreeSyncService;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Policies\OrderPolicy;
 use App\Modules\Orders\Services\Cart\CartService;
@@ -38,6 +43,18 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(SearchEngineInterface::class, PostgresSearchEngine::class);
 
+        $this->app->singleton(InvenTreeApiClient::class, function (): InvenTreeApiClient {
+            return new InvenTreeApiClient;
+        });
+
+        $this->app->singleton(InvenTreeSyncService::class, function ($app): InvenTreeSyncService {
+            return new InvenTreeSyncService(
+                $app->make(InvenTreeApiClient::class),
+                $app->make(SyncProductsFromInvenTreeAction::class),
+                $app->make(SyncStockFromInvenTreeAction::class),
+            );
+        });
+
         if (! app()->environment(['local', 'testing'])) {
             $this->app->register(ScoutApmServiceProvider::class);
         }
@@ -45,6 +62,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->commands([
+            SyncInvenTree::class,
+        ]);
+
         $this->configureAbuseProtectionRateLimiters();
         $this->configurePasswordDefaults();
 
