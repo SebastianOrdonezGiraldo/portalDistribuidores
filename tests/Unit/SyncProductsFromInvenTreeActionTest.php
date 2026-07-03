@@ -26,7 +26,7 @@ class SyncProductsFromInvenTreeActionTest extends TestCase
         );
     }
 
-    public function test_execute_updates_price_and_stock_on_existing_product(): void
+    public function test_execute_updates_only_price_on_existing_product(): void
     {
         Product::factory()->create([
             'sku' => 'SKU-001',
@@ -53,9 +53,9 @@ class SyncProductsFromInvenTreeActionTest extends TestCase
         $stats = $this->action->execute();
 
         $this->assertSame(1, $stats['total']);
-        $this->assertSame(0, $stats['updated_price']);
+        $this->assertSame(1, $stats['updated_price']);
         $this->assertSame(0, $stats['updated_stock']);
-        $this->assertSame(1, $stats['updated_both']);
+        $this->assertSame(0, $stats['updated_both']);
         $this->assertSame(0, $stats['skipped']);
         $this->assertSame(0, $stats['not_found']);
         $this->assertSame(0, $stats['errors']);
@@ -63,15 +63,15 @@ class SyncProductsFromInvenTreeActionTest extends TestCase
         $this->assertDatabaseHas('products', [
             'sku' => 'SKU-001',
             'price' => 50000,
-            'stock' => 100,
+            'stock' => 10,
         ]);
     }
 
-    public function test_execute_updates_only_price_when_stock_unchanged(): void
+    public function test_execute_skips_when_only_stock_differs(): void
     {
         Product::factory()->create([
             'sku' => 'SKU-001',
-            'price' => 10000,
+            'price' => 75000,
             'stock' => 50,
         ]);
 
@@ -81,7 +81,7 @@ class SyncProductsFromInvenTreeActionTest extends TestCase
                 [
                     'pk' => 1,
                     'IPN' => 'SKU-001',
-                    'total_in_stock' => 50,
+                    'total_in_stock' => 80,
                     'pricing_min' => '75000',
                     'variant_of' => null,
                     'is_template' => false,
@@ -91,8 +91,9 @@ class SyncProductsFromInvenTreeActionTest extends TestCase
         $stats = $this->action->execute();
 
         $this->assertSame(0, $stats['updated_stock']);
-        $this->assertSame(1, $stats['updated_price']);
+        $this->assertSame(0, $stats['updated_price']);
         $this->assertSame(0, $stats['updated_both']);
+        $this->assertSame(1, $stats['skipped']);
 
         $this->assertDatabaseHas('products', [
             'sku' => 'SKU-001',
@@ -101,7 +102,7 @@ class SyncProductsFromInvenTreeActionTest extends TestCase
         ]);
     }
 
-    public function test_execute_updates_only_stock_when_price_unchanged(): void
+    public function test_execute_updates_only_price_when_price_changes(): void
     {
         Product::factory()->create([
             'sku' => 'SKU-001',
@@ -116,7 +117,7 @@ class SyncProductsFromInvenTreeActionTest extends TestCase
                     'pk' => 1,
                     'IPN' => 'SKU-001',
                     'total_in_stock' => 80,
-                    'pricing_min' => '30000',
+                    'pricing_min' => '75000',
                     'variant_of' => null,
                     'is_template' => false,
                 ],
@@ -124,13 +125,13 @@ class SyncProductsFromInvenTreeActionTest extends TestCase
 
         $stats = $this->action->execute();
 
-        $this->assertSame(0, $stats['updated_price']);
-        $this->assertSame(1, $stats['updated_stock']);
+        $this->assertSame(1, $stats['updated_price']);
+        $this->assertSame(0, $stats['updated_stock']);
 
         $this->assertDatabaseHas('products', [
             'sku' => 'SKU-001',
-            'price' => 30000,
-            'stock' => 80,
+            'price' => 75000,
+            'stock' => 10,
         ]);
     }
 

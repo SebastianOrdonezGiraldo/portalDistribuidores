@@ -31,7 +31,7 @@ class SyncInvenTree extends Command
         $this->info('Iniciando sincronización desde InvenTree...');
         $this->newLine();
 
-        $results = $syncService->syncAll(function (int $current, int $total, string $phase, string $itemName): void {
+        $results = $syncService->syncAll($type, function (int $current, int $total, string $phase, string $itemName): void {
             $this->output->write(sprintf("\r<info>[%s]</info> Procesando %d/%d: %s", $phase, $current, $total, $itemName));
         });
 

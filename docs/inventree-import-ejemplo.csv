@@ -1,0 +1,4 @@
+IPN,name,description,pricing_min,total_in_stock,active,keywords,category
+SKU-001,Producto A,Descripción del producto A,15000,25,true,brand:ACME,Resistencias
+SKU-002,Producto B,Descripción del producto B,25000,10,true,brand:ACME,Cables
+SKU-003,Producto C,Descripción del producto C,39990,5,true,brand:GENERICOS,Accesorios

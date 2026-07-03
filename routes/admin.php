@@ -49,6 +49,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::delete('orders/{order}', [OrderAdminController::class, 'destroy'])->name('orders.destroy');
 
         Route::get('inventory', [InventorySyncController::class, 'index'])->name('inventory.index');
+        Route::get('inventory/export', [InventorySyncController::class, 'exportInvenTreeCsv'])->name('inventory.export');
         Route::post('inventory/sync', [InventorySyncController::class, 'sync'])->name('inventory.sync');
         Route::post('inventory/test', [InventorySyncController::class, 'test'])->name('inventory.test');
     });

@@ -15,6 +15,7 @@
                 </div>
             </div>
             <div class="admin-exec-hero-actions">
+                <a href="{{ route('admin.inventory.export') }}" class="btn btn-secondary">Descargar CSV InvenTree</a>
                 <form action="{{ route('admin.inventory.test') }}" method="POST" class="inline">
                     @csrf
                     <button type="submit" class="btn btn-secondary">Probar conexión</button>

@@ -94,10 +94,7 @@ class SyncProductsFromInvenTreeAction
         }
 
         $invenTreePrice = $this->parsePrice($part);
-        $invenTreeStock = $part['total_in_stock'] ?? $part['in_stock'] ?? null;
-
         $priceChanged = false;
-        $stockChanged = false;
 
         if ($invenTreePrice !== null) {
             $currentPrice = (float) ($product->price ?? 0);
@@ -108,26 +105,13 @@ class SyncProductsFromInvenTreeAction
             }
         }
 
-        if ($invenTreeStock !== null) {
-            $currentStock = (float) ($product->stock ?? 0);
-
-            if (abs($currentStock - $invenTreeStock) > 0.0001) {
-                $product->stock = $invenTreeStock;
-                $stockChanged = true;
-            }
-        }
-
-        if (! $priceChanged && ! $stockChanged) {
+        if (! $priceChanged) {
             return 'skipped';
         }
 
         $product->save();
 
-        return match (true) {
-            $priceChanged && $stockChanged => 'updated_both',
-            $priceChanged => 'updated_price',
-            $stockChanged => 'updated_stock',
-        };
+        return 'updated_price';
     }
 
     private function parsePrice(array $part): ?float
