@@ -48,4 +48,3 @@ class AdminInventreeExportTest extends TestCase
         $this->assertStringContainsString(str_repeat('X', 250), $csv);
     }
 }
-
