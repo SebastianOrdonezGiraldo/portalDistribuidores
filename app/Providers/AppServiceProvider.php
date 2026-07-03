@@ -14,6 +14,9 @@ use App\Modules\Categories\Models\Category;
 use App\Modules\Categories\Policies\CategoryPolicy;
 use App\Modules\Company\Policies\CompanyPolicy;
 use App\Modules\Documents\Policies\ProductDocumentPolicy;
+use App\Modules\Inventory\Actions\SyncProductsFromInvenTreeAction;
+use App\Modules\Inventory\Actions\SyncStockFromInvenTreeAction;
+use App\Modules\Inventory\Console\Commands\SyncInvenTree;
 use App\Modules\Inventory\Services\InvenTreeApiClient;
 use App\Modules\Inventory\Services\InvenTreeSyncService;
 use App\Modules\Orders\Models\Order;
@@ -47,8 +50,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(InvenTreeSyncService::class, function ($app): InvenTreeSyncService {
             return new InvenTreeSyncService(
                 $app->make(InvenTreeApiClient::class),
-                $app->make(\App\Modules\Inventory\Actions\SyncProductsFromInvenTreeAction::class),
-                $app->make(\App\Modules\Inventory\Actions\SyncStockFromInvenTreeAction::class),
+                $app->make(SyncProductsFromInvenTreeAction::class),
+                $app->make(SyncStockFromInvenTreeAction::class),
             );
         });
 
@@ -60,7 +63,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->commands([
-            \App\Modules\Inventory\Console\Commands\SyncInvenTree::class,
+            SyncInvenTree::class,
         ]);
 
         $this->configureAbuseProtectionRateLimiters();
