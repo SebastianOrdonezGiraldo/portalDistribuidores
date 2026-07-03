@@ -135,8 +135,8 @@ class InvenTreeApiClient
         try {
             $response = $this->http()->get($endpoint, $params);
         } catch (RequestException $e) {
-            $status = $e->response?->status();
-            $detail = $status !== null ? "HTTP {$status}" : 'respuesta rechazada';
+            $status = $e->response->status();
+            $detail = "HTTP {$status}";
 
             throw new RuntimeException("InvenTree API: {$detail} al consultar {$endpoint}. Revisa token, permisos y endpoint.", 0, $e);
         } catch (Throwable $e) {
