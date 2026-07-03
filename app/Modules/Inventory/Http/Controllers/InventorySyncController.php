@@ -70,10 +70,9 @@ class InventorySyncController extends Controller
             }
 
             fwrite($output, "\xEF\xBB\xBF");
-            fputcsv($output, ['IPN', 'name', 'description', 'pricing_min', 'total_in_stock', 'active', 'keywords']);
+            fputcsv($output, ['IPN', 'name', 'pricing_min', 'total_in_stock', 'active']);
 
             Product::query()
-                ->with('category')
                 ->whereNotNull('sku')
                 ->where('sku', '!=', '')
                 ->orderBy('id')
@@ -82,11 +81,9 @@ class InventorySyncController extends Controller
                         fputcsv($output, [
                             $product->sku,
                             $product->name,
-                            $this->truncateDescription($product->description),
                             $this->formatDecimal($product->price),
                             $this->formatDecimal($product->stock),
                             $product->is_active ? 'true' : 'false',
-                            $product->brand !== null && $product->brand !== '' ? 'brand:'.$product->brand : '',
                         ]);
                     }
                 });
@@ -100,12 +97,5 @@ class InventorySyncController extends Controller
     private function formatDecimal(float|int|string|null $value): string
     {
         return number_format((float) ($value ?? 0), 2, '.', '');
-    }
-
-    private function truncateDescription(?string $description): string
-    {
-        $text = trim((string) ($description ?? ''));
-
-        return mb_substr($text, 0, 250);
     }
 }
