@@ -4,6 +4,7 @@ namespace App\Modules\Orders\Services;
 
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
+use App\Modules\Inventory\Models\StockMovement;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Shared\Exceptions\DomainException;
@@ -20,8 +21,8 @@ class OrderInventoryService
             return;
         }
 
-        $this->decreaseVariantStock($items);
-        $this->decreaseProductStock($items);
+        $this->decreaseVariantStock($items, $order);
+        $this->decreaseProductStock($items, $order);
     }
 
     public function increaseForOrder(Order $order): void
@@ -33,14 +34,14 @@ class OrderInventoryService
             return;
         }
 
-        $this->increaseVariantStock($items);
-        $this->increaseProductStock($items);
+        $this->increaseVariantStock($items, $order);
+        $this->increaseProductStock($items, $order);
     }
 
     /**
      * @param  Collection<int, OrderItem>  $items
      */
-    private function decreaseVariantStock(Collection $items): void
+    private function decreaseVariantStock(Collection $items, Order $order): void
     {
         $requiredByVariant = $items
             ->filter(fn (OrderItem $item) => $item->product_variant_id !== null)
@@ -76,15 +77,33 @@ class OrderInventoryService
                 throw new DomainException("Stock insuficiente en variante {$variant->id}. Disponible: {$available}.");
             }
 
-            $variant->stock = round(((float) $variant->stock) - $qty, 2);
+            $previousStock = (float) $variant->stock;
+
+            if ($variant->inventree_stock !== null) {
+                $variant->reserved_stock = round(((float) ($variant->reserved_stock ?? 0)) + $qty, 2);
+                $variant->stock = round(max(0, (float) $variant->inventree_stock - (float) $variant->reserved_stock), 2);
+            } else {
+                $variant->stock = round($previousStock - $qty, 2);
+            }
+
             $variant->save();
+
+            StockMovement::record(
+                product: null,
+                variant: $variant,
+                previousStock: $previousStock,
+                newStock: (float) $variant->stock,
+                source: 'order_deduction',
+                order: $order,
+                orderQty: (float) $qty,
+            );
         }
     }
 
     /**
      * @param  Collection<int, OrderItem>  $items
      */
-    private function decreaseProductStock(Collection $items): void
+    private function decreaseProductStock(Collection $items, Order $order): void
     {
         $requiredByProduct = $items
             ->filter(fn (OrderItem $item) => $item->product_variant_id === null && $item->product_id !== null)
@@ -120,15 +139,32 @@ class OrderInventoryService
                 throw new DomainException("Stock insuficiente en producto {$product->sku}. Disponible: {$available}.");
             }
 
-            $product->stock = round(((float) $product->stock) - $qty, 2);
+            $previousStock = (float) $product->stock;
+
+            if ($product->inventree_stock !== null) {
+                $product->reserved_stock = round(((float) ($product->reserved_stock ?? 0)) + $qty, 2);
+                $product->stock = round(max(0, (float) $product->inventree_stock - (float) $product->reserved_stock), 2);
+            } else {
+                $product->stock = round($previousStock - $qty, 2);
+            }
+
             $product->save();
+
+            StockMovement::record(
+                product: $product,
+                previousStock: $previousStock,
+                newStock: (float) $product->stock,
+                source: 'order_deduction',
+                order: $order,
+                orderQty: (float) $qty,
+            );
         }
     }
 
     /**
      * @param  Collection<int, OrderItem>  $items
      */
-    private function increaseVariantStock(Collection $items): void
+    private function increaseVariantStock(Collection $items, Order $order): void
     {
         $requiredByVariant = $items
             ->filter(fn (OrderItem $item) => $item->product_variant_id !== null)
@@ -154,15 +190,33 @@ class OrderInventoryService
                 continue;
             }
 
-            $variant->stock = round(((float) $variant->stock) + $qty, 2);
+            $previousStock = (float) $variant->stock;
+
+            if ($variant->inventree_stock !== null) {
+                $variant->reserved_stock = round(max(0, ((float) ($variant->reserved_stock ?? 0)) - $qty), 2);
+                $variant->stock = round(max(0, (float) $variant->inventree_stock - (float) $variant->reserved_stock), 2);
+            } else {
+                $variant->stock = round($previousStock + $qty, 2);
+            }
+
             $variant->save();
+
+            StockMovement::record(
+                product: null,
+                variant: $variant,
+                previousStock: $previousStock,
+                newStock: (float) $variant->stock,
+                source: 'order_restoration',
+                order: $order,
+                orderQty: (float) $qty,
+            );
         }
     }
 
     /**
      * @param  Collection<int, OrderItem>  $items
      */
-    private function increaseProductStock(Collection $items): void
+    private function increaseProductStock(Collection $items, Order $order): void
     {
         $requiredByProduct = $items
             ->filter(fn (OrderItem $item) => $item->product_variant_id === null && $item->product_id !== null)
@@ -188,8 +242,25 @@ class OrderInventoryService
                 continue;
             }
 
-            $product->stock = round(((float) $product->stock) + $qty, 2);
+            $previousStock = (float) $product->stock;
+
+            if ($product->inventree_stock !== null) {
+                $product->reserved_stock = round(max(0, ((float) ($product->reserved_stock ?? 0)) - $qty), 2);
+                $product->stock = round(max(0, (float) $product->inventree_stock - (float) $product->reserved_stock), 2);
+            } else {
+                $product->stock = round($previousStock + $qty, 2);
+            }
+
             $product->save();
+
+            StockMovement::record(
+                product: $product,
+                previousStock: $previousStock,
+                newStock: (float) $product->stock,
+                source: 'order_restoration',
+                order: $order,
+                orderQty: (float) $qty,
+            );
         }
     }
 }

@@ -3,6 +3,13 @@
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schedule;
+
+Schedule::command('inventree:sync', ['--type' => 'stock'])
+    ->everyFiveMinutes()
+    ->withoutOverlapping(15)
+    ->environments(['production'])
+    ->appendOutputTo(storage_path('logs/inventree-sync.log'));
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
