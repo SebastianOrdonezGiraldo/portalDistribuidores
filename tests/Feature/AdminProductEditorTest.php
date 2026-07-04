@@ -823,6 +823,44 @@ class AdminProductEditorTest extends TestCase
             ]);
     }
 
+    public function test_admin_can_convert_variant_product_to_simple_when_empty_variant_row_is_submitted(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProductWithVariants($category, 'SKU-CONVERT-SIMPLE-001', [6.0]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->from('/admin/products/'.$product->id.'/edit')
+            ->put('/admin/products/'.$product->id, [
+                'name' => 'Producto Simple Convertido',
+                'brand' => 'Marca Simple',
+                'sku' => 'SKU-CONVERT-SIMPLE-001',
+                'description' => 'Producto convertido a simple',
+                'category_id' => $category->id,
+                'has_variants' => 0,
+                'variant_attribute_id' => $product->variant_attribute_id,
+                'variants' => [
+                    ['value' => null, 'price' => null, 'stock' => null],
+                ],
+                'price' => 22000,
+                'stock' => 9,
+                'is_active' => 1,
+                '_token' => 'test-token',
+            ]);
+
+        $response
+            ->assertRedirect('/admin/products/'.$product->id.'/edit')
+            ->assertSessionHasNoErrors();
+
+        $product->refresh();
+
+        $this->assertNull($product->variant_attribute_id);
+        $this->assertSame(0, $product->variants()->count());
+        $this->assertSame(22000.0, (float) $product->price);
+        $this->assertSame(9.0, (float) $product->stock);
+    }
+
     public function test_post_too_large_without_referer_uses_safe_fallback_and_preserves_old_input(): void
     {
         $admin = User::factory()->admin()->create();

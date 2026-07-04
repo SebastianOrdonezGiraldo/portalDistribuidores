@@ -19,6 +19,12 @@ class UpdateProductRequest extends FormRequest
             'has_variants' => $this->boolean('has_variants'),
             'is_vat_excluded' => $this->boolean('is_vat_excluded'),
         ]);
+
+        if (! $this->boolean('has_variants')) {
+            $this->request->remove('variant_attribute_id');
+            $this->request->remove('new_variant_attribute_name');
+            $this->request->remove('variants');
+        }
     }
 
     public function authorize(): bool
