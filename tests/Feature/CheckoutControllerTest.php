@@ -50,7 +50,7 @@ class CheckoutControllerTest extends TestCase
     {
         $distributor = Distributor::factory()->create();
         $user = User::factory()->create(['distributor_id' => $distributor->id]);
-        $product = Product::factory()->create(['price' => 15000]);
+        $product = Product::factory()->create(['price' => 15000, 'stock' => 50]);
 
         $this->actingAs($user)->post(route('cart.store'), ['product_id' => $product->id, 'qty' => 3]);
 
