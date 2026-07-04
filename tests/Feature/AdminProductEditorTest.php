@@ -133,6 +133,45 @@ class AdminProductEditorTest extends TestCase
             ->assertRedirect(route('admin.products.index', $indexContext));
     }
 
+    public function test_admin_update_preserves_price_and_stock_for_inventree_managed_product(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProduct($category, 'SKU-INV-EDITOR-001');
+        $product->update([
+            'price' => 50000,
+            'stock' => 80,
+            'inventree_stock' => 100,
+            'reserved_stock' => 20,
+        ]);
+
+        $payload = [
+            'name' => 'Producto InvenTree Editado',
+            'brand' => 'Marca InvenTree',
+            'sku' => 'SKU-INV-EDITOR-001',
+            'description' => 'Solo cambia catalogo',
+            'category_id' => $category->id,
+            'price' => 99999,
+            'stock' => 1,
+            'is_active' => 1,
+        ];
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->put('/admin/products/'.$product->id, array_merge($payload, ['_token' => 'test-token']))
+            ->assertRedirect('/admin/products/'.$product->id.'/edit');
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'name' => 'Producto InvenTree Editado',
+            'brand' => 'Marca InvenTree',
+            'price' => 50000,
+            'stock' => 80,
+            'inventree_stock' => 100,
+            'reserved_stock' => 20,
+        ]);
+    }
+
     public function test_admin_can_deactivate_and_remove_product_media(): void
     {
         $admin = User::factory()->admin()->create();
@@ -782,6 +821,44 @@ class AdminProductEditorTest extends TestCase
             ->assertSessionHasErrors([
                 'variants.1.stock' => 'El stock de cada variante es obligatorio para publicar el producto.',
             ]);
+    }
+
+    public function test_admin_can_convert_variant_product_to_simple_when_empty_variant_row_is_submitted(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProductWithVariants($category, 'SKU-CONVERT-SIMPLE-001', [6.0]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->from('/admin/products/'.$product->id.'/edit')
+            ->put('/admin/products/'.$product->id, [
+                'name' => 'Producto Simple Convertido',
+                'brand' => 'Marca Simple',
+                'sku' => 'SKU-CONVERT-SIMPLE-001',
+                'description' => 'Producto convertido a simple',
+                'category_id' => $category->id,
+                'has_variants' => 0,
+                'variant_attribute_id' => $product->variant_attribute_id,
+                'variants' => [
+                    ['value' => null, 'price' => null, 'stock' => null],
+                ],
+                'price' => 22000,
+                'stock' => 9,
+                'is_active' => 1,
+                '_token' => 'test-token',
+            ]);
+
+        $response
+            ->assertRedirect('/admin/products/'.$product->id.'/edit')
+            ->assertSessionHasNoErrors();
+
+        $product->refresh();
+
+        $this->assertNull($product->variant_attribute_id);
+        $this->assertSame(0, $product->variants()->count());
+        $this->assertSame(22000.0, (float) $product->price);
+        $this->assertSame(9.0, (float) $product->stock);
     }
 
     public function test_post_too_large_without_referer_uses_safe_fallback_and_preserves_old_input(): void

@@ -198,7 +198,10 @@ class SyncStockFromInvenTreeActionTest extends TestCase
                 ],
             ]);
 
-        $this->action->execute();
+        $stats = $this->action->execute();
+
+        $this->assertSame(1, $stats['skipped_variants']);
+        $this->assertSame(0, $stats['unmatched']);
 
         $this->assertDatabaseHas('products', [
             'sku' => 'SKU-004',

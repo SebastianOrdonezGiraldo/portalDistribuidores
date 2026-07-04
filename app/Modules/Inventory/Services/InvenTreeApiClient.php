@@ -3,8 +3,10 @@
 namespace App\Modules\Inventory\Services;
 
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
+use Throwable;
 
 class InvenTreeApiClient
 {
@@ -65,6 +67,11 @@ class InvenTreeApiClient
         return $this->fetchAll('api/part/', $params);
     }
 
+    public function getPartsPage(array $params = []): array
+    {
+        return $this->fetchPage('api/part/', $params);
+    }
+
     public function getPart(int $id): array
     {
         $this->ensureConfigured();
@@ -94,18 +101,18 @@ class InvenTreeApiClient
         $this->ensureConfigured();
 
         $all = [];
-        $offset = 0;
-        $limit = 100;
+        $offset = max(0, (int) ($params['offset'] ?? 0));
+        $limit = max(1, (int) ($params['limit'] ?? 100));
+        $baseParams = $params;
+        unset($baseParams['limit'], $baseParams['offset']);
 
         do {
-            $response = $this->http()->get($endpoint, array_merge($params, [
+            $data = $this->fetchPage($endpoint, array_merge($baseParams, [
                 'limit' => $limit,
                 'offset' => $offset,
             ]));
 
-            $data = $response->json();
-
-            $results = $data['results'] ?? [];
+            $results = $data['results'];
 
             foreach ($results as $item) {
                 $all[] = $item;
@@ -119,5 +126,29 @@ class InvenTreeApiClient
         } while ($next !== null);
 
         return $all;
+    }
+
+    private function fetchPage(string $endpoint, array $params = []): array
+    {
+        $this->ensureConfigured();
+
+        try {
+            $response = $this->http()->get($endpoint, $params);
+        } catch (RequestException $e) {
+            $status = $e->response->status();
+            $detail = "HTTP {$status}";
+
+            throw new RuntimeException("InvenTree API: {$detail} al consultar {$endpoint}. Revisa token, permisos y endpoint.", 0, $e);
+        } catch (Throwable $e) {
+            throw new RuntimeException("InvenTree API: no fue posible consultar {$endpoint}: ".$e->getMessage(), 0, $e);
+        }
+
+        $data = $response->json();
+
+        if (! is_array($data) || ! array_key_exists('results', $data) || ! is_array($data['results'])) {
+            throw new RuntimeException("InvenTree API: respuesta inválida desde {$endpoint}. Se esperaba paginación con results.");
+        }
+
+        return $data;
     }
 }

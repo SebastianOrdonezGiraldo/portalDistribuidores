@@ -305,6 +305,8 @@
                         @php
                             $hasActiveVariants = (int) ($product->active_variants_count ?? 0) > 0;
                             $activeVariants = $product->variants ?? collect();
+                            $isInvenTreeManaged = $product->inventree_stock !== null;
+                            $hasInvenTreeManagedVariants = $activeVariants->contains(fn ($variant) => $variant->inventree_stock !== null);
                         @endphp
                         <tr>
                             <td data-label="Seleccionar">
@@ -331,45 +333,53 @@
                             </td>
                             <td data-label="Stock">
                                 @if(! $hasActiveVariants)
-                                    <form
-                                        action="{{ route('admin.products.stock', $product) }}"
-                                        method="POST"
-                                        class="space-y-2"
-                                        data-loading-form
-                                    >
-                                        @csrf
-                                        @method('PATCH')
-                                        @foreach($indexContextQuery as $key => $value)
-                                            <input type="hidden" name="index_context[{{ $key }}]" value="{{ $value }}">
-                                        @endforeach
-
-                                        <label class="sr-only" for="stock-product-{{ $product->id }}">
-                                            Stock de {{ $product->name }}
-                                        </label>
-                                        <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                                            <x-ui.input
-                                                id="stock-product-{{ $product->id }}"
-                                                name="stock"
-                                                type="number"
-                                                step="0.01"
-                                                min="0"
-                                                inputmode="decimal"
-                                                class="no-number-spinner w-full sm:w-28"
-                                                :value="is_numeric($product->stock) ? rtrim(rtrim(number_format((float) $product->stock, 2, '.', ''), '0'), '.') : ''"
-                                                placeholder="Sin definir"
-                                            />
-                                            <button
-                                                type="submit"
-                                                class="btn btn-secondary w-full justify-center sm:w-auto"
-                                                data-loading-label="Guardando..."
-                                            >
-                                                Guardar
-                                            </button>
+                                    @if($isInvenTreeManaged)
+                                        <div class="space-y-1 text-sm">
+                                            <p class="font-semibold text-slate-900">{{ $formatStock($product->stock) }}</p>
+                                            <p class="text-xs text-slate-500">Gestionado por InvenTree</p>
+                                            <p class="text-xs text-slate-500">Reservado local: {{ $formatStock($product->reserved_stock) }}</p>
                                         </div>
-                                        <p class="text-xs text-slate-500">
-                                            Actual: <span class="font-semibold text-slate-700">{{ $formatStock($product->stock) }}</span>
-                                        </p>
-                                    </form>
+                                    @else
+                                        <form
+                                            action="{{ route('admin.products.stock', $product) }}"
+                                            method="POST"
+                                            class="space-y-2"
+                                            data-loading-form
+                                        >
+                                            @csrf
+                                            @method('PATCH')
+                                            @foreach($indexContextQuery as $key => $value)
+                                                <input type="hidden" name="index_context[{{ $key }}]" value="{{ $value }}">
+                                            @endforeach
+
+                                            <label class="sr-only" for="stock-product-{{ $product->id }}">
+                                                Stock de {{ $product->name }}
+                                            </label>
+                                            <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                                <x-ui.input
+                                                    id="stock-product-{{ $product->id }}"
+                                                    name="stock"
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    inputmode="decimal"
+                                                    class="no-number-spinner w-full sm:w-28"
+                                                    :value="is_numeric($product->stock) ? rtrim(rtrim(number_format((float) $product->stock, 2, '.', ''), '0'), '.') : ''"
+                                                    placeholder="Sin definir"
+                                                />
+                                                <button
+                                                    type="submit"
+                                                    class="btn btn-secondary w-full justify-center sm:w-auto"
+                                                    data-loading-label="Guardando..."
+                                                >
+                                                    Guardar
+                                                </button>
+                                            </div>
+                                            <p class="text-xs text-slate-500">
+                                                Actual: <span class="font-semibold text-slate-700">{{ $formatStock($product->stock) }}</span>
+                                            </p>
+                                        </form>
+                                    @endif
                                 @else
                                     <details class="rounded-xl border border-slate-200 bg-slate-50/70 p-2">
                                         <summary class="cursor-pointer text-xs font-semibold text-slate-700">
@@ -380,58 +390,65 @@
                                             <p class="text-xs text-slate-500">
                                                 Total actual: <span class="font-semibold text-slate-700">{{ $formatStock($product->stock) }}</span>
                                             </p>
+                                            @if($hasInvenTreeManagedVariants)
+                                                <p class="text-xs font-semibold text-amber-700">
+                                                    Variantes gestionadas por InvenTree no editables en v1.
+                                                </p>
+                                            @endif
                                             <p class="text-xs text-slate-500">
                                                 Atributo: <span class="font-semibold text-slate-700">{{ $product->variantAttribute?->name ?? 'Variante' }}</span>
                                             </p>
 
-                                            <form
-                                                action="{{ route('admin.products.variants.stock', $product) }}"
-                                                method="POST"
-                                                class="space-y-2"
-                                                data-loading-form
-                                            >
-                                                @csrf
-                                                @method('PATCH')
-                                                @foreach($indexContextQuery as $key => $value)
-                                                    <input type="hidden" name="index_context[{{ $key }}]" value="{{ $value }}">
-                                                @endforeach
+                                            @if(! $hasInvenTreeManagedVariants)
+                                                <form
+                                                    action="{{ route('admin.products.variants.stock', $product) }}"
+                                                    method="POST"
+                                                    class="space-y-2"
+                                                    data-loading-form
+                                                >
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    @foreach($indexContextQuery as $key => $value)
+                                                        <input type="hidden" name="index_context[{{ $key }}]" value="{{ $value }}">
+                                                    @endforeach
 
-                                                @foreach($activeVariants as $variantIndex => $variant)
-                                                    <input type="hidden" name="variants[{{ $variantIndex }}][id]" value="{{ $variant->id }}">
-                                                    <div class="grid grid-cols-[minmax(0,1fr)_6.5rem] items-center gap-2">
-                                                        <label class="text-xs text-slate-700" for="variant-stock-{{ $product->id }}-{{ $variant->id }}">
-                                                            {{ $variant->attributeValue?->value ?? 'Variante #'.$variant->id }}
-                                                        </label>
-                                                        <x-ui.input
-                                                            id="variant-stock-{{ $product->id }}-{{ $variant->id }}"
-                                                            name="variants[{{ $variantIndex }}][stock]"
-                                                            type="number"
-                                                            step="0.01"
-                                                            min="0"
-                                                            inputmode="decimal"
-                                                            class="no-number-spinner"
-                                                            :value="is_numeric($variant->stock) ? rtrim(rtrim(number_format((float) $variant->stock, 2, '.', ''), '0'), '.') : ''"
-                                                            placeholder="-"
-                                                        />
+                                                    @foreach($activeVariants as $variantIndex => $variant)
+                                                        <input type="hidden" name="variants[{{ $variantIndex }}][id]" value="{{ $variant->id }}">
+                                                        <div class="grid grid-cols-[minmax(0,1fr)_6.5rem] items-center gap-2">
+                                                            <label class="text-xs text-slate-700" for="variant-stock-{{ $product->id }}-{{ $variant->id }}">
+                                                                {{ $variant->attributeValue?->value ?? 'Variante #'.$variant->id }}
+                                                            </label>
+                                                            <x-ui.input
+                                                                id="variant-stock-{{ $product->id }}-{{ $variant->id }}"
+                                                                name="variants[{{ $variantIndex }}][stock]"
+                                                                type="number"
+                                                                step="0.01"
+                                                                min="0"
+                                                                inputmode="decimal"
+                                                                class="no-number-spinner"
+                                                                :value="is_numeric($variant->stock) ? rtrim(rtrim(number_format((float) $variant->stock, 2, '.', ''), '0'), '.') : ''"
+                                                                placeholder="-"
+                                                            />
+                                                        </div>
+                                                    @endforeach
+
+                                                    <div class="flex flex-col gap-2 pt-1">
+                                                        <button
+                                                            type="submit"
+                                                            class="btn btn-secondary w-full justify-center"
+                                                            data-loading-label="Guardando..."
+                                                        >
+                                                            Guardar variantes
+                                                        </button>
+                                                        <a
+                                                            href="{{ route('admin.products.edit', array_merge(['product' => $product], $indexContextQuery)) }}"
+                                                            class="btn btn-ghost w-full justify-center"
+                                                        >
+                                                            Abrir editor completo
+                                                        </a>
                                                     </div>
-                                                @endforeach
-
-                                                <div class="flex flex-col gap-2 pt-1">
-                                                    <button
-                                                        type="submit"
-                                                        class="btn btn-secondary w-full justify-center"
-                                                        data-loading-label="Guardando..."
-                                                    >
-                                                        Guardar variantes
-                                                    </button>
-                                                    <a
-                                                        href="{{ route('admin.products.edit', array_merge(['product' => $product], $indexContextQuery)) }}"
-                                                        class="btn btn-ghost w-full justify-center"
-                                                    >
-                                                        Abrir editor completo
-                                                    </a>
-                                                </div>
-                                            </form>
+                                                </form>
+                                            @endif
                                         </div>
                                     </details>
                                 @endif

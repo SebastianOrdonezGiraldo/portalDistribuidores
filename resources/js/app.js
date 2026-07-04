@@ -1246,9 +1246,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const rows = variantRowsContainer.querySelectorAll('[data-variant-row]');
             if (rows.length <= 1) {
-                row.querySelectorAll('input').forEach((input) => {
-                    input.value = '';
-                });
+                row.remove();
+
+                if (variantToggle instanceof HTMLInputElement) {
+                    variantToggle.checked = false;
+                }
+
+                refreshVariantSection();
                 return;
             }
 
