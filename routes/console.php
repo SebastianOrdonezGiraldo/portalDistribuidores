@@ -5,11 +5,17 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schedule;
 
-Schedule::command('inventree:sync', ['--type' => 'all'])
-    ->everyFiveMinutes()
-    ->withoutOverlapping(15)
+Schedule::command('inventree:sync', ['--type' => 'stock'])
+    ->everyMinute()
+    ->withoutOverlapping(5)
     ->environments(['production'])
-    ->appendOutputTo(storage_path('logs/inventree-sync.log'));
+    ->appendOutputTo(storage_path('logs/inventree-stock-sync.log'));
+
+Schedule::command('inventree:sync', ['--type' => 'prices'])
+    ->everyThirtyMinutes()
+    ->withoutOverlapping(10)
+    ->environments(['production'])
+    ->appendOutputTo(storage_path('logs/inventree-price-sync.log'));
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
