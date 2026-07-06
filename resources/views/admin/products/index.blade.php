@@ -317,6 +317,7 @@
                                     <x-ui.product-thumb :product="$product" size="sm" />
                                     <div>
                                         <p class="font-medium text-slate-900">{{ $product->name }}</p>
+                                        <p class="font-mono text-xs font-semibold text-slate-600">SKU: {{ $product->sku }}</p>
                                         @if($product->brand)
                                             <p class="text-xs text-slate-500">Marca: {{ $product->brand }}</p>
                                         @endif
