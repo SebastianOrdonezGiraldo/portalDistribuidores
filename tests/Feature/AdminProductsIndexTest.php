@@ -307,7 +307,9 @@ class AdminProductsIndexTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Producto '.$token.' Alto');
+        $response->assertSee('SKU-PROD-HIGH');
         $response->assertDontSee('Producto '.$token.' Bajo');
+        $response->assertDontSee('SKU-PROD-LOW');
         $response->assertDontSee('Producto sin token');
 
         $response->assertViewHas('products', function ($products) use ($highPrice) {
