@@ -285,16 +285,13 @@ class ProductAdminController extends Controller
     ): RedirectResponse {
         $this->authorize('update', $product);
 
-        $isInvenTreeManaged = $product->inventree_stock !== null;
-        $productPayload = $this->extractProductPayload($request, $isInvenTreeManaged);
+        $hasExternallyManagedStock = $product->external_stock !== null;
+        $productPayload = $this->extractProductPayload($request, $hasExternallyManagedStock);
         $validatedPayload = $request->validated();
 
-        $product = DB::transaction(function () use ($updateAction, $variantSyncService, $product, $productPayload, $validatedPayload, $isInvenTreeManaged) {
+        $product = DB::transaction(function () use ($updateAction, $variantSyncService, $product, $productPayload, $validatedPayload) {
             $updatedProduct = $updateAction->execute($product, $productPayload);
-
-            if (! $isInvenTreeManaged) {
-                $variantSyncService->sync($updatedProduct, $validatedPayload);
-            }
+            $variantSyncService->sync($updatedProduct, $validatedPayload);
 
             return $updatedProduct->refresh();
         });
@@ -427,10 +424,10 @@ class ProductAdminController extends Controller
             ? (float) $payload['stock']
             : null;
 
-        if ($product->inventree_stock !== null) {
+        if ($product->external_stock !== null) {
             return redirect()
                 ->route('admin.products.index', $indexContextQuery)
-                ->with('error', 'Este producto está gestionado por InvenTree. El stock se sincroniza automáticamente desde el panel de InvenTree.');
+                ->with('error', 'Este producto tiene stock gestionado externamente. El stock no se puede modificar manualmente desde el portal.');
         }
 
         $updated = $stockService->updateSimpleProductStock($product, $stock);
@@ -664,7 +661,7 @@ class ProductAdminController extends Controller
         ];
     }
 
-    private function extractProductPayload(StoreProductRequest|UpdateProductRequest $request, bool $preserveInvenTreeValues = false): array
+    private function extractProductPayload(StoreProductRequest|UpdateProductRequest $request, bool $preserveExternalStock = false): array
     {
         $payload = $request->safe()->except([
             'photo',
@@ -680,15 +677,16 @@ class ProductAdminController extends Controller
             'variants',
         ]);
 
-        if ($preserveInvenTreeValues) {
-            unset($payload['price'], $payload['stock']);
-
-            return $payload;
+        if ($preserveExternalStock) {
+            unset($payload['stock']);
         }
 
         if ($request->boolean('has_variants')) {
             $payload['price'] = $this->resolveVariantBootstrapPrice((array) $request->input('variants', []));
-            $payload['stock'] = null;
+
+            if (! $preserveExternalStock) {
+                $payload['stock'] = null;
+            }
         }
 
         return $payload;

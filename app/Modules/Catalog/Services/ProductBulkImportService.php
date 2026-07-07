@@ -530,8 +530,8 @@ class ProductBulkImportService
      */
     private function persistUpdate(Product $existing, array $attributes, array &$report): void
     {
-        if ($existing->inventree_stock !== null) {
-            unset($attributes['price'], $attributes['stock']);
+        if ($existing->external_stock !== null) {
+            unset($attributes['stock']);
         }
 
         $existing->update($attributes);

@@ -93,38 +93,38 @@ class AdminProductsBulkImportTest extends TestCase
         ]);
     }
 
-    public function test_bulk_import_preserves_price_and_stock_for_inventree_managed_products(): void
+    public function test_bulk_import_preserves_stock_but_updates_price_for_externally_managed_stock_products(): void
     {
         $this->withoutMiddleware(ValidateCsrfToken::class);
 
         $admin = User::factory()->admin()->create();
         $category = Category::create([
             'parent_id' => null,
-            'name' => 'Categoria InvenTree Import',
-            'slug' => 'categoria-inventree-import',
+            'name' => 'Categoria Stock Externo Import',
+            'slug' => 'categoria-stock-externo-import',
             'is_active' => true,
             'sort_order' => 1,
         ]);
 
         Product::create([
-            'name' => 'Producto InvenTree',
+            'name' => 'Producto Stock Externo',
             'brand' => 'Marca Original',
             'sku' => 'SKU-INV-MANAGED',
             'description' => 'Original',
             'category_id' => $category->id,
             'price' => 10000,
             'stock' => 30,
-            'inventree_stock' => 40,
+            'external_stock' => 40,
             'reserved_stock' => 10,
             'is_active' => true,
         ]);
 
         $csvContent = implode("\n", [
             'action;sku;name;brand;description;category_id;price;stock;is_active',
-            "upsert;SKU-INV-MANAGED;Producto InvenTree Actualizado;Marca Nueva;Catalogo actualizado;{$category->id};99999;1;1",
+            "upsert;SKU-INV-MANAGED;Producto Stock Externo Actualizado;Marca Nueva;Catalogo actualizado;{$category->id};99999;1;1",
         ]);
 
-        $file = UploadedFile::fake()->createWithContent('products-import-inventree.csv', $csvContent);
+        $file = UploadedFile::fake()->createWithContent('products-import-external-stock.csv', $csvContent);
 
         $response = $this->actingAs($admin)
             ->post('/admin/products/import', [
@@ -136,11 +136,11 @@ class AdminProductsBulkImportTest extends TestCase
 
         $this->assertDatabaseHas('products', [
             'sku' => 'SKU-INV-MANAGED',
-            'name' => 'Producto InvenTree Actualizado',
+            'name' => 'Producto Stock Externo Actualizado',
             'brand' => 'Marca Nueva',
-            'price' => 10000,
+            'price' => 99999,
             'stock' => 30,
-            'inventree_stock' => 40,
+            'external_stock' => 40,
             'reserved_stock' => 10,
         ]);
     }

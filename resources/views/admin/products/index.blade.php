@@ -14,7 +14,6 @@
                 <div class="flex flex-wrap items-center gap-2">
                     <a href="{{ route('admin.products.inventory.pdf', collect($indexContextQuery)->except('page')->all()) }}" class="btn btn-secondary w-full justify-center sm:w-auto">Descargar saldos PDF</a>
                     <a href="{{ route('admin.products.import.template') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Descargar plantilla CSV</a>
-                    <a href="{{ route('admin.inventory.export') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Descargar CSV InvenTree</a>
                     <form action="{{ route('admin.products.import') }}" method="POST" enctype="multipart/form-data" class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                         @csrf
                         <input type="hidden" name="default_action" value="upsert">
@@ -305,8 +304,8 @@
                         @php
                             $hasActiveVariants = (int) ($product->active_variants_count ?? 0) > 0;
                             $activeVariants = $product->variants ?? collect();
-                            $isInvenTreeManaged = $product->inventree_stock !== null;
-                            $hasInvenTreeManagedVariants = $activeVariants->contains(fn ($variant) => $variant->inventree_stock !== null);
+                            $hasExternallyManagedStock = $product->external_stock !== null;
+                            $hasExternallyManagedVariants = $activeVariants->contains(fn ($variant) => $variant->external_stock !== null);
                         @endphp
                         <tr>
                             <td data-label="Seleccionar">
@@ -334,10 +333,10 @@
                             </td>
                             <td data-label="Stock">
                                 @if(! $hasActiveVariants)
-                                    @if($isInvenTreeManaged)
+                                    @if($hasExternallyManagedStock)
                                         <div class="space-y-1 text-sm">
                                             <p class="font-semibold text-slate-900">{{ $formatStock($product->stock) }}</p>
-                                            <p class="text-xs text-slate-500">Gestionado por InvenTree</p>
+                                            <p class="text-xs text-slate-500">Stock gestionado externamente</p>
                                             <p class="text-xs text-slate-500">Reservado local: {{ $formatStock($product->reserved_stock) }}</p>
                                         </div>
                                     @else
@@ -391,16 +390,16 @@
                                             <p class="text-xs text-slate-500">
                                                 Total actual: <span class="font-semibold text-slate-700">{{ $formatStock($product->stock) }}</span>
                                             </p>
-                                            @if($hasInvenTreeManagedVariants)
+                                            @if($hasExternallyManagedVariants)
                                                 <p class="text-xs font-semibold text-amber-700">
-                                                    Variantes gestionadas por InvenTree no editables en v1.
+                                                    El stock de estas variantes se gestiona externamente.
                                                 </p>
                                             @endif
                                             <p class="text-xs text-slate-500">
                                                 Atributo: <span class="font-semibold text-slate-700">{{ $product->variantAttribute?->name ?? 'Variante' }}</span>
                                             </p>
 
-                                            @if(! $hasInvenTreeManagedVariants)
+                                            @if(! $hasExternallyManagedVariants)
                                                 <form
                                                     action="{{ route('admin.products.variants.stock', $product) }}"
                                                     method="POST"

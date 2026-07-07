@@ -49,17 +49,28 @@ class ProductVariantSyncService
                 ],
             );
 
+            $variant = ProductVariant::query()
+                ->where('product_id', $product->id)
+                ->where('product_attribute_value_id', $value->id)
+                ->first();
+
+            $attributes = [
+                'price' => $row['price'],
+                'stock' => $row['stock'],
+                'is_active' => true,
+                'sort_order' => $index + 1,
+            ];
+
+            if ($variant?->external_stock !== null) {
+                unset($attributes['stock']);
+            }
+
             $variant = ProductVariant::query()->updateOrCreate(
                 [
                     'product_id' => $product->id,
                     'product_attribute_value_id' => $value->id,
                 ],
-                [
-                    'price' => $row['price'],
-                    'stock' => $row['stock'],
-                    'is_active' => true,
-                    'sort_order' => $index + 1,
-                ],
+                $attributes,
             );
 
             $keptVariantIds[] = (int) $variant->id;
@@ -70,17 +81,24 @@ class ProductVariantSyncService
             ->delete();
 
         $minPrice = (float) ($rows->min('price') ?? 0);
-        $stockValues = $rows->pluck('stock');
+        $stockValues = ProductVariant::query()
+            ->whereIn('id', $keptVariantIds)
+            ->pluck('stock');
         $hasAnyStock = $stockValues->contains(fn ($stock) => $stock !== null);
         $totalStock = $hasAnyStock
             ? (float) $stockValues->filter(fn ($stock) => $stock !== null)->sum()
             : null;
 
-        $product->update([
+        $productPayload = [
             'variant_attribute_id' => $attribute->id,
             'price' => $minPrice,
-            'stock' => $totalStock,
-        ]);
+        ];
+
+        if ($product->external_stock === null) {
+            $productPayload['stock'] = $totalStock;
+        }
+
+        $product->update($productPayload);
     }
 
     private function resolveAttribute(array $payload): ProductAttribute
