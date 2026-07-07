@@ -26,7 +26,7 @@
         $newVariantAttributeName = old('new_variant_attribute_name');
         $uploadLimits = \App\Modules\Catalog\Support\ProductUploadLimits::viewData();
         $mediaUploadError = $errors->first('media_upload');
-        $isInvenTreeManaged = $isEdit && $product->inventree_stock !== null;
+        $hasExternallyManagedStock = $isEdit && $product->external_stock !== null;
     @endphp
 
     <x-slot name="header">
@@ -72,9 +72,9 @@
         <div class="space-y-4">
             <x-ui.card class="p-5" id="identificacion-producto">
                 <h2 class="card-title">Identificación del Producto</h2>
-                @if($isInvenTreeManaged)
+                @if($hasExternallyManagedStock)
                     <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                        Precio y stock se sincronizan desde InvenTree. Los cambios manuales en estos campos no se guardarán.
+                        El stock de este producto se gestiona externamente. El precio y la información comercial siguen siendo editables en el portal.
                     </div>
                 @endif
                 <div class="mt-4 grid gap-4 sm:grid-cols-2">
@@ -107,18 +107,18 @@
                     </div>
                     <div>
                         <label class="form-label" for="price">Precio *</label>
-                        <x-ui.input id="price" name="price" type="number" min="0" step="0.01" :value="old('price', $product->price)" required :readonly="$isInvenTreeManaged" data-live-price />
+                        <x-ui.input id="price" name="price" type="number" min="0" step="0.01" :value="old('price', $product->price)" required data-live-price />
                         <p class="form-help">
-                            {{ $isInvenTreeManaged ? 'Gestionado por InvenTree desde pricing_min.' : 'Monto en moneda local, sin separador de miles.' }}
+                            Monto en moneda local, sin separador de miles.
                             <span class="ml-1 font-semibold text-slate-700" data-live-price-output>$0</span>
                         </p>
                         <x-input-error :messages="$errors->get('price')" />
                     </div>
                     <div>
                         <label class="form-label" for="stock">Stock</label>
-                        <x-ui.input id="stock" name="stock" type="number" min="0" step="0.01" :value="old('stock', $product->stock)" :readonly="$isInvenTreeManaged" data-live-stock />
+                        <x-ui.input id="stock" name="stock" type="number" min="0" step="0.01" :value="old('stock', $product->stock)" :readonly="$hasExternallyManagedStock" data-live-stock />
                         <p class="form-help">
-                            {{ $isInvenTreeManaged ? 'Disponible calculado desde total_in_stock menos reservas locales.' : 'Inventario disponible. Déjalo vacío si aún no está confirmado.' }}
+                            {{ $hasExternallyManagedStock ? 'Disponible calculado desde stock externo menos reservas locales.' : 'Inventario disponible. Déjalo vacío si aún no está confirmado.' }}
                             <span class="ml-1 font-semibold text-slate-700" data-live-stock-output>Sin definir</span>
                         </p>
                         <x-input-error :messages="$errors->get('stock')" />

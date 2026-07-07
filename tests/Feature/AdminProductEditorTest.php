@@ -133,7 +133,7 @@ class AdminProductEditorTest extends TestCase
             ->assertRedirect(route('admin.products.index', $indexContext));
     }
 
-    public function test_admin_update_preserves_price_and_stock_for_inventree_managed_product(): void
+    public function test_admin_update_preserves_stock_but_allows_price_for_externally_managed_stock_product(): void
     {
         $admin = User::factory()->admin()->create();
         $category = $this->createCategory();
@@ -141,13 +141,13 @@ class AdminProductEditorTest extends TestCase
         $product->update([
             'price' => 50000,
             'stock' => 80,
-            'inventree_stock' => 100,
+            'external_stock' => 100,
             'reserved_stock' => 20,
         ]);
 
         $payload = [
-            'name' => 'Producto InvenTree Editado',
-            'brand' => 'Marca InvenTree',
+            'name' => 'Producto Stock Externo Editado',
+            'brand' => 'Marca Stock Externo',
             'sku' => 'SKU-INV-EDITOR-001',
             'description' => 'Solo cambia catalogo',
             'category_id' => $category->id,
@@ -163,11 +163,11 @@ class AdminProductEditorTest extends TestCase
 
         $this->assertDatabaseHas('products', [
             'id' => $product->id,
-            'name' => 'Producto InvenTree Editado',
-            'brand' => 'Marca InvenTree',
-            'price' => 50000,
+            'name' => 'Producto Stock Externo Editado',
+            'brand' => 'Marca Stock Externo',
+            'price' => 99999,
             'stock' => 80,
-            'inventree_stock' => 100,
+            'external_stock' => 100,
             'reserved_stock' => 20,
         ]);
     }
@@ -253,6 +253,32 @@ class AdminProductEditorTest extends TestCase
 
         $product->refresh();
         $this->assertSame(48.5, (float) $product->stock);
+    }
+
+    public function test_admin_cannot_update_simple_product_stock_when_stock_is_externally_managed(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProduct($category, 'SKU-STOCK-EXTERNAL-BLOCK-001');
+        $product->update([
+            'external_stock' => 50,
+            'reserved_stock' => 5,
+            'stock' => 45,
+        ]);
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->patch('/admin/products/'.$product->id.'/stock', [
+                'stock' => 99,
+                '_token' => 'test-token',
+            ])
+            ->assertRedirect('/admin/products')
+            ->assertSessionHas('error', 'Este producto tiene stock gestionado externamente. El stock no se puede modificar manualmente desde el portal.');
+
+        $product->refresh();
+        $this->assertSame(50.0, (float) $product->external_stock);
+        $this->assertSame(5.0, (float) $product->reserved_stock);
+        $this->assertSame(45.0, (float) $product->stock);
     }
 
     public function test_admin_cannot_update_parent_stock_when_product_has_active_variants(): void

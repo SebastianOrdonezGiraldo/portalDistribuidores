@@ -26,10 +26,10 @@ class OrderInventoryServiceTest extends TestCase
         $this->service = new OrderInventoryService;
     }
 
-    public function test_decrease_for_order_uses_reserved_stock_when_inventree_managed(): void
+    public function test_decrease_for_order_uses_reserved_stock_when_stock_is_externally_managed(): void
     {
         $product = Product::factory()->create([
-            'inventree_stock' => 100,
+            'external_stock' => 100,
             'reserved_stock' => 0,
             'stock' => 100,
         ]);
@@ -45,7 +45,7 @@ class OrderInventoryServiceTest extends TestCase
 
         $product->refresh();
 
-        $this->assertSame(100.0, (float) $product->inventree_stock);
+        $this->assertSame(100.0, (float) $product->external_stock);
         $this->assertSame(3.0, (float) $product->reserved_stock);
         $this->assertSame(97.0, (float) $product->stock);
 
@@ -64,7 +64,7 @@ class OrderInventoryServiceTest extends TestCase
     public function test_decrease_for_order_deducts_directly_for_legacy_product(): void
     {
         $product = Product::factory()->create([
-            'inventree_stock' => null,
+            'external_stock' => null,
             'reserved_stock' => 0,
             'stock' => 50,
         ]);
@@ -80,7 +80,7 @@ class OrderInventoryServiceTest extends TestCase
 
         $product->refresh();
 
-        $this->assertNull($product->inventree_stock);
+        $this->assertNull($product->external_stock);
         $this->assertSame(0.0, (float) $product->reserved_stock);
         $this->assertSame(40.0, (float) $product->stock);
 
@@ -96,7 +96,7 @@ class OrderInventoryServiceTest extends TestCase
     public function test_decrease_for_order_throws_when_insufficient_stock_legacy(): void
     {
         $product = Product::factory()->create([
-            'inventree_stock' => null,
+            'external_stock' => null,
             'stock' => 2,
         ]);
         $order = Order::factory()->create();
@@ -113,10 +113,10 @@ class OrderInventoryServiceTest extends TestCase
         $this->service->decreaseForOrder($order);
     }
 
-    public function test_decrease_for_order_throws_when_insufficient_available_stock_inventree(): void
+    public function test_decrease_for_order_throws_when_insufficient_available_external_stock(): void
     {
         $product = Product::factory()->create([
-            'inventree_stock' => 10,
+            'external_stock' => 10,
             'reserved_stock' => 8,
             'stock' => 2,
         ]);
@@ -134,10 +134,10 @@ class OrderInventoryServiceTest extends TestCase
         $this->service->decreaseForOrder($order);
     }
 
-    public function test_increase_for_order_restores_reserved_stock_when_inventree_managed(): void
+    public function test_increase_for_order_restores_reserved_stock_when_stock_is_externally_managed(): void
     {
         $product = Product::factory()->create([
-            'inventree_stock' => 100,
+            'external_stock' => 100,
             'reserved_stock' => 3,
             'stock' => 97,
         ]);
@@ -153,7 +153,7 @@ class OrderInventoryServiceTest extends TestCase
 
         $product->refresh();
 
-        $this->assertSame(100.0, (float) $product->inventree_stock);
+        $this->assertSame(100.0, (float) $product->external_stock);
         $this->assertSame(0.0, (float) $product->reserved_stock);
         $this->assertSame(100.0, (float) $product->stock);
 
@@ -169,7 +169,7 @@ class OrderInventoryServiceTest extends TestCase
     public function test_increase_for_order_adds_stock_directly_for_legacy_product(): void
     {
         $product = Product::factory()->create([
-            'inventree_stock' => null,
+            'external_stock' => null,
             'reserved_stock' => 0,
             'stock' => 40,
         ]);
@@ -185,12 +185,12 @@ class OrderInventoryServiceTest extends TestCase
 
         $product->refresh();
 
-        $this->assertNull($product->inventree_stock);
+        $this->assertNull($product->external_stock);
         $this->assertSame(0.0, (float) $product->reserved_stock);
         $this->assertSame(50.0, (float) $product->stock);
     }
 
-    public function test_decrease_for_order_with_variant_inventree_managed(): void
+    public function test_decrease_for_order_with_externally_managed_variant_stock(): void
     {
         $attribute = ProductAttribute::factory()->create(['name' => 'Color']);
         $attributeValue = ProductAttributeValue::factory()->create([
@@ -201,7 +201,7 @@ class OrderInventoryServiceTest extends TestCase
         $variant = ProductVariant::factory()->create([
             'product_id' => $product->id,
             'product_attribute_value_id' => $attributeValue->id,
-            'inventree_stock' => 50,
+            'external_stock' => 50,
             'reserved_stock' => 0,
             'stock' => 50,
             'is_active' => true,
@@ -218,7 +218,7 @@ class OrderInventoryServiceTest extends TestCase
 
         $variant->refresh();
 
-        $this->assertSame(50.0, (float) $variant->inventree_stock);
+        $this->assertSame(50.0, (float) $variant->external_stock);
         $this->assertSame(7.0, (float) $variant->reserved_stock);
         $this->assertSame(43.0, (float) $variant->stock);
 
@@ -231,12 +231,12 @@ class OrderInventoryServiceTest extends TestCase
         ]);
     }
 
-    public function test_increase_for_order_restores_variant_reserved_stock_when_inventree_managed(): void
+    public function test_increase_for_order_restores_variant_reserved_stock_when_stock_is_externally_managed(): void
     {
         $product = Product::factory()->create(['is_active' => true]);
         $variant = ProductVariant::factory()->create([
             'product_id' => $product->id,
-            'inventree_stock' => 50,
+            'external_stock' => 50,
             'reserved_stock' => 7,
             'stock' => 43,
             'is_active' => true,
@@ -253,7 +253,7 @@ class OrderInventoryServiceTest extends TestCase
 
         $variant->refresh();
 
-        $this->assertSame(50.0, (float) $variant->inventree_stock);
+        $this->assertSame(50.0, (float) $variant->external_stock);
         $this->assertSame(0.0, (float) $variant->reserved_stock);
         $this->assertSame(50.0, (float) $variant->stock);
     }
@@ -263,7 +263,7 @@ class OrderInventoryServiceTest extends TestCase
         $product = Product::factory()->create(['is_active' => true]);
         $variant = ProductVariant::factory()->create([
             'product_id' => $product->id,
-            'inventree_stock' => 10,
+            'external_stock' => 10,
             'reserved_stock' => 9,
             'stock' => 1,
             'is_active' => true,

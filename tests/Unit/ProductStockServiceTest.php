@@ -21,10 +21,10 @@ class ProductStockServiceTest extends TestCase
         $this->service = new ProductStockService;
     }
 
-    public function test_update_simple_product_stock_returns_false_when_inventree_managed(): void
+    public function test_update_simple_product_stock_returns_false_when_stock_is_externally_managed(): void
     {
         $product = Product::factory()->create([
-            'inventree_stock' => 100,
+            'external_stock' => 100,
             'reserved_stock' => 5,
             'stock' => 95,
         ]);
@@ -35,7 +35,7 @@ class ProductStockServiceTest extends TestCase
 
         $product->refresh();
 
-        $this->assertSame(100.0, (float) $product->inventree_stock);
+        $this->assertSame(100.0, (float) $product->external_stock);
         $this->assertSame(5.0, (float) $product->reserved_stock);
         $this->assertSame(95.0, (float) $product->stock);
 
@@ -45,7 +45,7 @@ class ProductStockServiceTest extends TestCase
     public function test_update_simple_product_stock_succeeds_for_legacy_product(): void
     {
         $product = Product::factory()->create([
-            'inventree_stock' => null,
+            'external_stock' => null,
             'reserved_stock' => 0,
             'stock' => 50,
         ]);
@@ -56,7 +56,7 @@ class ProductStockServiceTest extends TestCase
 
         $product->refresh();
 
-        $this->assertNull($product->inventree_stock);
+        $this->assertNull($product->external_stock);
         $this->assertSame(0.0, (float) $product->reserved_stock);
         $this->assertSame(120.0, (float) $product->stock);
 
@@ -72,7 +72,7 @@ class ProductStockServiceTest extends TestCase
     public function test_update_simple_product_stock_returns_false_when_product_has_active_variants(): void
     {
         $product = Product::factory()->create([
-            'inventree_stock' => null,
+            'external_stock' => null,
             'stock' => 50,
         ]);
         ProductVariant::factory()->create([
@@ -93,7 +93,7 @@ class ProductStockServiceTest extends TestCase
     public function test_update_simple_product_stock_normalizes_to_zero_when_negative(): void
     {
         $product = Product::factory()->create([
-            'inventree_stock' => null,
+            'external_stock' => null,
             'stock' => 30,
         ]);
 
@@ -109,7 +109,7 @@ class ProductStockServiceTest extends TestCase
     public function test_update_simple_product_stock_accepts_null_to_set_stock_to_null(): void
     {
         $product = Product::factory()->create([
-            'inventree_stock' => null,
+            'external_stock' => null,
             'stock' => 30,
         ]);
 
@@ -125,7 +125,7 @@ class ProductStockServiceTest extends TestCase
     public function test_update_variant_stocks_updates_variant_and_recomputes_product_stock(): void
     {
         $product = Product::factory()->create([
-            'inventree_stock' => null,
+            'external_stock' => null,
             'stock' => 50,
         ]);
         $variant1 = ProductVariant::factory()->create([
@@ -160,7 +160,7 @@ class ProductStockServiceTest extends TestCase
     public function test_update_variant_stocks_returns_false_when_no_active_variants(): void
     {
         $product = Product::factory()->create([
-            'inventree_stock' => null,
+            'external_stock' => null,
             'stock' => 50,
         ]);
 
