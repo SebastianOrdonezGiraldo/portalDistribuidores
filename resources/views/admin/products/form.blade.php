@@ -26,7 +26,6 @@
         $newVariantAttributeName = old('new_variant_attribute_name');
         $uploadLimits = \App\Modules\Catalog\Support\ProductUploadLimits::viewData();
         $mediaUploadError = $errors->first('media_upload');
-        $hasExternallyManagedStock = $isEdit && $product->external_stock !== null;
     @endphp
 
     <x-slot name="header">
@@ -72,11 +71,6 @@
         <div class="space-y-4">
             <x-ui.card class="p-5" id="identificacion-producto">
                 <h2 class="card-title">Identificación del Producto</h2>
-                @if($hasExternallyManagedStock)
-                    <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                        El stock de este producto se gestiona externamente. El precio y la información comercial siguen siendo editables en el portal.
-                    </div>
-                @endif
                 <div class="mt-4 grid gap-4 sm:grid-cols-2">
                     <div>
                         <label class="form-label" for="name">Nombre *</label>
@@ -116,9 +110,9 @@
                     </div>
                     <div>
                         <label class="form-label" for="stock">Stock</label>
-                        <x-ui.input id="stock" name="stock" type="number" min="0" step="0.01" :value="old('stock', $product->stock)" :readonly="$hasExternallyManagedStock" data-live-stock />
+                        <x-ui.input id="stock" name="stock" type="number" min="0" step="0.01" :value="old('stock', $product->stock)" data-live-stock />
                         <p class="form-help">
-                            {{ $hasExternallyManagedStock ? 'Disponible calculado desde stock externo menos reservas locales.' : 'Inventario disponible. Déjalo vacío si aún no está confirmado.' }}
+                            Inventario disponible. Déjalo vacío si aún no está confirmado.
                             <span class="ml-1 font-semibold text-slate-700" data-live-stock-output>Sin definir</span>
                         </p>
                         <x-input-error :messages="$errors->get('stock')" />

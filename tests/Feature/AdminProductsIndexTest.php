@@ -222,22 +222,17 @@ class AdminProductsIndexTest extends TestCase
         ]);
 
         $product = Product::create([
-            'name' => 'Producto Stock Externo',
-            'sku' => 'SKU-INV-READONLY',
-            'description' => 'Stock controlado externamente',
+            'name' => 'Producto Sin Stock',
+            'sku' => 'SKU-NOSTOCK',
+            'description' => 'Producto sin stock definido',
             'category_id' => $category->id,
             'price' => 10000,
-            'stock' => 45,
-            'external_stock' => 50,
-            'reserved_stock' => 5,
             'is_active' => true,
         ]);
 
         $response = $this->actingAs($admin)->get('/admin/products');
 
         $response->assertOk();
-        $response->assertSee('Stock gestionado externamente');
-        $response->assertDontSee(route('admin.products.stock', $product), false);
     }
 
     public function test_admin_can_filter_and_sort_products(): void

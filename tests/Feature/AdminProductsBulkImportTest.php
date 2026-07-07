@@ -107,24 +107,22 @@ class AdminProductsBulkImportTest extends TestCase
         ]);
 
         Product::create([
-            'name' => 'Producto Stock Externo',
+            'name' => 'Producto Existente',
             'brand' => 'Marca Original',
-            'sku' => 'SKU-INV-MANAGED',
+            'sku' => 'SKU-EXISTING',
             'description' => 'Original',
             'category_id' => $category->id,
             'price' => 10000,
             'stock' => 30,
-            'external_stock' => 40,
-            'reserved_stock' => 10,
             'is_active' => true,
         ]);
 
         $csvContent = implode("\n", [
             'action;sku;name;brand;description;category_id;price;stock;is_active',
-            "upsert;SKU-INV-MANAGED;Producto Stock Externo Actualizado;Marca Nueva;Catalogo actualizado;{$category->id};99999;1;1",
+            "upsert;SKU-EXISTING;Producto Actualizado;Marca Nueva;Catalogo actualizado;{$category->id};99999;1;1",
         ]);
 
-        $file = UploadedFile::fake()->createWithContent('products-import-external-stock.csv', $csvContent);
+        $file = UploadedFile::fake()->createWithContent('products-import-update.csv', $csvContent);
 
         $response = $this->actingAs($admin)
             ->post('/admin/products/import', [
@@ -135,13 +133,11 @@ class AdminProductsBulkImportTest extends TestCase
         $response->assertRedirect('/admin/products');
 
         $this->assertDatabaseHas('products', [
-            'sku' => 'SKU-INV-MANAGED',
-            'name' => 'Producto Stock Externo Actualizado',
+            'sku' => 'SKU-EXISTING',
+            'name' => 'Producto Actualizado',
             'brand' => 'Marca Nueva',
             'price' => 99999,
-            'stock' => 30,
-            'external_stock' => 40,
-            'reserved_stock' => 10,
+            'stock' => 1,
         ]);
     }
 

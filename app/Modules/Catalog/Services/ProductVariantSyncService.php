@@ -61,10 +61,6 @@ class ProductVariantSyncService
                 'sort_order' => $index + 1,
             ];
 
-            if ($variant?->external_stock !== null) {
-                unset($attributes['stock']);
-            }
-
             $variant = ProductVariant::query()->updateOrCreate(
                 [
                     'product_id' => $product->id,
@@ -94,9 +90,7 @@ class ProductVariantSyncService
             'price' => $minPrice,
         ];
 
-        if ($product->external_stock === null) {
-            $productPayload['stock'] = $totalStock;
-        }
+        $productPayload['stock'] = $totalStock;
 
         $product->update($productPayload);
     }

@@ -24,10 +24,6 @@ class ProductStockService
                 return false;
             }
 
-            if ($lockedProduct->external_stock !== null) {
-                return false;
-            }
-
             $previousStock = (float) ($lockedProduct->stock ?? 0);
             $lockedProduct->stock = $this->normalizeStock($stock);
             $lockedProduct->save();
@@ -62,10 +58,6 @@ class ProductStockService
                 ->keyBy('id');
 
             if ($variants->isEmpty()) {
-                return false;
-            }
-
-            if ($variants->contains(fn (ProductVariant $variant): bool => $variant->external_stock !== null)) {
                 return false;
             }
 

@@ -304,8 +304,7 @@
                         @php
                             $hasActiveVariants = (int) ($product->active_variants_count ?? 0) > 0;
                             $activeVariants = $product->variants ?? collect();
-                            $hasExternallyManagedStock = $product->external_stock !== null;
-                            $hasExternallyManagedVariants = $activeVariants->contains(fn ($variant) => $variant->external_stock !== null);
+
                         @endphp
                         <tr>
                             <td data-label="Seleccionar">
@@ -333,35 +332,28 @@
                             </td>
                             <td data-label="Stock">
                                 @if(! $hasActiveVariants)
-                                    @if($hasExternallyManagedStock)
-                                        <div class="space-y-1 text-sm">
-                                            <p class="font-semibold text-slate-900">{{ $formatStock($product->stock) }}</p>
-                                            <p class="text-xs text-slate-500">Stock gestionado externamente</p>
-                                            <p class="text-xs text-slate-500">Reservado local: {{ $formatStock($product->reserved_stock) }}</p>
-                                        </div>
-                                    @else
-                                        <form
-                                            action="{{ route('admin.products.stock', $product) }}"
-                                            method="POST"
-                                            class="space-y-2"
-                                            data-loading-form
-                                        >
-                                            @csrf
-                                            @method('PATCH')
-                                            @foreach($indexContextQuery as $key => $value)
-                                                <input type="hidden" name="index_context[{{ $key }}]" value="{{ $value }}">
-                                            @endforeach
+                                    <form
+                                        action="{{ route('admin.products.stock', $product) }}"
+                                        method="POST"
+                                        class="space-y-2"
+                                        data-loading-form
+                                    >
+                                        @csrf
+                                        @method('PATCH')
+                                        @foreach($indexContextQuery as $key => $value)
+                                            <input type="hidden" name="index_context[{{ $key }}]" value="{{ $value }}">
+                                        @endforeach
 
-                                            <label class="sr-only" for="stock-product-{{ $product->id }}">
-                                                Stock de {{ $product->name }}
-                                            </label>
-                                            <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                                                <x-ui.input
-                                                    id="stock-product-{{ $product->id }}"
-                                                    name="stock"
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0"
+                                        <label class="sr-only" for="stock-product-{{ $product->id }}">
+                                            Stock de {{ $product->name }}
+                                        </label>
+                                        <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                            <x-ui.input
+                                                id="stock-product-{{ $product->id }}"
+                                                name="stock"
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
                                                     inputmode="decimal"
                                                     class="no-number-spinner w-full sm:w-28"
                                                     :value="is_numeric($product->stock) ? rtrim(rtrim(number_format((float) $product->stock, 2, '.', ''), '0'), '.') : ''"
@@ -379,7 +371,6 @@
                                                 Actual: <span class="font-semibold text-slate-700">{{ $formatStock($product->stock) }}</span>
                                             </p>
                                         </form>
-                                    @endif
                                 @else
                                     <details class="rounded-xl border border-slate-200 bg-slate-50/70 p-2">
                                         <summary class="cursor-pointer text-xs font-semibold text-slate-700">
@@ -390,17 +381,11 @@
                                             <p class="text-xs text-slate-500">
                                                 Total actual: <span class="font-semibold text-slate-700">{{ $formatStock($product->stock) }}</span>
                                             </p>
-                                            @if($hasExternallyManagedVariants)
-                                                <p class="text-xs font-semibold text-amber-700">
-                                                    El stock de estas variantes se gestiona externamente.
-                                                </p>
-                                            @endif
                                             <p class="text-xs text-slate-500">
                                                 Atributo: <span class="font-semibold text-slate-700">{{ $product->variantAttribute?->name ?? 'Variante' }}</span>
                                             </p>
 
-                                            @if(! $hasExternallyManagedVariants)
-                                                <form
+                                            <form
                                                     action="{{ route('admin.products.variants.stock', $product) }}"
                                                     method="POST"
                                                     class="space-y-2"
@@ -448,7 +433,6 @@
                                                         </a>
                                                     </div>
                                                 </form>
-                                            @endif
                                         </div>
                                     </details>
                                 @endif
