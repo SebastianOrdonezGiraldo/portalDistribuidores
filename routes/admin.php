@@ -8,7 +8,6 @@ use App\Modules\Admin\Http\Controllers\ProductAdminController;
 use App\Modules\Admin\Http\Controllers\ProductImportController;
 use App\Modules\Admin\Http\Controllers\ProductMediaController;
 use App\Modules\Admin\Http\Controllers\UserAdminController;
-use App\Modules\Inventory\Http\Controllers\InventorySyncController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'role:admin'])
@@ -47,9 +46,4 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::patch('orders/{order}/status', [OrderAdminController::class, 'updateStatus'])->name('orders.status');
         Route::get('orders/{order}/pdf', [OrderAdminController::class, 'downloadPdf'])->name('orders.pdf');
         Route::delete('orders/{order}', [OrderAdminController::class, 'destroy'])->name('orders.destroy');
-
-        Route::get('inventory', [InventorySyncController::class, 'index'])->name('inventory.index');
-        Route::get('inventory/export', [InventorySyncController::class, 'exportInvenTreeCsv'])->name('inventory.export');
-        Route::post('inventory/sync', [InventorySyncController::class, 'sync'])->name('inventory.sync');
-        Route::post('inventory/test', [InventorySyncController::class, 'test'])->name('inventory.test');
     });

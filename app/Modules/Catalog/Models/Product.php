@@ -45,7 +45,7 @@ class Product extends Model
         'variant_attribute_id',
         'price',
         'stock',
-        'inventree_stock',
+        'external_stock',
         'reserved_stock',
         'is_active',
         'is_vat_excluded',
@@ -58,7 +58,7 @@ class Product extends Model
             'is_vat_excluded' => 'boolean',
             'price' => 'decimal:2',
             'stock' => 'decimal:2',
-            'inventree_stock' => 'decimal:2',
+            'external_stock' => 'decimal:2',
             'reserved_stock' => 'decimal:2',
         ];
     }

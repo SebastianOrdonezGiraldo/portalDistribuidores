@@ -24,7 +24,7 @@ class ProductStockService
                 return false;
             }
 
-            if ($lockedProduct->inventree_stock !== null) {
+            if ($lockedProduct->external_stock !== null) {
                 return false;
             }
 
@@ -65,7 +65,7 @@ class ProductStockService
                 return false;
             }
 
-            if ($variants->contains(fn (ProductVariant $variant): bool => $variant->inventree_stock !== null)) {
+            if ($variants->contains(fn (ProductVariant $variant): bool => $variant->external_stock !== null)) {
                 return false;
             }
 

@@ -79,9 +79,9 @@ class OrderInventoryService
 
             $previousStock = (float) $variant->stock;
 
-            if ($variant->inventree_stock !== null) {
+            if ($variant->external_stock !== null) {
                 $variant->reserved_stock = round(((float) ($variant->reserved_stock ?? 0)) + $qty, 2);
-                $variant->stock = round(max(0, (float) $variant->inventree_stock - (float) $variant->reserved_stock), 2);
+                $variant->stock = round(max(0, (float) $variant->external_stock - (float) $variant->reserved_stock), 2);
             } else {
                 $variant->stock = round($previousStock - $qty, 2);
             }
@@ -141,9 +141,9 @@ class OrderInventoryService
 
             $previousStock = (float) $product->stock;
 
-            if ($product->inventree_stock !== null) {
+            if ($product->external_stock !== null) {
                 $product->reserved_stock = round(((float) ($product->reserved_stock ?? 0)) + $qty, 2);
-                $product->stock = round(max(0, (float) $product->inventree_stock - (float) $product->reserved_stock), 2);
+                $product->stock = round(max(0, (float) $product->external_stock - (float) $product->reserved_stock), 2);
             } else {
                 $product->stock = round($previousStock - $qty, 2);
             }
@@ -192,9 +192,9 @@ class OrderInventoryService
 
             $previousStock = (float) $variant->stock;
 
-            if ($variant->inventree_stock !== null) {
+            if ($variant->external_stock !== null) {
                 $variant->reserved_stock = round(max(0, ((float) ($variant->reserved_stock ?? 0)) - $qty), 2);
-                $variant->stock = round(max(0, (float) $variant->inventree_stock - (float) $variant->reserved_stock), 2);
+                $variant->stock = round(max(0, (float) $variant->external_stock - (float) $variant->reserved_stock), 2);
             } else {
                 $variant->stock = round($previousStock + $qty, 2);
             }
@@ -244,9 +244,9 @@ class OrderInventoryService
 
             $previousStock = (float) $product->stock;
 
-            if ($product->inventree_stock !== null) {
+            if ($product->external_stock !== null) {
                 $product->reserved_stock = round(max(0, ((float) ($product->reserved_stock ?? 0)) - $qty), 2);
-                $product->stock = round(max(0, (float) $product->inventree_stock - (float) $product->reserved_stock), 2);
+                $product->stock = round(max(0, (float) $product->external_stock - (float) $product->reserved_stock), 2);
             } else {
                 $product->stock = round($previousStock + $qty, 2);
             }

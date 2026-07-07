@@ -25,7 +25,7 @@ class ProductVariant extends Model
         'product_attribute_value_id',
         'price',
         'stock',
-        'inventree_stock',
+        'external_stock',
         'reserved_stock',
         'is_active',
         'sort_order',
@@ -36,7 +36,7 @@ class ProductVariant extends Model
         return [
             'price' => 'decimal:2',
             'stock' => 'decimal:2',
-            'inventree_stock' => 'decimal:2',
+            'external_stock' => 'decimal:2',
             'reserved_stock' => 'decimal:2',
             'is_active' => 'boolean',
         ];

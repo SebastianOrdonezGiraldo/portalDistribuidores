@@ -9,15 +9,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('products', function (Blueprint $table): void {
-            $table->decimal('inventree_stock', 12, 2)->nullable()->after('stock');
-            $table->decimal('reserved_stock', 12, 2)->default(0)->after('inventree_stock');
+            $table->decimal('external_stock', 12, 2)->nullable()->after('stock');
+            $table->decimal('reserved_stock', 12, 2)->default(0)->after('external_stock');
         });
     }
 
     public function down(): void
     {
         Schema::table('products', function (Blueprint $table): void {
-            $table->dropColumn(['inventree_stock', 'reserved_stock']);
+            $table->dropColumn(['external_stock', 'reserved_stock']);
         });
     }
 };

@@ -210,37 +210,25 @@ class AdminProductsIndexTest extends TestCase
         }
     }
 
-    public function test_admin_products_index_shows_inventree_csv_download_action(): void
-    {
-        $admin = User::factory()->admin()->create();
-
-        $response = $this->actingAs($admin)
-            ->get('/admin/products');
-
-        $response->assertOk();
-        $response->assertSee('Descargar CSV InvenTree');
-        $response->assertSee(route('admin.inventory.export'), false);
-    }
-
-    public function test_admin_products_index_marks_inventree_managed_stock_as_read_only(): void
+    public function test_admin_products_index_marks_externally_managed_stock_as_read_only(): void
     {
         $admin = User::factory()->admin()->create();
         $category = Category::create([
             'parent_id' => null,
-            'name' => 'Categoria InvenTree Readonly',
-            'slug' => 'categoria-inventree-readonly',
+            'name' => 'Categoria Stock Externo Readonly',
+            'slug' => 'categoria-stock-externo-readonly',
             'is_active' => true,
             'sort_order' => 1,
         ]);
 
         $product = Product::create([
-            'name' => 'Producto Gestionado InvenTree',
+            'name' => 'Producto Stock Externo',
             'sku' => 'SKU-INV-READONLY',
-            'description' => 'Stock controlado por InvenTree',
+            'description' => 'Stock controlado externamente',
             'category_id' => $category->id,
             'price' => 10000,
             'stock' => 45,
-            'inventree_stock' => 50,
+            'external_stock' => 50,
             'reserved_stock' => 5,
             'is_active' => true,
         ]);
@@ -248,7 +236,7 @@ class AdminProductsIndexTest extends TestCase
         $response = $this->actingAs($admin)->get('/admin/products');
 
         $response->assertOk();
-        $response->assertSee('Gestionado por InvenTree');
+        $response->assertSee('Stock gestionado externamente');
         $response->assertDontSee(route('admin.products.stock', $product), false);
     }
 
