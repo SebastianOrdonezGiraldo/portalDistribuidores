@@ -662,7 +662,7 @@ class AdminProductEditorTest extends TestCase
         $this->assertSame(0, $duplicate->documents()->count());
     }
 
-    public function test_duplicate_product_rolls_back_and_cleans_files_when_media_copy_fails(): void
+    public function test_admin_can_duplicate_product_when_photo_record_has_no_file(): void
     {
         Storage::fake('public');
 
@@ -685,16 +685,16 @@ class AdminProductEditorTest extends TestCase
         $this->actingAs($admin)
             ->withSession(['_token' => 'test-token'])
             ->post('/admin/products/'.$product->id.'/duplicate', ['_token' => 'test-token'])
-            ->assertRedirect('/admin/products')
-            ->assertSessionHas('error', 'No fue posible duplicar el producto. Revisa que los archivos del producto original existan.');
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Producto duplicado como copia inactiva.');
 
-        $this->assertDatabaseMissing('products', [
-            'sku' => 'SKU-DUPLICATE-MISSING-FILE-001-COPIA',
-        ]);
-        $this->assertSame(
-            ['products/photos/existing-photo.jpg'],
-            Storage::disk('public')->allFiles('products/photos'),
-        );
+        $duplicate = Product::query()->where('sku', 'SKU-DUPLICATE-MISSING-FILE-001-COPIA')->firstOrFail();
+        $duplicatedPhoto = $duplicate->photos()->firstOrFail();
+
+        $this->assertSame(1, $duplicate->photos()->count());
+        $this->assertNotSame('products/photos/existing-photo.jpg', $duplicatedPhoto->path);
+        Storage::disk('public')->assertExists($duplicatedPhoto->path);
+        $this->assertSame('existing-photo', Storage::disk('public')->get($duplicatedPhoto->path));
     }
 
     public function test_guest_and_distributor_cannot_duplicate_product_from_admin_route(): void
