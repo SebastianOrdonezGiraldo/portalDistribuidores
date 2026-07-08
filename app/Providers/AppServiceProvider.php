@@ -14,9 +14,11 @@ use App\Modules\Categories\Models\Category;
 use App\Modules\Categories\Policies\CategoryPolicy;
 use App\Modules\Company\Policies\CompanyPolicy;
 use App\Modules\Documents\Policies\ProductDocumentPolicy;
+use App\Modules\Inventory\Services\ContaPymeInventoryService;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Policies\OrderPolicy;
 use App\Modules\Orders\Services\Cart\CartService;
+use App\Modules\Shared\Contracts\InventorySyncInterface;
 use App\Modules\Shared\Contracts\SearchEngineInterface;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -37,6 +39,8 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(SearchEngineInterface::class, PostgresSearchEngine::class);
+
+        $this->app->singleton(InventorySyncInterface::class, ContaPymeInventoryService::class);
 
         if (! app()->environment(['local', 'testing'])) {
             $this->app->register(ScoutApmServiceProvider::class);

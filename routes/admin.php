@@ -29,6 +29,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::patch('products/{product}/status', [ProductAdminController::class, 'setStatus'])->name('products.status');
         Route::patch('products/{product}/stock', [ProductAdminController::class, 'setStock'])->name('products.stock');
         Route::patch('products/{product}/variants/stock', [ProductAdminController::class, 'setVariantStocks'])->name('products.variants.stock');
+        Route::post('products/{product}/duplicate', [ProductAdminController::class, 'duplicate'])->name('products.duplicate');
         Route::get('products/{product}/documents/{document}/download', [ProductMediaController::class, 'downloadDocument'])->name('products.documents.download');
         Route::delete('products/{product}/photos/{photo}', [ProductMediaController::class, 'destroyPhoto'])->name('products.photos.destroy');
         Route::delete('products/{product}/documents/{document}', [ProductMediaController::class, 'destroyDocument'])->name('products.documents.destroy');
