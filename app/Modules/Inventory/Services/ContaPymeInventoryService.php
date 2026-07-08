@@ -88,13 +88,13 @@ class ContaPymeInventoryService implements InventorySyncInterface
             $response = $this->call('GetListaElemInv');
 
             if ($response === null) {
-                return new Collection();
+                return new Collection;
             }
 
             $data = $this->extractData($response);
 
             if ($data === null) {
-                return new Collection();
+                return new Collection;
             }
 
             $items = is_array($data) && isset($data[0]) ? $data : [$data];
@@ -107,7 +107,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
                 'error' => $e->getMessage(),
             ]);
 
-            return new Collection();
+            return new Collection;
         }
     }
 
