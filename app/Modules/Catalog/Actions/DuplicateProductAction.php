@@ -109,6 +109,10 @@ class DuplicateProductAction
 
     private function duplicatePhoto(Product $duplicate, ProductPhoto $photo): void
     {
+        if (! Storage::disk('public')->exists((string) $photo->path)) {
+            return;
+        }
+
         $newPath = $this->copyFile('public', 'public', (string) $photo->path, 'products/photos', 'jpg');
 
         $duplicate->photos()->create([
