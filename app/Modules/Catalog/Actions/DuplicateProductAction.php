@@ -124,6 +124,11 @@ class DuplicateProductAction
     {
         $targetDisk = $document->storageDisk();
         $sourceDisk = $this->resolveExistingDocumentDisk($document);
+
+        if ($sourceDisk === null) {
+            return;
+        }
+
         $newPath = $this->copyFile($sourceDisk, $targetDisk, (string) $document->path, 'products/documents', 'pdf');
 
         $duplicate->documents()->create([
@@ -134,7 +139,7 @@ class DuplicateProductAction
         ]);
     }
 
-    private function resolveExistingDocumentDisk(ProductDocument $document): string
+    private function resolveExistingDocumentDisk(ProductDocument $document): ?string
     {
         $diskName = $document->storageDisk();
         $path = (string) $document->path;
@@ -147,7 +152,7 @@ class DuplicateProductAction
             return 'public';
         }
 
-        throw new RuntimeException('No fue posible encontrar el archivo del documento para duplicarlo.');
+        return null;
     }
 
     private function copyFile(
