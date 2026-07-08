@@ -454,6 +454,28 @@
                                         </svg>
                                     </a>
 
+                                    <form
+                                        action="{{ route('admin.products.duplicate', $product) }}"
+                                        method="POST"
+                                        data-confirm="Duplicar {{ $product->name }} como copia inactiva?"
+                                    >
+                                        @csrf
+                                        @foreach($indexContextQuery as $key => $value)
+                                            <input type="hidden" name="index_context[{{ $key }}]" value="{{ $value }}">
+                                        @endforeach
+                                        <button
+                                            type="submit"
+                                            class="product-row-action-icon"
+                                            title="Duplicar producto"
+                                            aria-label="Duplicar {{ $product->name }}"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                            </svg>
+                                        </button>
+                                    </form>
+
                                     @if($product->is_active)
                                         <a
                                             href="{{ route('products.show', $product) }}"
