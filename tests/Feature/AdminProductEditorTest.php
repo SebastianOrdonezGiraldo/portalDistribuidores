@@ -635,6 +635,33 @@ class AdminProductEditorTest extends TestCase
         $this->assertSame(0, $duplicatedDocument->downloads()->count());
     }
 
+    public function test_admin_can_duplicate_product_when_document_record_has_no_file(): void
+    {
+        Storage::fake('private');
+
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProduct($category, 'SKU-DUPLICATE-NO-DOCUMENT-FILE-001');
+
+        $product->documents()->create([
+            'type' => 'tech_sheet',
+            'path' => 'products/documents/missing-tech-sheet.pdf',
+            'filename' => 'missing-tech-sheet.pdf',
+            'sort_order' => 1,
+        ]);
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->post('/admin/products/'.$product->id.'/duplicate', ['_token' => 'test-token'])
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Producto duplicado como copia inactiva.');
+
+        $duplicate = Product::query()->where('sku', 'SKU-DUPLICATE-NO-DOCUMENT-FILE-001-COPIA')->firstOrFail();
+
+        $this->assertFalse((bool) $duplicate->is_active);
+        $this->assertSame(0, $duplicate->documents()->count());
+    }
+
     public function test_duplicate_product_rolls_back_and_cleans_files_when_media_copy_fails(): void
     {
         Storage::fake('public');
