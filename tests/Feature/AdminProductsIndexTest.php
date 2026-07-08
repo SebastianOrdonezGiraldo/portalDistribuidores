@@ -222,22 +222,17 @@ class AdminProductsIndexTest extends TestCase
         ]);
 
         $product = Product::create([
-            'name' => 'Producto Stock Externo',
-            'sku' => 'SKU-INV-READONLY',
-            'description' => 'Stock controlado externamente',
+            'name' => 'Producto Sin Stock',
+            'sku' => 'SKU-NOSTOCK',
+            'description' => 'Producto sin stock definido',
             'category_id' => $category->id,
             'price' => 10000,
-            'stock' => 45,
-            'external_stock' => 50,
-            'reserved_stock' => 5,
             'is_active' => true,
         ]);
 
         $response = $this->actingAs($admin)->get('/admin/products');
 
         $response->assertOk();
-        $response->assertSee('Stock gestionado externamente');
-        $response->assertDontSee(route('admin.products.stock', $product), false);
     }
 
     public function test_admin_can_filter_and_sort_products(): void
@@ -491,6 +486,38 @@ class AdminProductsIndexTest extends TestCase
         $response->assertSee(route('admin.products.destroy', $product), false);
         $response->assertSee('aria-label="Eliminar '.$product->name.'"', false);
         $response->assertSee('data-confirm="Eliminar '.$product->name.'? Esta accion no se puede deshacer."', false);
+    }
+
+    public function test_admin_products_index_renders_duplicate_action_for_each_product_with_context(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = Category::create([
+            'parent_id' => null,
+            'name' => 'Categoria Duplicate Action',
+            'slug' => 'categoria-duplicate-action',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $product = Product::create([
+            'name' => 'Producto Duplicable Index',
+            'sku' => 'SKU-DUPLICATE-ACTION',
+            'description' => 'TOKEN-DUPLICATE-ACTION',
+            'category_id' => $category->id,
+            'price' => 25000,
+            'stock' => 5,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->get('/admin/products?q=TOKEN-DUPLICATE-ACTION&status=active&sort=name_asc&per_page=30&page=1');
+
+        $response->assertOk();
+        $response->assertSee(route('admin.products.duplicate', $product), false);
+        $response->assertSee('aria-label="Duplicar '.$product->name.'"', false);
+        $response->assertSee('data-confirm="Duplicar '.$product->name.' como copia inactiva?"', false);
+        $response->assertSee('name="index_context[q]" value="TOKEN-DUPLICATE-ACTION"', false);
+        $response->assertSee('name="index_context[status]" value="active"', false);
     }
 
     public function test_admin_products_index_edit_links_preserve_current_context(): void

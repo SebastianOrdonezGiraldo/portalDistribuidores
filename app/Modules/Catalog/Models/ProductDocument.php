@@ -18,6 +18,7 @@ class ProductDocument extends Model
         'type',
         'path',
         'filename',
+        'sort_order',
     ];
 
     /** @return BelongsTo<Product, $this> */

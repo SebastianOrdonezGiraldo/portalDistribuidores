@@ -3,11 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductAttribute;
 use App\Modules\Catalog\Models\ProductAttributeValue;
 use App\Modules\Catalog\Support\ProductUploadLimits;
 use App\Modules\Categories\Models\Category;
+use App\Modules\Documents\Models\DocumentDownload;
+use App\Modules\Orders\Models\OrderItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\UploadedFile;
@@ -133,45 +136,6 @@ class AdminProductEditorTest extends TestCase
             ->assertRedirect(route('admin.products.index', $indexContext));
     }
 
-    public function test_admin_update_preserves_stock_but_allows_price_for_externally_managed_stock_product(): void
-    {
-        $admin = User::factory()->admin()->create();
-        $category = $this->createCategory();
-        $product = $this->createProduct($category, 'SKU-INV-EDITOR-001');
-        $product->update([
-            'price' => 50000,
-            'stock' => 80,
-            'external_stock' => 100,
-            'reserved_stock' => 20,
-        ]);
-
-        $payload = [
-            'name' => 'Producto Stock Externo Editado',
-            'brand' => 'Marca Stock Externo',
-            'sku' => 'SKU-INV-EDITOR-001',
-            'description' => 'Solo cambia catalogo',
-            'category_id' => $category->id,
-            'price' => 99999,
-            'stock' => 1,
-            'is_active' => 1,
-        ];
-
-        $this->actingAs($admin)
-            ->withSession(['_token' => 'test-token'])
-            ->put('/admin/products/'.$product->id, array_merge($payload, ['_token' => 'test-token']))
-            ->assertRedirect('/admin/products/'.$product->id.'/edit');
-
-        $this->assertDatabaseHas('products', [
-            'id' => $product->id,
-            'name' => 'Producto Stock Externo Editado',
-            'brand' => 'Marca Stock Externo',
-            'price' => 99999,
-            'stock' => 80,
-            'external_stock' => 100,
-            'reserved_stock' => 20,
-        ]);
-    }
-
     public function test_admin_can_deactivate_and_remove_product_media(): void
     {
         $admin = User::factory()->admin()->create();
@@ -253,32 +217,6 @@ class AdminProductEditorTest extends TestCase
 
         $product->refresh();
         $this->assertSame(48.5, (float) $product->stock);
-    }
-
-    public function test_admin_cannot_update_simple_product_stock_when_stock_is_externally_managed(): void
-    {
-        $admin = User::factory()->admin()->create();
-        $category = $this->createCategory();
-        $product = $this->createProduct($category, 'SKU-STOCK-EXTERNAL-BLOCK-001');
-        $product->update([
-            'external_stock' => 50,
-            'reserved_stock' => 5,
-            'stock' => 45,
-        ]);
-
-        $this->actingAs($admin)
-            ->withSession(['_token' => 'test-token'])
-            ->patch('/admin/products/'.$product->id.'/stock', [
-                'stock' => 99,
-                '_token' => 'test-token',
-            ])
-            ->assertRedirect('/admin/products')
-            ->assertSessionHas('error', 'Este producto tiene stock gestionado externamente. El stock no se puede modificar manualmente desde el portal.');
-
-        $product->refresh();
-        $this->assertSame(50.0, (float) $product->external_stock);
-        $this->assertSame(5.0, (float) $product->reserved_stock);
-        $this->assertSame(45.0, (float) $product->stock);
     }
 
     public function test_admin_cannot_update_parent_stock_when_product_has_active_variants(): void
@@ -495,6 +433,284 @@ class AdminProductEditorTest extends TestCase
 
         $this->assertDatabaseHas('products', [
             'id' => $product->id,
+        ]);
+    }
+
+    public function test_admin_can_duplicate_simple_product_as_inactive_copy_with_unique_sku(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = Product::create([
+            'name' => 'Producto Duplicable',
+            'brand' => 'Marca Dup',
+            'sku' => 'SKU-DUPLICATE-BASE',
+            'description' => 'Producto base para duplicar',
+            'category_id' => $category->id,
+            'price' => 31500,
+            'stock' => 18,
+            'is_active' => true,
+            'is_vat_excluded' => true,
+        ]);
+        Product::create([
+            'name' => 'Producto Copia Existente',
+            'sku' => 'SKU-DUPLICATE-BASE-COPIA',
+            'description' => 'Producto existente para forzar SKU incremental',
+            'category_id' => $category->id,
+            'price' => 10000,
+            'stock' => 1,
+            'is_active' => false,
+        ]);
+
+        $indexContext = [
+            'q' => 'duplicable',
+            'status' => 'active',
+            'sort' => 'name_asc',
+            'per_page' => 30,
+            'page' => 2,
+        ];
+
+        $response = $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->post('/admin/products/'.$product->id.'/duplicate', [
+                'index_context' => $indexContext,
+                '_token' => 'test-token',
+            ]);
+
+        $duplicate = Product::query()->where('sku', 'SKU-DUPLICATE-BASE-COPIA-2')->firstOrFail();
+
+        $response
+            ->assertRedirect(route('admin.products.edit', array_merge(['product' => $duplicate], $indexContext)))
+            ->assertSessionHas('status', 'Producto duplicado como copia inactiva.');
+
+        $this->assertNotSame($product->id, $duplicate->id);
+        $this->assertSame('Producto Duplicable (Copia)', $duplicate->name);
+        $this->assertSame('Marca Dup', $duplicate->brand);
+        $this->assertSame('Producto base para duplicar', $duplicate->description);
+        $this->assertSame($category->id, $duplicate->category_id);
+        $this->assertSame(31500.0, (float) $duplicate->price);
+        $this->assertSame(18.0, (float) $duplicate->stock);
+        $this->assertFalse((bool) $duplicate->is_active);
+        $this->assertTrue((bool) $duplicate->is_vat_excluded);
+    }
+
+    public function test_admin_can_duplicate_product_variants_for_the_new_product(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProductWithVariants($category, 'SKU-VARIANT-DUP-001', [4.0, 8.0]);
+        $originalVariants = $product->variants()->orderBy('sort_order')->get()->values();
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->post('/admin/products/'.$product->id.'/duplicate', ['_token' => 'test-token'])
+            ->assertRedirect();
+
+        $duplicate = Product::query()->where('sku', 'SKU-VARIANT-DUP-001-COPIA')->firstOrFail();
+        $duplicatedVariants = $duplicate->variants()->orderBy('sort_order')->get()->values();
+
+        $this->assertSame($product->variant_attribute_id, $duplicate->variant_attribute_id);
+        $this->assertFalse((bool) $duplicate->is_active);
+        $this->assertCount($originalVariants->count(), $duplicatedVariants);
+
+        foreach ($originalVariants as $index => $originalVariant) {
+            $duplicatedVariant = $duplicatedVariants[$index];
+
+            $this->assertSame($duplicate->id, $duplicatedVariant->product_id);
+            $this->assertSame($originalVariant->product_attribute_value_id, $duplicatedVariant->product_attribute_value_id);
+            $this->assertSame((float) $originalVariant->price, (float) $duplicatedVariant->price);
+            $this->assertSame((float) $originalVariant->stock, (float) $duplicatedVariant->stock);
+            $this->assertSame((bool) $originalVariant->is_active, (bool) $duplicatedVariant->is_active);
+            $this->assertSame((int) $originalVariant->sort_order, (int) $duplicatedVariant->sort_order);
+        }
+    }
+
+    public function test_admin_can_duplicate_product_media_to_independent_files(): void
+    {
+        Storage::fake('public');
+        Storage::fake('private');
+
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProduct($category, 'SKU-MEDIA-DUP-001');
+
+        Storage::disk('public')->put('products/photos/original-photo.jpg', 'photo-bytes');
+        Storage::disk('private')->put('products/documents/original-tech.pdf', '%PDF-tech');
+        Storage::disk('public')->put('products/documents/legacy-invima.pdf', '%PDF-legacy');
+
+        $product->photos()->create([
+            'path' => 'products/photos/original-photo.jpg',
+            'photo_width' => 640,
+            'photo_height' => 480,
+            'is_primary' => true,
+            'sort_order' => 1,
+        ]);
+        $product->documents()->create([
+            'type' => 'tech_sheet',
+            'path' => 'products/documents/original-tech.pdf',
+            'filename' => 'original-tech.pdf',
+            'sort_order' => 1,
+        ]);
+        $product->documents()->create([
+            'type' => 'invima',
+            'path' => 'products/documents/legacy-invima.pdf',
+            'filename' => 'legacy-invima.pdf',
+            'sort_order' => 2,
+        ]);
+        $product->videos()->create([
+            'url' => 'https://example.com/product-video',
+            'sort_order' => 1,
+        ]);
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->post('/admin/products/'.$product->id.'/duplicate', ['_token' => 'test-token'])
+            ->assertRedirect();
+
+        $duplicate = Product::query()->where('sku', 'SKU-MEDIA-DUP-001-COPIA')->firstOrFail();
+        $duplicatedPhoto = $duplicate->photos()->firstOrFail();
+        $duplicatedDocuments = $duplicate->documents()->orderBy('sort_order')->get()->values();
+        $duplicatedVideo = $duplicate->videos()->firstOrFail();
+
+        $this->assertNotSame('products/photos/original-photo.jpg', $duplicatedPhoto->path);
+        $this->assertSame(640, (int) $duplicatedPhoto->photo_width);
+        $this->assertSame(480, (int) $duplicatedPhoto->photo_height);
+        $this->assertTrue((bool) $duplicatedPhoto->is_primary);
+        Storage::disk('public')->assertExists($duplicatedPhoto->path);
+        $this->assertSame('photo-bytes', Storage::disk('public')->get($duplicatedPhoto->path));
+
+        $this->assertCount(2, $duplicatedDocuments);
+        $this->assertSame(['tech_sheet', 'invima'], $duplicatedDocuments->pluck('type')->all());
+        $this->assertSame(['original-tech.pdf', 'legacy-invima.pdf'], $duplicatedDocuments->pluck('filename')->all());
+        $this->assertNotContains('products/documents/original-tech.pdf', $duplicatedDocuments->pluck('path')->all());
+        $this->assertNotContains('products/documents/legacy-invima.pdf', $duplicatedDocuments->pluck('path')->all());
+        Storage::disk('private')->assertExists($duplicatedDocuments[0]->path);
+        Storage::disk('private')->assertExists($duplicatedDocuments[1]->path);
+        $this->assertSame('%PDF-tech', Storage::disk('private')->get($duplicatedDocuments[0]->path));
+        $this->assertSame('%PDF-legacy', Storage::disk('private')->get($duplicatedDocuments[1]->path));
+        Storage::disk('public')->assertExists('products/documents/legacy-invima.pdf');
+
+        $this->assertSame('https://example.com/product-video', $duplicatedVideo->url);
+        $this->assertSame(1, (int) $duplicatedVideo->sort_order);
+    }
+
+    public function test_duplicate_product_does_not_copy_orders_or_document_download_history(): void
+    {
+        Storage::fake('private');
+
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProduct($category, 'SKU-HISTORY-DUP-001');
+
+        Storage::disk('private')->put('products/documents/history-tech.pdf', '%PDF-history');
+        $document = $product->documents()->create([
+            'type' => 'tech_sheet',
+            'path' => 'products/documents/history-tech.pdf',
+            'filename' => 'history-tech.pdf',
+            'sort_order' => 1,
+        ]);
+
+        $distributor = Distributor::factory()->create();
+        DocumentDownload::create([
+            'distributor_id' => $distributor->id,
+            'product_document_id' => $document->id,
+            'downloaded_at' => now(),
+        ]);
+        OrderItem::factory()->create([
+            'product_id' => $product->id,
+            'product_name_snapshot' => $product->name,
+            'sku_snapshot' => $product->sku,
+        ]);
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->post('/admin/products/'.$product->id.'/duplicate', ['_token' => 'test-token'])
+            ->assertRedirect();
+
+        $duplicate = Product::query()->where('sku', 'SKU-HISTORY-DUP-001-COPIA')->firstOrFail();
+        $duplicatedDocument = $duplicate->documents()->firstOrFail();
+
+        $this->assertSame(1, $product->orderItems()->count());
+        $this->assertSame(1, $document->downloads()->count());
+        $this->assertSame(0, $duplicate->orderItems()->count());
+        $this->assertSame(0, $duplicatedDocument->downloads()->count());
+    }
+
+    public function test_admin_can_duplicate_product_when_document_record_has_no_file(): void
+    {
+        Storage::fake('private');
+
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProduct($category, 'SKU-DUPLICATE-NO-DOCUMENT-FILE-001');
+
+        $product->documents()->create([
+            'type' => 'tech_sheet',
+            'path' => 'products/documents/missing-tech-sheet.pdf',
+            'filename' => 'missing-tech-sheet.pdf',
+            'sort_order' => 1,
+        ]);
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->post('/admin/products/'.$product->id.'/duplicate', ['_token' => 'test-token'])
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Producto duplicado como copia inactiva.');
+
+        $duplicate = Product::query()->where('sku', 'SKU-DUPLICATE-NO-DOCUMENT-FILE-001-COPIA')->firstOrFail();
+
+        $this->assertFalse((bool) $duplicate->is_active);
+        $this->assertSame(0, $duplicate->documents()->count());
+    }
+
+    public function test_admin_can_duplicate_product_when_photo_record_has_no_file(): void
+    {
+        Storage::fake('public');
+
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProduct($category, 'SKU-DUPLICATE-MISSING-FILE-001');
+
+        Storage::disk('public')->put('products/photos/existing-photo.jpg', 'existing-photo');
+        $product->photos()->create([
+            'path' => 'products/photos/existing-photo.jpg',
+            'is_primary' => true,
+            'sort_order' => 1,
+        ]);
+        $product->photos()->create([
+            'path' => 'products/photos/missing-photo.jpg',
+            'is_primary' => false,
+            'sort_order' => 2,
+        ]);
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->post('/admin/products/'.$product->id.'/duplicate', ['_token' => 'test-token'])
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Producto duplicado como copia inactiva.');
+
+        $duplicate = Product::query()->where('sku', 'SKU-DUPLICATE-MISSING-FILE-001-COPIA')->firstOrFail();
+        $duplicatedPhoto = $duplicate->photos()->firstOrFail();
+
+        $this->assertSame(1, $duplicate->photos()->count());
+        $this->assertNotSame('products/photos/existing-photo.jpg', $duplicatedPhoto->path);
+        Storage::disk('public')->assertExists($duplicatedPhoto->path);
+        $this->assertSame('existing-photo', Storage::disk('public')->get($duplicatedPhoto->path));
+    }
+
+    public function test_guest_and_distributor_cannot_duplicate_product_from_admin_route(): void
+    {
+        $category = $this->createCategory();
+        $product = $this->createProduct($category, 'SKU-DUPLICATE-AUTH-001');
+
+        $this->post('/admin/products/'.$product->id.'/duplicate')
+            ->assertRedirect('/login');
+
+        $this->actingAs(User::factory()->create())
+            ->post('/admin/products/'.$product->id.'/duplicate')
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('products', [
+            'sku' => 'SKU-DUPLICATE-AUTH-001-COPIA',
         ]);
     }
 

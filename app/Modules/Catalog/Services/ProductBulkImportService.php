@@ -530,10 +530,6 @@ class ProductBulkImportService
      */
     private function persistUpdate(Product $existing, array $attributes, array &$report): void
     {
-        if ($existing->external_stock !== null) {
-            unset($attributes['stock']);
-        }
-
         $existing->update($attributes);
         $this->productCacheBySku[$existing->sku] = $existing->refresh();
         $report['updated']++;

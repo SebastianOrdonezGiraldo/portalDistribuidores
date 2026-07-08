@@ -9,6 +9,7 @@ use App\Modules\Catalog\Actions\AttachManualAction;
 use App\Modules\Catalog\Actions\AttachProtectedProductDocumentAction;
 use App\Modules\Catalog\Actions\AttachTechSheetAction;
 use App\Modules\Catalog\Actions\CreateProductAction;
+use App\Modules\Catalog\Actions\DuplicateProductAction;
 use App\Modules\Catalog\Actions\UpdateProductAction;
 use App\Modules\Catalog\Actions\UploadProductPhotoAction;
 use App\Modules\Catalog\Http\Requests\StoreProductRequest;
@@ -28,6 +29,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Throwable;
 
 class ProductAdminController extends Controller
 {
@@ -285,8 +287,7 @@ class ProductAdminController extends Controller
     ): RedirectResponse {
         $this->authorize('update', $product);
 
-        $hasExternallyManagedStock = $product->external_stock !== null;
-        $productPayload = $this->extractProductPayload($request, $hasExternallyManagedStock);
+        $productPayload = $this->extractProductPayload($request);
         $validatedPayload = $request->validated();
 
         $product = DB::transaction(function () use ($updateAction, $variantSyncService, $product, $productPayload, $validatedPayload) {
@@ -327,6 +328,32 @@ class ProductAdminController extends Controller
         return redirect()
             ->route('admin.products.index', $this->resolveDeleteIndexQuery($indexContext, $indexContextQuery))
             ->with('status', 'Producto eliminado.');
+    }
+
+    public function duplicate(
+        Request $request,
+        Product $product,
+        DuplicateProductAction $duplicateProductAction,
+    ): RedirectResponse {
+        $this->authorize('view', $product);
+        $this->authorize('create', Product::class);
+
+        $indexContextInput = (array) $request->input('index_context', []);
+        $indexContextQuery = $this->resolveIndexQuery($indexContextInput, true);
+
+        try {
+            $duplicate = $duplicateProductAction->execute($product);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return redirect()
+                ->route('admin.products.index', $indexContextQuery)
+                ->with('error', 'No fue posible duplicar el producto. Revisa que los archivos del producto original existan.');
+        }
+
+        return redirect()
+            ->route('admin.products.edit', array_merge(['product' => $duplicate], $indexContextQuery))
+            ->with('status', 'Producto duplicado como copia inactiva.');
     }
 
     /**
@@ -423,12 +450,6 @@ class ProductAdminController extends Controller
         $stock = array_key_exists('stock', $payload) && $payload['stock'] !== null
             ? (float) $payload['stock']
             : null;
-
-        if ($product->external_stock !== null) {
-            return redirect()
-                ->route('admin.products.index', $indexContextQuery)
-                ->with('error', 'Este producto tiene stock gestionado externamente. El stock no se puede modificar manualmente desde el portal.');
-        }
 
         $updated = $stockService->updateSimpleProductStock($product, $stock);
 
@@ -661,7 +682,7 @@ class ProductAdminController extends Controller
         ];
     }
 
-    private function extractProductPayload(StoreProductRequest|UpdateProductRequest $request, bool $preserveExternalStock = false): array
+    private function extractProductPayload(StoreProductRequest|UpdateProductRequest $request): array
     {
         $payload = $request->safe()->except([
             'photo',
@@ -677,16 +698,9 @@ class ProductAdminController extends Controller
             'variants',
         ]);
 
-        if ($preserveExternalStock) {
-            unset($payload['stock']);
-        }
-
         if ($request->boolean('has_variants')) {
             $payload['price'] = $this->resolveVariantBootstrapPrice((array) $request->input('variants', []));
-
-            if (! $preserveExternalStock) {
-                $payload['stock'] = null;
-            }
+            $payload['stock'] = null;
         }
 
         return $payload;
