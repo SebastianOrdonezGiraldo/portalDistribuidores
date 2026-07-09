@@ -1,10 +1,13 @@
 <?php
 
 return [
-    'base_url' => env('CONTAPYME_BASE_URL', 'http://localhost:9000'),
+    'enabled' => env('CONTAPYME_SYNC_ENABLED', false),
+    'base_url' => env('CONTAPYME_BASE_URL', ''),
     'email' => env('CONTAPYME_EMAIL', ''),
     'password' => env('CONTAPYME_PASSWORD', ''),
+    'password_hash' => env('CONTAPYME_PASSWORD_HASH', ''),
     'idmaquina' => env('CONTAPYME_IDMAQUINA', ''),
-    'iapp' => env('CONTAPYME_IAPP', '1001'),
+    'iapp' => env('CONTAPYME_IAPP', '1003'),
+    'warehouse' => env('CONTAPYME_WAREHOUSE', '1'),
     'timeout' => env('CONTAPYME_TIMEOUT', 10),
 ];
