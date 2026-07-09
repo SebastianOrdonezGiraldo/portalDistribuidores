@@ -43,6 +43,8 @@ class ContaPymeInventoryService implements InventorySyncInterface
 
     private int $timeout;
 
+    private ?string $lastError = null;
+
     public function __construct()
     {
         $this->baseUrl = rtrim((string) config('contapyme.base_url', ''), '/');
@@ -60,16 +62,31 @@ class ContaPymeInventoryService implements InventorySyncInterface
      */
     public function testConnection(): bool
     {
+        $this->lastError = null;
+
         try {
-            return $this->authenticate(forceRefresh: true) !== '';
+            $authenticated = $this->authenticate(forceRefresh: true) !== '';
+
+            if (! $authenticated) {
+                $this->lastError = 'ContaPyme no devolvio keyagente.';
+            }
+
+            return $authenticated;
         } catch (\Throwable $e) {
+            $this->lastError = $this->sanitizeErrorMessage($e->getMessage());
+
             Log::error('contapyme.test_connection_failed', [
-                'error' => $e->getMessage(),
+                'error' => $this->lastError,
                 'base_url_configured' => $this->baseUrl !== '',
             ]);
 
             return false;
         }
+    }
+
+    public function lastError(): ?string
+    {
+        return $this->lastError;
     }
 
     /**
@@ -267,6 +284,8 @@ class ContaPymeInventoryService implements InventorySyncInterface
             $token = is_array($data) ? trim((string) ($data['keyagente'] ?? '')) : '';
 
             if ($token === '') {
+                $this->lastError = 'ContaPyme no devolvio keyagente.';
+
                 Log::error('contapyme.authenticate_token_empty');
             }
 
@@ -442,6 +461,22 @@ class ContaPymeInventoryService implements InventorySyncInterface
         }
 
         return md5(strtoupper($this->password));
+    }
+
+    private function sanitizeErrorMessage(string $message): string
+    {
+        $sensitiveValues = array_filter([
+            $this->email,
+            $this->password,
+            $this->passwordHash,
+            $this->password !== '' ? md5(strtoupper($this->password)) : '',
+        ]);
+
+        foreach ($sensitiveValues as $value) {
+            $message = str_replace($value, '[redacted]', $message);
+        }
+
+        return trim($message);
     }
 
     private function assertConfigured(): void
