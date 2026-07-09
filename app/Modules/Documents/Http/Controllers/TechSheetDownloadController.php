@@ -14,6 +14,13 @@ use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
+/**
+ * Delivers protected product documents through typed routes.
+ *
+ * The controller verifies that the requested route matches the stored
+ * DocumentType, applies ProductDocumentPolicy, tracks quota-limited downloads
+ * for distributors and falls back to legacy public files during migration.
+ */
 class TechSheetDownloadController extends Controller
 {
     /**
@@ -90,6 +97,12 @@ class TechSheetDownloadController extends Controller
         return $disk->download($path, $productDocument->filename);
     }
 
+    /**
+     * Copy a legacy public document into its configured protected disk.
+     *
+     * Failures are swallowed so downloads can continue through the later public
+     * fallback path while storage migration is incomplete.
+     */
     private function migrateFromLegacyPublicDisk(ProductDocument $productDocument): void
     {
         $targetDiskName = $productDocument->storageDisk();
@@ -122,12 +135,17 @@ class TechSheetDownloadController extends Controller
         }
     }
 
+    /**
+     * Normalize storage paths from older records and upload handlers.
+     */
     private function normalizePath(?string $path): string
     {
         return rtrim(ltrim(trim((string) $path), '/'), '/');
     }
 
     /**
+     * Map each protected download route to the only document type it can serve.
+     *
      * @return array<string, DocumentType>
      */
     private function routeDocumentTypes(): array
@@ -142,6 +160,8 @@ class TechSheetDownloadController extends Controller
     }
 
     /**
+     * Guard file existence checks against missing paths and adapter exceptions.
+     *
      * @param  mixed  $disk  Typically an instance from Storage::disk()
      */
     private function safeExists(mixed $disk, string $path): bool

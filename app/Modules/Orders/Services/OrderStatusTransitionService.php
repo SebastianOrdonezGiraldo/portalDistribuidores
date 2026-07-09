@@ -8,12 +8,25 @@ use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Centralizes legal order status transitions and their inventory side effects.
+ *
+ * Callers should not update order.status directly when a transition may change
+ * stock or requires status history. This service validates the enum transition,
+ * records audit history and reconciles inventory when crossing the set of
+ * statuses that consume stock.
+ */
 class OrderStatusTransitionService
 {
     public function __construct(
         private readonly OrderInventoryService $orderInventoryService,
     ) {}
 
+    /**
+     * Move an order to a new status and record the change atomically.
+     *
+     * @throws DomainException when the transition is illegal or misses a required note
+     */
     public function transition(
         Order $order,
         OrderStatus $toStatus,
@@ -60,6 +73,9 @@ class OrderStatusTransitionService
         });
     }
 
+    /**
+     * Store the initial status history row once after order creation.
+     */
     public function recordInitialStatus(Order $order, ?User $actor = null, ?string $note = null): void
     {
         if ($order->statusHistory()->exists()) {
@@ -81,6 +97,9 @@ class OrderStatusTransitionService
         return $trimmed !== '' ? $trimmed : null;
     }
 
+    /**
+     * Whether this status should hold stock out of available inventory.
+     */
     private function statusConsumesInventory(OrderStatus $status): bool
     {
         return in_array($status, [

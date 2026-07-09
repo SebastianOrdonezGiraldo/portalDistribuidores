@@ -15,6 +15,12 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 
 /**
+ * Authenticated actor for admin and distributor workflows.
+ *
+ * Capability helpers below are intentionally domain-facing wrappers over role,
+ * active state and distributor association. Controllers and policies should use
+ * these helpers instead of duplicating role checks.
+ *
  * @property int $id
  * @property string $name
  * @property string $email
@@ -72,6 +78,9 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * Create and store a short-lived hashed email verification code.
+     */
     public function generateEmailVerificationCode(): string
     {
         $code = (string) random_int(100000, 999999);
@@ -84,6 +93,9 @@ class User extends Authenticatable
         return $code;
     }
 
+    /**
+     * Validate a plaintext verification code against the stored hash and expiry.
+     */
     public function hasValidVerificationCode(string $code): bool
     {
         if ($this->email_verification_code_expires_at === null) {
@@ -101,6 +113,9 @@ class User extends Authenticatable
         return Hash::check($code, $this->email_verification_code);
     }
 
+    /**
+     * Remove any pending verification code after successful verification.
+     */
     public function clearEmailVerificationCode(): void
     {
         $this->update([
@@ -136,6 +151,9 @@ class User extends Authenticatable
         return (bool) $this->is_active;
     }
 
+    /**
+     * Whether this user can submit new orders from catalog/checkout.
+     */
     public function canCreateOrders(): bool
     {
         if (! $this->isActive()) {
@@ -145,6 +163,9 @@ class User extends Authenticatable
         return $this->isAdmin() || $this->isDistributor();
     }
 
+    /**
+     * Whether this user can update company profile data.
+     */
     public function canEditCompany(): bool
     {
         return $this->isActive()
@@ -152,6 +173,9 @@ class User extends Authenticatable
             && $this->distributor_id !== null;
     }
 
+    /**
+     * Whether this user can create a new cart from a previous order.
+     */
     public function canReorder(): bool
     {
         if (! $this->isActive()) {
@@ -161,6 +185,9 @@ class User extends Authenticatable
         return $this->isAdmin() || $this->isDistributor();
     }
 
+    /**
+     * Whether this user can manage saved company product lists.
+     */
     public function canManageLists(): bool
     {
         if (! $this->isActive()) {
@@ -170,6 +197,9 @@ class User extends Authenticatable
         return $this->isAdmin() || $this->isDistributor();
     }
 
+    /**
+     * Whether this user can manage distributor delivery branches.
+     */
     public function canManageBranches(): bool
     {
         return $this->isActive()
@@ -177,11 +207,17 @@ class User extends Authenticatable
             && $this->distributor_id !== null;
     }
 
+    /**
+     * Company approval is currently disabled for every role.
+     */
     public function canApproveOrders(): bool
     {
         return false;
     }
 
+    /**
+     * Orders currently go directly to submitted state without company approval.
+     */
     public function orderRequiresApproval(): bool
     {
         return false;

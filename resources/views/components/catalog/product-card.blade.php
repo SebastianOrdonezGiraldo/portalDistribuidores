@@ -3,6 +3,12 @@
     'isLcpCandidate' => false,
 ])
 
+{{--
+Component contract:
+- Props: product with category, primaryPhoto/photos, active variants, price, stock, sku, and is_vat_excluded; isLcpCandidate toggles eager image loading.
+- Slots: none.
+- Use for: catalog grids and product-list partials where product relations are eager loaded by the caller.
+--}}
 @php
     $activeVariants = $product->activeVariantsCollection();
     $hasVariants = $activeVariants->isNotEmpty();

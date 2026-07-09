@@ -1,5 +1,11 @@
 @props(['items' => []])
 
+{{--
+Component contract:
+- Props: items array of label plus optional href.
+- Slots: none.
+- Use for: short navigation trails where the last item is current text.
+--}}
 @if(count($items) > 0)
     <nav aria-label="Breadcrumb" class="mb-4">
         <ol class="flex flex-wrap items-center gap-2 text-xs text-slate-500">

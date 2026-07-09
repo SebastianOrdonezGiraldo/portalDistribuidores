@@ -9,13 +9,28 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
+/**
+ * Renders and stores order quotation PDFs on the configured private disk.
+ *
+ * This class is used from queued jobs and on-demand download actions. It also
+ * migrates legacy public files to the configured target path before regenerating
+ * the PDF, so older orders remain downloadable after storage hardening.
+ */
 class OrderPdfGenerator
 {
+    /**
+     * Name of the disk that stores order PDFs.
+     */
     public static function diskName(): string
     {
         return (string) config('filesystems.order_pdfs_disk', 'private');
     }
 
+    /**
+     * Generate or replace the PDF for an order and return its storage path.
+     *
+     * @throws RuntimeException when the configured disk cannot persist the PDF
+     */
     public function generate(Order $order): string
     {
         $path = 'orders/'.$order->oc_number.'.pdf';
@@ -53,6 +68,11 @@ class OrderPdfGenerator
         return $path;
     }
 
+    /**
+     * Build the view model consumed by resources/views/orders/pdf.blade.php.
+     *
+     * @return array<string, mixed>
+     */
     private function buildViewData(Order $order): array
     {
         $logoPath = public_path('images/import-corporal-logo.png');
@@ -79,6 +99,9 @@ class OrderPdfGenerator
         ];
     }
 
+    /**
+     * Move an old public PDF into the protected disk if it still exists there.
+     */
     private function migrateLegacyPdf(string $path): void
     {
         $disk = $this->disk();

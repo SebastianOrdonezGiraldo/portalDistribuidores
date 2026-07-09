@@ -34,8 +34,18 @@ use Illuminate\Validation\Rules\Password;
 use RuntimeException;
 use Scoutapm\Laravel\Providers\ScoutApmServiceProvider;
 
+/**
+ * Application composition root for cross-cutting bindings and runtime guards.
+ *
+ * Domain rules should not accumulate here. Keep this provider focused on
+ * container bindings, policies/gates, shared view data, rate limiters and
+ * environment-level security checks.
+ */
 class AppServiceProvider extends ServiceProvider
 {
+    /**
+     * Register swappable domain services and production-only infrastructure.
+     */
     public function register(): void
     {
         $this->app->bind(SearchEngineInterface::class, PostgresSearchEngine::class);
@@ -47,6 +57,9 @@ class AppServiceProvider extends ServiceProvider
         }
     }
 
+    /**
+     * Configure policies, gates, rate limiters, view composers and runtime guards.
+     */
     public function boot(): void
     {
         $this->configureAbuseProtectionRateLimiters();
@@ -140,6 +153,9 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 
+    /**
+     * Register named rate limiters used by web routes and middleware.
+     */
     private function configureAbuseProtectionRateLimiters(): void
     {
         RateLimiter::for('login-attempts', function (Request $request): array {
@@ -216,6 +232,9 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 
+    /**
+     * Enforce stronger password requirements outside tests.
+     */
     private function configurePasswordDefaults(): void
     {
         Password::defaults(function () {
@@ -229,6 +248,9 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 
+    /**
+     * Build a stable rate-limit key without relying only on raw IP.
+     */
     private function rateLimitActor(Request $request): string
     {
         if ($request->user()) {
@@ -243,6 +265,8 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
+     * Detect unsafe production-like runtime configuration.
+     *
      * @return list<string>
      */
     private function runtimeSecurityViolations(): array
@@ -277,6 +301,8 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
+     * Log or enforce runtime security guard violations depending on config.
+     *
      * @param  list<string>  $violations
      */
     private function handleRuntimeSecurityViolations(array $violations): void
@@ -301,11 +327,17 @@ class AppServiceProvider extends ServiceProvider
         }
     }
 
+    /**
+     * Whether runtime guard violations should stop application boot.
+     */
     private function shouldEnforceRuntimeGuards(): bool
     {
         return (bool) config('app.enforce_runtime_guards', false);
     }
 
+    /**
+     * Reject local, placeholder and tunnel hosts for production-like APP_URL.
+     */
     private function hasCanonicalAppUrl(string $appUrl): bool
     {
         $host = parse_url($appUrl, PHP_URL_HOST);
@@ -329,6 +361,9 @@ class AppServiceProvider extends ServiceProvider
         return true;
     }
 
+    /**
+     * Require encrypted PostgreSQL transport outside local/testing environments.
+     */
     private function usesSecureDatabaseTransport(): bool
     {
         $defaultConnection = (string) config('database.default');

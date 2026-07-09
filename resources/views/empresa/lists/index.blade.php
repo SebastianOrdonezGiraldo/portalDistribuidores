@@ -1,3 +1,10 @@
+{{--
+View contract:
+- Source: App\Modules\Company\Http\Controllers\CompanyListController::index.
+- Expects: $lists for the authenticated distributor and optional global $cartCount from AppServiceProvider.
+- Owns: frequent-list cards, save-from-cart modal, rename modal, and apply-to-cart actions.
+- Notes: list permissions and cart/list mutations stay in CompanyListController/CartService.
+--}}
 <x-app-layout>
     <x-slot name="header">
         <x-ui.page-header title="Listas Frecuentes" subtitle="Guarda combinaciones de productos para reutilizarlas rápidamente en futuros pedidos.">

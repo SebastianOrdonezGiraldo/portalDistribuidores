@@ -7,6 +7,12 @@
     'listKey' => null,
 ])
 
+{{--
+Component contract:
+- Props: id, optional title/subtitle, products paginator, emptyMessage, and optional listKey.
+- Slots: none.
+- Use for: product lists that support AJAX pagination/load-more through data-product-list attributes.
+--}}
 @php
     $pageName = method_exists($products, 'getPageName') ? $products->getPageName() : 'page';
     $listKey = $listKey ?? $id;

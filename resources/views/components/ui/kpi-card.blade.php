@@ -1,5 +1,11 @@
 @props(['label', 'value', 'trend' => null, 'hint' => null, 'href' => null, 'accent' => null])
 
+{{--
+Component contract:
+- Props: label, value, optional trend/hint/href/accent.
+- Slots: optional icon slot.
+- Use for: dashboard/admin metric tiles; href turns the card into a link.
+--}}
 @php
     $iconBgColors = [
         'brand'   => 'bg-brand-primary/10 text-brand-dark',

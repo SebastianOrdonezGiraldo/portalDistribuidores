@@ -3,6 +3,12 @@
     'stacked' => true,
 ])
 
+{{--
+Component contract:
+- Props: dense text mode and stacked mobile-card mode.
+- Slots: optional head/body slots or a complete table body in the default slot.
+- Use for: responsive data tables in admin and company views.
+--}}
 @php
     $wrapperClass = 'table-wrap'.($stacked ? ' table-mobile-cards' : '');
 @endphp

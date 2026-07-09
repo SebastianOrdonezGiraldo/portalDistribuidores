@@ -1,5 +1,11 @@
 @props(['paginator'])
 
+{{--
+Component contract:
+- Props: paginator implementing Laravel pagination methods; LengthAwarePaginator gets result counts.
+- Slots: none.
+- Use for: server-rendered pagination controls with accessible previous/next links.
+--}}
 @php
     use Illuminate\Contracts\Pagination\LengthAwarePaginator;
     use Illuminate\Pagination\UrlWindow;

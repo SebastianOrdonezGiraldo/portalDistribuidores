@@ -1,5 +1,11 @@
 @props(['title', 'subtitle' => null])
 
+{{--
+Component contract:
+- Props: title and optional subtitle.
+- Slots: optional meta and actions slots.
+- Use for: top-level page headings in app-layout pages.
+--}}
 <header {{ $attributes->merge(['class' => 'mb-5 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between']) }}>
     <div class="space-y-1">
         <h1 class="text-balance text-2xl font-semibold tracking-tight text-slate-900">{{ $title }}</h1>

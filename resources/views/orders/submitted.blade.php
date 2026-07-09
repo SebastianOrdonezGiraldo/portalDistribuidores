@@ -1,4 +1,12 @@
+{{--
+View contract:
+- Source: App\Modules\Orders\Http\Controllers\OrderController::submitted.
+- Expects: $order with items loaded and access already checked.
+- Owns: confirmation UI, advisor WhatsApp link, and one-time browser PDF autodownload.
+- Notes: PDF generation and notification email are triggered by OrderPlaced/GenerateOrderPdfListener jobs, not from this view.
+--}}
 <x-app-layout>
+    {{-- Advisor link is presentation-only; the order lifecycle remains in the Orders module. --}}
     @php
         $whatsappNumber = '573117479607';
         $advisorMessage = 'Hola, quiero hablar con un asesor sobre la cotización '.$order->oc_number.'.';

@@ -1,4 +1,12 @@
+{{--
+View contract:
+- Source: App\Modules\Admin\Http\Controllers\OrderAdminController::edit.
+- Expects: $order with items, $departments, and $catalogOptions for adding products.
+- Owns: admin-editable order form and dynamic line-item UI.
+- Notes: editable-state checks and update validation stay in OrderAdminController/UpdateAdminOrderRequest/UpdateOrderAction.
+--}}
 <x-app-layout>
+    {{-- Edit state prepares JS-friendly catalog prices and the next dynamic row index from old input. --}}
     @php
         $catalogPriceMap = collect($catalogOptions ?? [])->mapWithKeys(
             fn (array $option): array => [(string) ($option['ref'] ?? '') => (float) ($option['price'] ?? 0)]

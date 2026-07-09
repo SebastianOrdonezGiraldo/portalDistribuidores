@@ -1,3 +1,10 @@
+{{--
+View contract:
+- Source: App\Modules\Admin\Http\Controllers\OrderAdminController::index.
+- Expects: $orders paginator, $filters, option lists, $distributors, $statusSummary, $metrics, $activeFiltersCount.
+- Owns: admin order listing, metrics, filters, and status shortcuts.
+- Notes: query validation, status rules, and authorization stay in OrderAdminController/Order policy.
+--}}
 <x-app-layout>
     <x-slot name="header">
         <x-ui.page-header title="Listado de Pedidos" subtitle="Búsqueda operativa por cliente, estado y rango de fechas para seguimiento comercial.">
@@ -38,6 +45,7 @@
         />
     </section>
 
+    {{-- Status shortcut labels are UI copy for filters; canonical statuses live in OrderStatus enum. --}}
     @php
         $baseStatusQuery = request()->except(['page', 'status']);
         $statusLabels = [

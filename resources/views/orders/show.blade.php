@@ -1,4 +1,12 @@
+{{--
+View contract:
+- Source: App\Modules\Orders\Http\Controllers\OrderController::show.
+- Expects: $order with items, distributor, user, and statusHistory.actor loaded.
+- Owns: customer-facing order detail, timeline display, PDF download link, and advisor contact CTA.
+- Notes: access checks and private PDF streaming stay in OrderController/OrderPdfGenerator.
+--}}
 <x-app-layout>
+    {{-- Timeline entries are presentation summaries of status history; status transitions are not decided here. --}}
     @php
         $timeline = $order->statusHistory
             ->map(function ($event) {

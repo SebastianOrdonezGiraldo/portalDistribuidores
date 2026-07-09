@@ -1,4 +1,12 @@
+{{--
+View contract:
+- Source: App\Modules\Company\Http\Controllers\CompanyOrderController::show.
+- Expects: $order with items, distributor, user, statusHistory.actor, plus $totals and $hasFinancialGap.
+- Owns: company-facing quotation detail, timeline display, reorder/edit/download actions.
+- Notes: company authorization, reorder behavior, and PDF streaming stay in CompanyOrderController/services.
+--}}
 <x-app-layout>
+    {{-- Timeline and quantity labels are presentation summaries; status history and totals are prepared by the controller/model. --}}
     @php
         $formatQty = function (float|int|string|null $value): string {
             $n = (float) ($value ?? 0);

@@ -1,3 +1,9 @@
+{{--
+Component contract:
+- Props: none.
+- Slots: none.
+- Use for: global session status/warning/error and validation messages inside layouts.
+--}}
 @php
     $messages = [];
     $statusText = (string) session('status', '');
