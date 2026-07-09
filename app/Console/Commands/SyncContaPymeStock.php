@@ -28,6 +28,10 @@ class SyncContaPymeStock extends Command
 
             $this->error('CONTAPYME_ERROR: no fue posible autenticar o conectar.');
 
+            if ($this->output->isVerbose() && $inventory->lastError() !== null) {
+                $this->line('CONTAPYME_DETAIL: '.$inventory->lastError());
+            }
+
             return self::FAILURE;
         }
 
