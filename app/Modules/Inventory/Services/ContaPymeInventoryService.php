@@ -447,7 +447,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
     private function assertConfigured(): void
     {
         if ($this->baseUrl === '' || $this->email === '' || ($this->password === '' && $this->passwordHash === '')) {
-            throw new RuntimeException('ContaPyme no esta configurado. Define CONTAPYME_BASE_URL, CONTAPYME_EMAIL y CONTAPYME_PASSWORD_HASH o CONTAPYME_PASSWORD.');
+            throw new RuntimeException('ContaPyme no esta configurado. Define CONTAPYME_URL, CONTAPYME_EMAIL y CONTAPYME_PASSWORD_MD5 o CONTAPYME_PASSWORD.');
         }
     }
 }
