@@ -1,4 +1,12 @@
+{{--
+View contract:
+- Source: App\Modules\Company\Http\Controllers\CompanyOrderController::index.
+- Expects: $orders paginator, $filters, $statusOptions, $statusSummary, and $metrics for the current distributor.
+- Owns: company order history, filters, status summary, and table actions.
+- Notes: distributor scoping and authorization stay in CompanyOrderController/Order policy.
+--}}
 <x-app-layout>
+    {{-- Active filter count is a local presentation summary for the page header and empty state. --}}
     @php
         $activeFiltersCount = collect([$filters['q'], $filters['status']])
             ->filter(fn ($v) => filled($v))

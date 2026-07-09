@@ -13,6 +13,13 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
+/**
+ * Generates the private quotation PDF for one order.
+ *
+ * The job is unique per order id for a short window to avoid duplicate PDF work
+ * when checkout, admin edits or company edits trigger regeneration close
+ * together.
+ */
 class GenerateOrderPdfJob implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable;
@@ -28,6 +35,9 @@ class GenerateOrderPdfJob implements ShouldBeUnique, ShouldQueue
      */
     public int $uniqueFor = 300;
 
+    /**
+     * Use the order id as the uniqueness key for concurrent queue dispatches.
+     */
     public function uniqueId(): string
     {
         return (string) $this->orderId;
@@ -35,6 +45,9 @@ class GenerateOrderPdfJob implements ShouldBeUnique, ShouldQueue
 
     public function __construct(public readonly int $orderId) {}
 
+    /**
+     * Generate the PDF and persist the path back onto the order.
+     */
     public function handle(OrderPdfGenerator $generator): void
     {
         $order = Order::query()->find($this->orderId);
@@ -56,6 +69,9 @@ class GenerateOrderPdfJob implements ShouldBeUnique, ShouldQueue
         ]);
     }
 
+    /**
+     * Log permanent PDF generation failures after queue retries are exhausted.
+     */
     public function failed(?Throwable $exception): void
     {
         Log::error('order.pdf.failed', [

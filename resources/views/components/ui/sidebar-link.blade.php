@@ -1,5 +1,11 @@
 @props(['active' => false])
 
+{{--
+Component contract:
+- Props: active state; href and other anchor attributes pass through $attributes.
+- Slots: icon/text content.
+- Use for: authenticated sidebar navigation links.
+--}}
 @php
     $base = 'group relative flex min-h-[2.625rem] items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition focus-ring';
     $state = $active

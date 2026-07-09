@@ -1,4 +1,12 @@
+{{--
+View contract:
+- Source: App\Modules\Company\Http\Controllers\CompanyOrderController::edit.
+- Expects: $order with items, $departments, and $catalogOptions.
+- Owns: company-editable quotation form and dynamic line-item UI.
+- Notes: only states allowed by OrderStatus::canBeEditedByCompany reach this view; validation stays in UpdateCompanyOrderRequest.
+--}}
 <x-app-layout>
+    {{-- Edit state prepares JS-friendly catalog prices and the next dynamic row index from old input. --}}
     @php
         $catalogPriceMap = collect($catalogOptions ?? [])->mapWithKeys(
             fn (array $option): array => [(string) ($option['ref'] ?? '') => (float) ($option['price'] ?? 0)]

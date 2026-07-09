@@ -1,3 +1,10 @@
+{{--
+View contract:
+- Source: App\Modules\Admin\Services\InventoryPdfGenerator.
+- Expects: $generatedAt, $generatedBy, $appliedFilters, $totals, and $rows.
+- Owns: DomPDF-safe inventory report layout.
+- Notes: product filtering and row aggregation stay in ProductAdminController/InventoryPdfGenerator.
+--}}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -25,6 +32,7 @@
     </style>
 </head>
 <body>
+    {{-- PDF formatters are presentation-only helpers for currency and stock precision. --}}
     @php
         $formatMoney = static fn ($value): string => is_numeric($value)
             ? '$'.number_format((float) $value, 0, ',', '.')
@@ -133,4 +141,3 @@
     </table>
 </body>
 </html>
-

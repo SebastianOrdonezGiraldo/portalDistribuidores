@@ -1,3 +1,10 @@
+{{--
+View contract:
+- Source: CatalogController/ProductController AJAX payloads and product-grid-section component.
+- Expects: $products paginator with hasMorePages/hasPages.
+- Owns: load-more and pagination controls only.
+- Notes: JavaScript reads data-product-load-more from the surrounding product list container.
+--}}
 @if($products->hasMorePages())
     <div class="flex justify-center">
         <button

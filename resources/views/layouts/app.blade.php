@@ -17,6 +17,13 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
+{{--
+View contract:
+- Source: App\View\Components\AppLayout plus App\Providers\AppServiceProvider view composers.
+- Expects: optional cartCount, navCartCount, footerTopCategories, headerQuickCategories, pendingApprovalCount.
+- Owns: authenticated shell, sidebar/header/footer placement, and global flash rendering.
+- Notes: role checks come from the authenticated User model; route authorization stays outside the layout.
+--}}
 @php
     $user = auth()->user();
     $isAuthenticated = auth()->check();

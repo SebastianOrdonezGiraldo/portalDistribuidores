@@ -7,8 +7,20 @@ use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Inventory\Models\StockMovement;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Handles admin-managed stock updates for products and variants.
+ *
+ * Manual stock is the portal-owned source of truth in this checkout. Every
+ * change is serialized with row locks and written to StockMovement so later
+ * integrations can audit what changed before external sync.
+ */
 class ProductStockService
 {
+    /**
+     * Update stock for a product that has no active variants.
+     *
+     * @return bool false when the product uses variant-level stock
+     */
     public function updateSimpleProductStock(Product $product, ?float $stock): bool
     {
         return DB::transaction(function () use ($product, $stock): bool {
@@ -40,7 +52,10 @@ class ProductStockService
     }
 
     /**
+     * Update active variant stock and mirror the aggregate total to the parent product.
+     *
      * @param  array<int, array{id:int, stock:float|null}>  $rows
+     * @return bool false when there are no active variants to update
      */
     public function updateVariantStocks(Product $product, array $rows): bool
     {
@@ -99,6 +114,9 @@ class ProductStockService
         });
     }
 
+    /**
+     * Normalize manual stock input to the stored decimal precision.
+     */
     private function normalizeStock(?float $stock): ?float
     {
         if ($stock === null) {

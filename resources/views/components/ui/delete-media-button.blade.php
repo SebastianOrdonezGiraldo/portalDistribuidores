@@ -4,6 +4,12 @@
     'label'   => 'Eliminar',
 ])
 
+{{--
+Component contract:
+- Props: action URL, confirm prompt, and label.
+- Slots: none.
+- Use for: DELETE submit buttons inside media-management forms.
+--}}
 <button
     type="submit"
     formaction="{{ $action }}"

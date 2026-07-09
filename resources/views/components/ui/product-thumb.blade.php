@@ -3,6 +3,12 @@
     'size' => 'md',
 ])
 
+{{--
+Component contract:
+- Props: product with primaryPhoto/photos and name; size sm/md/lg.
+- Slots: none.
+- Use for: compact product thumbnails in cart/order/admin rows.
+--}}
 @php
     $sizes = [
         'sm' => 'h-10 w-10 rounded-lg',

@@ -10,8 +10,22 @@ use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Support\Collection;
 
+/**
+ * Applies order-driven stock mutations for products and variants.
+ *
+ * The service is called from order creation and status transitions. It locks the
+ * affected rows, enforces known numeric stock and records every mutation through
+ * StockMovement for auditability.
+ */
 class OrderInventoryService
 {
+    /**
+     * Decrease stock for every order item that has numeric stock.
+     *
+     * Non-numeric/null stock is treated as unmanaged and is left unchanged.
+     *
+     * @throws DomainException when a referenced product/variant is missing or stock is insufficient
+     */
     public function decreaseForOrder(Order $order): void
     {
         /** @var Collection<int, OrderItem> $items */
@@ -25,6 +39,12 @@ class OrderInventoryService
         $this->decreaseProductStock($items, $order);
     }
 
+    /**
+     * Restore stock for an order that leaves an inventory-consuming status.
+     *
+     * Missing or unmanaged rows are skipped during restoration because the
+     * original deduction may not have happened.
+     */
     public function increaseForOrder(Order $order): void
     {
         /** @var Collection<int, OrderItem> $items */

@@ -1,3 +1,10 @@
+{{--
+View contract:
+- Source: App\Modules\Company\Http\Controllers\CompanyDashboardController::__invoke.
+- Expects: $distributor, $kpis, $statusDistribution, $recentOrders, $latestOrderWithPdf, and monthly summary values.
+- Owns: distributor dashboard presentation and shortcuts into order history/checkout.
+- Notes: KPI aggregation and distributor scoping stay in CompanyDashboardController.
+--}}
 <x-app-layout>
     <x-slot name="header">
         <x-ui.page-header

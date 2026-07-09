@@ -12,6 +12,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * ContaPyme adapter behind InventorySyncInterface.
+ *
+ * The portal still owns operational stock locally; this service is the seam for
+ * fetching or applying external stock by SKU. It normalizes the non-uniform
+ * DataSnap response shapes into InventoryItemData and records successful stock
+ * syncs through StockMovement.
+ */
 class ContaPymeInventoryService implements InventorySyncInterface
 {
     private const CACHE_TOKEN = 'contapyme_keyagente';
@@ -40,6 +48,9 @@ class ContaPymeInventoryService implements InventorySyncInterface
         $this->timeout = (int) config('contapyme.timeout', 10);
     }
 
+    /**
+     * Verify credentials and endpoint reachability without mutating inventory.
+     */
     public function testConnection(): bool
     {
         try {
@@ -56,6 +67,9 @@ class ContaPymeInventoryService implements InventorySyncInterface
         }
     }
 
+    /**
+     * Fetch one inventory resource from ContaPyme by portal SKU.
+     */
     public function getProductInfo(string $sku): ?InventoryItemData
     {
         try {
@@ -82,6 +96,11 @@ class ContaPymeInventoryService implements InventorySyncInterface
         }
     }
 
+    /**
+     * Fetch the inventory list and normalize every usable row.
+     *
+     * @return Collection<int, InventoryItemData>
+     */
     public function listProducts(): Collection
     {
         try {
@@ -111,6 +130,11 @@ class ContaPymeInventoryService implements InventorySyncInterface
         }
     }
 
+    /**
+     * Pull stock for one SKU and persist it to the matching portal product.
+     *
+     * @return bool true only when a local product was updated
+     */
     public function syncProductStock(string $sku): bool
     {
         $product = Product::query()->where('sku', $sku)->first();
@@ -149,6 +173,9 @@ class ContaPymeInventoryService implements InventorySyncInterface
         return true;
     }
 
+    /**
+     * Authenticate against ContaPyme and cache keyagente for subsequent calls.
+     */
     private function authenticate(): string
     {
         return Cache::remember(self::CACHE_TOKEN, self::CACHE_TOKEN_TTL, function (): string {
@@ -187,6 +214,12 @@ class ContaPymeInventoryService implements InventorySyncInterface
         });
     }
 
+    /**
+     * Call a TBasicoGeneral function with the cached token and app metadata.
+     *
+     * @param  array<int, mixed>  $params
+     * @return array<string, mixed>|null
+     */
     private function call(string $function, array $params = []): ?array
     {
         $token = $this->authenticate();
@@ -220,6 +253,11 @@ class ContaPymeInventoryService implements InventorySyncInterface
         return $response->json();
     }
 
+    /**
+     * Extract the useful payload from the response variants returned by DataSnap.
+     *
+     * @param  array<string, mixed>|null  $response
+     */
     private function extractData(?array $response): mixed
     {
         if ($response === null) {
@@ -249,6 +287,9 @@ class ContaPymeInventoryService implements InventorySyncInterface
         return $response;
     }
 
+    /**
+     * Normalize a ContaPyme row into the shared inventory item value object.
+     */
     private function mapToItemData(mixed $data): ?InventoryItemData
     {
         if (! is_array($data)) {

@@ -1,5 +1,11 @@
 @props(['padding' => 'md'])
 
+{{--
+Component contract:
+- Props: padding none/sm/md/lg.
+- Slots: default content plus optional header/footer slots.
+- Use for: isolated panels, repeated records, and tool surfaces.
+--}}
 @php
     $paddings = [
         'none' => '',

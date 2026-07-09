@@ -3,7 +3,15 @@
     <meta name="robots" content="{{ $robotsContent }}">
 @endpush
 
+{{--
+View contract:
+- Source: App\Modules\Catalog\Http\Controllers\CatalogController::__invoke.
+- Expects: $products paginator, $categories tree, $search ProductSearchQuery, $canonicalUrl, $robotsContent.
+- Owns: filter chips, category links, sort controls, and catalog layout.
+- Notes: search, ranking, validation, and AJAX payloads stay in CatalogController/SearchEngineInterface.
+--}}
 <x-app-layout>
+    {{-- Presentation state derived from the search query and category tree; no catalog query logic belongs here. --}}
     @php
         $resultsTotal = method_exists($products, 'total') ? $products->total() : $products->count();
         $sortOptions = [

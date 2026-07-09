@@ -15,6 +15,13 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * Sends order quotation notifications once the PDF is available.
+ *
+ * The job sends the internal notification and customer quotation independently:
+ * each failure is logged, but the final exception is still surfaced so Laravel
+ * retries according to the configured backoff.
+ */
 class SendOrderNotificationEmailJob implements ShouldQueue
 {
     use Dispatchable;
@@ -25,6 +32,8 @@ class SendOrderNotificationEmailJob implements ShouldQueue
     public int $tries = 5;
 
     /**
+     * Backoff schedule in seconds for transient mail/storage failures.
+     *
      * @return list<int>
      */
     public function backoff(): array
@@ -34,6 +43,9 @@ class SendOrderNotificationEmailJob implements ShouldQueue
 
     public function __construct(public readonly int $orderId) {}
 
+    /**
+     * Ensure the PDF exists, load it once and send both notification emails.
+     */
     public function handle(OrderPdfGenerator $pdfGenerator): void
     {
         $order = Order::query()->with(['items', 'distributor', 'user'])->find($this->orderId);
@@ -100,6 +112,9 @@ class SendOrderNotificationEmailJob implements ShouldQueue
         ]);
     }
 
+    /**
+     * Send the configured internal sales/operations notification.
+     */
     private function sendInternalNotification(Order $order, string $pdfContents): void
     {
         $recipient = trim((string) config('mail.order_notification_to'));
@@ -143,6 +158,9 @@ class SendOrderNotificationEmailJob implements ShouldQueue
         return $maskedLocal.'@'.$maskedDomain;
     }
 
+    /**
+     * Send the customer-facing quotation email to the order contact address.
+     */
     private function sendCustomerQuotation(Order $order, string $pdfContents): void
     {
         $customerRecipient = trim((string) ($order->contact_email ?? ''));
