@@ -15,6 +15,14 @@ use Illuminate\Pagination\LengthAwarePaginator as Paginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Catalog search implementation backed by SQL filtering and PHP ranking.
+ *
+ * PostgreSQL receives the broad candidate filter, using unaccent(lower(...))
+ * when available. The business ranking stays in PHP so weights for product
+ * name, brand, category, synonyms, description and stock can be tuned without a
+ * separate search service.
+ */
 class PostgresSearchEngine implements SearchEngineInterface
 {
     private const SCORE_NAME_EXACT = 500;
@@ -41,6 +49,9 @@ class PostgresSearchEngine implements SearchEngineInterface
         private readonly CategoryDescendantsQuery $categoryDescendantsQuery,
     ) {}
 
+    /**
+     * Search active products with optional category filtering and stable pagination.
+     */
     public function search(ProductSearchQuery $query): LengthAwarePaginator
     {
         $searchStartedAt = microtime(true);
@@ -111,6 +122,12 @@ class PostgresSearchEngine implements SearchEngineInterface
         return $paginator;
     }
 
+    /**
+     * Load heavy display relations only for the current ranked page.
+     *
+     * @param  Collection<int, Product>  $items
+     * @return Collection<int, Product>
+     */
     private function hydratePageItems(Collection $items): Collection
     {
         if ($items->isEmpty()) {
@@ -131,6 +148,9 @@ class PostgresSearchEngine implements SearchEngineInterface
             ->values();
     }
 
+    /**
+     * Base active-product query shared by empty and term-based searches.
+     */
     private function baseQuery(ProductSearchQuery $query): Builder
     {
         return Product::query()
@@ -147,6 +167,9 @@ class PostgresSearchEngine implements SearchEngineInterface
             });
     }
 
+    /**
+     * Apply the local score model to already-prefiltered products.
+     */
     private function rank(Collection $products, ProductSearchQuery $query): Collection
     {
         $term = $query->normalizedTerm();
@@ -176,6 +199,8 @@ class PostgresSearchEngine implements SearchEngineInterface
     }
 
     /**
+     * Score one product against the normalized term and token set.
+     *
      * @param  list<string>  $tokens
      */
     private function scoreMatch(
@@ -253,6 +278,9 @@ class PostgresSearchEngine implements SearchEngineInterface
         return true;
     }
 
+    /**
+     * Apply SQL ordering for searches that do not need local relevance ranking.
+     */
     private function applySort(Builder $builder, ProductSearchQuery $query): Builder
     {
         return match ($query->sort) {
@@ -274,6 +302,9 @@ class PostgresSearchEngine implements SearchEngineInterface
         };
     }
 
+    /**
+     * Apply in-memory ordering after relevance scoring.
+     */
     private function sortRankedRows(Collection $rows, ProductSearchQuery $query): Collection
     {
         return match ($query->sort) {

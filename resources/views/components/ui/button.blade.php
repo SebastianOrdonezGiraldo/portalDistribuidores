@@ -4,6 +4,12 @@
     'type' => 'button',
 ])
 
+{{--
+Component contract:
+- Props: variant primary/secondary/ghost/danger, size sm/md/lg, and HTML button type.
+- Slots: default button label/content.
+- Use for: form buttons; use anchor classes directly when the element must be an <a>.
+--}}
 @php
     $variants = [
         'primary' => 'btn-primary',

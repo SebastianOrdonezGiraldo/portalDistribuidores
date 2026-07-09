@@ -1,3 +1,10 @@
+{{--
+View contract:
+- Source: App\Modules\Orders\Services\OrderPdfGenerator.
+- Expects: $order with items and optional $logoBase64.
+- Owns: DomPDF-safe HTML/CSS layout for the customer quotation.
+- Notes: file storage, regeneration, and private download authorization stay in the Orders module.
+--}}
 <!DOCTYPE html>
 <html lang="es">
 <head>

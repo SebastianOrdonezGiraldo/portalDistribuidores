@@ -1,4 +1,12 @@
+{{--
+View contract:
+- Source: App\Modules\Orders\Http\Controllers\CheckoutController::__invoke.
+- Expects: $items, $total, optional $distributor, $branches, and $departments.
+- Owns: final order form, branch-prefill UI, and order summary.
+- Notes: empty-cart redirects and role permissions are enforced before rendering.
+--}}
 <x-app-layout>
+    {{-- Defaults merge authenticated distributor data with current user data for form prefill only. --}}
     @php
         $defaultContactName = $distributor?->contact_name ?: auth()->user()?->name;
         $defaultContactEmail = $distributor?->contact_email ?: auth()->user()?->email;

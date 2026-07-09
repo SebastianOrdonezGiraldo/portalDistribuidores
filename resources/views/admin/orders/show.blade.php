@@ -1,4 +1,12 @@
+{{--
+View contract:
+- Source: App\Modules\Admin\Http\Controllers\OrderAdminController::show.
+- Expects: $order, $totals, $hasFinancialGap, $nextStatuses, $timeline, $recommendedAction, $secondaryActions, $dangerActions.
+- Owns: admin order review, transition form UI, financial gap warning, and available action display.
+- Notes: transition validation and PDF regeneration stay in OrderAdminController/services/jobs.
+--}}
 <x-app-layout>
+    {{-- Presentation helpers format quantities and select the current transition option; rules come from OrderStatus. --}}
     @php
         $formatQuantity = function (float|int|string|null $value): string {
             $number = (float) ($value ?? 0);

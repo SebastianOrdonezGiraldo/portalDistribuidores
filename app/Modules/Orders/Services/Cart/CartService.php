@@ -9,12 +9,27 @@ use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Session;
 
+/**
+ * Session-backed cart facade used by catalog, checkout and order creation.
+ *
+ * Raw cart rows intentionally store only identifiers and quantities. The public
+ * item read model resolves active products, active variants, current prices,
+ * VAT labels and stock limits each time the cache is invalidated.
+ */
 class CartService
 {
     private const SESSION_KEY = 'orders.cart.items';
 
     private ?Collection $resolvedItems = null;
 
+    /**
+     * Add a product or variant line, merging with the existing session line.
+     *
+     * A null stock value means "unbounded/manual unknown" and does not block the
+     * cart. Numeric stock is enforced before the session is updated.
+     *
+     * @throws DomainException when the requested quantity exceeds known stock
+     */
     public function add(Product $product, int $qty = 1, string $unitLabel = 'unidad', ?ProductVariant $variant = null): void
     {
         $items = $this->rawItems();
@@ -44,7 +59,15 @@ class CartService
     }
 
     /**
+     * Apply submitted quantities to existing cart lines.
+     *
+     * Missing line keys are ignored so stale forms cannot create new cart lines.
+     * Non-positive values remove the line; positive values are stock-checked
+     * against the current product/variant records before mutation.
+     *
      * @param  array<int|string, mixed>  $quantities
+     *
+     * @throws DomainException when a positive quantity exceeds known stock
      */
     public function update(array $quantities): void
     {
@@ -135,6 +158,12 @@ class CartService
     }
 
     /**
+     * Resolve the session cart into display/order-ready rows.
+     *
+     * Stale rows for inactive products, mismatched variants or configurable
+     * products without a chosen variant are filtered out instead of being
+     * repaired here. Checkout and order creation consume this resolved shape.
+     *
      * @return Collection<int, array{
      *   line_key: string,
      *   product: Product,
@@ -298,6 +327,17 @@ class CartService
         return $this->normalizeStockLimit($product?->stock);
     }
 
+    /**
+     * Resolve stock for a raw cart line using already-loaded products/variants.
+     *
+     * Returning null is deliberate for missing or mismatched records because the
+     * caller is only validating quantities for known lines; final item
+     * resolution filters invalid rows.
+     *
+     * @param  array<string, mixed>  $item
+     * @param  Collection<int, Product>  $products
+     * @param  Collection<int, ProductVariant>  $variants
+     */
     private function resolveStockLimitForLineItem(array $item, Collection $products, Collection $variants): ?int
     {
         $productId = (int) ($item['product_id'] ?? 0);

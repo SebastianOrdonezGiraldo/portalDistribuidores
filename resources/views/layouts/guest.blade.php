@@ -16,6 +16,13 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
+{{--
+View contract:
+- Source: App\View\Components\GuestLayout.
+- Expects: default slot content from auth and public entry views.
+- Owns: unauthenticated shell, brand panel, and guest page framing.
+- Notes: authentication validation and redirects stay in auth controllers and middleware.
+--}}
 <div class="relative flex min-h-dvh flex-col overflow-x-clip lg:flex-row">
     <div class="hidden flex-col justify-between border-r border-slate-200 bg-brand-ink px-10 py-8 text-white lg:flex lg:w-[42%] xl:w-[40%]">
         <div>

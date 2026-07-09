@@ -1,5 +1,11 @@
 @props(['variant' => 'neutral'])
 
+{{--
+Component contract:
+- Props: variant neutral/info/success/warning/danger/brand.
+- Slots: default badge label.
+- Use for: small labels that do not imply workflow state transitions.
+--}}
 @php
     $variants = [
         'neutral' => 'bg-slate-100 text-slate-700',

@@ -3,7 +3,15 @@
     <meta name="robots" content="index,follow">
 @endpush
 
+{{--
+View contract:
+- Source: App\Modules\Catalog\Http\Controllers\ProductController::show.
+- Expects: $product plus view data from ProductController::buildViewData(), breadcrumbs, document variables, and related/alternative paginators.
+- Owns: product presentation, add-to-cart form, media gallery, document links, and related product sections.
+- Notes: protected document authorization/downloads stay in Documents module; cart writes stay in CartController.
+--}}
 <x-app-layout>
+    {{-- Presentation state for media URLs and defaults; commercial availability is prepared before rendering. --}}
     @php
         $defaultQty = $stepValue;
         $defaultStockLimit = is_numeric($stock ?? null) ? max(0, (int) floor((float) $stock)) : null;

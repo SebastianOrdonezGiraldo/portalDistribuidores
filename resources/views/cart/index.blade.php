@@ -1,4 +1,12 @@
+{{--
+View contract:
+- Source: App\Modules\Orders\Http\Controllers\CartController::index.
+- Expects: $items collection from CartService::items() and $total from CartService::total().
+- Owns: cart review, quantity update form, and checkout navigation.
+- Notes: line validation, stock checks, and cart mutations stay in CartController/CartService.
+--}}
 <x-app-layout>
+    {{-- Local counters are presentation-only summaries for the header and client-side cart updates. --}}
     @php
         $itemsCount = $items->count();
         $unitsCount = (int) $items->sum(fn ($item) => (int) $item['qty']);

@@ -1,3 +1,10 @@
+{{--
+View contract:
+- Source: App\Modules\Admin\Http\Controllers\ProductAdminController::index.
+- Expects: $products paginator, $filters, $indexContextQuery, option lists, $categories, $metrics, $activeFiltersCount.
+- Owns: admin product listing, import summary display, filters, KPIs, and row actions.
+- Notes: filtering, import, duplication, media persistence, and authorization stay in ProductAdminController/actions/policies.
+--}}
 <x-app-layout>
     <x-slot name="header">
         <x-ui.page-header title="Catálogo de Productos" subtitle="Gestión de portafolio con filtros rápidos, disponibilidad y acceso a edición.">
@@ -33,6 +40,7 @@
     </x-slot>
 
     @if(session('importReport'))
+        {{-- Import report is flashed by the CSV import action; this view only summarizes the result. --}}
         @php
             $importReport = session('importReport');
         @endphp
@@ -89,6 +97,7 @@
         />
     </section>
 
+    {{-- Status shortcut URLs and stock formatting are presentation-only helpers for the current listing. --}}
     @php
         $baseStatusQuery = collect($indexContextQuery)->except(['page', 'status'])->all();
         $formatStock = static function ($value): string {

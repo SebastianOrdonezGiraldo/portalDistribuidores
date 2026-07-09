@@ -17,6 +17,14 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
+/**
+ * Creates the canonical order from checkout data.
+ *
+ * This action owns the order transaction: it resolves active products/variants,
+ * snapshots line data, assigns the final OC number, decreases stock for
+ * submitted orders and dispatches OrderPlaced only when no internal approval is
+ * pending.
+ */
 class CreateOrderAction
 {
     public function __construct(
@@ -24,6 +32,15 @@ class CreateOrderAction
         private readonly OrderInventoryService $orderInventoryService,
     ) {}
 
+    /**
+     * Persist an order and its items from normalized checkout data.
+     *
+     * Invalid product or variant lines are skipped, but the action rejects the
+     * request if no valid line can produce a positive total. This keeps the
+     * controller free of catalog and inventory rules.
+     *
+     * @throws DomainException when the cart cannot become a valid order
+     */
     public function execute(?User $user, CreateOrderData $data): Order
     {
         $productIds = collect($data->items)->pluck('product_id')->map(fn ($id) => (int) $id)->unique()->all();
@@ -145,6 +162,14 @@ class CreateOrderAction
         return $order;
     }
 
+    /**
+     * Calculate the total using the same product/variant eligibility rules used
+     * when rows are persisted.
+     *
+     * @param  array<int, array{product_id:int, variant_id?:int|null, qty:int}>  $items
+     * @param  Collection<int, Product>  $products
+     * @param  Collection<int, ProductVariant>  $variants
+     */
     private function calculateTotal(
         array $items,
         Collection $products,

@@ -2,6 +2,12 @@
 
 namespace App\Modules\Shared\Enums;
 
+/**
+ * Product document categories exposed by catalog/admin download flows.
+ *
+ * The protected values list is the shared source of truth for document types
+ * that must use protected storage, authorization and download routing.
+ */
 enum DocumentType: string
 {
     case TechSheet = 'tech_sheet';
@@ -10,6 +16,9 @@ enum DocumentType: string
     case QuickGuide = 'quick_guide';
     case CalibrationDocument = 'calibration_document';
 
+    /**
+     * Human label used in admin forms, catalog views and download messages.
+     */
     public function label(): string
     {
         return match ($this) {
@@ -22,6 +31,8 @@ enum DocumentType: string
     }
 
     /**
+     * Values that must be routed through protected document handling.
+     *
      * @return list<string>
      */
     public static function protectedValues(): array

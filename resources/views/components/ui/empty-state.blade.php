@@ -1,5 +1,11 @@
 @props(['title', 'description', 'compact' => false])
 
+{{--
+Component contract:
+- Props: title, description, and compact layout flag.
+- Slots: optional icon and action slots.
+- Use for: empty datasets or filtered states.
+--}}
 <div {{ $attributes->merge(['class' => 'empty-state '.($compact ? 'p-6' : 'p-10')]) }}>
     <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-400">
         @if(isset($icon))

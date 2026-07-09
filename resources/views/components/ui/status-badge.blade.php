@@ -1,5 +1,11 @@
 @props(['status', 'label' => null])
 
+{{--
+Component contract:
+- Props: status string/backed enum and optional display label override.
+- Slots: none.
+- Use for: normalized order/distributor/process status labels; workflow transitions stay in enums/services.
+--}}
 @php
     $value = $status instanceof \BackedEnum ? $status->value : strtolower((string) $status);
 

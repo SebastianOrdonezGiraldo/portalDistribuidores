@@ -1,4 +1,12 @@
+{{--
+View contract:
+- Source: App\Modules\Admin\Http\Controllers\ProductAdminController::create/edit.
+- Expects: $product, $categories, $variantAttributes, and $indexContextQuery.
+- Owns: create/edit form rendering, upload fields, preview state, and old-input recovery.
+- Notes: validation, upload limits, media attachment, SKU checks, and variant sync stay in requests/actions/services.
+--}}
 <x-app-layout>
+    {{-- Form state normalizes old input, existing product data, variants, and upload limits for create/edit mode. --}}
     @php
         $isEdit = $product->exists;
         $indexContextQuery = $indexContextQuery ?? [];

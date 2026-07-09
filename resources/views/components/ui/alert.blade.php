@@ -1,5 +1,11 @@
 @props(['variant' => 'info', 'title' => null])
 
+{{--
+Component contract:
+- Props: variant info/success/warning/danger/neutral and optional title.
+- Slots: default alert body.
+- Use for: inline feedback blocks and toast content.
+--}}
 @php
     $variants = [
         'info' => 'border-sky-200 bg-sky-50 text-sky-900',
