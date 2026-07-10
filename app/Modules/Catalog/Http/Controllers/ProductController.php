@@ -61,6 +61,7 @@ class ProductController extends Controller
         $commercialSnapshot = $this->buildCommercialSnapshot($product);
 
         $contapymeStock = $this->resolveContapymeStock($inventory, $product);
+
         if ($contapymeStock !== null) {
             $commercialSnapshot['stock'] = $contapymeStock;
             $commercialSnapshot['availability'] = $this->availabilityStatus(
@@ -221,7 +222,7 @@ class ProductController extends Controller
     {
         $sku = $product->sku;
 
-        if ($sku === null || $sku === '' || $product->hasConfigurableVariants()) {
+        if ($sku === '' || $product->hasConfigurableVariants()) {
             return null;
         }
 

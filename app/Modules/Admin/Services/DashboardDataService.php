@@ -12,7 +12,6 @@ use App\Modules\Shared\Enums\OrderStatus;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
 
 class DashboardDataService
 {
