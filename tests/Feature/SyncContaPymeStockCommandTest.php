@@ -12,6 +12,7 @@ use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\ValueObjects\InventoryItemData;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class SyncContaPymeStockCommandTest extends TestCase
@@ -336,6 +337,29 @@ class SyncContaPymeStockCommandTest extends TestCase
         $product->refresh();
         $this->assertSame(10.0, (float) $product->stock);
         $this->assertTrue($product->isStockManagedByContaPyme());
+    }
+
+    public function test_command_falls_back_to_default_logging_without_a_slack_webhook(): void
+    {
+        Log::spy();
+        config(['logging.channels.slack.url' => null]);
+
+        Product::factory()->create([
+            'sku' => 'MISSING-SKU',
+            'stock' => 10,
+            'is_active' => true,
+        ]);
+
+        $this->app->instance(ContaPymeInventoryService::class, $this->bulkService([], [
+            'MISSING-SKU' => false,
+        ]));
+
+        $this->artisan('contapyme:sync-stock --force')
+            ->expectsOutput('MISSING_CONTAPYME MISSING-SKU stock=10')
+            ->assertSuccessful();
+
+        Log::shouldHaveReceived('critical')->once();
+        Log::shouldNotHaveReceived('channel');
     }
 
     /**

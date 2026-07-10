@@ -19,6 +19,7 @@ use App\Modules\Catalog\Models\ProductAttribute;
 use App\Modules\Catalog\Services\ProductStockService;
 use App\Modules\Catalog\Services\ProductVariantSyncService;
 use App\Modules\Categories\Models\Category;
+use App\Modules\Inventory\Services\ContaPymeSyncState;
 use App\Modules\Shared\Enums\DocumentType;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -53,7 +54,7 @@ class ProductAdminController extends Controller
      * @response 403 {"message":"No autorizado"}
      * @response 422 {"message":"Filtros invalidos"}
      */
-    public function index(Request $request): View
+    public function index(Request $request, ContaPymeSyncState $syncState): View
     {
         $this->authorize('viewAny', Product::class);
 
@@ -116,6 +117,7 @@ class ProductAdminController extends Controller
             'categories' => Category::active()->orderBy('name')->get(['id', 'name']),
             'metrics' => $metrics,
             'activeFiltersCount' => $activeFiltersCount,
+            'contapymeSyncStatus' => $syncState->status(),
         ]);
     }
 
