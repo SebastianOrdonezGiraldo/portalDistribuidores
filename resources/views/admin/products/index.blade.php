@@ -7,8 +7,32 @@ View contract:
 --}}
 @php
     $contapymeSyncStatus = $contapymeSyncStatus ?? null;
+    $contapymeSyncAvailability = $contapymeSyncAvailability ?? [
+        'can_run' => true,
+        'reason' => 'available',
+        'available_at' => null,
+        'retry_after' => 0,
+    ];
     $contapymeSyncState = $contapymeSyncStatus['state'] ?? null;
-    $contapymeSyncIsRunning = in_array($contapymeSyncState, ['queued', 'running'], true);
+    $contapymeSyncCanRun = (bool) $contapymeSyncAvailability['can_run'];
+    $contapymeSyncIsBlocked = ! $contapymeSyncCanRun;
+    $contapymeSyncRetryAfter = (int) ($contapymeSyncAvailability['retry_after'] ?? 0);
+    $formatSyncRetryAfter = static function (int $seconds): string {
+        $seconds = max(1, $seconds);
+        $minutes = intdiv($seconds, 60);
+        $remainingSeconds = $seconds % 60;
+
+        if ($minutes === 0) {
+            return $seconds.' segundos';
+        }
+
+        if ($remainingSeconds === 0) {
+            return $minutes.' minutos';
+        }
+
+        return $minutes.' min '.$remainingSeconds.' s';
+    };
+    $contapymeSyncRetryLabel = $formatSyncRetryAfter($contapymeSyncRetryAfter);
     $contapymeSyncVariant = match ($contapymeSyncState) {
         'completed' => 'success',
         'failed', 'blocked' => 'danger',
@@ -21,6 +45,18 @@ View contract:
         'failed' => 'Última sincronización falló',
         'blocked' => 'Sincronización bloqueada',
         default => 'Sincronización ContaPyme',
+    };
+    $contapymeSyncButtonLabel = match ($contapymeSyncAvailability['reason']) {
+        'running' => 'Sincronización en curso',
+        'cooldown' => 'Disponible en '.$contapymeSyncRetryLabel,
+        'disabled' => 'Sincronización deshabilitada',
+        default => 'Sincronizar stock ContaPyme',
+    };
+    $contapymeSyncAvailabilityMessage = match ($contapymeSyncAvailability['reason']) {
+        'running' => 'La sincronización está en curso. Disponible nuevamente en '.$contapymeSyncRetryLabel.'.',
+        'cooldown' => 'Puedes volver a sincronizar en '.$contapymeSyncRetryLabel.'.',
+        'disabled' => 'La sincronización ContaPyme está deshabilitada en este entorno.',
+        default => null,
     };
 @endphp
 
@@ -39,11 +75,28 @@ View contract:
             <x-slot name="actions">
                 <div class="flex flex-wrap items-center gap-2">
                     <form action="{{ route('admin.contapyme.sync', $indexContextQuery) }}" method="POST"
+                          data-contapyme-sync-form
+                          data-contapyme-available-at="{{ $contapymeSyncAvailability['available_at'] ?? '' }}"
                           onsubmit="var btn=this.querySelector('button'); if (btn) { btn.disabled=true; btn.textContent='Encolando...' }">
                         @csrf
-                        <button type="submit" class="btn btn-secondary w-full justify-center sm:w-auto" @disabled($contapymeSyncIsRunning)>
-                            {{ $contapymeSyncIsRunning ? 'Sincronización en curso' : 'Sincronizar stock ContaPyme' }}
+                        <button
+                            type="submit"
+                            class="btn btn-secondary w-full justify-center sm:w-auto"
+                            data-contapyme-sync-button
+                            @disabled($contapymeSyncIsBlocked)
+                            @if($contapymeSyncAvailabilityMessage) title="{{ $contapymeSyncAvailabilityMessage }}" @endif
+                        >
+                            {{ $contapymeSyncButtonLabel }}
                         </button>
+                        @if($contapymeSyncAvailabilityMessage)
+                            <p
+                                id="contapyme-sync-feedback"
+                                class="mt-1 text-xs text-slate-500"
+                                data-contapyme-sync-feedback
+                            >
+                                {{ $contapymeSyncAvailabilityMessage }}
+                            </p>
+                        @endif
                     </form>
                     <a href="{{ route('admin.products.inventory.pdf', collect($indexContextQuery)->except('page')->all()) }}" class="btn btn-secondary w-full justify-center sm:w-auto">Descargar saldos PDF</a>
                     <a href="{{ route('admin.products.import.template') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Descargar plantilla CSV</a>
@@ -617,4 +670,65 @@ View contract:
             </div>
         @endif
     </section>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.querySelector('[data-contapyme-sync-form]');
+            const button = form?.querySelector('[data-contapyme-sync-button]');
+            const feedback = form?.querySelector('[data-contapyme-sync-feedback]');
+            const availableAt = form?.dataset.contapymeAvailableAt;
+
+            if (!form || !button || !availableAt) {
+                return;
+            }
+
+            const availableAtTimestamp = Date.parse(availableAt);
+
+            if (Number.isNaN(availableAtTimestamp)) {
+                return;
+            }
+
+            const formatRemaining = (seconds) => {
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = seconds % 60;
+
+                if (minutes === 0) {
+                    return `${remainingSeconds} s`;
+                }
+
+                return remainingSeconds === 0
+                    ? `${minutes} min`
+                    : `${minutes} min ${remainingSeconds} s`;
+            };
+
+            const updateAvailability = () => {
+                const secondsRemaining = Math.max(
+                    0,
+                    Math.ceil((availableAtTimestamp - Date.now()) / 1000),
+                );
+
+                if (secondsRemaining === 0) {
+                    button.disabled = false;
+                    button.textContent = 'Sincronizar stock ContaPyme';
+
+                    if (feedback) {
+                        feedback.textContent = 'La sincronización ya está disponible.';
+                    }
+
+                    window.clearInterval(timer);
+                    return;
+                }
+
+                const remaining = formatRemaining(secondsRemaining);
+                button.textContent = `Disponible en ${remaining}`;
+
+                if (feedback) {
+                    feedback.textContent = `Puedes volver a sincronizar en ${remaining}.`;
+                }
+            };
+
+            const timer = window.setInterval(updateAvailability, 1000);
+            updateAvailability();
+        });
+    </script>
 </x-app-layout>
