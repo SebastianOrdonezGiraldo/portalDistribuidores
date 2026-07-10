@@ -118,6 +118,68 @@ class ContaPymeInventoryServiceTest extends TestCase
         });
     }
 
+    public function test_product_exists_uses_the_inventory_catalog_endpoint(): void
+    {
+        Http::fakeSequence()
+            ->push($this->successResponse(['keyagente' => 'TOKEN-123']))
+            ->push($this->successResponse(['existe' => 'true']));
+
+        $service = new ContaPymeInventoryService;
+
+        $this->assertTrue($service->productExists('TENS7000'));
+
+        Http::assertSent(function ($request): bool {
+            if (! str_contains($request->url(), '/TCatElemInv/GetExisteElemInv')) {
+                return false;
+            }
+
+            $dataJson = json_decode((string) $request->data()['_parameters'][0], true);
+
+            return $dataJson['irecurso'] === 'TENS7000'
+                && $request->data()['_parameters'][1] === 'TOKEN-123';
+        });
+    }
+
+    public function test_product_exists_returns_false_for_a_missing_inventory_item(): void
+    {
+        Http::fakeSequence()
+            ->push($this->successResponse(['keyagente' => 'TOKEN-123']))
+            ->push($this->successResponse(['existe' => 'false']));
+
+        $this->assertFalse((new ContaPymeInventoryService)->productExists('MISSING-SKU'));
+    }
+
+    public function test_product_exists_returns_null_for_an_invalid_response(): void
+    {
+        Http::fakeSequence()
+            ->push($this->successResponse(['keyagente' => 'TOKEN-123']))
+            ->push($this->successResponse(['existe' => 'unknown']));
+
+        $service = new ContaPymeInventoryService;
+
+        $this->assertNull($service->productExists('TENS7000'));
+        $this->assertSame('ContaPyme no devolvio una confirmacion de existencia valida.', $service->lastError());
+    }
+
+    public function test_product_exists_refreshes_the_token_after_a_not_logged_in_response(): void
+    {
+        Http::fakeSequence()
+            ->push($this->successResponse(['keyagente' => 'TOKEN-OLD']))
+            ->push($this->failedResponse('Usuario no logueado'))
+            ->push($this->successResponse(['keyagente' => 'TOKEN-NEW']))
+            ->push($this->successResponse(['existe' => 'true']));
+
+        $service = new ContaPymeInventoryService;
+
+        $this->assertTrue($service->productExists('TENS7000'));
+        $this->assertNull($service->lastError());
+        Http::assertSentCount(4);
+        Http::assertSent(function ($request): bool {
+            return str_contains($request->url(), '/TCatElemInv/GetExisteElemInv')
+                && $request->data()['_parameters'][1] === 'TOKEN-NEW';
+        });
+    }
+
     public function test_list_products_refreshes_the_token_after_a_not_logged_in_response(): void
     {
         Http::fakeSequence()
@@ -151,6 +213,7 @@ class ContaPymeInventoryServiceTest extends TestCase
     {
         Http::fakeSequence()
             ->push($this->successResponse(['keyagente' => 'TOKEN-123']))
+            ->push($this->successResponse(['existe' => 'true']))
             ->push($this->successResponse([
                 ['iinventario' => '1', 'ninventario' => 'Bodega 1', 'qproducto' => '39'],
             ]));
@@ -179,10 +242,37 @@ class ContaPymeInventoryServiceTest extends TestCase
         ]);
     }
 
-    public function test_sync_product_stock_keeps_last_stock_when_contapyme_fails(): void
+    public function test_sync_product_stock_preserves_local_stock_when_the_sku_does_not_exist(): void
     {
         Http::fakeSequence()
             ->push($this->successResponse(['keyagente' => 'TOKEN-123']))
+            ->push($this->successResponse(['existe' => 'false']));
+
+        $product = Product::factory()->create([
+            'sku' => 'MISSING-SKU',
+            'stock' => 10,
+            'stock_sync_status' => 'synced',
+            'stock_synced_at' => now(),
+        ]);
+
+        $this->assertFalse((new ContaPymeInventoryService)->syncProductStock('MISSING-SKU'));
+
+        $product->refresh();
+
+        $this->assertSame(10.0, (float) $product->stock);
+        $this->assertSame('missing_contapyme', $product->stock_sync_status);
+        $this->assertNull($product->stock_synced_at);
+        $this->assertDatabaseMissing('stock_movements', [
+            'product_id' => $product->id,
+            'source' => 'contapyme_sync',
+        ]);
+    }
+
+    public function test_sync_product_stock_keeps_existing_state_when_contapyme_fails(): void
+    {
+        Http::fakeSequence()
+            ->push($this->successResponse(['keyagente' => 'TOKEN-123']))
+            ->push($this->successResponse(['existe' => 'true']))
             ->push($this->failedResponse('Error controlado de inventario'));
 
         $product = Product::factory()->create([
@@ -197,7 +287,7 @@ class ContaPymeInventoryServiceTest extends TestCase
         $product->refresh();
 
         $this->assertSame(10.0, (float) $product->stock);
-        $this->assertSame('failed', $product->stock_sync_status);
+        $this->assertNull($product->stock_sync_status);
         $this->assertNull($product->stock_synced_at);
         $this->assertDatabaseMissing('stock_movements', [
             'product_id' => $product->id,
