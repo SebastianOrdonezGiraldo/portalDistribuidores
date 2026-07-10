@@ -12,6 +12,7 @@ use App\Modules\Shared\Enums\OrderStatus;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class DashboardDataService
 {
@@ -42,6 +43,7 @@ class DashboardDataService
                 'monthRangeLabel' => $monthlyMetrics['range_label'],
                 'currentMonthOrders' => $monthlyMetrics['current_orders'],
                 'latestCatalogUpdateAt' => $this->getLatestCatalogUpdateAt(),
+                'contapymeSync' => $this->getContapymeSyncStatus(),
             ];
         });
     }
@@ -234,6 +236,33 @@ class DashboardDataService
         $value = Product::query()->max('updated_at');
 
         return $value ? Carbon::parse($value) : null;
+    }
+
+    private function getContapymeSyncStatus(): array
+    {
+        $lastSyncAt = Product::query()->max('stock_synced_at');
+        $statusCounts = Product::query()
+            ->whereNotNull('stock_sync_status')
+            ->selectRaw('stock_sync_status, COUNT(*) as total')
+            ->groupBy('stock_sync_status')
+            ->pluck('total', 'stock_sync_status');
+
+        $totalManaged = Product::query()
+            ->whereNotNull('stock_sync_status')
+            ->count();
+
+        $synced = (int) ($statusCounts['synced'] ?? 0);
+        $failed = (int) ($statusCounts['failed'] ?? 0);
+        $missing = (int) ($statusCounts['missing_contapyme'] ?? 0);
+
+        return [
+            'last_sync_at' => $lastSyncAt ? Carbon::parse($lastSyncAt) : null,
+            'total_managed' => $totalManaged,
+            'synced' => $synced,
+            'failed' => $failed,
+            'missing_contapyme' => $missing,
+            'healthy' => $totalManaged > 0 && $failed === 0 && $missing < $totalManaged * 0.5,
+        ];
     }
 
     private function formatTrend(float|int $current, float|int $previous, string $suffix): string
