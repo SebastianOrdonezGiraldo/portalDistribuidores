@@ -8,10 +8,12 @@ use App\Modules\Catalog\Models\ProductAttribute;
 use App\Modules\Catalog\Models\ProductAttributeValue;
 use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Categories\Models\Category;
+use App\Modules\Inventory\Services\ContaPymeSyncState;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Barryvdh\DomPDF\PDF as DomPdfWrapper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Mockery;
 use Tests\TestCase;
 
@@ -579,5 +581,19 @@ class AdminProductsIndexTest extends TestCase
         $response->assertOk();
         $response->assertSee('Sincronizar stock ContaPyme');
         $response->assertSee(route('admin.contapyme.sync'));
+    }
+
+    public function test_products_page_shows_running_contapyme_sync_state(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Cache::flush();
+        app(ContaPymeSyncState::class)->queue();
+
+        $response = $this->actingAs($admin)
+            ->get('/admin/products');
+
+        $response->assertOk();
+        $response->assertSee('Sincronización en curso');
+        $response->assertSee('Sincronización ContaPyme encolada.');
     }
 }

@@ -111,7 +111,7 @@ class SyncContaPymeStock extends Command
                     $this->line('CONTAPYME_DETAIL: '.$inventory->lastError());
                 }
 
-                Log::channel('slack')->critical('ContaPyme sync: fallo la sincronizacion masiva', [
+                $this->logCritical('ContaPyme sync: fallo la sincronizacion masiva', [
                     'error' => $inventory->lastError(),
                     'active_products' => $simpleProducts->count(),
                 ]);
@@ -303,7 +303,7 @@ class SyncContaPymeStock extends Command
         ));
 
         if ($stats['failed'] > 0 || $stats['missing_contapyme'] > $stats['processed'] * 0.5) {
-            Log::channel('slack')->critical('ContaPyme sync: errores detectados', [
+            $this->logCritical('ContaPyme sync: errores detectados', [
                 'failed' => $stats['failed'],
                 'missing_contapyme' => $stats['missing_contapyme'],
                 'updated' => $stats['updated'],
@@ -313,5 +313,19 @@ class SyncContaPymeStock extends Command
         }
 
         return $exitCode;
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    private function logCritical(string $message, array $context): void
+    {
+        if (filled(config('logging.channels.slack.url'))) {
+            Log::channel('slack')->critical($message, $context);
+
+            return;
+        }
+
+        Log::critical($message, $context);
     }
 }
