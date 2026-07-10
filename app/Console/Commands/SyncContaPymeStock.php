@@ -150,13 +150,23 @@ class SyncContaPymeStock extends Command
                 $physicalStock = (float) $externalStockBySku->get((string) $product->sku);
             } else {
                 $physicalStock = 0.0;
-                $missingFromContaPyme = true;
-                $stats['missing_contapyme']++;
+                $missingFromContaPyme = ! $product->isStockManagedByContaPyme();
 
-                Log::warning('contapyme.sync_missing_sku', [
-                    'sku' => $product->sku,
-                    'product_id' => $product->id,
-                ]);
+                if ($product->isStockManagedByContaPyme()) {
+                    $stats['unchanged']++;
+
+                    Log::info('contapyme.sync_zero_stock_managed', [
+                        'sku' => $product->sku,
+                        'product_id' => $product->id,
+                    ]);
+                } else {
+                    $stats['missing_contapyme']++;
+
+                    Log::warning('contapyme.sync_missing_sku', [
+                        'sku' => $product->sku,
+                        'product_id' => $product->id,
+                    ]);
+                }
             }
 
             $availableStock = round(max(0, $physicalStock - $reservedStock), 2);
