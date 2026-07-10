@@ -152,6 +152,11 @@ class Product extends Model
         return $this->variants()->where('is_active', true)->exists();
     }
 
+    public function isStockManagedByContaPyme(): bool
+    {
+        return $this->stock_sync_status === 'synced' && $this->stock_synced_at !== null;
+    }
+
     /**
      * @return Collection<int, ProductVariant>
      */

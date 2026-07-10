@@ -341,6 +341,14 @@ View contract:
                             </td>
                             <td data-label="Stock">
                                 @if(! $hasActiveVariants)
+                                    @if($product->isStockManagedByContaPyme())
+                                        <div class="space-y-1">
+                                            <p class="font-semibold text-slate-800">{{ $formatStock($product->stock) }}</p>
+                                            <p class="text-xs text-slate-500" title="Actualizado desde ContaPyme">
+                                                Gestionado por ContaPyme
+                                            </p>
+                                        </div>
+                                    @else
                                     <form
                                         action="{{ route('admin.products.stock', $product) }}"
                                         method="POST"
@@ -380,6 +388,7 @@ View contract:
                                                 Actual: <span class="font-semibold text-slate-700">{{ $formatStock($product->stock) }}</span>
                                             </p>
                                         </form>
+                                    @endif
                                 @else
                                     <details class="rounded-xl border border-slate-200 bg-slate-50/70 p-2">
                                         <summary class="cursor-pointer text-xs font-semibold text-slate-700">
