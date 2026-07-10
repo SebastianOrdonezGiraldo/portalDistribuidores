@@ -5,6 +5,25 @@ View contract:
 - Owns: admin product listing, import summary display, filters, KPIs, and row actions.
 - Notes: filtering, import, duplication, media persistence, and authorization stay in ProductAdminController/actions/policies.
 --}}
+@php
+    $contapymeSyncStatus = $contapymeSyncStatus ?? null;
+    $contapymeSyncState = $contapymeSyncStatus['state'] ?? null;
+    $contapymeSyncIsRunning = in_array($contapymeSyncState, ['queued', 'running'], true);
+    $contapymeSyncVariant = match ($contapymeSyncState) {
+        'completed' => 'success',
+        'failed', 'blocked' => 'danger',
+        default => 'info',
+    };
+    $contapymeSyncTitle = match ($contapymeSyncState) {
+        'queued' => 'Sincronización en cola',
+        'running' => 'Sincronización en curso',
+        'completed' => 'Última sincronización completada',
+        'failed' => 'Última sincronización falló',
+        'blocked' => 'Sincronización bloqueada',
+        default => 'Sincronización ContaPyme',
+    };
+@endphp
+
 <x-app-layout>
     <x-slot name="header">
         <x-ui.page-header title="Catálogo de Productos" subtitle="Gestión de portafolio con filtros rápidos, disponibilidad y acceso a edición.">
@@ -19,10 +38,12 @@ View contract:
             </x-slot>
             <x-slot name="actions">
                 <div class="flex flex-wrap items-center gap-2">
-                    <form action="{{ route('admin.contapyme.sync') }}" method="POST"
-                          onsubmit="var btn=this.querySelector('button'); btn.disabled=true; btn.innerHTML='Sincronizando...'">
+                    <form action="{{ route('admin.contapyme.sync', $indexContextQuery) }}" method="POST"
+                          onsubmit="var btn=this.querySelector('button'); if (btn) { btn.disabled=true; btn.textContent='Encolando...' }">
                         @csrf
-                        <button type="submit" class="btn btn-secondary w-full justify-center sm:w-auto">Sincronizar stock ContaPyme</button>
+                        <button type="submit" class="btn btn-secondary w-full justify-center sm:w-auto" @disabled($contapymeSyncIsRunning)>
+                            {{ $contapymeSyncIsRunning ? 'Sincronización en curso' : 'Sincronizar stock ContaPyme' }}
+                        </button>
                     </form>
                     <a href="{{ route('admin.products.inventory.pdf', collect($indexContextQuery)->except('page')->all()) }}" class="btn btn-secondary w-full justify-center sm:w-auto">Descargar saldos PDF</a>
                     <a href="{{ route('admin.products.import.template') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Descargar plantilla CSV</a>
@@ -51,6 +72,15 @@ View contract:
     @elseif(session('error'))
         <x-ui.alert variant="danger" title="Sync falló" class="mb-4">
             <p>{{ session('error') }}</p>
+        </x-ui.alert>
+    @endif
+
+    @if($contapymeSyncStatus)
+        <x-ui.alert :variant="$contapymeSyncVariant" :title="$contapymeSyncTitle" class="mb-4">
+            <p>{{ $contapymeSyncStatus['message'] }}</p>
+            @if($contapymeSyncStatus['summary'])
+                <p class="mt-1 text-xs font-semibold">{{ $contapymeSyncStatus['summary'] }}</p>
+            @endif
         </x-ui.alert>
     @endif
 

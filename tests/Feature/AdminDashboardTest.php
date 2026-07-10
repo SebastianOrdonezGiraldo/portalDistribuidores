@@ -4,10 +4,13 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
+use App\Modules\Inventory\Jobs\SyncContaPymeStockJob;
+use App\Modules\Inventory\Services\ContaPymeSyncState;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Shared\Enums\OrderStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class AdminDashboardTest extends TestCase
@@ -81,23 +84,46 @@ class AdminDashboardTest extends TestCase
     public function test_admin_can_trigger_sync(): void
     {
         $admin = User::factory()->admin()->create();
+        Cache::flush();
+        Queue::fake();
+        config(['contapyme.enabled' => true]);
 
         $response = $this->actingAs($admin)
-            ->post('/admin/stock/sync');
+            ->post('/admin/stock/sync?status=active&page=2');
 
-        $response->assertRedirect('/admin');
-        $response->assertSessionHas('success');
+        $response->assertRedirect('/admin/products?status=active&page=2');
+        $response->assertSessionHas('success', fn (string $message) => str_contains($message, 'encolada'));
+        Queue::assertPushed(SyncContaPymeStockJob::class);
+        $this->assertSame('queued', app(ContaPymeSyncState::class)->status()['state']);
+    }
+
+    public function test_sync_endpoint_blocks_dispatch_when_contapyme_is_disabled(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Cache::flush();
+        Queue::fake();
+        config(['contapyme.enabled' => false]);
+
+        $response = $this->actingAs($admin)
+            ->post('/admin/stock/sync?status=active');
+
+        $response->assertRedirect('/admin/products?status=active');
+        $response->assertSessionHas('error', fn (string $message) => str_contains($message, 'deshabilitada'));
+        Queue::assertNothingPushed();
+        $this->assertSame('blocked', app(ContaPymeSyncState::class)->status()['state']);
     }
 
     public function test_sync_mutex_prevents_concurrent_runs(): void
     {
         $admin = User::factory()->admin()->create();
-        Cache::set('contapyme_sync_running', true, 600);
+        Cache::flush();
+        config(['contapyme.enabled' => true]);
+        app(ContaPymeSyncState::class)->queue();
 
         $response = $this->actingAs($admin)
             ->post('/admin/stock/sync');
 
-        $response->assertRedirect('/admin');
+        $response->assertRedirect('/admin/products');
         $response->assertSessionHas('error', fn (string $msg) => str_contains($msg, 'Ya hay una sincronización en curso'));
     }
 

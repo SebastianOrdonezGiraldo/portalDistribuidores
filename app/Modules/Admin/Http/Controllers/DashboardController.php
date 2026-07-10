@@ -4,17 +4,15 @@ namespace App\Modules\Admin\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Admin\Services\DashboardDataService;
+use App\Modules\Inventory\Jobs\SyncContaPymeStockJob;
+use App\Modules\Inventory\Services\ContaPymeSyncState;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    private const SYNC_MUTEX_KEY = 'contapyme_sync_running';
-
-    private const SYNC_MUTEX_TTL = 600;
-
     public function __construct(
         private readonly DashboardDataService $dashboardData,
     ) {}
@@ -29,11 +27,11 @@ class DashboardController extends Controller
      * @response 200 {"content":"Vista HTML con KPIs administrativos"}
      * @response 403 {"message":"No autorizado"}
      */
-    public function __invoke(): View
+    public function __invoke(ContaPymeSyncState $syncState): View
     {
         return view('admin.dashboard', array_merge(
             $this->dashboardData->getData(),
-            ['syncRunning' => Cache::has(self::SYNC_MUTEX_KEY)],
+            ['syncRunning' => $syncState->isRunning()],
         ));
     }
 
@@ -44,40 +42,49 @@ class DashboardController extends Controller
      *
      * @authenticated
      */
-    public function syncStock(): RedirectResponse
+    public function syncStock(Request $request, ContaPymeSyncState $syncState): RedirectResponse
     {
-        if (Cache::has(self::SYNC_MUTEX_KEY)) {
-            return redirect()
-                ->route('admin.dashboard')
+        if ($syncState->isRunning()) {
+            return $this->redirectToProducts($request)
                 ->with('error', 'Ya hay una sincronización en curso. Espera a que termine.');
         }
 
-        Cache::set(self::SYNC_MUTEX_KEY, true, self::SYNC_MUTEX_TTL);
+        if (! (bool) config('contapyme.enabled')) {
+            $message = 'La sincronización ContaPyme está deshabilitada en este entorno.';
+            $syncState->block($message);
+
+            return $this->redirectToProducts($request)->with('error', $message);
+        }
+
+        if (! $syncState->queue()) {
+            return $this->redirectToProducts($request)
+                ->with('error', 'Ya hay una sincronización en curso. Espera a que termine.');
+        }
 
         try {
-            set_time_limit(120);
-
-            $exitCode = Artisan::call('contapyme:sync-stock');
-            $output = Artisan::output();
-            $lastLine = last(array_filter(explode("\n", trim($output))));
-
-            Cache::forget('admin.dashboard.metrics');
-
-            if ($exitCode === 0) {
-                return redirect()
-                    ->route('admin.dashboard')
-                    ->with('success', 'Sincronización ContaPyme completada. '.$lastLine);
-            }
-
-            return redirect()
-                ->route('admin.dashboard')
-                ->with('error', 'Error en ContaPyme: '.$lastLine);
+            Bus::dispatch(new SyncContaPymeStockJob);
         } catch (\Throwable $e) {
-            return redirect()
-                ->route('admin.dashboard')
-                ->with('error', 'Error inesperado: '.$e->getMessage());
-        } finally {
-            Cache::forget(self::SYNC_MUTEX_KEY);
+            $syncState->fail('No fue posible encolar la sincronización ContaPyme.');
+
+            return $this->redirectToProducts($request)
+                ->with('error', 'No fue posible encolar la sincronización ContaPyme.');
         }
+
+        return $this->redirectToProducts($request)
+            ->with('success', 'Sincronización ContaPyme encolada. El resultado aparecerá al recargar el catálogo.');
+    }
+
+    private function redirectToProducts(Request $request): RedirectResponse
+    {
+        return redirect()->route('admin.products.index', $request->only([
+            'q',
+            'category_id',
+            'status',
+            'media',
+            'stock',
+            'sort',
+            'per_page',
+            'page',
+        ]));
     }
 }
