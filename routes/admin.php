@@ -15,6 +15,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])
     ->name('admin.')
     ->group(function () {
         Route::get('/', DashboardController::class)->name('dashboard');
+        Route::post('stock/sync', [DashboardController::class, 'syncStock'])->name('contapyme.sync');
 
         Route::patch('categories/{category}/status', [CategoryAdminController::class, 'setStatus'])->name('categories.status');
         Route::resource('categories', CategoryAdminController::class)->except('show');
