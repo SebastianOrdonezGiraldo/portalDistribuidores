@@ -128,7 +128,48 @@ class SyncContaPymeStock extends Command
 
         foreach ($simpleProducts as $product) {
             $reservedStock = (float) ($reservations->get($product->id) ?? 0.0);
-            $missingFromContaPyme = false;
+            $hasBulkStock = $sku === '' && $externalStockBySku->has((string) $product->sku);
+
+            if ($sku !== '' || ! $hasBulkStock) {
+                $exists = $inventory->productExists((string) $product->sku);
+
+                if ($exists === null) {
+                    $stats['failed']++;
+
+                    Log::error('contapyme.sync_product_existence_failed', [
+                        'sku' => $product->sku,
+                        'product_id' => $product->id,
+                        'error' => $inventory->lastError(),
+                    ]);
+
+                    $this->line(($dryRun ? 'DRY_FAIL' : 'FAILED')." {$product->sku}");
+
+                    continue;
+                }
+
+                if (! $exists) {
+                    $stats['missing_contapyme']++;
+                    $stats['unchanged']++;
+                    $localStock = is_numeric($product->stock) ? (float) $product->stock : 0.0;
+
+                    Log::warning('contapyme.sync_missing_sku', [
+                        'sku' => $product->sku,
+                        'product_id' => $product->id,
+                        'local_stock' => $localStock,
+                    ]);
+
+                    if ($dryRun) {
+                        $this->line("DRY_MISSING {$product->sku} local_stock={$localStock} stock_preserved");
+
+                        continue;
+                    }
+
+                    $inventory->markProductMissingInContaPyme($product);
+                    $this->line("MISSING_CONTAPYME {$product->sku} stock={$localStock}");
+
+                    continue;
+                }
+            }
 
             if ($sku !== '') {
                 $info = $inventory->getProductInfo((string) $product->sku);
@@ -136,44 +177,27 @@ class SyncContaPymeStock extends Command
                 if ($info?->stock === null) {
                     $stats['failed']++;
 
-                    if (! $dryRun) {
-                        $product->forceFill(['stock_sync_status' => 'failed'])->save();
-                    }
-
                     $this->line(($dryRun ? 'DRY_FAIL' : 'FAILED')." {$product->sku}");
 
                     continue;
                 }
 
                 $physicalStock = $info->stock;
-            } elseif ($externalStockBySku->has((string) $product->sku)) {
+            } elseif ($hasBulkStock) {
                 $physicalStock = (float) $externalStockBySku->get((string) $product->sku);
             } else {
                 $physicalStock = 0.0;
-                $missingFromContaPyme = ! $product->isStockManagedByContaPyme();
 
-                if ($product->isStockManagedByContaPyme()) {
-                    $stats['unchanged']++;
-
-                    Log::info('contapyme.sync_zero_stock_managed', [
-                        'sku' => $product->sku,
-                        'product_id' => $product->id,
-                    ]);
-                } else {
-                    $stats['missing_contapyme']++;
-
-                    Log::warning('contapyme.sync_missing_sku', [
-                        'sku' => $product->sku,
-                        'product_id' => $product->id,
-                    ]);
-                }
+                Log::info('contapyme.sync_zero_stock_verified', [
+                    'sku' => $product->sku,
+                    'product_id' => $product->id,
+                ]);
             }
 
             $availableStock = round(max(0, $physicalStock - $reservedStock), 2);
 
             if ($dryRun) {
-                $label = $missingFromContaPyme ? 'DRY_MISSING' : 'DRY_OK';
-                $this->line("{$label} {$product->sku} physical={$physicalStock} reserved={$reservedStock} available={$availableStock}");
+                $this->line("DRY_OK {$product->sku} physical={$physicalStock} reserved={$reservedStock} available={$availableStock}");
 
                 if (! is_numeric($product->stock) || abs((float) $product->stock - $availableStock) > 0.00001) {
                     $stats['updated']++;
@@ -188,7 +212,7 @@ class SyncContaPymeStock extends Command
                 product: $product,
                 physicalStock: $physicalStock,
                 reservedStock: $reservedStock,
-                syncStatus: $missingFromContaPyme ? 'missing_contapyme' : 'synced',
+                syncStatus: 'synced',
             );
             $status = $result['status'];
 

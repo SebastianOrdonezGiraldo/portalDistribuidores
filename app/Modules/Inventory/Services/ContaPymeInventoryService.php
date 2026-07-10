@@ -92,7 +92,57 @@ class ContaPymeInventoryService implements InventorySyncInterface
     }
 
     /**
+     * Verify that an inventory item exists independently from its physical balance.
+     */
+    public function productExists(string $sku): ?bool
+    {
+        $this->lastError = null;
+        $sku = trim($sku);
+
+        if ($sku === '') {
+            $this->lastError = 'No se puede validar un SKU vacio en ContaPyme.';
+
+            return null;
+        }
+
+        try {
+            $data = $this->callWithRetry(
+                serverClass: 'TCatElemInv',
+                function: 'GetExisteElemInv',
+                dataJson: ['irecurso' => $sku],
+            );
+        } catch (\Throwable $e) {
+            $this->lastError = $this->sanitizeErrorMessage($e->getMessage());
+
+            Log::error('contapyme.product_exists_failed', [
+                'sku' => $sku,
+                'error' => $this->lastError,
+            ]);
+
+            return null;
+        }
+
+        $exists = $this->normalizeBoolean(data_get($data, 'existe'));
+
+        if ($exists !== null) {
+            return $exists;
+        }
+
+        $this->lastError = 'ContaPyme no devolvio una confirmacion de existencia valida.';
+
+        Log::error('contapyme.product_exists_invalid_response', [
+            'sku' => $sku,
+            'data_type' => get_debug_type($data),
+        ]);
+
+        return null;
+    }
+
+    /**
      * Fetch the physical stock for one portal SKU in the configured warehouse.
+     *
+     * The endpoint can return no rows when physical balance is zero. Use
+     * productExists() when the caller also needs to establish SKU identity.
      */
     public function getProductInfo(string $sku): ?InventoryItemData
     {
@@ -234,18 +284,20 @@ class ContaPymeInventoryService implements InventorySyncInterface
      */
     public function syncProduct(Product $product): array
     {
+        $exists = $this->productExists((string) $product->sku);
+
+        if ($exists === null) {
+            return $this->failedSyncResult($product);
+        }
+
+        if (! $exists) {
+            return $this->markProductMissingInContaPyme($product);
+        }
+
         $info = $this->getProductInfo((string) $product->sku);
 
         if ($info === null || $info->stock === null) {
-            $product->forceFill([
-                'stock_sync_status' => 'failed',
-            ])->save();
-
-            return [
-                'status' => 'failed',
-                'changed' => false,
-                'stock' => is_numeric($product->stock) ? (float) $product->stock : null,
-            ];
+            return $this->failedSyncResult($product);
         }
 
         return $this->syncProductFromPhysicalStock(
@@ -253,6 +305,38 @@ class ContaPymeInventoryService implements InventorySyncInterface
             physicalStock: $info->stock,
             reservedStock: $this->reservedQuantityForProduct((int) $product->id),
         );
+    }
+
+    /**
+     * Preserve local availability for a SKU that ContaPyme explicitly does not know.
+     *
+     * @return array{status:string, changed:bool, stock:float|null}
+     */
+    public function markProductMissingInContaPyme(Product $product): array
+    {
+        $stock = is_numeric($product->stock) ? (float) $product->stock : null;
+
+        DB::transaction(function () use ($product): void {
+            $lockedProduct = Product::query()
+                ->whereKey($product->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($lockedProduct->stock_sync_status === 'missing_contapyme' && $lockedProduct->stock_synced_at === null) {
+                return;
+            }
+
+            $lockedProduct->forceFill([
+                'stock_sync_status' => 'missing_contapyme',
+                'stock_synced_at' => null,
+            ])->save();
+        });
+
+        return [
+            'status' => 'missing_contapyme',
+            'changed' => false,
+            'stock' => $stock,
+        ];
     }
 
     /**
@@ -529,6 +613,35 @@ class ContaPymeInventoryService implements InventorySyncInterface
         }
 
         return null;
+    }
+
+    private function normalizeBoolean(mixed $value): ?bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (! is_string($value) && ! is_int($value)) {
+            return null;
+        }
+
+        return match (strtolower(trim((string) $value))) {
+            'true', '1' => true,
+            'false', '0' => false,
+            default => null,
+        };
+    }
+
+    /**
+     * @return array{status:string, changed:bool, stock:float|null}
+     */
+    private function failedSyncResult(Product $product): array
+    {
+        return [
+            'status' => 'failed',
+            'changed' => false,
+            'stock' => is_numeric($product->stock) ? (float) $product->stock : null,
+        ];
     }
 
     private function functionUrl(string $serverClass, string $function): string
