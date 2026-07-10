@@ -118,6 +118,7 @@ class ProductAdminController extends Controller
             'metrics' => $metrics,
             'activeFiltersCount' => $activeFiltersCount,
             'contapymeSyncStatus' => $syncState->status(),
+            'contapymeSyncAvailability' => $syncState->availability(),
         ]);
     }
 

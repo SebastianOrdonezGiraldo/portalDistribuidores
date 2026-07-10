@@ -574,6 +574,8 @@ class AdminProductsIndexTest extends TestCase
     public function test_products_page_shows_contapyme_sync_button(): void
     {
         $admin = User::factory()->admin()->create();
+        Cache::flush();
+        config(['contapyme.enabled' => true]);
 
         $response = $this->actingAs($admin)
             ->get('/admin/products');
@@ -587,6 +589,7 @@ class AdminProductsIndexTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
         Cache::flush();
+        config(['contapyme.enabled' => true]);
         app(ContaPymeSyncState::class)->queue();
 
         $response = $this->actingAs($admin)
@@ -595,5 +598,98 @@ class AdminProductsIndexTest extends TestCase
         $response->assertOk();
         $response->assertSee('Sincronización en curso');
         $response->assertSee('Sincronización ContaPyme encolada.');
+        $this->assertMatchesRegularExpression(
+            '/<button[^>]*data-contapyme-sync-button[^>]*disabled/',
+            $response->getContent(),
+        );
+    }
+
+    public function test_products_page_disables_contapyme_sync_during_cooldown(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Cache::flush();
+        config(['contapyme.enabled' => true]);
+
+        $state = app(ContaPymeSyncState::class);
+        $state->queue();
+        $state->complete('Sincronización completada.');
+
+        $response = $this->actingAs($admin)
+            ->get('/admin/products');
+
+        $response->assertOk();
+        $response->assertSee('Disponible en');
+        $response->assertSee('Sincronización ContaPyme completada.');
+        $this->assertMatchesRegularExpression(
+            '/<button[^>]*data-contapyme-sync-button[^>]*disabled/',
+            $response->getContent(),
+        );
+    }
+
+    public function test_products_page_disables_contapyme_sync_after_a_failed_job(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Cache::flush();
+        config(['contapyme.enabled' => true]);
+
+        $state = app(ContaPymeSyncState::class);
+        $state->queue();
+        $state->fail('App\\Modules\\Inventory\\Jobs\\SyncContaPymeStockJob has been attempted too many times.');
+
+        $response = $this->actingAs($admin)
+            ->get('/admin/products');
+
+        $response->assertOk();
+        $response->assertSee('Última sincronización falló');
+        $response->assertSee('has been attempted too many times');
+        $this->assertMatchesRegularExpression(
+            '/<button[^>]*data-contapyme-sync-button[^>]*disabled/',
+            $response->getContent(),
+        );
+    }
+
+    public function test_products_page_disables_contapyme_sync_when_it_is_disabled(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Cache::flush();
+        config(['contapyme.enabled' => false]);
+
+        $response = $this->actingAs($admin)
+            ->get('/admin/products');
+
+        $response->assertOk();
+        $response->assertSee('La sincronización ContaPyme está deshabilitada en este entorno.');
+        $this->assertMatchesRegularExpression(
+            '/<button[^>]*data-contapyme-sync-button[^>]*disabled/',
+            $response->getContent(),
+        );
+    }
+
+    public function test_products_page_reenables_contapyme_sync_after_the_cooldown_expires(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Cache::flush();
+        config(['contapyme.enabled' => true]);
+        Carbon::setTestNow('2026-07-10 10:00:00');
+
+        try {
+            $state = app(ContaPymeSyncState::class);
+            $state->queue();
+            $state->complete('Sincronización completada.');
+
+            Carbon::setTestNow('2026-07-10 10:12:01');
+
+            $response = $this->actingAs($admin)
+                ->get('/admin/products');
+
+            $response->assertOk();
+            $this->assertDoesNotMatchRegularExpression(
+                '/<button[^>]*data-contapyme-sync-button[^>]*disabled/',
+                $response->getContent(),
+            );
+            $response->assertSee('Sincronizar stock ContaPyme');
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 }
