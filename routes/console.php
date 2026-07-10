@@ -6,8 +6,8 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schedule;
 
 Schedule::command('contapyme:sync-stock')
-    ->everyMinute()
-    ->withoutOverlapping(5)
+    ->everyFiveMinutes()
+    ->withoutOverlapping(10)
     ->appendOutputTo(storage_path('logs/contapyme-stock-sync.log'));
 
 Artisan::command('inspire', function () {

@@ -111,6 +111,11 @@ class SyncContaPymeStock extends Command
                     $this->line('CONTAPYME_DETAIL: '.$inventory->lastError());
                 }
 
+                Log::channel('slack')->critical('ContaPyme sync: fallo la sincronizacion masiva', [
+                    'error' => $inventory->lastError(),
+                    'active_products' => $simpleProducts->count(),
+                ]);
+
                 $stats['failed'] = $simpleProducts->count();
 
                 return $this->finish($stats, self::FAILURE);
@@ -262,6 +267,16 @@ class SyncContaPymeStock extends Command
             $stats['skipped_variants'],
             $stats['failed'],
         ));
+
+        if ($stats['failed'] > 0 || $stats['missing_contapyme'] > $stats['processed'] * 0.5) {
+            Log::channel('slack')->critical('ContaPyme sync: errores detectados', [
+                'failed' => $stats['failed'],
+                'missing_contapyme' => $stats['missing_contapyme'],
+                'updated' => $stats['updated'],
+                'processed' => $stats['processed'],
+                'exit_code' => $exitCode,
+            ]);
+        }
 
         return $exitCode;
     }
