@@ -101,7 +101,7 @@ class AdminDashboardTest extends TestCase
         $response->assertSessionHas('error', fn (string $msg) => str_contains($msg, 'Ya hay una sincronización en curso'));
     }
 
-    public function test_dashboard_shows_sync_button(): void
+    public function test_dashboard_shows_contapyme_stats(): void
     {
         $admin = User::factory()->admin()->create();
 
@@ -109,19 +109,9 @@ class AdminDashboardTest extends TestCase
             ->get('/admin');
 
         $response->assertOk();
-        $response->assertSee('Sincronizar ahora');
         $response->assertSee('Sincronización ContaPyme');
-    }
-
-    public function test_dashboard_shows_sync_running_state(): void
-    {
-        $admin = User::factory()->admin()->create();
-        Cache::set('contapyme_sync_running', true, 600);
-
-        $response = $this->actingAs($admin)
-            ->get('/admin');
-
-        $response->assertOk();
-        $response->assertSee('Sincronizando...');
+        $response->assertSee('Estado');
+        $response->assertSee('Última sincronización');
+        $response->assertSee('Sincronizados');
     }
 }

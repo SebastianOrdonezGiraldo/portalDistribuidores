@@ -115,27 +115,7 @@
             </div>
 
             <div class="mt-4 border-t border-slate-200 pt-4">
-                <div class="flex items-center justify-between gap-2">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Sincronización ContaPyme</p>
-                    <form action="{{ route('admin.contapyme.sync') }}" method="POST"
-                          onsubmit="var btn=this.querySelector('button'); btn.disabled=true; btn.innerHTML='Sincronizando...'">
-                        @csrf
-                        <button type="submit" class="btn btn-ghost !px-2 !py-1 text-xs" {{ $syncRunning ? 'disabled' : '' }}>
-                            {{ $syncRunning ? 'Sincronizando...' : 'Sincronizar ahora' }}
-                        </button>
-                    </form>
-                </div>
-
-                @if(session('success'))
-                    <x-ui.alert variant="success" title="Sync completado" class="mt-2">
-                        <p>{{ session('success') }}</p>
-                    </x-ui.alert>
-                @elseif(session('error'))
-                    <x-ui.alert variant="danger" title="Sync falló" class="mt-2">
-                        <p>{{ session('error') }}</p>
-                    </x-ui.alert>
-                @endif
-
+                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Sincronización ContaPyme</p>
                 <div class="mt-2 grid gap-2 sm:grid-cols-4">
                     <div class="stat-chip">
                         <div>

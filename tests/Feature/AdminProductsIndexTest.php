@@ -568,4 +568,16 @@ class AdminProductsIndexTest extends TestCase
             'page' => 2,
         ]));
     }
+
+    public function test_products_page_shows_contapyme_sync_button(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $response = $this->actingAs($admin)
+            ->get('/admin/products');
+
+        $response->assertOk();
+        $response->assertSee('Sincronizar stock ContaPyme');
+        $response->assertSee(route('admin.contapyme.sync'));
+    }
 }
