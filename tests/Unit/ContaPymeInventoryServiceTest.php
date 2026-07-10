@@ -74,6 +74,76 @@ class ContaPymeInventoryServiceTest extends TestCase
         });
     }
 
+    public function test_list_products_normalizes_bulk_stock_for_the_configured_warehouse(): void
+    {
+        Http::fakeSequence()
+            ->push($this->successResponse(['keyagente' => 'TOKEN-123']))
+            ->push($this->successResponse([
+                'listaproductos' => [
+                    [
+                        'irecurso' => 'TENS7000',
+                        'listabodegas' => [
+                            ['iinventario' => '1', 'qinvfisico' => '39'],
+                            ['iinventario' => '2', 'qinvfisico' => '99'],
+                        ],
+                    ],
+                    [
+                        'irecurso' => 'NO-STOCK-IN-ONE',
+                        'listabodegas' => [
+                            ['iinventario' => '2', 'qinvfisico' => '12'],
+                        ],
+                    ],
+                ],
+            ]));
+
+        $items = (new ContaPymeInventoryService)
+            ->listProducts()
+            ->keyBy('sku');
+
+        $this->assertSame(39.0, $items->get('TENS7000')?->stock);
+        $this->assertSame(0.0, $items->get('NO-STOCK-IN-ONE')?->stock);
+
+        Http::assertSent(function ($request): bool {
+            if (! str_contains($request->url(), '/TCatElemInv/GetSaldosProductosEnBodegas')) {
+                return false;
+            }
+
+            $dataJson = json_decode((string) $request->data()['_parameters'][0], true);
+
+            return $dataJson['binventariofisico'] === 'T'
+                && $request->data()['_parameters'][1] === 'TOKEN-123';
+        });
+    }
+
+    public function test_list_products_refreshes_the_token_after_a_not_logged_in_response(): void
+    {
+        Http::fakeSequence()
+            ->push($this->successResponse(['keyagente' => 'TOKEN-OLD']))
+            ->push($this->failedResponse('Usuario no logueado'))
+            ->push($this->successResponse(['keyagente' => 'TOKEN-NEW']))
+            ->push($this->successResponse([
+                'listaproductos' => [[
+                    'irecurso' => 'TENS7000',
+                    'listabodegas' => [['iinventario' => '1', 'qinvfisico' => '39']],
+                ]],
+            ]));
+
+        $service = new ContaPymeInventoryService;
+        $items = $service->listProducts();
+
+        $this->assertCount(1, $items);
+        $this->assertSame(39.0, $items->first()?->stock);
+        $this->assertNull($service->lastError());
+        Http::assertSentCount(4);
+        Http::assertSent(function ($request): bool {
+            if (! str_contains($request->url(), '/TCatElemInv/GetSaldosProductosEnBodegas')) {
+                return false;
+            }
+
+            return $request->data()['_parameters'][1] === 'TOKEN-NEW';
+        });
+    }
+
     public function test_sync_product_stock_updates_local_stock_and_records_movement(): void
     {
         Http::fakeSequence()
