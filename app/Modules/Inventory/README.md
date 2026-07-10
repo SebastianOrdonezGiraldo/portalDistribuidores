@@ -3,7 +3,8 @@
 ## Proposito
 
 Registra movimientos de stock y conserva el adaptador de sincronizacion externa
-por contrato. El stock operativo actual se administra desde el portal.
+por contrato. ContaPyme es la fuente del stock fisico para productos simples;
+el portal conserva disponibilidad local rapida en `products.stock`.
 
 ## Responsabilidades
 
@@ -11,7 +12,10 @@ por contrato. El stock operativo actual se administra desde el portal.
 - Proveer un adaptador `ContaPymeInventoryService` detras de
   `InventorySyncInterface`.
 - Normalizar datos externos de inventario hacia `InventoryItemData`.
-- Permitir sincronizacion puntual por SKU cuando se use el contrato.
+- Sincronizar masivamente desde `GetSaldosProductosEnBodegas` para evitar una
+  llamada remota por SKU.
+- Permitir sincronizacion puntual por SKU mediante
+  `GetSaldoFisicoProductoEnBodegas` para diagnostico y compatibilidad.
 
 ## No debe contener
 
@@ -41,7 +45,16 @@ por contrato. El stock operativo actual se administra desde el portal.
 
 ## Notas actuales
 
-- El flujo principal es portal-owned/manual: `ProductStockService` y
-  `OrderInventoryService` actualizan stock local y registran movimientos.
+- `products.stock` es disponibilidad: stock fisico de la bodega configurada
+  menos cantidades de pedidos en `submitted`, `sold`, `dispatched` y
+  `delivered`.
+- `OrderInventoryService` conserva la deduccion/restauracion inmediata para
+  que una orden afecte disponibilidad entre dos sincronizaciones. El sync
+  masivo recalcula ese valor desde ContaPyme y las reservas activas.
+- Las variantes activas son una anomalia de catalogo para esta integracion y se
+  marcan como `skipped_variants`; no se sincronizan.
+- La bodega se fija con `CONTAPYME_BODEGA_ID`. Se aceptan los aliases
+  `CONTAPYME_WAREHOUSE`, `CONTAPYME_BASE_URL` y `CONTAPYME_PASSWORD_HASH`, pero
+  `.env.example` recomienda `CONTAPYME_URL` y `CONTAPYME_PASSWORD_MD5`.
 - Hay carpetas residuales vacias bajo este modulo; no las uses como evidencia de
   funcionalidades activas.

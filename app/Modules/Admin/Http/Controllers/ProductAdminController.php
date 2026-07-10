@@ -28,6 +28,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Throwable;
 
@@ -286,6 +287,8 @@ class ProductAdminController extends Controller
         AddVideoAction $addVideoAction,
     ): RedirectResponse {
         $this->authorize('update', $product);
+
+        $this->assertContaPymeStockWasNotSubmitted($request, $product);
 
         $productPayload = $this->extractProductPayload($request);
         $validatedPayload = $request->validated();
@@ -704,6 +707,21 @@ class ProductAdminController extends Controller
         }
 
         return $payload;
+    }
+
+    private function assertContaPymeStockWasNotSubmitted(UpdateProductRequest $request, Product $product): void
+    {
+        if (! $product->isStockManagedByContaPyme()) {
+            return;
+        }
+
+        if (! $request->has('stock') && ! $request->boolean('has_variants') && ! $request->has('variants')) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'stock' => 'El stock de este producto es administrado por ContaPyme.',
+        ]);
     }
 
     /**

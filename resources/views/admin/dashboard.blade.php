@@ -113,6 +113,46 @@
                     </a>
                 @endforeach
             </div>
+
+            <div class="mt-4 border-t border-slate-200 pt-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Sincronización ContaPyme</p>
+                <div class="mt-2 grid gap-2 sm:grid-cols-4">
+                    <div class="stat-chip">
+                        <div>
+                            <p class="stat-chip-label">Estado</p>
+                            <p class="stat-chip-hint">{{ $contapymeSync['healthy'] ? 'Funcionando correctamente' : 'Requiere atención' }}</p>
+                        </div>
+                        <p class="stat-chip-value">
+                            @if($contapymeSync['healthy'])
+                                <span class="text-emerald-600">✓</span>
+                            @else
+                                <span class="text-red-600">⚠</span>
+                            @endif
+                        </p>
+                    </div>
+                    <div class="stat-chip">
+                        <div>
+                            <p class="stat-chip-label">Última sincronización</p>
+                            <p class="stat-chip-hint">{{ $contapymeSync['last_sync_at']?->diffForHumans() ?? 'Nunca' }}</p>
+                        </div>
+                        <p class="stat-chip-value">{{ $contapymeSync['total_managed'] }}</p>
+                    </div>
+                    <div class="stat-chip">
+                        <div>
+                            <p class="stat-chip-label">Sincronizados</p>
+                            <p class="stat-chip-hint">Stock actualizado desde ContaPyme</p>
+                        </div>
+                        <p class="stat-chip-value text-emerald-600">{{ $contapymeSync['synced'] }}</p>
+                    </div>
+                    <div class="stat-chip">
+                        <div>
+                            <p class="stat-chip-label">Con errores</p>
+                            <p class="stat-chip-hint">Sin stock en ContaPyme o fallo de conexión</p>
+                        </div>
+                        <p class="stat-chip-value {{ $contapymeSync['failed'] + $contapymeSync['missing_contapyme'] > 0 ? 'text-red-600' : '' }}">{{ $contapymeSync['failed'] + $contapymeSync['missing_contapyme'] }}</p>
+                    </div>
+                </div>
+            </div>
         </x-ui.card>
     </section>
 
@@ -201,6 +241,13 @@
                             </x-ui.alert>
                         @endforelse
                     </div>
+
+                    @if(!$contapymeSync['healthy'])
+                        <x-ui.alert variant="danger" title="Sincronización ContaPyme">
+                            <p>{{ $contapymeSync['failed'] }} productos con error de conexión y {{ $contapymeSync['missing_contapyme'] }} sin stock en ContaPyme.</p>
+                            <p class="mt-1 text-xs font-semibold">Última sincronización: {{ $contapymeSync['last_sync_at']?->diffForHumans() ?? 'Nunca' }}</p>
+                        </x-ui.alert>
+                    @endif
 
                     <div class="mt-4 border-t border-slate-200 pt-4">
                         <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Estado clave</p>

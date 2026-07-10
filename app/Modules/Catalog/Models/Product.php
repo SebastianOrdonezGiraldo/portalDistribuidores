@@ -45,6 +45,8 @@ class Product extends Model
         'variant_attribute_id',
         'price',
         'stock',
+        'stock_synced_at',
+        'stock_sync_status',
         'is_active',
         'is_vat_excluded',
     ];
@@ -56,6 +58,7 @@ class Product extends Model
             'is_vat_excluded' => 'boolean',
             'price' => 'decimal:2',
             'stock' => 'decimal:2',
+            'stock_synced_at' => 'datetime',
         ];
     }
 
@@ -147,6 +150,11 @@ class Product extends Model
         }
 
         return $this->variants()->where('is_active', true)->exists();
+    }
+
+    public function isStockManagedByContaPyme(): bool
+    {
+        return $this->stock_sync_status === 'synced' && $this->stock_synced_at !== null;
     }
 
     /**

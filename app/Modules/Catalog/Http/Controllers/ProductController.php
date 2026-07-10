@@ -7,11 +7,13 @@ use App\Modules\Catalog\Models\Product;
 use App\Modules\Categories\Queries\CategoryBreadcrumbsQuery;
 use App\Modules\Documents\Services\TechSheetDownloadService;
 use App\Modules\Orders\Support\OrderLineVat;
+use App\Modules\Shared\Contracts\InventorySyncInterface;
 use App\Modules\Shared\Enums\DocumentType;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -42,6 +44,7 @@ class ProductController extends Controller
         Product $product,
         CategoryBreadcrumbsQuery $breadcrumbsQuery,
         TechSheetDownloadService $downloadService,
+        InventorySyncInterface $inventory,
     ): View|JsonResponse {
         $queryState = $this->resolveQueryState($request);
 
@@ -56,6 +59,17 @@ class ProductController extends Controller
         $remainingDownloads = null;
         $techSheetMonthlyLimit = $downloadService->monthlyLimit();
         $commercialSnapshot = $this->buildCommercialSnapshot($product);
+
+        $contapymeStock = $this->resolveContapymeStock($inventory, $product);
+
+        if ($contapymeStock !== null) {
+            $commercialSnapshot['stock'] = $contapymeStock;
+            $commercialSnapshot['availability'] = $this->availabilityStatus(
+                $product->is_active,
+                $contapymeStock,
+                $commercialSnapshot['minMultiple'],
+            );
+        }
         $relatedProducts = $this->relatedProducts($product, $queryState);
         $alternativeProducts = $this->alternativeProducts($product, $queryState);
 
@@ -202,6 +216,21 @@ class ProductController extends Controller
             'manual', 'invima', 'quickGuide', 'calibrationDocument', 'productVideo', 'secondaryDocuments', 'documentTypeLabels',
             'specRows', 'sections',
         );
+    }
+
+    private function resolveContapymeStock(InventorySyncInterface $inventory, Product $product): ?float
+    {
+        $sku = $product->sku;
+
+        if ($sku === '' || $product->hasConfigurableVariants()) {
+            return null;
+        }
+
+        $cacheKey = 'contapyme_ondemand_stock_'.$sku;
+
+        return Cache::remember($cacheKey, 30, function () use ($inventory, $sku): ?float {
+            return $inventory->getProductInfo($sku)?->stock;
+        });
     }
 
     /**

@@ -9,6 +9,7 @@ View contract:
     {{-- Form state normalizes old input, existing product data, variants, and upload limits for create/edit mode. --}}
     @php
         $isEdit = $product->exists;
+        $isContaPymeStockManaged = $isEdit && $product->isStockManagedByContaPyme();
         $indexContextQuery = $indexContextQuery ?? [];
         $isActiveRaw = old('is_active', $product->is_active ?? true);
         $isActiveChecked = filter_var($isActiveRaw, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
@@ -44,6 +45,9 @@ View contract:
                     @if($isEdit)
                         <span class="stat-pill">Última edición: {{ $product->updated_at?->diffForHumans() }}</span>
                         <span class="stat-pill">Activo: {{ ($isActiveChecked ?? false) ? 'Sí' : 'No' }}</span>
+                        @if($isContaPymeStockManaged)
+                            <span class="stat-pill">Stock: ContaPyme</span>
+                        @endif
                     @endif
                 </div>
             </x-slot>
@@ -118,9 +122,22 @@ View contract:
                     </div>
                     <div>
                         <label class="form-label" for="stock">Stock</label>
-                        <x-ui.input id="stock" name="stock" type="number" min="0" step="0.01" :value="old('stock', $product->stock)" data-live-stock />
+                        <x-ui.input
+                            id="stock"
+                            name="stock"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            :value="$isContaPymeStockManaged ? $product->stock : old('stock', $product->stock)"
+                            :disabled="$isContaPymeStockManaged"
+                            data-live-stock
+                        />
                         <p class="form-help">
-                            Inventario disponible. Déjalo vacío si aún no está confirmado.
+                            @if($isContaPymeStockManaged)
+                                Gestionado por ContaPyme.
+                            @else
+                                Inventario disponible. Déjalo vacío si aún no está confirmado.
+                            @endif
                             <span class="ml-1 font-semibold text-slate-700" data-live-stock-output>Sin definir</span>
                         </p>
                         <x-input-error :messages="$errors->get('stock')" />
