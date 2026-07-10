@@ -127,6 +127,25 @@ class AdminDashboardTest extends TestCase
         $response->assertSessionHas('error', fn (string $msg) => str_contains($msg, 'Ya hay una sincronización en curso'));
     }
 
+    public function test_sync_endpoint_blocks_dispatch_during_cooldown(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Cache::flush();
+        Queue::fake();
+        config(['contapyme.enabled' => true]);
+
+        $state = app(ContaPymeSyncState::class);
+        $state->queue();
+        $state->complete('Sincronización completada.');
+
+        $response = $this->actingAs($admin)
+            ->post('/admin/stock/sync');
+
+        $response->assertRedirect('/admin/products');
+        $response->assertSessionHas('error', fn (string $message) => str_contains($message, 'temporalmente bloqueada'));
+        Queue::assertNothingPushed();
+    }
+
     public function test_dashboard_shows_contapyme_stats(): void
     {
         $admin = User::factory()->admin()->create();

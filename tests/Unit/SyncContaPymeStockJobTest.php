@@ -39,9 +39,11 @@ class SyncContaPymeStockJobTest extends TestCase
         $this->assertSame('completed', $status['state']);
         $this->assertSame('ContaPyme stock sync: processed=1 updated=1 unchanged=0 missing_contapyme=0 no_sku=0 skipped_variants=0 failed=0', $status['summary']);
         $this->assertFalse($state->isRunning());
+        $this->assertFalse($state->availability()['can_run']);
+        $this->assertSame('cooldown', $state->availability()['reason']);
     }
 
-    public function test_failed_job_publishes_error_and_releases_the_mutex(): void
+    public function test_failed_job_publishes_error_and_keeps_the_cooldown(): void
     {
         $state = app(ContaPymeSyncState::class);
         $state->queue();
@@ -68,5 +70,7 @@ class SyncContaPymeStockJobTest extends TestCase
         $this->assertSame('failed', $status['state']);
         $this->assertSame('CONTAPYME_ERROR: la sincronizacion masiva fallo; no se modifico stock local.', $status['summary']);
         $this->assertFalse($state->isRunning());
+        $this->assertFalse($state->availability()['can_run']);
+        $this->assertSame('cooldown', $state->availability()['reason']);
     }
 }
