@@ -110,7 +110,10 @@ class ContaPymeInventoryServiceTest extends TestCase
 
             $dataJson = json_decode((string) $request->data()['_parameters'][0], true);
 
-            return $dataJson['binventariofisico'] === 'T'
+            return $dataJson['iinventario'] === 'T'
+                && $dataJson['bunidadrecurso'] === 'T'
+                && $dataJson['binventariofisico'] === 'T'
+                && $dataJson['bnombreinventario'] === 'T'
                 && $request->data()['_parameters'][1] === 'TOKEN-123';
         });
     }

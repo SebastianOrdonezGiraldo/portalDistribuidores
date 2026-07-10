@@ -149,7 +149,10 @@ class ContaPymeInventoryService implements InventorySyncInterface
                 serverClass: 'TCatElemInv',
                 function: 'GetSaldosProductosEnBodegas',
                 dataJson: [
+                    'iinventario' => 'T',
+                    'bunidadrecurso' => 'T',
                     'binventariofisico' => 'T',
+                    'bnombreinventario' => 'T',
                 ],
             );
         } catch (\Throwable $e) {

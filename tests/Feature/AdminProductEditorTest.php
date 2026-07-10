@@ -82,6 +82,52 @@ class AdminProductEditorTest extends TestCase
             ->assertRedirect('/admin/products');
     }
 
+    public function test_contapyme_managed_stock_is_read_only_in_admin_editor_and_endpoints(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProduct($category, 'CB-08');
+        $product->forceFill([
+            'stock' => 1565,
+            'stock_synced_at' => now(),
+            'stock_sync_status' => 'synced',
+        ])->save();
+
+        $this->actingAs($admin)
+            ->get('/admin/products/'.$product->id.'/edit')
+            ->assertOk()
+            ->assertSee('Gestionado por ContaPyme')
+            ->assertSee('disabled');
+
+        $this->actingAs($admin)
+            ->get('/admin/products')
+            ->assertOk()
+            ->assertSee('Gestionado por ContaPyme')
+            ->assertDontSee('stock-product-'.$product->id);
+
+        $payload = [
+            'name' => 'Producto Editor actualizado',
+            'sku' => 'CB-08',
+            'description' => 'Producto sincronizado',
+            'category_id' => $category->id,
+            'price' => 10000,
+            'stock' => 1,
+            'is_active' => 1,
+        ];
+
+        $this->actingAs($admin)
+            ->put('/admin/products/'.$product->id, $payload)
+            ->assertRedirect()
+            ->assertSessionHasErrors('stock');
+
+        $this->actingAs($admin)
+            ->patch('/admin/products/'.$product->id.'/stock', ['stock' => 1])
+            ->assertRedirect()
+            ->assertSessionHasErrors('stock');
+
+        $this->assertSame(1565.0, (float) $product->fresh()->stock);
+    }
+
     public function test_admin_update_flow_preserves_listing_context_when_present(): void
     {
         $admin = User::factory()->admin()->create();

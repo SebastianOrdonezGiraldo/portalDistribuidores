@@ -6,13 +6,13 @@ use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Inventory\Models\StockMovement;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Handles admin-managed stock updates for products and variants.
  *
- * Manual stock is the portal-owned source of truth in this checkout. Every
- * change is serialized with row locks and written to StockMovement so later
- * integrations can audit what changed before external sync.
+ * Manual stock updates are available only while the product is not managed by
+ * ContaPyme. Every allowed change is serialized and recorded in StockMovement.
  */
 class ProductStockService
 {
@@ -31,6 +31,8 @@ class ProductStockService
                 ])
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            $this->assertManualStockIsAllowed($lockedProduct);
 
             if ((int) $lockedProduct->active_variants_count > 0) {
                 return false;
@@ -64,6 +66,8 @@ class ProductStockService
                 ->whereKey($product->id)
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            $this->assertManualStockIsAllowed($lockedProduct);
 
             $variants = ProductVariant::query()
                 ->where('product_id', $lockedProduct->id)
@@ -124,5 +128,16 @@ class ProductStockService
         }
 
         return (float) round(max(0, $stock), 2);
+    }
+
+    private function assertManualStockIsAllowed(Product $product): void
+    {
+        if (! $product->isStockManagedByContaPyme()) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'stock' => 'El stock de este producto es administrado por ContaPyme.',
+        ]);
     }
 }
