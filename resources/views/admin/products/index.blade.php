@@ -19,6 +19,11 @@ View contract:
             </x-slot>
             <x-slot name="actions">
                 <div class="flex flex-wrap items-center gap-2">
+                    <form action="{{ route('admin.contapyme.sync') }}" method="POST"
+                          onsubmit="var btn=this.querySelector('button'); btn.disabled=true; btn.innerHTML='Sincronizando...'">
+                        @csrf
+                        <button type="submit" class="btn btn-secondary w-full justify-center sm:w-auto">Sincronizar stock ContaPyme</button>
+                    </form>
                     <a href="{{ route('admin.products.inventory.pdf', collect($indexContextQuery)->except('page')->all()) }}" class="btn btn-secondary w-full justify-center sm:w-auto">Descargar saldos PDF</a>
                     <a href="{{ route('admin.products.import.template') }}" class="btn btn-secondary w-full justify-center sm:w-auto">Descargar plantilla CSV</a>
                     <form action="{{ route('admin.products.import') }}" method="POST" enctype="multipart/form-data" class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
@@ -38,6 +43,16 @@ View contract:
             </x-slot>
         </x-ui.page-header>
     </x-slot>
+
+    @if(session('success'))
+        <x-ui.alert variant="success" title="Sync completado" class="mb-4">
+            <p>{{ session('success') }}</p>
+        </x-ui.alert>
+    @elseif(session('error'))
+        <x-ui.alert variant="danger" title="Sync falló" class="mb-4">
+            <p>{{ session('error') }}</p>
+        </x-ui.alert>
+    @endif
 
     @if(session('importReport'))
         {{-- Import report is flashed by the CSV import action; this view only summarizes the result. --}}
