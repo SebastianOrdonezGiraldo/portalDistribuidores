@@ -100,4 +100,17 @@ enum OrderStatus: string
     {
         return in_array($target, $this->nextAllowedStatuses(), true);
     }
+
+    /**
+     * @return array<int, self>
+     */
+    public static function inventoryConsuming(): array
+    {
+        return [
+            self::Submitted,
+            self::Sold,
+            self::Dispatched,
+            self::Delivered,
+        ];
+    }
 }

@@ -323,11 +323,6 @@ class UpdateOrderAction
 
     private function statusConsumesInventory(OrderStatus $status): bool
     {
-        return in_array($status, [
-            OrderStatus::Submitted,
-            OrderStatus::Sold,
-            OrderStatus::Dispatched,
-            OrderStatus::Delivered,
-        ], true);
+        return in_array($status, OrderStatus::inventoryConsuming(), true);
     }
 }
