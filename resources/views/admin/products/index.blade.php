@@ -22,6 +22,11 @@ View contract:
         ? $contapymeSyncStatus['error_details']
         : [];
     $contapymeSyncRemainingErrors = max(0, $contapymeSyncErrorCount - count($contapymeSyncErrorDetails));
+    $contapymeSyncUnmappedCount = (int) ($contapymeSyncStatus['unmapped_count'] ?? 0);
+    $contapymeSyncUnmappedDetails = is_array($contapymeSyncStatus['unmapped_details'] ?? null)
+        ? $contapymeSyncStatus['unmapped_details']
+        : [];
+    $contapymeSyncRemainingUnmapped = max(0, $contapymeSyncUnmappedCount - count($contapymeSyncUnmappedDetails));
     $contapymeSyncCanRun = (bool) $contapymeSyncAvailability['can_run'];
     $contapymeSyncIsBlocked = ! $contapymeSyncCanRun;
     $contapymeSyncRetryAfter = (int) ($contapymeSyncAvailability['retry_after'] ?? 0);
@@ -197,6 +202,30 @@ View contract:
                         </p>
                     @else
                         <p class="mt-2 text-xs">El detalle completo quedó registrado en los logs del sistema.</p>
+                    @endif
+                </div>
+            @endif
+
+            @if($contapymeSyncUnmappedCount > 0)
+                <div class="mt-3 rounded-xl border border-amber-300/60 bg-amber-50/70 p-3 text-amber-950">
+                    <p class="text-xs font-semibold uppercase tracking-wide">
+                        Productos sin mapeo ContaPyme: {{ $contapymeSyncUnmappedCount }}
+                    </p>
+                    <p class="mt-1 text-xs">No se modificó su stock porque no existe un <code>irecurso</code> explícito y validado.</p>
+                    @if($contapymeSyncUnmappedDetails !== [])
+                        <ul class="mt-2 space-y-1 text-xs">
+                            @foreach($contapymeSyncUnmappedDetails as $unmappedDetail)
+                                <li>
+                                    @if(filled($unmappedDetail['sku'] ?? null))
+                                        SKU {{ $unmappedDetail['sku'] }} ·
+                                    @endif
+                                    {{ $unmappedDetail['message'] ?? 'Mapeo pendiente de revisión.' }}
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+                    @if($contapymeSyncRemainingUnmapped > 0)
+                        <p class="mt-2 text-xs">Los otros {{ $contapymeSyncRemainingUnmapped }} quedaron registrados en los logs del sistema.</p>
                     @endif
                 </div>
             @endif

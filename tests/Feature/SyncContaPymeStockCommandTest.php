@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductAttribute;
 use App\Modules\Catalog\Models\ProductAttributeValue;
+use App\Modules\Inventory\Models\ContaPymeInventoryMapping;
 use App\Modules\Inventory\Services\ContaPymeInventoryService;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\OrderItem;
@@ -19,6 +20,13 @@ use Tests\TestCase;
 class SyncContaPymeStockCommandTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config(['contapyme.catalog_reconciliation' => false]);
+    }
 
     public function test_command_syncs_simple_active_products_when_forced(): void
     {
@@ -400,6 +408,114 @@ class SyncContaPymeStockCommandTest extends TestCase
 
         Log::shouldHaveReceived('critical')->once();
         Log::shouldNotHaveReceived('channel');
+    }
+
+    public function test_full_sync_requires_catalog_identity_before_writing_confirmed_zero(): void
+    {
+        config(['contapyme.catalog_reconciliation' => true]);
+        $product = Product::factory()->create([
+            'sku' => 'ZERO-CATALOG',
+            'stock' => 10,
+            'is_active' => true,
+        ]);
+
+        $service = new class extends ContaPymeInventoryService
+        {
+            public function listProducts(): Collection
+            {
+                return collect([new InventoryItemData(sku: 'WAREHOUSE-CONFIRM', stock: 1, externalId: 'WAREHOUSE-CONFIRM')]);
+            }
+
+            public function listInventoryCatalog(): ?Collection
+            {
+                return collect([
+                    ['irecurso' => 'ZERO-CATALOG', 'name' => 'Producto'],
+                    ['irecurso' => 'WAREHOUSE-CONFIRM', 'name' => 'Confirmación de bodega'],
+                ]);
+            }
+        };
+        $this->app->instance(ContaPymeInventoryService::class, $service);
+
+        $this->artisan('contapyme:sync-stock --force')
+            ->expectsOutput('UPDATED ZERO-CATALOG stock=0')
+            ->assertSuccessful();
+
+        $this->assertSame(0.0, (float) $product->fresh()->stock);
+    }
+
+    public function test_full_sync_preserves_stock_when_catalog_identity_is_not_visible(): void
+    {
+        config(['contapyme.catalog_reconciliation' => true]);
+        $product = Product::factory()->create([
+            'sku' => 'NOT-VISIBLE',
+            'stock' => 10,
+            'is_active' => true,
+        ]);
+
+        $service = new class extends ContaPymeInventoryService
+        {
+            public function listProducts(): Collection
+            {
+                return collect([new InventoryItemData(sku: 'NOT-VISIBLE', stock: 99, externalId: 'NOT-VISIBLE')]);
+            }
+
+            public function listInventoryCatalog(): ?Collection
+            {
+                return collect();
+            }
+        };
+        $this->app->instance(ContaPymeInventoryService::class, $service);
+
+        $this->artisan('contapyme:sync-stock --force')
+            ->expectsOutputToContain('El irecurso no aparece en el catalogo visible')
+            ->assertFailed();
+
+        $this->assertSame(10.0, (float) $product->fresh()->stock);
+    }
+
+    public function test_variant_is_synced_only_when_it_has_an_explicit_irecurso_mapping(): void
+    {
+        config(['contapyme.catalog_reconciliation' => true]);
+        $attribute = ProductAttribute::factory()->create();
+        $value = ProductAttributeValue::factory()->create(['product_attribute_id' => $attribute->id]);
+        $product = Product::factory()->create([
+            'sku' => 'PARENT-VARIANT',
+            'variant_attribute_id' => $attribute->id,
+            'stock' => 0,
+            'is_active' => true,
+        ]);
+        $variant = $product->variants()->create([
+            'product_attribute_value_id' => $value->id,
+            'price' => 10000,
+            'stock' => 1,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+        ContaPymeInventoryMapping::create([
+            'product_variant_id' => $variant->id,
+            'irecurso' => 'VAR-EXPLICIT-01',
+        ]);
+
+        $service = new class extends ContaPymeInventoryService
+        {
+            public function listProducts(): Collection
+            {
+                return collect([new InventoryItemData(sku: 'VAR-EXPLICIT-01', stock: 7, externalId: 'VAR-EXPLICIT-01')]);
+            }
+
+            public function listInventoryCatalog(): ?Collection
+            {
+                return collect([['irecurso' => 'VAR-EXPLICIT-01', 'name' => 'Variante']]);
+            }
+        };
+        $this->app->instance(ContaPymeInventoryService::class, $service);
+
+        $this->artisan('contapyme:sync-stock --force')
+            ->expectsOutputToContain('UPDATED PARENT-VARIANT variant='.$variant->id.' stock=7')
+            ->assertSuccessful();
+
+        $this->assertSame(7.0, (float) $variant->fresh()->stock);
+        $this->assertSame(7.0, (float) $product->fresh()->stock);
     }
 
     /**

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Categories\Models\Category;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class PublicProductPaginationTest extends TestCase
@@ -134,6 +135,20 @@ class PublicProductPaginationTest extends TestCase
         $alternativesPageTwo->assertDontSee('Alternative Product 06');
         $alternativesPageTwo->assertSee('Related Product 25');
         $alternativesPageTwo->assertDontSee('Related Product 05');
+    }
+
+    public function test_product_detail_uses_local_stock_without_calling_contapyme(): void
+    {
+        $category = $this->createCategory('Stock Category');
+        $product = $this->createProduct($category, 'Producto con stock local', 'LOCAL-STOCK');
+        $product->update(['stock_synced_at' => now(), 'stock_sync_status' => 'synced']);
+        Http::fake();
+
+        $response = $this->get(route('products.show', $product));
+
+        $response->assertOk();
+        $response->assertSee('Actualizado');
+        Http::assertNothingSent();
     }
 
     public function test_product_detail_ajax_payload_is_scoped_to_requested_list(): void

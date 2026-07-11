@@ -5,12 +5,14 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Inventory\Jobs\SyncContaPymeStockJob;
+use App\Modules\Inventory\Models\ContaPymeSyncRun;
 use App\Modules\Inventory\Services\ContaPymeSyncState;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Shared\Enums\OrderStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class AdminDashboardTest extends TestCase
@@ -158,5 +160,28 @@ class AdminDashboardTest extends TestCase
         $response->assertSee('Estado');
         $response->assertSee('Última sincronización');
         $response->assertSee('Sincronizados');
+    }
+
+    public function test_dashboard_shows_the_latest_contapyme_run_diagnostics(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $runId = (string) Str::uuid();
+        ContaPymeSyncRun::create([
+            'id' => $runId,
+            'origin' => 'scheduled',
+            'mode' => 'full',
+            'status' => 'failed',
+            'started_at' => now()->subMinutes(2),
+            'finished_at' => now()->subMinute(),
+            'failed' => 3,
+            'summary' => 'ContaPyme no respondió durante la consulta masiva.',
+        ]);
+
+        $response = $this->actingAs($admin)->get('/admin');
+
+        $response->assertOk();
+        $response->assertSee('ContaPyme no respondió durante la consulta masiva.');
+        $response->assertSee($runId);
+        $response->assertSee('Requiere atención');
     }
 }

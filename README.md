@@ -764,14 +764,22 @@ El script ejecuta automáticamente los siguientes pasos:
 
 El script verifica previamente que existan PHP, Composer, npm y el archivo `.env`. Si alguna verificación falla, el proceso se detiene antes de realizar cambios.
 
-### Tareas programadas (futuro)
+### Tareas programadas
 
-Si el proyecto incorpora comandos programados con `schedule:run`, agregar al cron de `www-data`:
+La sincronización automática de stock ContaPyme está definida cada cinco minutos
+en `routes/console.php` y usa el mismo dispatcher/job del botón manual. El
+servidor debe ejecutar el scheduler de Laravel con cron:
 
 ```bash
 crontab -u www-data -e
 # Agregar:
 * * * * * cd /var/www/portalDistribuidores && php artisan schedule:run >> /dev/null 2>&1
+```
+
+Verificar la tarea registrada con:
+
+```bash
+php artisan schedule:list
 ```
 
 ---

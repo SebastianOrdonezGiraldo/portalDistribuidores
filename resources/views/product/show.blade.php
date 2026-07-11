@@ -286,6 +286,12 @@ View contract:
                                 data-variant-stock-target
                                 data-default-value="{{ $stockLabel }}"
                             >{{ $stockLabel }}</p>
+                            <p class="mt-1 text-xs {{ $stockIsStale ? 'text-amber-700' : 'text-slate-400' }}">
+                                {{ $stockFreshnessLabel }}
+                                @if($stockIsStale)
+                                    · Puede requerir actualización
+                                @endif
+                            </p>
                         </div>
                     </div>
 

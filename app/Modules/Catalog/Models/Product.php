@@ -3,8 +3,10 @@
 namespace App\Modules\Catalog\Models;
 
 use App\Modules\Categories\Models\Category;
+use App\Modules\Inventory\Models\ContaPymeInventoryMapping;
 use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Shared\Support\TextNormalizer;
+use Carbon\CarbonInterface;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -26,6 +28,8 @@ use Illuminate\Support\Facades\DB;
  * @property int|null $category_id
  * @property int|null $variant_attribute_id
  * @property int $active_variants_count
+ * @property CarbonInterface|null $stock_synced_at
+ * @property string|null $stock_sync_status
  */
 class Product extends Model
 {
@@ -155,6 +159,12 @@ class Product extends Model
     public function isStockManagedByContaPyme(): bool
     {
         return $this->stock_sync_status === 'synced' && $this->stock_synced_at !== null;
+    }
+
+    /** @return HasOne<ContaPymeInventoryMapping, $this> */
+    public function contapymeMapping(): HasOne
+    {
+        return $this->hasOne(ContaPymeInventoryMapping::class);
     }
 
     /**
