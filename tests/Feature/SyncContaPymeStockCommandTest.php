@@ -13,6 +13,7 @@ use App\Modules\Shared\ValueObjects\InventoryItemData;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Mockery;
 use Tests\TestCase;
 
 class SyncContaPymeStockCommandTest extends TestCase
@@ -145,11 +146,49 @@ class SyncContaPymeStockCommandTest extends TestCase
 
         $this->artisan('contapyme:sync-stock --force')
             ->expectsOutput('CONTAPYME_ERROR: la sincronizacion masiva fallo; no se modifico stock local.')
+            ->expectsOutputToContain('CONTAPYME_DIAGNOSTICS: {"error_count":1,"error_groups":')
             ->assertFailed();
 
         $product->refresh();
         $this->assertSame(10.0, (float) $product->stock);
         $this->assertNull($product->stock_sync_status);
+    }
+
+    public function test_command_groups_repeated_failures_and_logs_each_product(): void
+    {
+        Product::factory()->create([
+            'sku' => 'ERR-001',
+            'stock' => 10,
+            'is_active' => true,
+        ]);
+        Product::factory()->create([
+            'sku' => 'ERR-002',
+            'stock' => 20,
+            'is_active' => true,
+        ]);
+
+        $service = new class extends ContaPymeInventoryService
+        {
+            public function listProducts(): Collection
+            {
+                return collect();
+            }
+
+            public function lastError(): ?string
+            {
+                return 'Timeout de ContaPyme';
+            }
+        };
+        $this->app->instance(ContaPymeInventoryService::class, $service);
+        Log::spy();
+
+        $this->artisan('contapyme:sync-stock --force')
+            ->expectsOutputToContain('CONTAPYME_DIAGNOSTICS: {"error_count":2,"error_groups":[{"message":"Timeout de ContaPyme","count":2}],"error_details":')
+            ->assertFailed();
+
+        Log::shouldHaveReceived('error')
+            ->with('contapyme.sync_failure', Mockery::type('array'))
+            ->twice();
     }
 
     public function test_command_preserves_stock_for_a_sku_confirmed_missing_from_contapyme(): void
@@ -332,6 +371,7 @@ class SyncContaPymeStockCommandTest extends TestCase
 
         $this->artisan('contapyme:sync-stock --force')
             ->expectsOutput('FAILED UNKNOWN-SKU')
+            ->expectsOutputToContain('CONTAPYME_DIAGNOSTICS: {"error_count":1,"error_groups":')
             ->assertFailed();
 
         $product->refresh();
