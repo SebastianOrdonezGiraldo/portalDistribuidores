@@ -1,14 +1,17 @@
 <?php
 
+use App\Modules\Inventory\Services\ContaPymeSyncDispatcher;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schedule;
 
-Schedule::command('contapyme:sync-stock')
+Schedule::call(function (): void {
+    app(ContaPymeSyncDispatcher::class)->dispatchIfAvailable('scheduled');
+})
     ->everyFiveMinutes()
-    ->withoutOverlapping(10)
-    ->appendOutputTo(storage_path('logs/contapyme-stock-sync.log'));
+    ->name('contapyme-stock-sync')
+    ->withoutOverlapping(10);
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());

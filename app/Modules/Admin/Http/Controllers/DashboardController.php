@@ -4,11 +4,10 @@ namespace App\Modules\Admin\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Admin\Services\DashboardDataService;
-use App\Modules\Inventory\Jobs\SyncContaPymeStockJob;
+use App\Modules\Inventory\Services\ContaPymeSyncDispatcher;
 use App\Modules\Inventory\Services\ContaPymeSyncState;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Bus;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -42,8 +41,11 @@ class DashboardController extends Controller
      *
      * @authenticated
      */
-    public function syncStock(Request $request, ContaPymeSyncState $syncState): RedirectResponse
-    {
+    public function syncStock(
+        Request $request,
+        ContaPymeSyncState $syncState,
+        ContaPymeSyncDispatcher $dispatcher,
+    ): RedirectResponse {
         $availability = $syncState->availability();
 
         if ($availability['reason'] === 'disabled') {
@@ -58,20 +60,11 @@ class DashboardController extends Controller
                 ->with('error', $this->syncUnavailableMessage($availability));
         }
 
-        if (! $syncState->queue()) {
+        if (! $dispatcher->dispatchIfAvailable('manual')) {
             $availability = $syncState->availability();
 
             return $this->redirectToProducts($request)
                 ->with('error', $this->syncUnavailableMessage($availability));
-        }
-
-        try {
-            Bus::dispatch(new SyncContaPymeStockJob);
-        } catch (\Throwable $e) {
-            $syncState->fail('No fue posible encolar la sincronización ContaPyme.');
-
-            return $this->redirectToProducts($request)
-                ->with('error', 'No fue posible encolar la sincronización ContaPyme.');
         }
 
         return $this->redirectToProducts($request)

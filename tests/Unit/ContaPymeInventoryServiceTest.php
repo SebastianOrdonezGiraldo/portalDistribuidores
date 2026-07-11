@@ -53,6 +53,39 @@ class ContaPymeInventoryServiceTest extends TestCase
         $this->assertStringContainsString('respuesta JSON invalida', (string) $service->lastError());
     }
 
+    public function test_diagnose_checks_the_agent_without_exposing_the_token(): void
+    {
+        Http::fakeSequence()
+            ->push($this->successResponse([
+                'keyagente' => 'TOKEN-123',
+                'version' => 'V4',
+                'release' => '8',
+                'update' => '14',
+            ]))
+            ->push($this->successResponse(['estado' => 'Conectado']));
+
+        $diagnostics = (new ContaPymeInventoryService)->diagnose();
+
+        $this->assertTrue($diagnostics['authenticated']);
+        $this->assertSame('Conectado', $diagnostics['agent_status']);
+        $this->assertSame(['version' => 'V4', 'release' => '8', 'update' => '14'], $diagnostics['auth_metadata']);
+        $this->assertArrayNotHasKey('keyagente', $diagnostics['auth_metadata']);
+        $this->assertNull($diagnostics['error']);
+    }
+
+    public function test_diagnose_returns_a_clear_agent_error(): void
+    {
+        Http::fakeSequence()
+            ->push($this->successResponse(['keyagente' => 'TOKEN-123']))
+            ->push($this->failedResponse('Agente detenido'));
+
+        $diagnostics = (new ContaPymeInventoryService)->diagnose();
+
+        $this->assertTrue($diagnostics['authenticated']);
+        $this->assertNull($diagnostics['agent_status']);
+        $this->assertSame('Agente detenido', $diagnostics['error']);
+    }
+
     public function test_diagnostic_error_redacts_credentials(): void
     {
         $service = new ContaPymeInventoryService;
@@ -136,7 +169,7 @@ class ContaPymeInventoryServiceTest extends TestCase
             ->keyBy('sku');
 
         $this->assertSame(39.0, $items->get('TENS7000')?->stock);
-        $this->assertSame(0.0, $items->get('NO-STOCK-IN-ONE')?->stock);
+        $this->assertNull($items->get('NO-STOCK-IN-ONE')?->stock);
 
         Http::assertSent(function ($request): bool {
             if (! str_contains($request->url(), '/TCatElemInv/GetSaldosProductosEnBodegas')) {
@@ -150,6 +183,40 @@ class ContaPymeInventoryServiceTest extends TestCase
                 && $dataJson['binventariofisico'] === 'T'
                 && $dataJson['bnombreinventario'] === 'T'
                 && $request->data()['_parameters'][1] === 'TOKEN-123';
+        });
+    }
+
+    public function test_inventory_catalog_is_loaded_page_by_page_for_reconciliation(): void
+    {
+        config(['contapyme.catalog_page_size' => 2]);
+        Http::fakeSequence()
+            ->push($this->successResponse(['keyagente' => 'TOKEN-123']))
+            ->push($this->catalogResponse([
+                'datos' => [['irecurso' => 'SKU-001', 'nrecurso' => 'Producto 1']],
+                'paginacion' => ['totalpaginas' => 2],
+            ]))
+            ->push($this->catalogResponse([
+                'datos' => [
+                    ['irecurso' => 'SKU-002', 'nrecurso' => 'Producto 2'],
+                    ['irecurso' => 'SKU-001', 'nrecurso' => 'Duplicado ignorado'],
+                ],
+                'paginacion' => ['totalpaginas' => 2],
+            ]));
+
+        $catalog = (new ContaPymeInventoryService)->listInventoryCatalog();
+
+        $this->assertNotNull($catalog);
+        $this->assertSame(['SKU-001', 'SKU-002'], $catalog->pluck('irecurso')->all());
+        Http::assertSentCount(3);
+        Http::assertSent(function ($request): bool {
+            if (! str_contains($request->url(), '/TCatElemInv/GetListaElemInv')) {
+                return false;
+            }
+
+            $dataJson = json_decode((string) $request->data()['_parameters'][0], true);
+
+            return $dataJson['datospagina']['cantidadregistros'] === '2'
+                && in_array($dataJson['datospagina']['pagina'], ['1', '2'], true);
         });
     }
 
@@ -344,6 +411,21 @@ class ContaPymeInventoryServiceTest extends TestCase
                 'respuesta' => [
                     'datos' => $datos,
                 ],
+            ]],
+        ];
+    }
+
+    private function catalogResponse(array $respuesta): array
+    {
+        return [
+            'result' => [[
+                'encabezado' => [
+                    'resultado' => 'true',
+                    'imensaje' => '',
+                    'mensaje' => '',
+                    'tiempo' => '49',
+                ],
+                'respuesta' => $respuesta,
             ]],
         ];
     }

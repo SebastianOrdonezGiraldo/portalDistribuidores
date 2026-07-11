@@ -2,14 +2,15 @@
 
 namespace App\Modules\Inventory\Jobs;
 
+use App\Modules\Inventory\Models\ContaPymeSyncRun;
 use App\Modules\Inventory\Services\ContaPymeInventoryService;
+use App\Modules\Inventory\Services\ContaPymeStockSyncRunner;
 use App\Modules\Inventory\Services\ContaPymeSyncState;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use RuntimeException;
 use Throwable;
@@ -25,8 +26,15 @@ class SyncContaPymeStockJob implements ShouldQueue
 
     public int $tries = 1;
 
-    public function handle(ContaPymeSyncState $syncState): void
-    {
+    public function __construct(
+        public string $origin = 'manual',
+        public ?string $runId = null,
+    ) {}
+
+    public function handle(
+        ContaPymeSyncState $syncState,
+        ContaPymeStockSyncRunner $runner,
+    ): void {
         if (! (bool) config('contapyme.enabled')) {
             $syncState->block('La sincronizacion ContaPyme esta deshabilitada en este entorno.');
 
@@ -34,17 +42,21 @@ class SyncContaPymeStockJob implements ShouldQueue
         }
 
         $syncState->markRunning();
+        $runId = $this->runId ?? $syncState->status()['run_id'] ?? null;
+        $report = $runner->run(
+            origin: $this->origin,
+            runId: $runId,
+        );
 
-        $exitCode = Artisan::call('contapyme:sync-stock');
-        $report = $this->report(Artisan::output());
+        $this->runId = $report->runId;
 
-        if ($exitCode !== 0) {
-            $syncState->fail($report['summary'], $report);
+        if ($report->exitCode() !== 0) {
+            $syncState->fail($report->summary(), $report->toArray());
 
-            throw new RuntimeException($report['summary']);
+            throw new RuntimeException($report->summary());
         }
 
-        $syncState->complete($report['summary'], $report);
+        $syncState->complete($report->summary(), $report->toArray());
         Cache::forget('admin.dashboard.metrics');
     }
 
@@ -60,8 +72,7 @@ class SyncContaPymeStockJob implements ShouldQueue
             $exception?->getMessage(),
             'La sincronizacion ContaPyme no finalizo correctamente.',
         );
-
-        $syncState->fail($message, [
+        $diagnostics = [
             'error_count' => 1,
             'error_groups' => [[
                 'message' => $message,
@@ -72,50 +83,19 @@ class SyncContaPymeStockJob implements ShouldQueue
                 'phase' => 'job',
                 'message' => $message,
             ]],
-        ]);
-    }
-
-    /**
-     * @return array{summary:string, error_count:int, error_groups:array, error_details:array}
-     */
-    private function report(string $output): array
-    {
-        $lines = array_values(array_filter(array_map('trim', explode("\n", $output))));
-        $diagnostics = [];
-
-        foreach ($lines as $line) {
-            if (str_starts_with($line, 'CONTAPYME_DIAGNOSTICS:')) {
-                $decoded = json_decode(trim(substr($line, strlen('CONTAPYME_DIAGNOSTICS:'))), true);
-
-                if (is_array($decoded)) {
-                    $diagnostics = $decoded;
-                }
-            }
-        }
-
-        $fallbackLines = array_values(array_filter(
-            $lines,
-            fn (string $line): bool => ! str_starts_with($line, 'CONTAPYME_DIAGNOSTICS:'),
-        ));
-        $summary = $fallbackLines[array_key_last($fallbackLines)]
-            ?? 'ContaPyme no devolvio un resumen de sincronizacion.';
-
-        foreach (array_reverse($lines) as $line) {
-            if (str_starts_with($line, 'ContaPyme stock sync:')) {
-                $summary = $line;
-                break;
-            }
-        }
-
-        return [
-            'summary' => $summary,
-            'error_count' => max(0, (int) ($diagnostics['error_count'] ?? 0)),
-            'error_groups' => is_array($diagnostics['error_groups'] ?? null)
-                ? array_values($diagnostics['error_groups'])
-                : [],
-            'error_details' => is_array($diagnostics['error_details'] ?? null)
-                ? array_values($diagnostics['error_details'])
-                : [],
         ];
+
+        $syncState->fail($message, $diagnostics);
+
+        if ($this->runId !== null) {
+            ContaPymeSyncRun::query()->whereKey($this->runId)->update([
+                'status' => 'failed',
+                'finished_at' => now(),
+                'summary' => $message,
+                'failed' => 1,
+                'error_groups' => $diagnostics['error_groups'],
+                'error_details' => $diagnostics['error_details'],
+            ]);
+        }
     }
 }
