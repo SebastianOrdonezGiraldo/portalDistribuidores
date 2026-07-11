@@ -247,7 +247,7 @@ class SyncContaPymeStock extends Command
                     message: $e->getMessage(),
                 );
 
-                $this->line(($dryRun ? 'DRY_FAIL' : 'FAILED')." {$product->sku}");
+                $this->line("FAILED {$product->sku}");
 
                 continue;
             }

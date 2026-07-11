@@ -467,6 +467,9 @@ class ContaPymeInventoryService implements InventorySyncInterface
         });
     }
 
+    /**
+     * @phpstan-impure
+     */
     private function callWithRetry(string $serverClass, string $function, array $dataJson): mixed
     {
         $token = $this->authenticate();
