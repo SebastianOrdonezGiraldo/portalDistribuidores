@@ -100,7 +100,6 @@ class ContaPymeStockSyncRunner
             foreach ($simpleProducts as $product) {
                 $this->syncSimpleProduct(
                     product: $product,
-                    sku: $mode === 'sku' ? trim((string) $sku) : null,
                     externalStock: $externalStock,
                     catalogIds: $catalog,
                     reservedStock: (float) ($reservations->get($product->id) ?? 0.0),
@@ -288,7 +287,14 @@ class ContaPymeStockSyncRunner
         $catalog = $this->inventory->listInventoryCatalog();
 
         if ($catalog !== null) {
-            return $catalog->pluck('irecurso')->mapWithKeys(fn (string $irecurso): array => [$irecurso => true]);
+            /** @var Collection<string, true> $catalogIds */
+            $catalogIds = collect();
+
+            foreach ($catalog as $catalogItem) {
+                $catalogIds->put((string) $catalogItem['irecurso'], true);
+            }
+
+            return $catalogIds;
         }
 
         $this->emit($emit, 'CONTAPYME_ERROR: no fue posible validar el catalogo de ContaPyme.', 'error');
@@ -315,7 +321,6 @@ class ContaPymeStockSyncRunner
      */
     private function syncSimpleProduct(
         Product $product,
-        ?string $sku,
         Collection $externalStock,
         ?Collection $catalogIds,
         float $reservedStock,

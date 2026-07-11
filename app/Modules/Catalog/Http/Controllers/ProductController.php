@@ -255,7 +255,10 @@ class ProductController extends Controller
             $minMultiple,
         );
 
-        $stockSyncedAt = $product->stock_synced_at;
+        $stockSyncedAtRaw = $product->getAttribute('stock_synced_at');
+        $stockSyncedAt = $stockSyncedAtRaw !== null
+            ? CarbonImmutable::parse((string) $stockSyncedAtRaw)
+            : null;
         $staleAfter = max(1, (int) config('contapyme.stock_stale_after', 900));
         $stockIsStale = $stockSyncedAt === null
             || $stockSyncedAt->lt(now()->subSeconds($staleAfter));

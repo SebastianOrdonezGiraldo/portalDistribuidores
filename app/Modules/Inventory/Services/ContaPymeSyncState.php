@@ -131,7 +131,7 @@ class ContaPymeSyncState
     }
 
     /**
-     * @param  array{error_count?:int, error_groups?:array, error_details?:array, unmapped?:int, unmapped_details?:array}  $diagnostics
+     * @param  array{error_count?:int, failed?:int, error_groups?:array, error_details?:array, unmapped?:int, unmapped_details?:array}  $diagnostics
      */
     public function complete(string $summary, array $diagnostics = []): void
     {
@@ -156,7 +156,7 @@ class ContaPymeSyncState
     }
 
     /**
-     * @param  array{error_count?:int, error_groups?:array, error_details?:array, unmapped?:int, unmapped_details?:array}  $diagnostics
+     * @param  array{error_count?:int, failed?:int, error_groups?:array, error_details?:array, unmapped?:int, unmapped_details?:array}  $diagnostics
      */
     public function fail(string $message, array $diagnostics = []): void
     {

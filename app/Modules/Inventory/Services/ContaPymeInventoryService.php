@@ -28,21 +28,21 @@ class ContaPymeInventoryService implements InventorySyncInterface
 {
     private const CACHE_TOKEN_TTL = 3600;
 
-    private string $baseUrl;
+    private string $baseUrl = '';
 
-    private string $email;
+    private string $email = '';
 
-    private string $password;
+    private string $password = '';
 
-    private string $passwordHash;
+    private string $passwordHash = '';
 
-    private string $idmaquina;
+    private string $idmaquina = '';
 
-    private string $iapp;
+    private string $iapp = '1003';
 
-    private string $warehouse;
+    private string $warehouse = '1';
 
-    private int $timeout;
+    private int $timeout = 10;
 
     private ?string $lastError = null;
 
@@ -1007,10 +1007,10 @@ class ContaPymeInventoryService implements InventorySyncInterface
     private function sanitizeErrorMessage(string $message): string
     {
         $sensitiveValues = array_filter([
-            isset($this->email) ? $this->email : '',
-            isset($this->password) ? $this->password : '',
-            isset($this->passwordHash) ? $this->passwordHash : '',
-            isset($this->password) && $this->password !== '' ? md5(strtoupper($this->password)) : '',
+            $this->email,
+            $this->password,
+            $this->passwordHash,
+            $this->password !== '' ? md5(strtoupper($this->password)) : '',
         ]);
 
         foreach ($sensitiveValues as $value) {

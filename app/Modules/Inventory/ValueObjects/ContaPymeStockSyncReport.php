@@ -57,6 +57,10 @@ final class ContaPymeStockSyncReport
      */
     public function toArray(): array
     {
+        $failed = array_key_exists('failed', $this->stats)
+            ? (int) $this->stats['failed']
+            : 0;
+
         return [
             'run_id' => $this->runId,
             'origin' => $this->origin,
@@ -66,8 +70,8 @@ final class ContaPymeStockSyncReport
             'duration_ms' => $this->durationMs(),
             'summary' => $this->summary(),
             ...$this->stats,
-            'error_count' => count($this->errorDetails) < ($this->stats['failed'] ?? 0)
-                ? ($this->stats['failed'] ?? 0)
+            'error_count' => count($this->errorDetails) < $failed
+                ? $failed
                 : count($this->errorDetails),
             'error_groups' => $this->errorGroups,
             'error_details' => $this->errorDetails,
