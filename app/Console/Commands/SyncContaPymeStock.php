@@ -9,9 +9,20 @@ use App\Modules\Shared\Enums\OrderStatus;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class SyncContaPymeStock extends Command
 {
+    private const MAX_VISIBLE_ERRORS = 10;
+
+    /** @var array<string, array{message:string, count:int}> */
+    private array $diagnosticGroups = [];
+
+    /** @var list<array{sku:string|null, phase:string, message:string}> */
+    private array $diagnosticDetails = [];
+
+    private int $diagnosticErrorCount = 0;
+
     protected $signature = 'contapyme:sync-stock
         {--sku= : Sincroniza un solo SKU}
         {--limit=0 : Limita la cantidad de productos a procesar}
@@ -23,6 +34,8 @@ class SyncContaPymeStock extends Command
 
     public function handle(ContaPymeInventoryService $inventory): int
     {
+        $this->resetDiagnostics();
+
         if ((bool) $this->option('test-connection')) {
             if ($inventory->testConnection()) {
                 $this->info('CONTAPYME_OK: conexion y autenticacion exitosas.');
@@ -107,16 +120,20 @@ class SyncContaPymeStock extends Command
             if ($externalStockBySku === null) {
                 $this->error('CONTAPYME_ERROR: la sincronizacion masiva fallo; no se modifico stock local.');
 
-                if ($this->output->isVerbose() && $inventory->lastError() !== null) {
-                    $this->line('CONTAPYME_DETAIL: '.$inventory->lastError());
-                }
-
                 $this->logCritical('ContaPyme sync: fallo la sincronizacion masiva', [
                     'error' => $inventory->lastError(),
                     'active_products' => $simpleProducts->count(),
                 ]);
 
-                $stats['failed'] = $simpleProducts->count();
+                foreach ($simpleProducts as $product) {
+                    $this->recordFailure(
+                        stats: $stats,
+                        inventory: $inventory,
+                        product: $product,
+                        phase: 'consulta_masiva',
+                        message: $inventory->lastError(),
+                    );
+                }
 
                 return $this->finish($stats, self::FAILURE);
             }
@@ -134,13 +151,13 @@ class SyncContaPymeStock extends Command
                 $exists = $inventory->productExists((string) $product->sku);
 
                 if ($exists === null) {
-                    $stats['failed']++;
-
-                    Log::error('contapyme.sync_product_existence_failed', [
-                        'sku' => $product->sku,
-                        'product_id' => $product->id,
-                        'error' => $inventory->lastError(),
-                    ]);
+                    $this->recordFailure(
+                        stats: $stats,
+                        inventory: $inventory,
+                        product: $product,
+                        phase: 'validacion_sku',
+                        message: $inventory->lastError(),
+                    );
 
                     $this->line(($dryRun ? 'DRY_FAIL' : 'FAILED')." {$product->sku}");
 
@@ -175,7 +192,13 @@ class SyncContaPymeStock extends Command
                 $info = $inventory->getProductInfo((string) $product->sku);
 
                 if ($info?->stock === null) {
-                    $stats['failed']++;
+                    $this->recordFailure(
+                        stats: $stats,
+                        inventory: $inventory,
+                        product: $product,
+                        phase: 'consulta_stock',
+                        message: $inventory->lastError(),
+                    );
 
                     $this->line(($dryRun ? 'DRY_FAIL' : 'FAILED')." {$product->sku}");
 
@@ -208,12 +231,26 @@ class SyncContaPymeStock extends Command
                 continue;
             }
 
-            $result = $inventory->syncProductFromPhysicalStock(
-                product: $product,
-                physicalStock: $physicalStock,
-                reservedStock: $reservedStock,
-                syncStatus: 'synced',
-            );
+            try {
+                $result = $inventory->syncProductFromPhysicalStock(
+                    product: $product,
+                    physicalStock: $physicalStock,
+                    reservedStock: $reservedStock,
+                    syncStatus: 'synced',
+                );
+            } catch (Throwable $e) {
+                $this->recordFailure(
+                    stats: $stats,
+                    inventory: $inventory,
+                    product: $product,
+                    phase: 'persistencia_local',
+                    message: $e->getMessage(),
+                );
+
+                $this->line(($dryRun ? 'DRY_FAIL' : 'FAILED')." {$product->sku}");
+
+                continue;
+            }
             $status = $result['status'];
 
             if ($status === 'updated') {
@@ -221,7 +258,13 @@ class SyncContaPymeStock extends Command
             } elseif ($status === 'unchanged') {
                 $stats['unchanged']++;
             } else {
-                $stats['failed']++;
+                $this->recordFailure(
+                    stats: $stats,
+                    inventory: $inventory,
+                    product: $product,
+                    phase: 'persistencia_local',
+                    message: 'No fue posible persistir el stock calculado.',
+                );
             }
 
             $stock = $result['stock'] ?? 'null';
@@ -289,6 +332,75 @@ class SyncContaPymeStock extends Command
     /**
      * @param  array<string, int>  $stats
      */
+    private function recordFailure(
+        array &$stats,
+        ContaPymeInventoryService $inventory,
+        ?Product $product,
+        string $phase,
+        ?string $message,
+    ): void {
+        $error = $inventory->diagnosticError($message);
+        $stats['failed']++;
+        $this->diagnosticErrorCount++;
+
+        $groupKey = $this->diagnosticGroupKey($error);
+
+        if (! isset($this->diagnosticGroups[$groupKey])) {
+            $this->diagnosticGroups[$groupKey] = [
+                'message' => $error,
+                'count' => 0,
+            ];
+        }
+        $this->diagnosticGroups[$groupKey]['count']++;
+
+        if (count($this->diagnosticDetails) < self::MAX_VISIBLE_ERRORS) {
+            $this->diagnosticDetails[] = [
+                'sku' => $product?->sku !== null ? (string) $product->sku : null,
+                'phase' => $phase,
+                'message' => $error,
+            ];
+        }
+
+        Log::error('contapyme.sync_failure', [
+            'sku' => $product?->sku,
+            'product_id' => $product?->id,
+            'phase' => $phase,
+            'error' => $error,
+        ]);
+    }
+
+    /**
+     * @return array{error_count:int, error_groups:list<array{message:string, count:int}>, error_details:list<array{sku:string|null, phase:string, message:string}>}
+     */
+    private function diagnostics(): array
+    {
+        return [
+            'error_count' => $this->diagnosticErrorCount,
+            'error_groups' => collect($this->diagnosticGroups)
+                ->sortByDesc('count')
+                ->values()
+                ->all(),
+            'error_details' => $this->diagnosticDetails,
+        ];
+    }
+
+    private function diagnosticGroupKey(string $message): string
+    {
+        $normalized = preg_replace('/\s+/', ' ', trim($message));
+
+        return strtolower($normalized ?: $message);
+    }
+
+    private function resetDiagnostics(): void
+    {
+        $this->diagnosticGroups = [];
+        $this->diagnosticDetails = [];
+        $this->diagnosticErrorCount = 0;
+    }
+
+    /**
+     * @param  array<string, int>  $stats
+     */
     private function finish(array $stats, int $exitCode): int
     {
         $this->info(sprintf(
@@ -301,6 +413,12 @@ class SyncContaPymeStock extends Command
             $stats['skipped_variants'],
             $stats['failed'],
         ));
+
+        $diagnostics = json_encode(
+            $this->diagnostics(),
+            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE,
+        );
+        $this->line('CONTAPYME_DIAGNOSTICS: '.($diagnostics ?: '{"error_count":0,"error_groups":[],"error_details":[]}'));
 
         if ($stats['failed'] > 0 || $stats['missing_contapyme'] > $stats['processed'] * 0.5) {
             $this->logCritical('ContaPyme sync: errores detectados', [

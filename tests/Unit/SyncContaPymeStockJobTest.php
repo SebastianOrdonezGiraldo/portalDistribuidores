@@ -30,7 +30,7 @@ class SyncContaPymeStockJobTest extends TestCase
             ->andReturn(0);
         Artisan::shouldReceive('output')
             ->once()
-            ->andReturn("UPDATED CB-08 stock=1565\nContaPyme stock sync: processed=1 updated=1 unchanged=0 missing_contapyme=0 no_sku=0 skipped_variants=0 failed=0\n");
+            ->andReturn("UPDATED CB-08 stock=1565\nContaPyme stock sync: processed=1 updated=1 unchanged=0 missing_contapyme=0 no_sku=0 skipped_variants=0 failed=0\nCONTAPYME_DIAGNOSTICS: {\"error_count\":0,\"error_groups\":[],\"error_details\":[]}\n");
 
         (new SyncContaPymeStockJob)->handle($state);
 
@@ -38,6 +38,7 @@ class SyncContaPymeStockJobTest extends TestCase
 
         $this->assertSame('completed', $status['state']);
         $this->assertSame('ContaPyme stock sync: processed=1 updated=1 unchanged=0 missing_contapyme=0 no_sku=0 skipped_variants=0 failed=0', $status['summary']);
+        $this->assertSame(0, $status['error_count']);
         $this->assertFalse($state->isRunning());
         $this->assertFalse($state->availability()['can_run']);
         $this->assertSame('cooldown', $state->availability()['reason']);
@@ -54,7 +55,7 @@ class SyncContaPymeStockJobTest extends TestCase
             ->andReturn(1);
         Artisan::shouldReceive('output')
             ->once()
-            ->andReturn("CONTAPYME_ERROR: la sincronizacion masiva fallo; no se modifico stock local.\n");
+            ->andReturn("CONTAPYME_ERROR: la sincronizacion masiva fallo; no se modifico stock local.\nCONTAPYME_DIAGNOSTICS: {\"error_count\":2,\"error_groups\":[{\"message\":\"Timeout de ContaPyme\",\"count\":2}],\"error_details\":[{\"sku\":\"ERR-001\",\"phase\":\"consulta_masiva\",\"message\":\"Timeout de ContaPyme\"},{\"sku\":\"ERR-002\",\"phase\":\"consulta_masiva\",\"message\":\"Timeout de ContaPyme\"}]}\n");
 
         $job = new SyncContaPymeStockJob;
 
@@ -69,6 +70,11 @@ class SyncContaPymeStockJobTest extends TestCase
 
         $this->assertSame('failed', $status['state']);
         $this->assertSame('CONTAPYME_ERROR: la sincronizacion masiva fallo; no se modifico stock local.', $status['summary']);
+        $this->assertSame(2, $status['error_count']);
+        $this->assertSame([
+            ['message' => 'Timeout de ContaPyme', 'count' => 2],
+        ], $status['error_groups']);
+        $this->assertSame('ERR-001', $status['error_details'][0]['sku']);
         $this->assertFalse($state->isRunning());
         $this->assertFalse($state->availability()['can_run']);
         $this->assertSame('cooldown', $state->availability()['reason']);

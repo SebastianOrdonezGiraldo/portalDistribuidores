@@ -31,6 +31,41 @@ class ContaPymeInventoryServiceTest extends TestCase
         ]);
     }
 
+    public function test_connection_exposes_http_statuses_when_contapyme_is_unreachable(): void
+    {
+        Http::fakeSequence()
+            ->push([], 503)
+            ->push([], 504);
+
+        $service = new ContaPymeInventoryService;
+
+        $this->assertFalse($service->testConnection());
+        $this->assertStringContainsString('HTTP POST 503, GET 504', (string) $service->lastError());
+    }
+
+    public function test_connection_reports_invalid_json(): void
+    {
+        Http::fakeSequence()->push('not-json', 200);
+
+        $service = new ContaPymeInventoryService;
+
+        $this->assertFalse($service->testConnection());
+        $this->assertStringContainsString('respuesta JSON invalida', (string) $service->lastError());
+    }
+
+    public function test_diagnostic_error_redacts_credentials(): void
+    {
+        $service = new ContaPymeInventoryService;
+
+        $message = $service->diagnosticError(
+            'email=stock@example.com password_hash=00000000000000000000000000000000',
+        );
+
+        $this->assertStringNotContainsString('stock@example.com', $message);
+        $this->assertStringNotContainsString('00000000000000000000000000000000', $message);
+        $this->assertStringContainsString('[redacted]', $message);
+    }
+
     public function test_get_product_info_uses_auth_token_and_physical_stock_endpoint(): void
     {
         Http::fakeSequence()
@@ -283,6 +318,7 @@ class ContaPymeInventoryServiceTest extends TestCase
         $service = new ContaPymeInventoryService;
 
         $this->assertFalse($service->syncProductStock('TENS7000'));
+        $this->assertSame('Error controlado de inventario', $service->lastError());
 
         $product->refresh();
 

@@ -79,7 +79,7 @@ class ContaPymeSyncState
     }
 
     /**
-     * @return array{state:string, message:string, summary:string|null, queued_at:string|null, started_at:string|null, completed_at:string|null, available_at:string|null}|null
+     * @return array{state:string, message:string, summary:string|null, queued_at:string|null, started_at:string|null, completed_at:string|null, available_at:string|null, error_count:int, error_groups:list<array{message:string, count:int}>, error_details:list<array{sku:string|null, phase:string, message:string}>}|null
      */
     public function status(): ?array
     {
@@ -97,6 +97,9 @@ class ContaPymeSyncState
             'started_at' => filled($status['started_at'] ?? null) ? (string) $status['started_at'] : null,
             'completed_at' => filled($status['completed_at'] ?? null) ? (string) $status['completed_at'] : null,
             'available_at' => filled($status['available_at'] ?? null) ? (string) $status['available_at'] : null,
+            'error_count' => max(0, (int) ($status['error_count'] ?? 0)),
+            'error_groups' => $this->normalizeErrorGroups($status['error_groups'] ?? []),
+            'error_details' => $this->normalizeErrorDetails($status['error_details'] ?? []),
         ];
     }
 
@@ -113,7 +116,10 @@ class ContaPymeSyncState
         );
     }
 
-    public function complete(string $summary): void
+    /**
+     * @param  array{error_count?:int, error_groups?:array, error_details?:array}  $diagnostics
+     */
+    public function complete(string $summary, array $diagnostics = []): void
     {
         $status = $this->status();
 
@@ -125,10 +131,16 @@ class ContaPymeSyncState
             startedAt: $status['started_at'] ?? null,
             completedAt: now()->toIso8601String(),
             availableAt: $status['available_at'] ?? null,
+            errorCount: (int) ($diagnostics['error_count'] ?? 0),
+            errorGroups: (array) ($diagnostics['error_groups'] ?? []),
+            errorDetails: (array) ($diagnostics['error_details'] ?? []),
         );
     }
 
-    public function fail(string $message): void
+    /**
+     * @param  array{error_count?:int, error_groups?:array, error_details?:array}  $diagnostics
+     */
+    public function fail(string $message, array $diagnostics = []): void
     {
         $status = $this->status();
 
@@ -140,6 +152,9 @@ class ContaPymeSyncState
             startedAt: $status['started_at'] ?? null,
             completedAt: now()->toIso8601String(),
             availableAt: $status['available_at'] ?? null,
+            errorCount: (int) ($diagnostics['error_count'] ?? 0),
+            errorGroups: (array) ($diagnostics['error_groups'] ?? []),
+            errorDetails: (array) ($diagnostics['error_details'] ?? []),
         );
     }
 
@@ -168,6 +183,9 @@ class ContaPymeSyncState
         ?string $startedAt = null,
         ?string $completedAt = null,
         ?string $availableAt = null,
+        int $errorCount = 0,
+        array $errorGroups = [],
+        array $errorDetails = [],
     ): void {
         Cache::put(self::STATUS_KEY, [
             'state' => $state,
@@ -177,7 +195,49 @@ class ContaPymeSyncState
             'started_at' => $startedAt,
             'completed_at' => $completedAt,
             'available_at' => $availableAt,
+            'error_count' => max(0, $errorCount),
+            'error_groups' => $errorGroups,
+            'error_details' => $errorDetails,
         ], self::STATUS_TTL_SECONDS);
+    }
+
+    /**
+     * @return list<array{message:string, count:int}>
+     */
+    private function normalizeErrorGroups(mixed $groups): array
+    {
+        if (! is_array($groups)) {
+            return [];
+        }
+
+        return collect($groups)
+            ->filter(fn (mixed $group): bool => is_array($group) && filled($group['message'] ?? null))
+            ->map(fn (array $group): array => [
+                'message' => (string) $group['message'],
+                'count' => max(0, (int) ($group['count'] ?? 0)),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<array{sku:string|null, phase:string, message:string}>
+     */
+    private function normalizeErrorDetails(mixed $details): array
+    {
+        if (! is_array($details)) {
+            return [];
+        }
+
+        return collect($details)
+            ->filter(fn (mixed $detail): bool => is_array($detail) && filled($detail['message'] ?? null))
+            ->map(fn (array $detail): array => [
+                'sku' => filled($detail['sku'] ?? null) ? (string) $detail['sku'] : null,
+                'phase' => filled($detail['phase'] ?? null) ? (string) $detail['phase'] : 'desconocida',
+                'message' => (string) $detail['message'],
+            ])
+            ->values()
+            ->all();
     }
 
     /**
