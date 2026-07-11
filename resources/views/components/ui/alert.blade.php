@@ -1,4 +1,4 @@
-@props(['variant' => 'info', 'title' => null])
+@props(['variant' => 'info', 'title' => null, 'dismissible' => true])
 
 {{--
 Component contract:
@@ -16,9 +16,36 @@ Component contract:
     ];
 @endphp
 
-<div {{ $attributes->merge(['class' => 'toast '.($variants[$variant] ?? $variants['info'])]) }}>
-    @if($title)
-        <p class="mb-1 text-sm font-semibold">{{ $title }}</p>
+<div {{ $attributes->merge(['class' => 'toast relative '.($variants[$variant] ?? $variants['info'])]) }} data-dismissible-alert>
+    @if($dismissible)
+        <button
+            type="button"
+            class="absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-full text-current/60 transition hover:bg-black/5 hover:text-current focus:outline-none focus:ring-2 focus:ring-current/30"
+            data-dismiss-alert
+            aria-label="Cerrar mensaje"
+            title="Cerrar mensaje"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M6 6l12 12"></path>
+                <path d="M18 6L6 18"></path>
+            </svg>
+        </button>
     @endif
-    <div>{{ $slot }}</div>
+    <div class="pr-10">
+        @if($title)
+            <p class="mb-1 text-sm font-semibold">{{ $title }}</p>
+        @endif
+        <div>{{ $slot }}</div>
+    </div>
 </div>
+
+@once
+    <script>
+        document.addEventListener('click', (event) => {
+            const dismissButton = event.target.closest('[data-dismiss-alert]');
+            if (!dismissButton) return;
+
+            dismissButton.closest('[data-dismissible-alert]')?.remove();
+        });
+    </script>
+@endonce

@@ -646,6 +646,8 @@ class AdminProductsIndexTest extends TestCase
             '/<button[^>]*data-contapyme-sync-button[^>]*disabled/',
             $response->getContent(),
         );
+        $response->assertSee('data-dismiss-alert', false);
+        $response->assertSee('aria-label="Cerrar mensaje"', false);
     }
 
     public function test_products_page_shows_grouped_sync_error_details_and_limits_visible_examples(): void
