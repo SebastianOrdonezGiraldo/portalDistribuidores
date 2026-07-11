@@ -648,6 +648,38 @@ class AdminProductsIndexTest extends TestCase
         );
     }
 
+    public function test_products_page_shows_grouped_sync_error_details_and_limits_visible_examples(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Cache::flush();
+        config(['contapyme.enabled' => true]);
+
+        $state = app(ContaPymeSyncState::class);
+        $state->queue();
+        $state->fail('La sincronización masiva falló.', [
+            'error_count' => 12,
+            'error_groups' => [
+                ['message' => 'Timeout de ContaPyme', 'count' => 12],
+            ],
+            'error_details' => collect(range(1, 10))->map(fn (int $index): array => [
+                'sku' => 'ERR-'.str_pad((string) $index, 3, '0', STR_PAD_LEFT),
+                'phase' => 'consulta_stock',
+                'message' => 'Timeout de ContaPyme',
+            ])->all(),
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->get('/admin/products');
+
+        $response->assertOk();
+        $response->assertSee('Detalles del error: 12');
+        $response->assertSee('errores');
+        $response->assertSee('12x');
+        $response->assertSee('SKU ERR-001');
+        $response->assertSee('Los otros 2 quedaron registrados en los logs del sistema.');
+        $response->assertDontSee('SKU ERR-011');
+    }
+
     public function test_products_page_disables_contapyme_sync_when_it_is_disabled(): void
     {
         $admin = User::factory()->admin()->create();

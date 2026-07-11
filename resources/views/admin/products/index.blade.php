@@ -14,6 +14,14 @@ View contract:
         'retry_after' => 0,
     ];
     $contapymeSyncState = $contapymeSyncStatus['state'] ?? null;
+    $contapymeSyncErrorCount = (int) ($contapymeSyncStatus['error_count'] ?? 0);
+    $contapymeSyncErrorGroups = is_array($contapymeSyncStatus['error_groups'] ?? null)
+        ? $contapymeSyncStatus['error_groups']
+        : [];
+    $contapymeSyncErrorDetails = is_array($contapymeSyncStatus['error_details'] ?? null)
+        ? $contapymeSyncStatus['error_details']
+        : [];
+    $contapymeSyncRemainingErrors = max(0, $contapymeSyncErrorCount - count($contapymeSyncErrorDetails));
     $contapymeSyncCanRun = (bool) $contapymeSyncAvailability['can_run'];
     $contapymeSyncIsBlocked = ! $contapymeSyncCanRun;
     $contapymeSyncRetryAfter = (int) ($contapymeSyncAvailability['retry_after'] ?? 0);
@@ -34,7 +42,7 @@ View contract:
     };
     $contapymeSyncRetryLabel = $formatSyncRetryAfter($contapymeSyncRetryAfter);
     $contapymeSyncVariant = match ($contapymeSyncState) {
-        'completed' => 'success',
+        'completed' => $contapymeSyncErrorCount > 0 ? 'warning' : 'success',
         'failed', 'blocked' => 'danger',
         default => 'info',
     };
@@ -133,6 +141,64 @@ View contract:
             <p>{{ $contapymeSyncStatus['message'] }}</p>
             @if($contapymeSyncStatus['summary'])
                 <p class="mt-1 text-xs font-semibold">{{ $contapymeSyncStatus['summary'] }}</p>
+            @endif
+
+            @if($contapymeSyncErrorCount > 0)
+                <div class="mt-3 rounded-xl border border-current/15 bg-white/50 p-3">
+                    <p class="text-xs font-semibold uppercase tracking-wide">
+                        Detalles del error: {{ $contapymeSyncErrorCount }}
+                        {{ $contapymeSyncErrorCount === 1 ? 'error' : 'errores' }}
+                    </p>
+
+                    @if($contapymeSyncErrorGroups !== [])
+                        <div class="mt-2 space-y-1 text-xs">
+                            @foreach($contapymeSyncErrorGroups as $errorGroup)
+                                <p>
+                                    <strong>{{ (int) ($errorGroup['count'] ?? 0) }}x</strong>
+                                    {{ $errorGroup['message'] ?? 'Error no especificado' }}
+                                </p>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    @if($contapymeSyncErrorDetails !== [])
+                        <details class="mt-3 rounded-lg border border-current/15 bg-white/40 p-2">
+                            <summary class="cursor-pointer text-xs font-semibold">
+                                Ver primeros {{ count($contapymeSyncErrorDetails) }} errores
+                            </summary>
+                            <ul class="mt-2 space-y-1 text-xs">
+                                @foreach($contapymeSyncErrorDetails as $errorDetail)
+                                    @php
+                                        $errorPhase = match ($errorDetail['phase'] ?? 'desconocida') {
+                                            'consulta_masiva' => 'Consulta masiva',
+                                            'validacion_sku' => 'Validación de SKU',
+                                            'consulta_stock' => 'Consulta de stock',
+                                            'persistencia_local' => 'Guardado local',
+                                            'job' => 'Job de sincronización',
+                                            default => (string) ($errorDetail['phase'] ?? 'Fase desconocida'),
+                                        };
+                                    @endphp
+                                    <li>
+                                        <strong>{{ $errorPhase }}</strong>
+                                        @if(filled($errorDetail['sku'] ?? null))
+                                            · SKU {{ $errorDetail['sku'] }}
+                                        @endif
+                                        : {{ $errorDetail['message'] ?? 'Error no especificado' }}
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </details>
+                    @endif
+
+                    @if($contapymeSyncRemainingErrors > 0)
+                        <p class="mt-2 text-xs">
+                            Se muestran los primeros {{ count($contapymeSyncErrorDetails) }}.
+                            Los otros {{ $contapymeSyncRemainingErrors }} quedaron registrados en los logs del sistema.
+                        </p>
+                    @else
+                        <p class="mt-2 text-xs">El detalle completo quedó registrado en los logs del sistema.</p>
+                    @endif
+                </div>
             @endif
         </x-ui.alert>
     @endif

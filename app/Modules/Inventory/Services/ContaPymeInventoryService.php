@@ -70,12 +70,12 @@ class ContaPymeInventoryService implements InventorySyncInterface
             $authenticated = $this->authenticate(forceRefresh: true) !== '';
 
             if (! $authenticated) {
-                $this->lastError = 'ContaPyme no devolvio keyagente.';
+                $this->lastError ??= $this->diagnosticError(null, 'ContaPyme no devolvio keyagente.');
             }
 
             return $authenticated;
         } catch (\Throwable $e) {
-            $this->lastError = $this->sanitizeErrorMessage($e->getMessage());
+            $this->lastError = $this->diagnosticError($e->getMessage());
 
             Log::error('contapyme.test_connection_failed', [
                 'error' => $this->lastError,
@@ -89,6 +89,13 @@ class ContaPymeInventoryService implements InventorySyncInterface
     public function lastError(): ?string
     {
         return $this->lastError;
+    }
+
+    public function diagnosticError(?string $message, string $fallback = 'ContaPyme no devolvio una causa especifica.'): string
+    {
+        $message = trim((string) $message);
+
+        return $this->sanitizeErrorMessage($message !== '' ? $message : $fallback);
     }
 
     /**
@@ -112,7 +119,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
                 dataJson: ['irecurso' => $sku],
             );
         } catch (\Throwable $e) {
-            $this->lastError = $this->sanitizeErrorMessage($e->getMessage());
+            $this->lastError = $this->diagnosticError($e->getMessage());
 
             Log::error('contapyme.product_exists_failed', [
                 'sku' => $sku,
@@ -122,13 +129,20 @@ class ContaPymeInventoryService implements InventorySyncInterface
             return null;
         }
 
+        if ($data === null && $this->lastError !== null) {
+            return null;
+        }
+
         $exists = $this->normalizeBoolean(data_get($data, 'existe'));
 
         if ($exists !== null) {
             return $exists;
         }
 
-        $this->lastError = 'ContaPyme no devolvio una confirmacion de existencia valida.';
+        $this->lastError = $this->diagnosticError(
+            null,
+            'ContaPyme no devolvio una confirmacion de existencia valida.',
+        );
 
         Log::error('contapyme.product_exists_invalid_response', [
             'sku' => $sku,
@@ -164,6 +178,11 @@ class ContaPymeInventoryService implements InventorySyncInterface
             );
 
             if ($data === null) {
+                $this->lastError ??= $this->diagnosticError(
+                    null,
+                    'ContaPyme no devolvio datos de stock para el SKU consultado.',
+                );
+
                 return null;
             }
 
@@ -174,7 +193,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
                 rawData: is_array($data) ? $data : ['datos' => $data],
             );
         } catch (\Throwable $e) {
-            $this->lastError = $this->sanitizeErrorMessage($e->getMessage());
+            $this->lastError = $this->diagnosticError($e->getMessage());
 
             Log::error('contapyme.get_product_stock_failed', [
                 'sku' => $sku,
@@ -206,7 +225,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
                 ],
             );
         } catch (\Throwable $e) {
-            $this->lastError = $this->sanitizeErrorMessage($e->getMessage());
+            $this->lastError = $this->diagnosticError($e->getMessage());
 
             Log::error('contapyme.list_products_failed', [
                 'error' => $this->lastError,
@@ -216,9 +235,14 @@ class ContaPymeInventoryService implements InventorySyncInterface
         }
 
         if (! is_array($data)) {
-            $this->lastError = 'ContaPyme no devolvio datos de inventario validos.';
+            $this->lastError ??= $this->diagnosticError(
+                null,
+                'ContaPyme no devolvio datos de inventario validos.',
+            );
 
-            Log::error('contapyme.list_products_invalid_response');
+            Log::error('contapyme.list_products_invalid_response', [
+                'error' => $this->lastError,
+            ]);
 
             return collect();
         }
@@ -226,9 +250,14 @@ class ContaPymeInventoryService implements InventorySyncInterface
         $products = data_get($data, 'listaproductos', []);
 
         if (! is_array($products)) {
-            $this->lastError = 'ContaPyme no devolvio listaproductos.';
+            $this->lastError = $this->diagnosticError(
+                null,
+                'ContaPyme no devolvio listaproductos.',
+            );
 
-            Log::error('contapyme.list_products_missing_list');
+            Log::error('contapyme.list_products_missing_list', [
+                'error' => $this->lastError,
+            ]);
 
             return collect();
         }
@@ -429,7 +458,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
             $token = is_array($data) ? trim((string) ($data['keyagente'] ?? '')) : '';
 
             if ($token === '') {
-                $this->lastError = 'ContaPyme no devolvio keyagente.';
+                $this->lastError ??= $this->diagnosticError(null, 'ContaPyme no devolvio keyagente.');
 
                 Log::error('contapyme.authenticate_token_empty');
             }
@@ -438,6 +467,9 @@ class ContaPymeInventoryService implements InventorySyncInterface
         });
     }
 
+    /**
+     * @phpstan-impure
+     */
     private function callWithRetry(string $serverClass, string $function, array $dataJson): mixed
     {
         $token = $this->authenticate();
@@ -458,6 +490,8 @@ class ContaPymeInventoryService implements InventorySyncInterface
             if ($token === '') {
                 return null;
             }
+
+            $this->lastError = null;
 
             return $this->sendDataSnapRequest($serverClass, $function, $dataJson, $token);
         }
@@ -488,11 +522,17 @@ class ContaPymeInventoryService implements InventorySyncInterface
             ->get($this->functionUrl($serverClass, $function).'/'.$this->pathParameters($dataJson, $controlKey));
 
         if (! $getResponse->successful()) {
+            $this->lastError = $this->diagnosticError(
+                "ContaPyme no respondio correctamente en {$serverClass}::{$function} "
+                ."(HTTP POST {$postResponse->status()}, GET {$getResponse->status()}).",
+            );
+
             Log::error('contapyme.datasnap_http_error', [
                 'server_class' => $serverClass,
                 'function' => $function,
                 'post_status' => $postResponse->status(),
                 'get_status' => $getResponse->status(),
+                'error' => $this->lastError,
             ]);
 
             return null;
@@ -506,9 +546,14 @@ class ContaPymeInventoryService implements InventorySyncInterface
         $payload = $response->json();
 
         if (! is_array($payload)) {
+            $this->lastError = $this->diagnosticError(
+                "ContaPyme devolvio una respuesta JSON invalida en {$serverClass}::{$function}.",
+            );
+
             Log::error('contapyme.datasnap_invalid_json', [
                 'server_class' => $serverClass,
                 'function' => $function,
+                'error' => $this->lastError,
             ]);
 
             return null;
@@ -519,7 +564,12 @@ class ContaPymeInventoryService implements InventorySyncInterface
         $success = strtolower((string) ($header['resultado'] ?? 'false')) === 'true';
 
         if (! $success) {
-            $message = (string) ($header['mensaje'] ?? 'Respuesta no exitosa de ContaPyme.');
+            $message = $this->diagnosticError(
+                (string) ($header['mensaje'] ?? ''),
+                "ContaPyme devolvio una respuesta no exitosa en {$serverClass}::{$function}.",
+            );
+
+            $this->lastError = $message;
 
             Log::warning('contapyme.datasnap_unsuccessful', [
                 'server_class' => $serverClass,
@@ -528,7 +578,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
                 'message' => $message,
             ]);
 
-            throw new RuntimeException($message);
+            throw new RuntimeException($this->lastError);
         }
 
         return data_get($envelope, 'respuesta.datos');
