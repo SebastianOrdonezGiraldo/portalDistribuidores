@@ -90,10 +90,13 @@ class ContaPymeStockSyncRunner
             }
 
             $catalog = $this->loadCatalog($stats, $simpleProducts, $variantProducts, $emit);
-
-            if ($catalog === null && (bool) config('contapyme.catalog_reconciliation', true)) {
-                return $this->finish($runId, $origin, $mode, $startedAt, $stats);
-            }
+            $this->logReconciliationDiagnostics(
+                runId: $runId,
+                externalStock: $externalStock,
+                catalogIds: $catalog,
+                simpleProducts: $simpleProducts,
+                variantProducts: $variantProducts,
+            );
 
             $reservations = $this->reservationsByProductId($simpleProducts);
 
@@ -297,18 +300,7 @@ class ContaPymeStockSyncRunner
             return $catalogIds;
         }
 
-        $this->emit($emit, 'CONTAPYME_ERROR: no fue posible validar el catalogo de ContaPyme.', 'error');
-        $message = $this->inventory->lastError();
-
-        foreach ($simpleProducts as $product) {
-            $this->recordFailure($stats, $product, 'conciliacion_catalogo', $message);
-        }
-
-        foreach ($variantProducts as $product) {
-            foreach ($product->activeVariantsCollection() as $variant) {
-                $this->recordFailure($stats, $product, 'conciliacion_catalogo', $message);
-            }
-        }
+        $this->emit($emit, 'CONTAPYME_WARNING: no fue posible validar el catalogo de ContaPyme.', 'warning');
 
         return null;
     }
@@ -390,17 +382,6 @@ class ContaPymeStockSyncRunner
         array &$stats,
         ?callable $emit,
     ): ?float {
-        if ($catalogIds !== null && ! $catalogIds->has($externalId)) {
-            $this->recordFailure(
-                stats: $stats,
-                product: $product,
-                phase: 'conciliacion_catalogo',
-                message: 'El irecurso no aparece en el catalogo visible de ContaPyme; se conserva el stock local.',
-            );
-
-            return null;
-        }
-
         if ($externalStock->has($externalId)) {
             $this->touchMapping($product, $externalId, 'mapped');
 
@@ -446,6 +427,53 @@ class ContaPymeStockSyncRunner
         ]);
 
         return 0.0;
+    }
+
+    /**
+     * @param  Collection<string, float>  $externalStock
+     * @param  Collection<string, true>|null  $catalogIds
+     * @param  Collection<int, Product>  $simpleProducts
+     * @param  Collection<int, Product>  $variantProducts
+     */
+    private function logReconciliationDiagnostics(
+        string $runId,
+        Collection $externalStock,
+        ?Collection $catalogIds,
+        Collection $simpleProducts,
+        Collection $variantProducts,
+    ): void {
+        $simpleIds = $simpleProducts
+            ->map(fn (Product $product): ?string => $this->externalIdForProduct($product))
+            ->filter(fn (?string $externalId): bool => filled($externalId))
+            ->unique()
+            ->values();
+        $variantIds = $variantProducts->flatMap(
+            fn (Product $product): Collection => $product->activeVariantsCollection()
+                ->map(fn (ProductVariant $variant): ?string => filled($variant->contapymeMapping?->irecurso)
+                    ? trim((string) $variant->contapymeMapping?->irecurso)
+                    : null)
+                ->filter(fn (?string $externalId): bool => filled($externalId)),
+        )->unique()->values();
+
+        $catalogStatus = ! (bool) config('contapyme.catalog_reconciliation', true)
+            ? 'disabled'
+            : ($catalogIds === null ? 'unavailable' : ($catalogIds->isEmpty() ? 'empty' : 'loaded'));
+        $context = [
+            'run_id' => $runId,
+            'bulk_items' => $externalStock->count(),
+            'catalog_items' => $catalogIds?->count(),
+            'catalog_status' => $catalogStatus,
+            'simple_exact_matches' => $simpleIds->filter(fn (string $externalId): bool => $externalStock->has($externalId))->count(),
+            'variant_exact_matches' => $variantIds->filter(fn (string $externalId): bool => $externalStock->has($externalId))->count(),
+        ];
+
+        if ($catalogStatus === 'loaded' || $catalogStatus === 'disabled') {
+            Log::info('contapyme.sync_reconciliation', $context);
+
+            return;
+        }
+
+        Log::warning('contapyme.sync_reconciliation', $context);
     }
 
     /**

@@ -213,10 +213,12 @@ class ContaPymeInventoryServiceTest extends TestCase
                 return false;
             }
 
-            $dataJson = json_decode((string) $request->data()['_parameters'][0], true);
+            $dataJson = json_decode((string) $request->data()['_parameters'][0]);
 
-            return $dataJson['datospagina']['cantidadregistros'] === '2'
-                && in_array($dataJson['datospagina']['pagina'], ['1', '2'], true);
+            return is_object($dataJson)
+                && is_object($dataJson->datosfiltro)
+                && $dataJson->datospagina->cantidadregistros === '2'
+                && in_array($dataJson->datospagina->pagina, ['1', '2'], true);
         });
     }
 

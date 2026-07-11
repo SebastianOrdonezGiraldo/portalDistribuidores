@@ -394,7 +394,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
                             'pagina' => (string) $page,
                         ],
                         'camposderetorno' => ['irecurso', 'nrecurso'],
-                        'datosfiltro' => [],
+                        'datosfiltro' => new \stdClass,
                     ],
                     withResponse: true,
                 );
@@ -404,6 +404,11 @@ class ContaPymeInventoryService implements InventorySyncInterface
                         null,
                         'ContaPyme no devolvio el catalogo de inventario.',
                     );
+
+                    Log::error('contapyme.catalog_invalid_response', [
+                        'error' => $this->lastError,
+                        'page' => $page,
+                    ]);
 
                     return null;
                 }
@@ -415,6 +420,11 @@ class ContaPymeInventoryService implements InventorySyncInterface
                         null,
                         'ContaPyme devolvio un catalogo de inventario invalido.',
                     );
+
+                    Log::error('contapyme.catalog_invalid_rows', [
+                        'error' => $this->lastError,
+                        'page' => $page,
+                    ]);
 
                     return null;
                 }
@@ -436,10 +446,17 @@ class ContaPymeInventoryService implements InventorySyncInterface
                 $page++;
             } while ($page <= $totalPages);
 
-            Log::info('contapyme.catalog_loaded', [
+            $context = [
                 'pages' => $page - 1,
                 'items' => $items->count(),
-            ]);
+                'catalog_status' => $items->isEmpty() ? 'empty' : 'loaded',
+            ];
+
+            if ($items->isEmpty()) {
+                Log::warning('contapyme.catalog_empty', $context);
+            } else {
+                Log::info('contapyme.catalog_loaded', $context);
+            }
 
             return $items->unique('irecurso')->values();
         } catch (\Throwable $e) {
@@ -448,6 +465,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
             Log::error('contapyme.catalog_failed', [
                 'error' => $this->lastError,
                 'page' => $page,
+                'catalog_status' => 'unavailable',
             ]);
 
             return null;
