@@ -6,6 +6,8 @@ use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Categories\Models\Category;
+use App\Modules\Inventory\Models\ContaPymeInventoryMapping;
+use App\Modules\Inventory\Models\ContaPymeSyncRun;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Shared\Enums\DistributorStatus;
 use App\Modules\Shared\Enums\OrderStatus;
@@ -42,7 +44,6 @@ class DashboardDataService
                 'monthRangeLabel' => $monthlyMetrics['range_label'],
                 'currentMonthOrders' => $monthlyMetrics['current_orders'],
                 'latestCatalogUpdateAt' => $this->getLatestCatalogUpdateAt(),
-                'contapymeSync' => $this->getContapymeSyncStatus(),
             ];
         });
     }
@@ -53,6 +54,7 @@ class DashboardDataService
             'recentOrders' => $this->getRecentOrders(),
             'recentEvents' => $this->getRecentEvents(),
             'latestOrderAt' => $this->getLatestOrderAt(),
+            'contapymeSync' => $this->getContapymeSyncStatus(),
         ];
     }
 
@@ -253,14 +255,36 @@ class DashboardDataService
         $synced = (int) ($statusCounts['synced'] ?? 0);
         $failed = (int) ($statusCounts['failed'] ?? 0);
         $missing = (int) ($statusCounts['missing_contapyme'] ?? 0);
+        $latestRun = ContaPymeSyncRun::query()->latest('created_at')->first();
+        $lastSuccessfulRun = ContaPymeSyncRun::query()
+            ->where('status', 'completed')
+            ->latest('finished_at')
+            ->first();
+        $mappingTotal = ContaPymeInventoryMapping::query()->count();
+        $mappingValidated = ContaPymeInventoryMapping::query()->where('status', 'mapped')->count();
+        $runHasErrors = $latestRun !== null
+            && ($latestRun->status !== 'completed' || (int) $latestRun->failed > 0);
 
         return [
             'last_sync_at' => $lastSyncAt ? Carbon::parse($lastSyncAt) : null,
+            'last_attempt_at' => $latestRun?->started_at,
+            'last_success_at' => $lastSuccessfulRun?->finished_at ?? ($lastSyncAt ? Carbon::parse($lastSyncAt) : null),
+            'last_run_status' => $latestRun?->status,
+            'last_run_id' => $latestRun?->id,
+            'last_run_summary' => $latestRun?->summary,
+            'last_run_duration_ms' => $latestRun?->duration_ms,
+            'last_run_error_count' => (int) ($latestRun?->failed ?? 0),
+            'last_run_unmapped' => (int) ($latestRun?->unmapped ?? 0),
+            'mapping_total' => $mappingTotal,
+            'mapping_validated' => $mappingValidated,
             'total_managed' => $totalManaged,
             'synced' => $synced,
             'failed' => $failed,
             'missing_contapyme' => $missing,
-            'healthy' => $totalManaged > 0 && $failed === 0 && $missing < $totalManaged * 0.5,
+            'healthy' => $totalManaged > 0
+                && ! $runHasErrors
+                && $failed === 0
+                && $missing < $totalManaged * 0.5,
         ];
     }
 

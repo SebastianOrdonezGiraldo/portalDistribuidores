@@ -2,6 +2,7 @@
 
 namespace App\Modules\Catalog\Models;
 
+use App\Modules\Inventory\Models\ContaPymeInventoryMapping;
 use App\Modules\Orders\Models\OrderItem;
 use Database\Factories\ProductVariantFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class ProductVariant extends Model
 {
@@ -25,6 +27,8 @@ class ProductVariant extends Model
         'product_attribute_value_id',
         'price',
         'stock',
+        'stock_synced_at',
+        'stock_sync_status',
         'is_active',
         'sort_order',
     ];
@@ -34,6 +38,7 @@ class ProductVariant extends Model
         return [
             'price' => 'decimal:2',
             'stock' => 'decimal:2',
+            'stock_synced_at' => 'datetime',
             'is_active' => 'boolean',
         ];
     }
@@ -54,6 +59,12 @@ class ProductVariant extends Model
     public function orderItems(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    /** @return HasOne<ContaPymeInventoryMapping, $this> */
+    public function contapymeMapping(): HasOne
+    {
+        return $this->hasOne(ContaPymeInventoryMapping::class, 'product_variant_id');
     }
 
     public function scopeActive(Builder $query): Builder

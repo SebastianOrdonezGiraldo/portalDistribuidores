@@ -120,7 +120,12 @@
                     <div class="stat-chip">
                         <div>
                             <p class="stat-chip-label">Estado</p>
-                            <p class="stat-chip-hint">{{ $contapymeSync['healthy'] ? 'Funcionando correctamente' : 'Requiere atención' }}</p>
+                            <p class="stat-chip-hint">
+                                {{ $contapymeSync['healthy'] ? 'Funcionando correctamente' : 'Requiere atención' }}
+                                @if($contapymeSync['last_run_status'])
+                                    · {{ ucfirst($contapymeSync['last_run_status']) }}
+                                @endif
+                            </p>
                         </div>
                         <p class="stat-chip-value">
                             @if($contapymeSync['healthy'])
@@ -132,8 +137,8 @@
                     </div>
                     <div class="stat-chip">
                         <div>
-                            <p class="stat-chip-label">Última sincronización</p>
-                            <p class="stat-chip-hint">{{ $contapymeSync['last_sync_at']?->diffForHumans() ?? 'Nunca' }}</p>
+                            <p class="stat-chip-label">Último intento</p>
+                            <p class="stat-chip-hint">{{ $contapymeSync['last_attempt_at']?->diffForHumans() ?? 'Nunca' }}</p>
                         </div>
                         <p class="stat-chip-value">{{ $contapymeSync['total_managed'] }}</p>
                     </div>
@@ -151,6 +156,20 @@
                         </div>
                         <p class="stat-chip-value {{ $contapymeSync['failed'] + $contapymeSync['missing_contapyme'] > 0 ? 'text-red-600' : '' }}">{{ $contapymeSync['failed'] + $contapymeSync['missing_contapyme'] }}</p>
                     </div>
+                </div>
+                <div class="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                    <p>
+                        Última sincronización exitosa / stock válido:
+                        <strong>{{ $contapymeSync['last_success_at']?->diffForHumans() ?? 'Nunca' }}</strong>
+                        · Mapeos validados:
+                        <strong>{{ $contapymeSync['mapping_validated'] }}/{{ $contapymeSync['mapping_total'] }}</strong>
+                    </p>
+                    @if($contapymeSync['last_run_summary'])
+                        <p class="mt-1 font-medium text-slate-700">{{ $contapymeSync['last_run_summary'] }}</p>
+                    @endif
+                    @if($contapymeSync['last_run_id'])
+                        <p class="mt-1 font-mono text-[0.68rem] text-slate-500">Ejecución: {{ $contapymeSync['last_run_id'] }}</p>
+                    @endif
                 </div>
             </div>
         </x-ui.card>
@@ -244,8 +263,11 @@
 
                     @if(!$contapymeSync['healthy'])
                         <x-ui.alert variant="danger" title="Sincronización ContaPyme">
-                            <p>{{ $contapymeSync['failed'] }} productos con error de conexión y {{ $contapymeSync['missing_contapyme'] }} sin stock en ContaPyme.</p>
-                            <p class="mt-1 text-xs font-semibold">Última sincronización: {{ $contapymeSync['last_sync_at']?->diffForHumans() ?? 'Nunca' }}</p>
+                            <p>{{ $contapymeSync['last_run_error_count'] }} errores en el último intento y {{ $contapymeSync['missing_contapyme'] }} productos ausentes en ContaPyme.</p>
+                            <p class="mt-1 text-xs font-semibold">Último intento: {{ $contapymeSync['last_attempt_at']?->diffForHumans() ?? 'Nunca' }}</p>
+                            @if($contapymeSync['last_run_summary'])
+                                <p class="mt-1 text-xs">{{ $contapymeSync['last_run_summary'] }}</p>
+                            @endif
                         </x-ui.alert>
                     @endif
 

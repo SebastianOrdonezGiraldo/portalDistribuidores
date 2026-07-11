@@ -10,4 +10,7 @@ return [
     'iapp' => env('CONTAPYME_IAPP', '1003'),
     'warehouse' => env('CONTAPYME_BODEGA_ID', env('CONTAPYME_WAREHOUSE', '1')),
     'timeout' => env('CONTAPYME_TIMEOUT', 10),
+    'catalog_reconciliation' => (bool) env('CONTAPYME_CATALOG_RECONCILIATION', true),
+    'catalog_page_size' => (int) env('CONTAPYME_CATALOG_PAGE_SIZE', 200),
+    'stock_stale_after' => (int) env('CONTAPYME_STOCK_STALE_AFTER', 900),
 ];

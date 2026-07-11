@@ -3,8 +3,10 @@
 namespace Tests\Unit;
 
 use App\Modules\Inventory\Jobs\SyncContaPymeStockJob;
+use App\Modules\Inventory\Services\ContaPymeStockSyncRunner;
 use App\Modules\Inventory\Services\ContaPymeSyncState;
-use Illuminate\Support\Facades\Artisan;
+use App\Modules\Inventory\ValueObjects\ContaPymeStockSyncReport;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use RuntimeException;
 use Tests\TestCase;
@@ -19,25 +21,39 @@ class SyncContaPymeStockJobTest extends TestCase
         config(['contapyme.enabled' => true]);
     }
 
-    public function test_job_runs_the_stock_command_and_publishes_its_summary(): void
+    public function test_job_runs_the_stock_runner_and_publishes_its_summary(): void
     {
         $state = app(ContaPymeSyncState::class);
         $state->queue();
+        $runId = $state->status()['run_id'];
 
-        Artisan::shouldReceive('call')
-            ->once()
-            ->with('contapyme:sync-stock')
-            ->andReturn(0);
-        Artisan::shouldReceive('output')
-            ->once()
-            ->andReturn("UPDATED CB-08 stock=1565\nContaPyme stock sync: processed=1 updated=1 unchanged=0 missing_contapyme=0 no_sku=0 skipped_variants=0 failed=0\nCONTAPYME_DIAGNOSTICS: {\"error_count\":0,\"error_groups\":[],\"error_details\":[]}\n");
+        $this->mock(ContaPymeStockSyncRunner::class, function ($mock) use ($runId): void {
+            $mock->shouldReceive('run')->once()->andReturn(new ContaPymeStockSyncReport(
+                runId: $runId,
+                origin: 'manual',
+                mode: 'full',
+                startedAt: Carbon::now()->subSecond(),
+                finishedAt: Carbon::now(),
+                stats: [
+                    'processed' => 1,
+                    'updated' => 1,
+                    'unchanged' => 0,
+                    'missing_contapyme' => 0,
+                    'no_sku' => 0,
+                    'confirmed_zero' => 0,
+                    'unmapped' => 0,
+                    'skipped_variants' => 0,
+                    'failed' => 0,
+                ],
+            ));
+        });
 
-        (new SyncContaPymeStockJob)->handle($state);
+        (new SyncContaPymeStockJob(runId: $runId))->handle($state, app(ContaPymeStockSyncRunner::class));
 
         $status = $state->status();
 
         $this->assertSame('completed', $status['state']);
-        $this->assertSame('ContaPyme stock sync: processed=1 updated=1 unchanged=0 missing_contapyme=0 no_sku=0 skipped_variants=0 failed=0', $status['summary']);
+        $this->assertSame('Sincronización de stock ContaPyme: procesados=1, actualizados=1, sin cambios=0, ausentes en ContaPyme=0, sin SKU=0, variantes omitidas=0, fallidos=0', $status['summary']);
         $this->assertSame(0, $status['error_count']);
         $this->assertFalse($state->isRunning());
         $this->assertFalse($state->availability()['can_run']);
@@ -49,18 +65,39 @@ class SyncContaPymeStockJobTest extends TestCase
         $state = app(ContaPymeSyncState::class);
         $state->queue();
 
-        Artisan::shouldReceive('call')
-            ->once()
-            ->with('contapyme:sync-stock')
-            ->andReturn(1);
-        Artisan::shouldReceive('output')
-            ->once()
-            ->andReturn("CONTAPYME_ERROR: la sincronizacion masiva fallo; no se modifico stock local.\nCONTAPYME_DIAGNOSTICS: {\"error_count\":2,\"error_groups\":[{\"message\":\"Timeout de ContaPyme\",\"count\":2}],\"error_details\":[{\"sku\":\"ERR-001\",\"phase\":\"consulta_masiva\",\"message\":\"Timeout de ContaPyme\"},{\"sku\":\"ERR-002\",\"phase\":\"consulta_masiva\",\"message\":\"Timeout de ContaPyme\"}]}\n");
+        $runId = $state->status()['run_id'];
+        $this->mock(ContaPymeStockSyncRunner::class, function ($mock) use ($runId): void {
+            $mock->shouldReceive('run')->once()->andReturn(new ContaPymeStockSyncReport(
+                runId: $runId,
+                origin: 'manual',
+                mode: 'full',
+                startedAt: Carbon::now()->subSecond(),
+                finishedAt: Carbon::now(),
+                stats: [
+                    'processed' => 2,
+                    'updated' => 0,
+                    'unchanged' => 0,
+                    'missing_contapyme' => 0,
+                    'no_sku' => 0,
+                    'confirmed_zero' => 0,
+                    'unmapped' => 0,
+                    'skipped_variants' => 0,
+                    'failed' => 2,
+                ],
+                errorGroups: [
+                    ['message' => 'Timeout de ContaPyme', 'count' => 2],
+                ],
+                errorDetails: [
+                    ['sku' => 'ERR-001', 'phase' => 'consulta_masiva', 'message' => 'Timeout de ContaPyme'],
+                    ['sku' => 'ERR-002', 'phase' => 'consulta_masiva', 'message' => 'Timeout de ContaPyme'],
+                ],
+            ));
+        });
 
-        $job = new SyncContaPymeStockJob;
+        $job = new SyncContaPymeStockJob(runId: $runId);
 
         try {
-            $job->handle($state);
+            $job->handle($state, app(ContaPymeStockSyncRunner::class));
             $this->fail('The job must throw when the command fails.');
         } catch (RuntimeException $exception) {
             $job->failed($exception);
@@ -69,7 +106,7 @@ class SyncContaPymeStockJobTest extends TestCase
         $status = $state->status();
 
         $this->assertSame('failed', $status['state']);
-        $this->assertSame('CONTAPYME_ERROR: la sincronizacion masiva fallo; no se modifico stock local.', $status['summary']);
+        $this->assertSame('Sincronización de stock ContaPyme: procesados=2, actualizados=0, sin cambios=0, ausentes en ContaPyme=0, sin SKU=0, variantes omitidas=0, fallidos=2', $status['summary']);
         $this->assertSame(2, $status['error_count']);
         $this->assertSame([
             ['message' => 'Timeout de ContaPyme', 'count' => 2],

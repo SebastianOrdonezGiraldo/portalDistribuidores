@@ -3,6 +3,7 @@
 namespace App\Modules\Inventory\Services;
 
 use App\Modules\Catalog\Models\Product;
+use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Inventory\Models\StockMovement;
 use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Shared\Contracts\InventorySyncInterface;
@@ -25,8 +26,6 @@ use RuntimeException;
  */
 class ContaPymeInventoryService implements InventorySyncInterface
 {
-    private const CACHE_TOKEN = 'contapyme_keyagente';
-
     private const CACHE_TOKEN_TTL = 3600;
 
     private string $baseUrl;
@@ -46,6 +45,9 @@ class ContaPymeInventoryService implements InventorySyncInterface
     private int $timeout;
 
     private ?string $lastError = null;
+
+    /** @var array<string, string> */
+    private array $lastAuthMetadata = [];
 
     public function __construct()
     {
@@ -89,6 +91,83 @@ class ContaPymeInventoryService implements InventorySyncInterface
     public function lastError(): ?string
     {
         return $this->lastError;
+    }
+
+    /**
+     * Run a non-mutating authentication and Agent health check.
+     *
+     * @return array{authenticated:bool, agent_status:string|null, auth_metadata:array<string,string>, error:string|null}
+     */
+    public function diagnose(): array
+    {
+        $this->lastError = null;
+        $this->lastAuthMetadata = [];
+
+        try {
+            $authenticated = $this->authenticate(forceRefresh: true) !== '';
+        } catch (\Throwable $e) {
+            $this->lastError = $this->diagnosticError($e->getMessage());
+
+            Log::error('contapyme.diagnose_failed', [
+                'error' => $this->lastError,
+                'auth_metadata' => $this->lastAuthMetadata,
+            ]);
+
+            return [
+                'authenticated' => false,
+                'agent_status' => null,
+                'auth_metadata' => $this->lastAuthMetadata,
+                'error' => $this->lastError,
+            ];
+        }
+
+        if (! $authenticated) {
+            return [
+                'authenticated' => false,
+                'agent_status' => null,
+                'auth_metadata' => $this->lastAuthMetadata,
+                'error' => $this->lastError ?? $this->diagnosticError(null, 'ContaPyme no devolvio keyagente.'),
+            ];
+        }
+
+        try {
+            $testResponse = $this->callWithRetry(
+                serverClass: 'TBasicoGeneral',
+                function: 'Test',
+                dataJson: [],
+            );
+            $agentStatus = $this->agentStatusFromResponse($testResponse);
+
+            if ($agentStatus === null) {
+                $this->lastError = $this->diagnosticError(null, 'ContaPyme no devolvio un estado valido del Agente.');
+            }
+
+            Log::info('contapyme.diagnose_completed', [
+                'agent_status' => $agentStatus,
+                'auth_metadata' => $this->lastAuthMetadata,
+            ]);
+
+            return [
+                'authenticated' => true,
+                'agent_status' => $agentStatus,
+                'auth_metadata' => $this->lastAuthMetadata,
+                'error' => $this->lastError,
+            ];
+        } catch (\Throwable $e) {
+            $this->lastError = $this->diagnosticError($e->getMessage());
+
+            Log::error('contapyme.diagnose_agent_failed', [
+                'error' => $this->lastError,
+                'auth_metadata' => $this->lastAuthMetadata,
+            ]);
+
+            return [
+                'authenticated' => true,
+                'agent_status' => null,
+                'auth_metadata' => $this->lastAuthMetadata,
+                'error' => $this->lastError,
+            ];
+        }
     }
 
     public function diagnosticError(?string $message, string $fallback = 'ContaPyme no devolvio una causa especifica.'): string
@@ -289,6 +368,93 @@ class ContaPymeInventoryService implements InventorySyncInterface
     }
 
     /**
+     * Read the visible ContaPyme inventory catalog page by page.
+     *
+     * The stock endpoint omits products without balance. This catalog is used
+     * only to establish identity before a zero can be written locally.
+     *
+     * @return Collection<int, array{irecurso:string, name:string|null}>|null
+     */
+    public function listInventoryCatalog(): ?Collection
+    {
+        $this->lastError = null;
+        $page = 1;
+        $pageSize = min(1000, max(1, (int) config('contapyme.catalog_page_size', 200)));
+        $items = collect();
+        $totalPages = null;
+
+        try {
+            do {
+                $response = $this->callWithRetry(
+                    serverClass: 'TCatElemInv',
+                    function: 'GetListaElemInv',
+                    dataJson: [
+                        'datospagina' => [
+                            'cantidadregistros' => (string) $pageSize,
+                            'pagina' => (string) $page,
+                        ],
+                        'camposderetorno' => ['irecurso', 'nrecurso'],
+                        'datosfiltro' => [],
+                    ],
+                    withResponse: true,
+                );
+
+                if (! is_array($response)) {
+                    $this->lastError ??= $this->diagnosticError(
+                        null,
+                        'ContaPyme no devolvio el catalogo de inventario.',
+                    );
+
+                    return null;
+                }
+
+                $rows = data_get($response, 'datos', []);
+
+                if (! is_array($rows)) {
+                    $this->lastError = $this->diagnosticError(
+                        null,
+                        'ContaPyme devolvio un catalogo de inventario invalido.',
+                    );
+
+                    return null;
+                }
+
+                $items = $items->merge(collect($rows)
+                    ->filter(fn (mixed $row): bool => is_array($row))
+                    ->map(function (array $row): ?array {
+                        $irecurso = trim((string) ($row['irecurso'] ?? ''));
+
+                        return $irecurso === '' ? null : [
+                            'irecurso' => $irecurso,
+                            'name' => filled($row['nrecurso'] ?? null) ? (string) $row['nrecurso'] : null,
+                        ];
+                    })
+                    ->filter()
+                    ->values());
+
+                $totalPages ??= max(1, (int) data_get($response, 'paginacion.totalpaginas', 1));
+                $page++;
+            } while ($page <= $totalPages);
+
+            Log::info('contapyme.catalog_loaded', [
+                'pages' => $page - 1,
+                'items' => $items->count(),
+            ]);
+
+            return $items->unique('irecurso')->values();
+        } catch (\Throwable $e) {
+            $this->lastError = $this->diagnosticError($e->getMessage());
+
+            Log::error('contapyme.catalog_failed', [
+                'error' => $this->lastError,
+                'page' => $page,
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
      * Pull stock for one SKU and persist it to the matching portal product.
      *
      * @return bool true only when stock changed
@@ -433,15 +599,80 @@ class ContaPymeInventoryService implements InventorySyncInterface
     }
 
     /**
+     * Persist a mapped variant using the same reservation-safe arithmetic as a
+     * simple product. The parent aggregate is recalculated after the update.
+     *
+     * @return array{status:string, changed:bool, stock:float}
+     */
+    public function syncVariantFromPhysicalStock(
+        ProductVariant $variant,
+        float $physicalStock,
+        float $reservedStock = 0.0,
+        string $syncStatus = 'synced',
+    ): array {
+        $baseAvailableStock = round(max(0, $physicalStock - max(0, $reservedStock)), 2);
+        $expectedPreviousStock = is_numeric($variant->stock) ? (float) $variant->stock : null;
+        $previousStock = null;
+        $newStock = $baseAvailableStock;
+        $changed = false;
+
+        DB::transaction(function () use (
+            $variant,
+            $expectedPreviousStock,
+            $baseAvailableStock,
+            $syncStatus,
+            &$previousStock,
+            &$newStock,
+            &$changed,
+        ): void {
+            $lockedVariant = ProductVariant::query()
+                ->whereKey($variant->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $previousStock = is_numeric($lockedVariant->stock) ? (float) $lockedVariant->stock : null;
+            $localStockDelta = $expectedPreviousStock !== null && $previousStock !== null
+                ? $previousStock - $expectedPreviousStock
+                : 0.0;
+            $newStock = round(max(0, $baseAvailableStock + $localStockDelta), 2);
+            $changed = $previousStock === null || abs($previousStock - $newStock) > 0.00001;
+
+            $lockedVariant->forceFill([
+                'stock' => $newStock,
+                'stock_sync_status' => $syncStatus,
+                'stock_synced_at' => now(),
+            ])->save();
+
+            if ($changed) {
+                StockMovement::record(
+                    product: $lockedVariant->product,
+                    variant: $lockedVariant,
+                    previousStock: $previousStock,
+                    newStock: $newStock,
+                    source: 'contapyme_sync',
+                );
+            }
+        });
+
+        $this->recalculateVariantParentStock($variant->product_id);
+
+        return [
+            'status' => $changed ? 'updated' : 'unchanged',
+            'changed' => $changed,
+            'stock' => $newStock,
+        ];
+    }
+
+    /**
      * Authenticate against ContaPyme and cache keyagente for subsequent calls.
      */
     private function authenticate(bool $forceRefresh = false): string
     {
         if ($forceRefresh) {
-            Cache::forget(self::CACHE_TOKEN);
+            Cache::forget($this->cacheTokenKey());
         }
 
-        return Cache::remember(self::CACHE_TOKEN, self::CACHE_TOKEN_TTL, function (): string {
+        return Cache::remember($this->cacheTokenKey(), self::CACHE_TOKEN_TTL, function (): string {
             $this->assertConfigured();
 
             $data = $this->sendDataSnapRequest(
@@ -456,6 +687,13 @@ class ContaPymeInventoryService implements InventorySyncInterface
             );
 
             $token = is_array($data) ? trim((string) ($data['keyagente'] ?? '')) : '';
+            $this->lastAuthMetadata = is_array($data)
+                ? collect($data)
+                    ->only(['version', 'release', 'update', 'actualizacion', 'actualización'])
+                    ->filter(fn (mixed $value): bool => is_scalar($value) && (string) $value !== '')
+                    ->map(fn (mixed $value): string => (string) $value)
+                    ->all()
+                : [];
 
             if ($token === '') {
                 $this->lastError ??= $this->diagnosticError(null, 'ContaPyme no devolvio keyagente.');
@@ -470,7 +708,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
     /**
      * @phpstan-impure
      */
-    private function callWithRetry(string $serverClass, string $function, array $dataJson): mixed
+    private function callWithRetry(string $serverClass, string $function, array $dataJson, bool $withResponse = false): mixed
     {
         $token = $this->authenticate();
 
@@ -479,7 +717,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
         }
 
         try {
-            return $this->sendDataSnapRequest($serverClass, $function, $dataJson, $token);
+            return $this->sendDataSnapRequest($serverClass, $function, $dataJson, $token, $withResponse);
         } catch (RuntimeException $e) {
             if (! str_contains($e->getMessage(), 'Usuario no logueado')) {
                 throw $e;
@@ -493,15 +731,20 @@ class ContaPymeInventoryService implements InventorySyncInterface
 
             $this->lastError = null;
 
-            return $this->sendDataSnapRequest($serverClass, $function, $dataJson, $token);
+            return $this->sendDataSnapRequest($serverClass, $function, $dataJson, $token, $withResponse);
         }
     }
 
     /**
      * Execute the official POST request and fall back to DataSnap GET URLs.
      */
-    private function sendDataSnapRequest(string $serverClass, string $function, array $dataJson, string $controlKey): mixed
-    {
+    private function sendDataSnapRequest(
+        string $serverClass,
+        string $function,
+        array $dataJson,
+        string $controlKey,
+        bool $withResponse = false,
+    ): mixed {
         $payload = [
             '_parameters' => [
                 json_encode($dataJson, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
@@ -515,7 +758,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
             ->post($this->functionUrl($serverClass, $function), $payload);
 
         if ($postResponse->successful()) {
-            return $this->extractDataFromResponse($postResponse, $serverClass, $function);
+            return $this->extractDataFromResponse($postResponse, $serverClass, $function, $withResponse);
         }
 
         $getResponse = Http::timeout($this->timeout)
@@ -538,11 +781,15 @@ class ContaPymeInventoryService implements InventorySyncInterface
             return null;
         }
 
-        return $this->extractDataFromResponse($getResponse, $serverClass, $function);
+        return $this->extractDataFromResponse($getResponse, $serverClass, $function, $withResponse);
     }
 
-    private function extractDataFromResponse(Response $response, string $serverClass, string $function): mixed
-    {
+    private function extractDataFromResponse(
+        Response $response,
+        string $serverClass,
+        string $function,
+        bool $withResponse = false,
+    ): mixed {
         $payload = $response->json();
 
         if (! is_array($payload)) {
@@ -581,7 +828,11 @@ class ContaPymeInventoryService implements InventorySyncInterface
             throw new RuntimeException($this->lastError);
         }
 
-        return data_get($envelope, 'respuesta.datos');
+        $responseData = data_get($envelope, 'respuesta', []);
+
+        return $withResponse
+            ? (is_array($responseData) ? $responseData : [])
+            : data_get($responseData, 'datos');
     }
 
     private function firstEnvelope(array $payload): ?array
@@ -599,24 +850,30 @@ class ContaPymeInventoryService implements InventorySyncInterface
         return null;
     }
 
-    private function stockFromWarehouseRows(mixed $data): float
+    private function stockFromWarehouseRows(mixed $data): ?float
     {
         if (! is_array($data)) {
-            return 0.0;
+            return null;
         }
 
         $rows = array_is_list($data) ? $data : [$data];
 
-        return collect($rows)
+        $warehouseRows = collect($rows)
             ->filter(fn (mixed $row): bool => is_array($row))
             ->filter(fn (array $row): bool => (string) ($row['iinventario'] ?? '') === $this->warehouse)
-            ->sum(fn (array $row): float => $this->normalizeNumeric($row['qproducto'] ?? null) ?? 0.0);
+            ->filter(fn (array $row): bool => $this->normalizeNumeric($row['qproducto'] ?? null) !== null);
+
+        if ($warehouseRows->isEmpty()) {
+            return null;
+        }
+
+        return (float) $warehouseRows->sum(fn (array $row): float => (float) $this->normalizeNumeric($row['qproducto']));
     }
 
     /**
      * @param  array<int, mixed>  $rows
      */
-    private function stockFromBulkWarehouseRows(array $rows, string $sku): float
+    private function stockFromBulkWarehouseRows(array $rows, string $sku): ?float
     {
         $warehouseRows = collect($rows)
             ->filter(fn (mixed $row): bool => is_array($row))
@@ -628,11 +885,22 @@ class ContaPymeInventoryService implements InventorySyncInterface
                 'warehouse' => $this->warehouse,
             ]);
 
-            return 0.0;
+            return null;
         }
 
-        return $warehouseRows
-            ->sum(fn (array $row): float => $this->normalizeNumeric($row['qinvfisico'] ?? null) ?? 0.0);
+        $warehouseRows = $warehouseRows
+            ->filter(fn (array $row): bool => $this->normalizeNumeric($row['qinvfisico'] ?? null) !== null);
+
+        if ($warehouseRows->isEmpty()) {
+            Log::warning('contapyme.bulk_warehouse_balance_invalid_for_product', [
+                'sku' => $sku,
+                'warehouse' => $this->warehouse,
+            ]);
+
+            return null;
+        }
+
+        return (float) $warehouseRows->sum(fn (array $row): float => (float) $this->normalizeNumeric($row['qinvfisico']));
     }
 
     private function reservedQuantityForProduct(int $productId): float
@@ -682,6 +950,27 @@ class ContaPymeInventoryService implements InventorySyncInterface
         };
     }
 
+    private function agentStatusFromResponse(mixed $response): ?string
+    {
+        if (is_string($response) && trim($response) !== '') {
+            return $this->sanitizeErrorMessage(trim($response));
+        }
+
+        if (! is_array($response)) {
+            return null;
+        }
+
+        foreach (['estado', 'status', 'mensaje', 'resultado'] as $key) {
+            $value = data_get($response, $key);
+
+            if (is_scalar($value) && trim((string) $value) !== '') {
+                return $this->sanitizeErrorMessage((string) $value);
+            }
+        }
+
+        return null;
+    }
+
     /**
      * @return array{status:string, changed:bool, stock:float|null}
      */
@@ -718,10 +1007,10 @@ class ContaPymeInventoryService implements InventorySyncInterface
     private function sanitizeErrorMessage(string $message): string
     {
         $sensitiveValues = array_filter([
-            $this->email,
-            $this->password,
-            $this->passwordHash,
-            $this->password !== '' ? md5(strtoupper($this->password)) : '',
+            isset($this->email) ? $this->email : '',
+            isset($this->password) ? $this->password : '',
+            isset($this->passwordHash) ? $this->passwordHash : '',
+            isset($this->password) && $this->password !== '' ? md5(strtoupper($this->password)) : '',
         ]);
 
         foreach ($sensitiveValues as $value) {
@@ -729,6 +1018,46 @@ class ContaPymeInventoryService implements InventorySyncInterface
         }
 
         return trim($message);
+    }
+
+    private function cacheTokenKey(): string
+    {
+        return 'contapyme_keyagente_'.hash('sha256', implode('|', [
+            $this->baseUrl,
+            $this->email,
+            $this->iapp,
+            $this->idmaquina,
+        ]));
+    }
+
+    private function recalculateVariantParentStock(int $productId): void
+    {
+        if ($productId <= 0) {
+            return;
+        }
+
+        DB::transaction(function () use ($productId): void {
+            $product = Product::query()->whereKey($productId)->lockForUpdate()->first();
+
+            if (! $product) {
+                return;
+            }
+
+            $stocks = ProductVariant::query()
+                ->where('product_id', $productId)
+                ->where('is_active', true)
+                ->pluck('stock');
+            $hasAnyStock = $stocks->contains(fn ($stock): bool => $stock !== null);
+            $aggregate = $hasAnyStock
+                ? (float) round($stocks->filter(fn ($stock): bool => $stock !== null)->sum(), 2)
+                : null;
+
+            $product->forceFill([
+                'stock' => $aggregate,
+                'stock_synced_at' => now(),
+                'stock_sync_status' => 'synced',
+            ])->save();
+        });
     }
 
     private function assertConfigured(): void

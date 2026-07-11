@@ -75,4 +75,21 @@ class ContaPymeSyncStateTest extends TestCase
         $this->assertNull($availability['available_at']);
         $this->assertSame(0, $availability['retry_after']);
     }
+
+    public function test_unmapped_diagnostics_are_preserved_for_the_admin_view(): void
+    {
+        $state = app(ContaPymeSyncState::class);
+        $state->queue();
+        $state->fail('La sincronización terminó con productos pendientes.', [
+            'unmapped' => 2,
+            'unmapped_details' => [
+                ['sku' => 'VAR-001', 'irecurso' => null, 'phase' => 'mapeo_variante', 'message' => 'Falta irecurso.'],
+            ],
+        ]);
+
+        $status = $state->status();
+
+        $this->assertSame(2, $status['unmapped_count']);
+        $this->assertSame('VAR-001', $status['unmapped_details'][0]['sku']);
+    }
 }

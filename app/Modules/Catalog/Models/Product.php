@@ -3,6 +3,7 @@
 namespace App\Modules\Catalog\Models;
 
 use App\Modules\Categories\Models\Category;
+use App\Modules\Inventory\Models\ContaPymeInventoryMapping;
 use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Shared\Support\TextNormalizer;
 use Database\Factories\ProductFactory;
@@ -155,6 +156,12 @@ class Product extends Model
     public function isStockManagedByContaPyme(): bool
     {
         return $this->stock_sync_status === 'synced' && $this->stock_synced_at !== null;
+    }
+
+    /** @return HasOne<ContaPymeInventoryMapping, $this> */
+    public function contapymeMapping(): HasOne
+    {
+        return $this->hasOne(ContaPymeInventoryMapping::class);
     }
 
     /**

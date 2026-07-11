@@ -7,13 +7,12 @@ use App\Modules\Catalog\Models\Product;
 use App\Modules\Categories\Queries\CategoryBreadcrumbsQuery;
 use App\Modules\Documents\Services\TechSheetDownloadService;
 use App\Modules\Orders\Support\OrderLineVat;
-use App\Modules\Shared\Contracts\InventorySyncInterface;
 use App\Modules\Shared\Enums\DocumentType;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -44,7 +43,6 @@ class ProductController extends Controller
         Product $product,
         CategoryBreadcrumbsQuery $breadcrumbsQuery,
         TechSheetDownloadService $downloadService,
-        InventorySyncInterface $inventory,
     ): View|JsonResponse {
         $queryState = $this->resolveQueryState($request);
 
@@ -59,17 +57,6 @@ class ProductController extends Controller
         $remainingDownloads = null;
         $techSheetMonthlyLimit = $downloadService->monthlyLimit();
         $commercialSnapshot = $this->buildCommercialSnapshot($product);
-
-        $contapymeStock = $this->resolveContapymeStock($inventory, $product);
-
-        if ($contapymeStock !== null) {
-            $commercialSnapshot['stock'] = $contapymeStock;
-            $commercialSnapshot['availability'] = $this->availabilityStatus(
-                $product->is_active,
-                $contapymeStock,
-                $commercialSnapshot['minMultiple'],
-            );
-        }
         $relatedProducts = $this->relatedProducts($product, $queryState);
         $alternativeProducts = $this->alternativeProducts($product, $queryState);
 
@@ -122,6 +109,9 @@ class ProductController extends Controller
         $stepValue = (string) $minMultiple;
         $discountPercent = $commercial['discountPercent'] ?? null;
         $promoLabel = $commercial['promoLabel'] ?? null;
+        $stockSyncedAt = $commercial['stockSyncedAt'] ?? null;
+        $stockIsStale = (bool) ($commercial['stockIsStale'] ?? true);
+        $stockFreshnessLabel = $commercial['stockFreshnessLabel'] ?? 'Aún no sincronizado';
 
         $activeVariants = $product->activeVariantsCollection();
         $hasVariants = $activeVariants->isNotEmpty();
@@ -213,24 +203,10 @@ class ProductController extends Controller
             'variantAttributeName', 'minVariantPrice', 'maxVariantPrice',
             'price', 'isRangePrice', 'formattedPrice', 'vatLabel', 'stock', 'canBuy',
             'isLowStock', 'availability', 'stockLabel', 'documents',
+            'stockSyncedAt', 'stockIsStale', 'stockFreshnessLabel',
             'manual', 'invima', 'quickGuide', 'calibrationDocument', 'productVideo', 'secondaryDocuments', 'documentTypeLabels',
             'specRows', 'sections',
         );
-    }
-
-    private function resolveContapymeStock(InventorySyncInterface $inventory, Product $product): ?float
-    {
-        $sku = $product->sku;
-
-        if ($sku === '' || $product->hasConfigurableVariants()) {
-            return null;
-        }
-
-        $cacheKey = 'contapyme_ondemand_stock_'.$sku;
-
-        return Cache::remember($cacheKey, 30, function () use ($inventory, $sku): ?float {
-            return $inventory->getProductInfo($sku)?->stock;
-        });
     }
 
     /**
@@ -239,6 +215,9 @@ class ProductController extends Controller
      *   unit:string,
      *   minMultiple:int,
      *   stock:float|null,
+     *   stockSyncedAt:CarbonInterface|null,
+     *   stockIsStale:bool,
+     *   stockFreshnessLabel:string,
      *   leadTimeLabel:string,
      *   etaLabel:string,
      *   promoLabel:string|null,
@@ -276,11 +255,21 @@ class ProductController extends Controller
             $minMultiple,
         );
 
+        $stockSyncedAt = $product->stock_synced_at;
+        $staleAfter = max(1, (int) config('contapyme.stock_stale_after', 900));
+        $stockIsStale = $stockSyncedAt === null
+            || $stockSyncedAt->lt(now()->subSeconds($staleAfter));
+
         return [
             'brand' => (string) (data_get($product, 'brand') ?: 'Marca no especificada'),
             'unit' => (string) (data_get($product, 'unit') ?: data_get($product, 'unit_label') ?: 'unidad'),
             'minMultiple' => $minMultiple,
             'stock' => $stock,
+            'stockSyncedAt' => $stockSyncedAt,
+            'stockIsStale' => $stockIsStale,
+            'stockFreshnessLabel' => $stockSyncedAt
+                ? 'Actualizado '.$stockSyncedAt->diffForHumans()
+                : 'Aún no sincronizado',
             'leadTimeLabel' => $this->leadTimeLabel($leadTimeDays),
             'etaLabel' => (string) (data_get($product, 'eta_label') ?: 'Confirmacion al finalizar el pedido'),
             'promoLabel' => data_get($product, 'promo_label'),
