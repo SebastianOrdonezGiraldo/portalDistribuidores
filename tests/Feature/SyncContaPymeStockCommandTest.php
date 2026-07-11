@@ -443,11 +443,11 @@ class SyncContaPymeStockCommandTest extends TestCase
         $this->assertSame(0.0, (float) $product->fresh()->stock);
     }
 
-    public function test_full_sync_preserves_stock_when_catalog_identity_is_not_visible(): void
+    public function test_full_sync_uses_exact_bulk_match_when_catalog_identity_is_not_visible(): void
     {
         config(['contapyme.catalog_reconciliation' => true]);
         $product = Product::factory()->create([
-            'sku' => 'NOT-VISIBLE',
+            'sku' => 'MTP-002',
             'stock' => 10,
             'is_active' => true,
         ]);
@@ -456,7 +456,7 @@ class SyncContaPymeStockCommandTest extends TestCase
         {
             public function listProducts(): Collection
             {
-                return collect([new InventoryItemData(sku: 'NOT-VISIBLE', stock: 99, externalId: 'NOT-VISIBLE')]);
+                return collect([new InventoryItemData(sku: 'MTP-002', stock: 136, externalId: 'MTP-002')]);
             }
 
             public function listInventoryCatalog(): ?Collection
@@ -465,12 +465,49 @@ class SyncContaPymeStockCommandTest extends TestCase
             }
         };
         $this->app->instance(ContaPymeInventoryService::class, $service);
+        Log::spy();
 
         $this->artisan('contapyme:sync-stock --force')
-            ->expectsOutputToContain('El irecurso no aparece en el catalogo visible')
-            ->assertFailed();
+            ->expectsOutput('UPDATED MTP-002 stock=136')
+            ->assertSuccessful();
 
-        $this->assertSame(10.0, (float) $product->fresh()->stock);
+        $this->assertSame(136.0, (float) $product->fresh()->stock);
+        Log::shouldHaveReceived('warning')
+            ->with('contapyme.sync_reconciliation', Mockery::on(fn (array $context): bool => $context['bulk_items'] === 1
+                && $context['catalog_items'] === 0
+                && $context['catalog_status'] === 'empty'
+                && $context['simple_exact_matches'] === 1))
+            ->once();
+    }
+
+    public function test_full_sync_processes_exact_bulk_matches_when_catalog_is_unavailable(): void
+    {
+        config(['contapyme.catalog_reconciliation' => true]);
+        $product = Product::factory()->create([
+            'sku' => 'CATALOG-DOWN',
+            'stock' => 10,
+            'is_active' => true,
+        ]);
+
+        $service = new class extends ContaPymeInventoryService
+        {
+            public function listProducts(): Collection
+            {
+                return collect([new InventoryItemData(sku: 'CATALOG-DOWN', stock: 42, externalId: 'CATALOG-DOWN')]);
+            }
+
+            public function listInventoryCatalog(): ?Collection
+            {
+                return null;
+            }
+        };
+        $this->app->instance(ContaPymeInventoryService::class, $service);
+
+        $this->artisan('contapyme:sync-stock --force')
+            ->expectsOutput('UPDATED CATALOG-DOWN stock=42')
+            ->assertSuccessful();
+
+        $this->assertSame(42.0, (float) $product->fresh()->stock);
     }
 
     public function test_variant_is_synced_only_when_it_has_an_explicit_irecurso_mapping(): void
