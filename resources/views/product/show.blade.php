@@ -18,8 +18,9 @@ View contract:
         $mainPhotoUrl = $mainPhoto ? \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($mainPhoto->path) : null;
         $mainPhotoDimensions = $mainPhoto?->resolvedDimensions() ?? ['width' => 1200, 'height' => 1200];
         $mainPhotoSrcset = $mainPhoto?->responsiveSrcsetFromKnownVariants();
-        $mainPhotoSizes = '(min-width: 1280px) 52vw, (min-width: 1024px) 48vw, 100vw';
+        $mainPhotoSizes = '(min-width: 1024px) 40vw, 100vw';
         $thumbSizes = '64px';
+        $hasThumbnailRail = $galleryPhotos->count() > 1;
     @endphp
 
     {{-- ──────────────────────────────────────────────────────────────
@@ -71,48 +72,12 @@ View contract:
         {{-- ──────────────────────────────────────────────────────────────
              HERO: imagen (izquierda) + info + compra (derecha)
         ────────────────────────────────────────────────────────────────── --}}
-        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] xl:grid-cols-[minmax(0,1.15fr)_minmax(22rem,26rem)]">
+        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft {{ $hasThumbnailRail ? 'grid grid-cols-[4.5rem_minmax(0,1fr)] lg:grid-cols-[10%_40%_50%]' : 'grid lg:grid-cols-[50%_50%]' }}">
 
-            {{-- Columna imagen --}}
-            <div class="relative flex flex-col border-b border-slate-200 bg-slate-50/80 lg:border-b-0 lg:border-r">
-                <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(54,177,187,0.15),transparent_45%),radial-gradient(circle_at_82%_88%,rgba(15,23,42,0.07),transparent_40%)]"></div>
-
-                {{-- Imagen principal --}}
-                <div class="group/img relative flex min-h-[18rem] flex-1 items-center justify-center overflow-hidden px-6 py-8 sm:min-h-[24rem] sm:px-10 sm:py-12">
-                    @if($mainPhoto)
-                        <img
-                            data-product-main-image
-                            src="{{ $mainPhotoUrl }}"
-                            alt="{{ $product->name }}"
-                            width="{{ $mainPhotoDimensions['width'] }}"
-                            height="{{ $mainPhotoDimensions['height'] }}"
-                            loading="eager"
-                            fetchpriority="high"
-                            decoding="sync"
-                            @if($mainPhotoSrcset)
-                                srcset="{{ $mainPhotoSrcset }}"
-                                sizes="{{ $mainPhotoSizes }}"
-                            @endif
-                            class="h-full max-h-[28rem] w-full object-contain object-center drop-shadow-[0_20px_28px_rgba(15,23,42,0.18)] transition duration-500 ease-out will-change-transform group-hover/img:scale-[1.06]"
-                        >
-                    @else
-                        <div class="flex flex-col items-center justify-center gap-3 text-center">
-                            <div class="rounded-2xl border border-slate-200 bg-white p-8 shadow-soft">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
-                                    <rect x="3" y="5" width="18" height="14" rx="2"/>
-                                    <path d="m8 13 2.5-2.5 2.5 2.5 3-3 2 2"/>
-                                    <circle cx="9" cy="9" r="1.2"/>
-                                </svg>
-                            </div>
-                            <p class="text-xs font-medium text-slate-400">Sin imagen disponible</p>
-                        </div>
-                    @endif
-                </div>
-
-                {{-- Galería de miniaturas --}}
-                @if($galleryPhotos->count() > 1)
-                    <div class="relative border-t border-slate-200 bg-white/80 px-4 py-3 sm:px-5" data-product-gallery>
-                        <div class="flex gap-2 overflow-x-auto pb-0.5" style="scrollbar-width: thin;">
+            {{-- Columna de miniaturas: 10% en escritorio --}}
+            @if($hasThumbnailRail)
+                <div class="relative min-h-[18rem] border-b border-r border-slate-200 bg-white/80 px-2 py-3 sm:min-h-[24rem] sm:px-2.5 lg:min-h-0 lg:border-b-0" data-product-gallery>
+                    <div class="flex h-full max-h-[36rem] flex-col items-center gap-2 overflow-y-auto pr-0.5" style="scrollbar-width: thin;">
                             @foreach($galleryPhotos as $photo)
                                 @php
                                     $thumbUrl = \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($photo->path);
@@ -130,7 +95,7 @@ View contract:
                                         data-srcset="{{ $thumbSrcset }}"
                                         data-sizes="{{ $mainPhotoSizes }}"
                                     @endif
-                                    class="group/thumb h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-white transition focus-ring {{ $loop->first ? 'border-brand-primary shadow-sm' : 'border-slate-200 hover:border-slate-300' }}"
+                                    class="group/thumb h-14 w-14 shrink-0 overflow-hidden rounded-xl border-2 bg-white transition focus-ring sm:h-16 sm:w-16 {{ $loop->first ? 'border-brand-primary shadow-sm' : 'border-slate-200 hover:border-slate-300' }}"
                                     aria-label="Ver imagen {{ $loop->iteration }}"
                                 >
                                     <img
@@ -148,13 +113,45 @@ View contract:
                                     >
                                 </button>
                             @endforeach
+                    </div>
+                </div>
+            @endif
+
+            {{-- Imagen principal: 40% en escritorio --}}
+            <div class="group/img relative flex min-h-[18rem] items-center justify-center overflow-hidden border-b border-slate-200 bg-slate-50/80 px-6 py-8 sm:min-h-[24rem] sm:px-10 sm:py-12 lg:border-b-0 lg:border-r">
+                <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(54,177,187,0.15),transparent_45%),radial-gradient(circle_at_82%_88%,rgba(15,23,42,0.07),transparent_40%)]"></div>
+                @if($mainPhoto)
+                    <img
+                        data-product-main-image
+                        src="{{ $mainPhotoUrl }}"
+                        alt="{{ $product->name }}"
+                        width="{{ $mainPhotoDimensions['width'] }}"
+                        height="{{ $mainPhotoDimensions['height'] }}"
+                        loading="eager"
+                        fetchpriority="high"
+                        decoding="sync"
+                        @if($mainPhotoSrcset)
+                            srcset="{{ $mainPhotoSrcset }}"
+                            sizes="{{ $mainPhotoSizes }}"
+                        @endif
+                        class="relative h-full max-h-[28rem] w-full object-contain object-center drop-shadow-[0_20px_28px_rgba(15,23,42,0.18)] transition duration-500 ease-out will-change-transform group-hover/img:scale-[1.06]"
+                    >
+                @else
+                    <div class="relative flex flex-col items-center justify-center gap-3 text-center">
+                        <div class="rounded-2xl border border-slate-200 bg-white p-8 shadow-soft">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+                                <rect x="3" y="5" width="18" height="14" rx="2"/>
+                                <path d="m8 13 2.5-2.5 2.5 2.5 3-3 2 2"/>
+                                <circle cx="9" cy="9" r="1.2"/>
+                            </svg>
                         </div>
+                        <p class="text-xs font-medium text-slate-400">Sin imagen disponible</p>
                     </div>
                 @endif
             </div>
 
-            {{-- Columna info + compra (scrollable en desktop si el contenido es largo) --}}
-            <div class="flex flex-col divide-y divide-slate-100">
+            {{-- Información y compra: 50% en escritorio --}}
+            <div class="flex flex-col divide-y divide-slate-100 {{ $hasThumbnailRail ? 'col-span-2 lg:col-span-1' : '' }}">
 
                 {{-- Bloque: información del producto --}}
                 <div class="p-6 sm:p-7">
@@ -228,12 +225,12 @@ View contract:
                     @if(! blank($product->description))
                         <div class="mt-5 border-t border-slate-100 pt-5">
                             <p class="line-clamp-3 text-sm leading-relaxed text-slate-600">{{ $product->description }}</p>
-                            <a href="#descripcion" data-scroll-link class="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-brand-primary transition hover:underline focus-ring rounded">
+                            <button type="button" data-tab-target="descripcion" class="mt-2 inline-flex items-center gap-1 rounded text-xs font-semibold text-brand-primary transition hover:underline focus-ring">
                                 Ver descripción completa
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                     <path d="m9 18 6-6-6-6"/>
                                 </svg>
-                            </a>
+                            </button>
                         </div>
                     @else
                         <p class="mt-4 text-sm leading-relaxed text-slate-500">{{ $availability['helper'] }}</p>
@@ -427,7 +424,7 @@ View contract:
                                     </svg>
                                     <p class="text-xs font-medium text-amber-800">
                                         Sin inventario inmediato.
-                                        <a href="#alternativas" data-scroll-link class="underline hover:no-underline">Consulta las alternativas</a>.
+                                        <button type="button" data-tab-target="alternativas" class="underline hover:no-underline">Consulta las alternativas</button>.
                                     </p>
                                 </div>
                             @endif
@@ -460,23 +457,29 @@ View contract:
             </div>
         </section>
 
+        <div class="space-y-5" data-product-tabs>
         {{-- ──────────────────────────────────────────────────────────────
-             Navegación de secciones (sticky, estilo underline)
+             Pestañas de contenido: solo se muestra un panel a la vez
         ────────────────────────────────────────────────────────────────── --}}
         <nav
-            class="-mx-4 overflow-x-auto border-y border-slate-200 bg-white/95 backdrop-blur md:sticky md:top-[4.5rem] md:z-20 sm:-mx-6 lg:-mx-8"
-            aria-label="Secciones del producto"
+            class="-mx-4 overflow-x-auto border-y border-slate-200 bg-white/95 backdrop-blur sm:-mx-6 lg:-mx-8"
+            aria-label="Información del producto"
         >
-            <div class="flex min-w-max items-center px-4 sm:px-6 lg:px-8" data-section-nav>
+            <div class="flex min-w-max items-center px-4 sm:px-6 lg:px-8" role="tablist" aria-label="Información del producto">
                 @foreach($sections as $section)
-                    <a
-                        href="#{{ $section['id'] }}"
-                        data-scroll-link
-                        data-nav-link="{{ $section['id'] }}"
-                        class="inline-flex items-center border-b-2 border-transparent px-4 py-3.5 text-sm font-semibold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 focus-ring rounded-t"
+                    <button
+                        type="button"
+                        id="product-tab-{{ $section['id'] }}"
+                        role="tab"
+                        aria-controls="product-panel-{{ $section['id'] }}"
+                        aria-selected="{{ $loop->first ? 'true' : 'false' }}"
+                        tabindex="{{ $loop->first ? '0' : '-1' }}"
+                        data-product-tab="{{ $section['id'] }}"
+                        data-tab-target="{{ $section['id'] }}"
+                        class="inline-flex items-center border-b-2 px-4 py-3.5 text-sm font-semibold transition hover:border-slate-300 hover:text-slate-900 focus-ring rounded-t {{ $loop->first ? 'border-brand-primary text-brand-primary' : 'border-transparent text-slate-500' }}"
                     >
                         {{ $section['label'] }}
-                    </a>
+                    </button>
                 @endforeach
             </div>
         </nav>
@@ -484,7 +487,7 @@ View contract:
         {{-- ──────────────────────────────────────────────────────────────
              Sección: Descripción
         ────────────────────────────────────────────────────────────────── --}}
-        <section id="descripcion" class="scroll-mt-32 card overflow-hidden">
+        <section id="product-panel-descripcion" role="tabpanel" aria-labelledby="product-tab-descripcion" data-tab-panel="descripcion" class="card overflow-hidden">
             <div class="border-b border-slate-100 px-6 py-4 sm:px-7">
                 <h2 class="text-lg font-bold text-slate-950">Descripción del producto</h2>
             </div>
@@ -512,7 +515,7 @@ View contract:
         {{-- ──────────────────────────────────────────────────────────────
              Sección: Especificaciones técnicas
         ────────────────────────────────────────────────────────────────── --}}
-        <section id="especificaciones" class="scroll-mt-32 card overflow-hidden">
+        <section id="product-panel-especificaciones" role="tabpanel" aria-labelledby="product-tab-especificaciones" data-tab-panel="especificaciones" class="card overflow-hidden" hidden>
             <div class="border-b border-slate-100 px-6 py-4 sm:px-7">
                 <h2 class="text-lg font-bold text-slate-950">Especificaciones técnicas</h2>
                 <p class="mt-0.5 text-xs text-slate-500">Información comercial y de identificación del producto</p>
@@ -547,7 +550,7 @@ View contract:
              o route('documents.calibration-document.download')
              también se debe actualizar el controlador de documentos.
         ────────────────────────────────────────────────────────────────── --}}
-        <section id="documentos" class="scroll-mt-32 card overflow-hidden">
+        <section id="product-panel-documentos" role="tabpanel" aria-labelledby="product-tab-documentos" data-tab-panel="documentos" class="card overflow-hidden" hidden>
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4 sm:px-7">
                 <div>
                     <h2 class="text-lg font-bold text-slate-950">Documentos</h2>
@@ -870,9 +873,19 @@ View contract:
             </div>
         </section>
 
-        {{-- ──────────────────────────────────────────────────────────────
-             Sección: Productos relacionados
-        ────────────────────────────────────────────────────────────────── --}}
+        <div id="product-panel-alternativas" role="tabpanel" aria-labelledby="product-tab-alternativas" data-tab-panel="alternativas" hidden>
+            <x-catalog.product-grid-section
+                id="alternativas"
+                title="Alternativas similares"
+                subtitle="Opciones de sustitución y continuidad operativa"
+                :products="$alternativeProducts"
+                empty-message="No hay alternativas registradas para este producto."
+                list-key="alternatives"
+            />
+        </div>
+        </div>
+
+        {{-- Productos relacionados siempre visibles debajo de las pestañas --}}
         <x-catalog.product-grid-section
             id="relacionados"
             title="Productos relacionados"
@@ -880,15 +893,6 @@ View contract:
             :products="$relatedProducts"
             empty-message="No hay productos relacionados disponibles para esta categoría."
             list-key="related"
-        />
-
-        <x-catalog.product-grid-section
-            id="alternativas"
-            title="Alternativas similares"
-            subtitle="Opciones de sustitución y continuidad operativa"
-            :products="$alternativeProducts"
-            empty-message="No hay alternativas registradas para este producto."
-            list-key="alternatives"
         />
 
     </div>
@@ -948,9 +952,9 @@ View contract:
                     Agregar
                 </button>
             @else
-                <a href="#alternativas" data-scroll-link class="btn btn-secondary h-10 w-full justify-center px-5 text-sm sm:w-auto">
+                <button type="button" data-tab-target="alternativas" class="btn btn-secondary h-10 w-full justify-center px-5 text-sm sm:w-auto">
                     Ver alternativas
-                </a>
+                </button>
             @endif
         </div>
     </div>
@@ -1127,47 +1131,65 @@ View contract:
                 if (primaryRoot) applyQty(parseValue(primaryQtyInput.value, parseValue(primaryQtyInput.min, 1)), primaryRoot);
             }
 
-            // ── Scroll suave a secciones ─────────────────────────────────
-            document.querySelectorAll('[data-scroll-link]').forEach((link) => {
-                link.addEventListener('click', (event) => {
-                    const href = link.getAttribute('href');
-                    if (!href || !href.startsWith('#')) return;
-                    const target = document.querySelector(href);
-                    if (!target) return;
-                    event.preventDefault();
-                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // ── Pestañas de información del producto ─────────────────────
+            const tabsRoot = document.querySelector('[data-product-tabs]');
+            const tabButtons = Array.from(document.querySelectorAll('[data-product-tab]'));
+            const tabPanels = Array.from(document.querySelectorAll('[data-tab-panel]'));
+            const validTabs = tabPanels.map((panel) => panel.dataset.tabPanel).filter(Boolean);
+
+            const activateTab = (id, { moveFocus = false, scrollToTabs = false } = {}) => {
+                if (!validTabs.includes(id)) return;
+
+                tabPanels.forEach((panel) => {
+                    panel.hidden = panel.dataset.tabPanel !== id;
+                });
+
+                tabButtons.forEach((button) => {
+                    const isActive = button.dataset.productTab === id;
+                    button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+                    button.tabIndex = isActive ? 0 : -1;
+                    button.classList.toggle('border-brand-primary', isActive);
+                    button.classList.toggle('text-brand-primary', isActive);
+                    button.classList.toggle('border-transparent', !isActive);
+                    button.classList.toggle('text-slate-500', !isActive);
+                    if (isActive && moveFocus) button.focus();
+                });
+
+                if (window.history?.replaceState) {
+                    const currentUrl = new URL(window.location.href);
+                    currentUrl.hash = id;
+                    window.history.replaceState(null, '', currentUrl);
+                }
+
+                if (scrollToTabs && tabsRoot) {
+                    tabsRoot.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            };
+
+            document.querySelectorAll('[data-tab-target]').forEach((trigger) => {
+                trigger.addEventListener('click', () => {
+                    activateTab(trigger.dataset.tabTarget, {
+                        scrollToTabs: !trigger.hasAttribute('data-product-tab'),
+                    });
                 });
             });
 
-            // ── Navegación activa por IntersectionObserver ────────────────
-            const navLinks = Array.from(document.querySelectorAll('[data-nav-link]'));
-            const sectionIds = navLinks.map((link) => link.dataset.navLink).filter(Boolean);
+            tabButtons.forEach((button, index) => {
+                button.addEventListener('keydown', (event) => {
+                    let nextIndex = null;
+                    if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabButtons.length;
+                    if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabButtons.length) % tabButtons.length;
+                    if (event.key === 'Home') nextIndex = 0;
+                    if (event.key === 'End') nextIndex = tabButtons.length - 1;
+                    if (nextIndex === null) return;
 
-            const setActiveNav = (id) => {
-                navLinks.forEach((link) => {
-                    const isActive = link.dataset.navLink === id;
-                    link.classList.toggle('border-brand-primary', isActive);
-                    link.classList.toggle('text-brand-primary', isActive);
-                    link.classList.toggle('border-transparent', !isActive);
-                    link.classList.toggle('text-slate-500', !isActive);
-                    link.classList.toggle('text-slate-900', isActive);
+                    event.preventDefault();
+                    activateTab(tabButtons[nextIndex].dataset.productTab, { moveFocus: true });
                 });
-            };
+            });
 
-            if (sectionIds.length > 0 && 'IntersectionObserver' in window) {
-                const observer = new IntersectionObserver(
-                    (entries) => {
-                        entries.forEach((entry) => {
-                            if (entry.isIntersecting) setActiveNav(entry.target.id);
-                        });
-                    },
-                    { rootMargin: '-20% 0px -70% 0px', threshold: 0 }
-                );
-                sectionIds.forEach((id) => {
-                    const el = document.getElementById(id);
-                    if (el) observer.observe(el);
-                });
-            }
+            const initialTab = window.location.hash.replace('#', '');
+            activateTab(validTabs.includes(initialTab) ? initialTab : 'descripcion');
 
             // ── Copiar SKU al portapapeles ────────────────────────────────
             const copySkuBtn = document.querySelector('[data-copy-sku]');
