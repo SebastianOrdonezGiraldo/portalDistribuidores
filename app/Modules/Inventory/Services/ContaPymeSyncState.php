@@ -193,6 +193,15 @@ class ContaPymeSyncState
         Cache::restoreLock(self::LOCK_KEY, $lockOwner)->release();
     }
 
+    /**
+     * Clear an orphaned synchronization state during an explicit operational recovery.
+     */
+    public function clearForRecovery(): void
+    {
+        Cache::forget(self::STATUS_KEY);
+        Cache::lock(self::LOCK_KEY, 1)->forceRelease();
+    }
+
     private function store(
         string $state,
         string $message,
