@@ -18,9 +18,8 @@ View contract:
         $mainPhotoUrl = $mainPhoto ? \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($mainPhoto->path) : null;
         $mainPhotoDimensions = $mainPhoto?->resolvedDimensions() ?? ['width' => 1200, 'height' => 1200];
         $mainPhotoSrcset = $mainPhoto?->responsiveSrcsetFromKnownVariants();
-        $mainPhotoSizes = '(min-width: 1024px) 40vw, 100vw';
+        $mainPhotoSizes = '(min-width: 1024px) 50vw, 100vw';
         $thumbSizes = '64px';
-        $hasThumbnailRail = $galleryPhotos->count() > 1;
     @endphp
 
     {{-- ──────────────────────────────────────────────────────────────
@@ -56,14 +55,6 @@ View contract:
                 </svg>
                 <span class="min-w-0 truncate font-semibold text-slate-900">{{ $product->name }}</span>
             </nav>
-
-            <a href="{{ route('cart.index') }}" class="btn btn-secondary shrink-0 text-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                    <circle cx="10" cy="20.5" r="1.25"/><circle cx="17.5" cy="20.5" r="1.25"/>
-                    <path d="M3 3h2l2.3 10.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 7H7.2"/>
-                </svg>
-                Ver carrito
-            </a>
         </div>
     </x-slot>
 
@@ -72,12 +63,45 @@ View contract:
         {{-- ──────────────────────────────────────────────────────────────
              HERO: imagen (izquierda) + info + compra (derecha)
         ────────────────────────────────────────────────────────────────── --}}
-        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft {{ $hasThumbnailRail ? 'grid grid-cols-[4.5rem_minmax(0,1fr)] lg:grid-cols-[10%_40%_50%]' : 'grid lg:grid-cols-[50%_50%]' }}">
+        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft lg:grid lg:grid-cols-2">
 
-            {{-- Columna de miniaturas: 10% en escritorio --}}
-            @if($hasThumbnailRail)
-                <div class="relative min-h-[18rem] border-b border-r border-slate-200 bg-white/80 px-2 py-3 sm:min-h-[24rem] sm:px-2.5 lg:min-h-0 lg:border-b-0" data-product-gallery>
-                    <div class="flex h-full max-h-[36rem] flex-col items-center gap-2 overflow-y-auto pr-0.5" style="scrollbar-width: thin;">
+            {{-- Imagen principal: 50% en escritorio, miniaturas integradas abajo --}}
+            <div class="relative flex flex-col overflow-hidden border-b border-slate-200 bg-slate-50/80 lg:border-b-0 lg:border-r">
+                <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(54,177,187,0.15),transparent_45%),radial-gradient(circle_at_82%_88%,rgba(15,23,42,0.07),transparent_40%)]"></div>
+                <div class="group/img relative flex min-h-[17rem] flex-1 items-center justify-center px-6 py-7 sm:min-h-[24rem] sm:px-10 sm:py-10">
+                    @if($mainPhoto)
+                        <img
+                            data-product-main-image
+                            src="{{ $mainPhotoUrl }}"
+                            alt="{{ $product->name }}"
+                            width="{{ $mainPhotoDimensions['width'] }}"
+                            height="{{ $mainPhotoDimensions['height'] }}"
+                            loading="eager"
+                            fetchpriority="high"
+                            decoding="sync"
+                            @if($mainPhotoSrcset)
+                                srcset="{{ $mainPhotoSrcset }}"
+                                sizes="{{ $mainPhotoSizes }}"
+                            @endif
+                            class="h-full max-h-[28rem] w-full object-contain object-center drop-shadow-[0_20px_28px_rgba(15,23,42,0.18)] transition duration-500 ease-out will-change-transform group-hover/img:scale-[1.06]"
+                        >
+                    @else
+                        <div class="flex flex-col items-center justify-center gap-3 text-center">
+                            <div class="rounded-2xl border border-slate-200 bg-white p-8 shadow-soft">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+                                    <rect x="3" y="5" width="18" height="14" rx="2"/>
+                                    <path d="m8 13 2.5-2.5 2.5 2.5 3-3 2 2"/>
+                                    <circle cx="9" cy="9" r="1.2"/>
+                                </svg>
+                            </div>
+                            <p class="text-xs font-medium text-slate-400">Sin imagen disponible</p>
+                        </div>
+                    @endif
+                </div>
+
+                @if($galleryPhotos->count() > 1)
+                    <div class="relative px-5 pb-5 sm:px-8 sm:pb-6" data-product-gallery>
+                        <div class="flex gap-2 overflow-x-auto py-1" style="scrollbar-width: thin;">
                             @foreach($galleryPhotos as $photo)
                                 @php
                                     $thumbUrl = \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($photo->path);
@@ -95,7 +119,7 @@ View contract:
                                         data-srcset="{{ $thumbSrcset }}"
                                         data-sizes="{{ $mainPhotoSizes }}"
                                     @endif
-                                    class="group/thumb h-14 w-14 shrink-0 overflow-hidden rounded-xl border-2 bg-white transition focus-ring sm:h-16 sm:w-16 {{ $loop->first ? 'border-brand-primary shadow-sm' : 'border-slate-200 hover:border-slate-300' }}"
+                                    class="group/thumb h-14 w-14 shrink-0 overflow-hidden rounded-xl border-2 bg-white/90 transition focus-ring sm:h-16 sm:w-16 {{ $loop->first ? 'border-brand-primary shadow-sm' : 'border-white/70 hover:border-slate-300 hover:bg-white' }}"
                                     aria-label="Ver imagen {{ $loop->iteration }}"
                                 >
                                     <img
@@ -113,48 +137,16 @@ View contract:
                                     >
                                 </button>
                             @endforeach
-                    </div>
-                </div>
-            @endif
-
-            {{-- Imagen principal: 40% en escritorio --}}
-            <div class="group/img relative flex min-h-[18rem] items-center justify-center overflow-hidden border-b border-slate-200 bg-slate-50/80 px-6 py-8 sm:min-h-[24rem] sm:px-10 sm:py-12 lg:border-b-0 lg:border-r">
-                <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(54,177,187,0.15),transparent_45%),radial-gradient(circle_at_82%_88%,rgba(15,23,42,0.07),transparent_40%)]"></div>
-                @if($mainPhoto)
-                    <img
-                        data-product-main-image
-                        src="{{ $mainPhotoUrl }}"
-                        alt="{{ $product->name }}"
-                        width="{{ $mainPhotoDimensions['width'] }}"
-                        height="{{ $mainPhotoDimensions['height'] }}"
-                        loading="eager"
-                        fetchpriority="high"
-                        decoding="sync"
-                        @if($mainPhotoSrcset)
-                            srcset="{{ $mainPhotoSrcset }}"
-                            sizes="{{ $mainPhotoSizes }}"
-                        @endif
-                        class="relative h-full max-h-[28rem] w-full object-contain object-center drop-shadow-[0_20px_28px_rgba(15,23,42,0.18)] transition duration-500 ease-out will-change-transform group-hover/img:scale-[1.06]"
-                    >
-                @else
-                    <div class="relative flex flex-col items-center justify-center gap-3 text-center">
-                        <div class="rounded-2xl border border-slate-200 bg-white p-8 shadow-soft">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
-                                <rect x="3" y="5" width="18" height="14" rx="2"/>
-                                <path d="m8 13 2.5-2.5 2.5 2.5 3-3 2 2"/>
-                                <circle cx="9" cy="9" r="1.2"/>
-                            </svg>
                         </div>
-                        <p class="text-xs font-medium text-slate-400">Sin imagen disponible</p>
                     </div>
                 @endif
             </div>
 
             {{-- Información y compra: 50% en escritorio --}}
-            <div class="flex flex-col divide-y divide-slate-100 {{ $hasThumbnailRail ? 'col-span-2 lg:col-span-1' : '' }}">
+            <div class="flex flex-col divide-y divide-slate-100">
 
                 {{-- Bloque: información del producto --}}
-                <div class="p-6 sm:p-7">
+                <div class="p-6 sm:p-7 lg:p-7 xl:p-8">
 
                     {{-- Badges de estado --}}
                     <div class="flex flex-wrap items-center gap-2">
@@ -238,7 +230,7 @@ View contract:
                 </div>
 
                 {{-- Bloque: precio y acción de compra --}}
-                <div class="bg-slate-50/60 p-6 sm:p-7">
+                <div class="bg-slate-50/60 p-6 sm:p-7 lg:p-7 xl:p-8">
 
                     {{-- Promo --}}
                     @if($promoLabel)
@@ -269,14 +261,14 @@ View contract:
                     </div>
 
                     {{-- Disponibilidad + stock --}}
-                    <div class="mb-5 grid gap-3 sm:grid-cols-2">
-                        <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                    <div class="mb-5 grid gap-3 sm:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+                        <div class="rounded-xl border border-slate-200 bg-white px-4 py-3.5">
                             <p class="mb-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Disponibilidad</p>
                             <x-ui.badge :variant="$availability['badge']" class="!normal-case !tracking-normal">
                                 {{ $availability['label'] }}
                             </x-ui.badge>
                         </div>
-                        <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                        <div class="rounded-xl border border-slate-200 bg-white px-4 py-3.5">
                             <p class="mb-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Stock</p>
                             <p
                                 class="text-sm font-semibold text-slate-900"
