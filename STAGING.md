@@ -8,7 +8,7 @@ Guia operativa para mantener `staging` y `production` en el mismo VPS sin poner 
   - URL: `https://pedidos.importcorporalmedical.com`
   - Carpeta: `/var/www/portalDistribuidores`
   - Rama: `master`
-  - Worker: `laravel-queue-prod`
+  - Worker: `laravel-queue`
 - Staging:
   - URL: `https://staging-pedidos.importcorporalmedical.com`
   - Carpeta: `/var/www/portalDistribuidores-staging`
@@ -107,10 +107,14 @@ Agregar en `.env` del VPS:
 
 ```dotenv
 DEPLOY_ENV_NAME=production
-DEPLOY_QUEUE_SERVICE=laravel-queue-prod
+DEPLOY_QUEUE_SERVICE=laravel-queue
 DEPLOY_PHP_FPM_SERVICE=php8.3-fpm
 DEPLOY_CREATE_DB_BACKUP=true
 DEPLOY_DB_BACKUP_DIR=/var/backups/portal-distribuidores/production
+QUEUE_CONNECTION=database
+DB_QUEUE=default
+DB_QUEUE_RETRY_AFTER=660
+CACHE_STORE=database
 ```
 
 Para staging:
@@ -130,7 +134,10 @@ AWS_BUCKET=portal-distribuidores-staging
 MAIL_MAILER=log
 ORDER_NOTIFICATION_EMAIL_DISPATCH=queue
 AUTH_ALLOW_PUBLIC_REGISTRATION=true
-REDIS_QUEUE_RETRY_AFTER=660
+QUEUE_CONNECTION=database
+DB_QUEUE=default
+DB_QUEUE_RETRY_AFTER=660
+CACHE_STORE=database
 
 DEPLOY_ENV_NAME=staging
 DEPLOY_QUEUE_SERVICE=laravel-queue-staging
@@ -148,10 +155,10 @@ Usar estas plantillas:
 
 - Produccion Nginx: `deploy/nginx.production.conf`
 - Staging Nginx: `deploy/nginx.staging.conf`
-- Worker prod: `deploy/laravel-queue-prod.service`
+- Worker prod: `deploy/laravel-queue.service`
 - Worker staging: `deploy/laravel-queue-staging.service`
 
-Los archivos legacy `deploy/nginx.conf` y `deploy/laravel-queue.service` quedaron como alias de compatibilidad orientados a produccion.
+El archivo `deploy/nginx.conf` se conserva como alias de compatibilidad orientado a produccion.
 
 ## Refresco de datos a staging
 

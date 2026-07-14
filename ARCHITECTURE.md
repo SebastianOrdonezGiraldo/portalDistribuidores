@@ -253,4 +253,4 @@ codigo historico/inactivo hasta que una decision de producto lo reactive.
 - `docs/documentacion-api.md`: generacion y acceso a docs HTTP con Scribe.
 - `CI_CD_SETUP.md`: pipeline, environments y troubleshooting de CI/CD.
 - `DEPLOY.md`: guia operacional de despliegue.
-- `REDIS_MIGRATION.md`: plan especifico para migracion de colas a Redis.
+- `DEPLOY.md`: operacion de las colas PostgreSQL, workers y scheduler por entorno.
