@@ -627,15 +627,26 @@ curl -s -o /dev/null -w "%{http_code}" https://tu-dominio.com/
 
 `/up` no está expuesto públicamente. Si se necesita un health check dedicado para balanceador o monitoreo, publícalo solo detrás de red interna o restricción por IP.
 
-### Tareas programadas (si se agregan en el futuro)
+### Tareas programadas
 
-Si el proyecto agrega `schedule:run` en el futuro, agregar al cron de `www-data`:
+El despliegue administra el scheduler de Laravel porque la sincronización de
+stock ContaPyme depende de él. `deploy.sh` crea una entrada separada por entorno
+en `/etc/cron.d`, activa `cron.service`, prepara el log y valida que
+`contapyme-stock-sync` aparezca en `schedule:list`:
 
 ```bash
-crontab -u www-data -e
-# Agregar:
-* * * * * cd /var/www/portalDistribuidores && php artisan schedule:run >> /dev/null 2>&1
+cat /etc/cron.d/portal-distribuidores-production
+cat /etc/cron.d/portal-distribuidores-staging
+systemctl status cron
+sudo -u www-data php artisan schedule:list
+tail -f /var/log/laravel/scheduler-production.log
+tail -f /var/log/laravel/scheduler-staging.log
 ```
+
+Cada archivo ejecuta `php artisan schedule:run` una vez por minuto como
+`www-data`; Laravel decide en los minutos `00, 05, 10...` si debe encolar la
+sincronización. Si el job anterior sigue activo, ese turno se omite sin crear
+una ejecución concurrente.
 
 ---
 

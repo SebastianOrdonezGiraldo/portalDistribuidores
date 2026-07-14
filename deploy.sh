@@ -24,6 +24,8 @@ QUEUE_SERVICE=""
 PHP_FPM_SERVICE=""
 DEPLOY_CREATE_DB_BACKUP=""
 DEPLOY_DB_BACKUP_DIR=""
+SCHEDULER_CRON_FILE=""
+SCHEDULER_LOG_FILE=""
 DEPLOY_BRANCH_VALUE="${DEPLOY_BRANCH:-}"
 DEPLOY_TARGET_SHA_VALUE="${DEPLOY_TARGET_SHA:-}"
 
@@ -203,6 +205,46 @@ run_as_app() {
         XDG_CONFIG_HOME="$APP_HOME/.config" \
         PATH="$SYSTEM_PATH" \
         bash -c "cd \"$APP_DIR\" && $1"
+}
+
+configure_scheduler() {
+    local cron_tmp
+    local schedule_list
+
+    SCHEDULER_CRON_FILE="/etc/cron.d/portal-distribuidores-${DEPLOY_ENV_NAME}"
+    SCHEDULER_LOG_FILE="/var/log/laravel/scheduler-${DEPLOY_ENV_NAME}.log"
+
+    systemctl cat cron.service >/dev/null 2>&1 \
+        || fail "No se encontro el servicio cron requerido por el scheduler de Laravel"
+
+    systemctl enable --now cron.service
+    systemctl is-active --quiet cron.service \
+        || fail "El servicio cron no quedo activo"
+
+    mkdir -p /var/log/laravel
+    touch "$SCHEDULER_LOG_FILE"
+    chown "$APP_USER:$APP_USER" "$SCHEDULER_LOG_FILE"
+    chmod 664 "$SCHEDULER_LOG_FILE"
+
+    cron_tmp="$(mktemp)"
+    {
+        printf 'SHELL=/bin/bash\n'
+        printf 'PATH=%s\n' "$SYSTEM_PATH"
+        printf '* * * * * %s cd %s && %s artisan schedule:run >> %s 2>&1\n' \
+            "$APP_USER" "$APP_DIR" "$PHP_BIN" "$SCHEDULER_LOG_FILE"
+    } > "$cron_tmp"
+
+    chown root:root "$cron_tmp"
+    chmod 644 "$cron_tmp"
+    mv "$cron_tmp" "$SCHEDULER_CRON_FILE"
+
+    schedule_list="$(run_as_app "\"$PHP_BIN\" artisan schedule:list")"
+    echo "$schedule_list"
+    grep -Fq 'contapyme-stock-sync' <<< "$schedule_list" \
+        || fail "Laravel no registro la tarea contapyme-stock-sync"
+
+    log_ok "Scheduler configurado en $SCHEDULER_CRON_FILE"
+    log_ok "Log del scheduler: $SCHEDULER_LOG_FILE"
 }
 
 ensure_app_up() {
@@ -542,6 +584,9 @@ chown "$APP_USER:$APP_USER" "$APP_DIR/.env"
 chmod 640 "$APP_DIR/.env"
 log_ok "Permisos finales ajustados"
 
+log_step "Configurando scheduler de Laravel..."
+configure_scheduler
+
 log_step "Reiniciando worker de colas..."
 run_as_app "\"$PHP_BIN\" artisan queue:restart" || true
 if systemctl cat "$QUEUE_SERVICE" >/dev/null 2>&1; then
@@ -580,5 +625,6 @@ echo -e "============================================${NC}\n"
 
 echo "  Proximos pasos:"
 echo "   - Verificar logs:      tail -f storage/logs/laravel.log"
+echo "   - Verificar scheduler: systemctl status cron && tail -f $SCHEDULER_LOG_FILE"
 echo "   - Verificar worker:    systemctl status $QUEUE_SERVICE"
 echo "   - Verificar aplicacion: curl -I $(read_env_value APP_URL)"

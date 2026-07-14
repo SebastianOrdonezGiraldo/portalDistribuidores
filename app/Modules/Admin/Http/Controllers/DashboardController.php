@@ -80,29 +80,7 @@ class DashboardController extends Controller
             return 'Ya hay una sincronización en curso. Espera a que termine.';
         }
 
-        if ($availability['reason'] === 'cooldown') {
-            return 'La sincronización está temporalmente bloqueada. Podrás volver a usarla en '
-                .$this->formatRetryAfter($availability['retry_after']).'.';
-        }
-
         return 'La sincronización ContaPyme no está disponible en este momento.';
-    }
-
-    private function formatRetryAfter(int $seconds): string
-    {
-        $seconds = max(1, $seconds);
-        $minutes = intdiv($seconds, 60);
-        $remainingSeconds = $seconds % 60;
-
-        if ($minutes === 0) {
-            return $seconds.' segundos';
-        }
-
-        if ($remainingSeconds === 0) {
-            return $minutes.' minutos';
-        }
-
-        return $minutes.' min '.$remainingSeconds.' s';
     }
 
     private function redirectToProducts(Request $request): RedirectResponse
