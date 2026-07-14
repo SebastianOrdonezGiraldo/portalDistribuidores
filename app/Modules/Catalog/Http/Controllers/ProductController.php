@@ -191,7 +191,6 @@ class ProductController extends Controller
             ['id' => 'descripcion',     'label' => 'Descripción'],
             ['id' => 'especificaciones', 'label' => 'Especificaciones'],
             ['id' => 'documentos',       'label' => 'Documentos'],
-            ['id' => 'relacionados',     'label' => 'Relacionados'],
             ['id' => 'alternativas',     'label' => 'Alternativas'],
         ];
 
