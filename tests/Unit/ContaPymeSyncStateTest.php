@@ -21,47 +21,67 @@ class ContaPymeSyncStateTest extends TestCase
     {
         $state = app(ContaPymeSyncState::class);
 
-        $this->assertTrue($state->queue());
-        $this->assertFalse($state->queue());
+        $this->assertIsString($state->queue());
+        $this->assertNull($state->queue());
         $this->assertSame('running', $state->availability()['reason']);
         $this->assertFalse($state->availability()['can_run']);
     }
 
-    public function test_completed_sync_remains_blocked_until_the_twelve_minute_window_expires(): void
+    public function test_completed_sync_releases_its_lock_immediately(): void
     {
         Carbon::setTestNow('2026-07-10 10:00:00');
 
         try {
             $state = app(ContaPymeSyncState::class);
-            $state->queue();
+            $owner = $state->queue();
             $state->complete('Sincronización completada.');
+            $state->release($owner);
 
-            $this->assertSame('cooldown', $state->availability()['reason']);
-            $this->assertSame(720, $state->availability()['retry_after']);
-
-            Carbon::setTestNow('2026-07-10 10:11:59');
-            $this->assertSame(1, $state->availability()['retry_after']);
-            $this->assertFalse($state->availability()['can_run']);
-
-            Carbon::setTestNow('2026-07-10 10:12:01');
             $this->assertTrue($state->availability()['can_run']);
             $this->assertSame('available', $state->availability()['reason']);
+            $this->assertNull($state->status()['available_at']);
         } finally {
             Carbon::setTestNow();
         }
     }
 
-    public function test_failed_sync_also_keeps_the_cooldown(): void
+    public function test_failed_sync_releases_its_lock_immediately(): void
     {
         $state = app(ContaPymeSyncState::class);
-        $state->queue();
+        $owner = $state->queue();
         $state->fail('App\\Modules\\Inventory\\Jobs\\SyncContaPymeStockJob has been attempted too many times.');
+        $state->release($owner);
 
         $availability = $state->availability();
 
-        $this->assertFalse($availability['can_run']);
-        $this->assertSame('cooldown', $availability['reason']);
-        $this->assertGreaterThan(0, $availability['retry_after']);
+        $this->assertTrue($availability['can_run']);
+        $this->assertSame('available', $availability['reason']);
+        $this->assertNull($state->status()['available_at']);
+    }
+
+    public function test_an_expired_owner_cannot_release_a_newer_lock(): void
+    {
+        Carbon::setTestNow('2026-07-10 10:00:00');
+
+        try {
+            $state = app(ContaPymeSyncState::class);
+            $expiredOwner = $state->queueWithContext('scheduled', 'run-1');
+
+            Carbon::setTestNow('2026-07-10 10:12:01');
+            $currentOwner = $state->queueWithContext('scheduled', 'run-2');
+
+            $this->assertIsString($expiredOwner);
+            $this->assertIsString($currentOwner);
+
+            $state->release($expiredOwner);
+
+            $this->assertNull($state->queueWithContext('scheduled', 'run-3'));
+
+            $state->release($currentOwner);
+            $this->assertIsString($state->queueWithContext('scheduled', 'run-3'));
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_disabled_contapyme_is_not_available(): void
@@ -79,13 +99,14 @@ class ContaPymeSyncStateTest extends TestCase
     public function test_unmapped_diagnostics_are_preserved_for_the_admin_view(): void
     {
         $state = app(ContaPymeSyncState::class);
-        $state->queue();
+        $owner = $state->queue();
         $state->fail('La sincronización terminó con productos pendientes.', [
             'unmapped' => 2,
             'unmapped_details' => [
                 ['sku' => 'VAR-001', 'irecurso' => null, 'phase' => 'mapeo_variante', 'message' => 'Falta irecurso.'],
             ],
         ]);
+        $state->release($owner);
 
         $status = $state->status();
 

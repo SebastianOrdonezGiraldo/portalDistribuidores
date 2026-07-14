@@ -61,13 +61,11 @@ View contract:
     };
     $contapymeSyncButtonLabel = match ($contapymeSyncAvailability['reason']) {
         'running' => 'Sincronización en curso',
-        'cooldown' => 'Disponible en '.$contapymeSyncRetryLabel,
         'disabled' => 'Sincronización deshabilitada',
         default => 'Sincronizar stock ContaPyme',
     };
     $contapymeSyncAvailabilityMessage = match ($contapymeSyncAvailability['reason']) {
         'running' => 'La sincronización está en curso. Disponible nuevamente en '.$contapymeSyncRetryLabel.'.',
-        'cooldown' => 'Puedes volver a sincronizar en '.$contapymeSyncRetryLabel.'.',
         'disabled' => 'La sincronización ContaPyme está deshabilitada en este entorno.',
         default => null,
     };

@@ -604,37 +604,39 @@ class AdminProductsIndexTest extends TestCase
         );
     }
 
-    public function test_products_page_disables_contapyme_sync_during_cooldown(): void
+    public function test_products_page_enables_contapyme_sync_after_completion(): void
     {
         $admin = User::factory()->admin()->create();
         Cache::flush();
         config(['contapyme.enabled' => true]);
 
         $state = app(ContaPymeSyncState::class);
-        $state->queue();
+        $owner = $state->queue();
         $state->complete('Sincronización completada.');
+        $state->release($owner);
 
         $response = $this->actingAs($admin)
             ->get('/admin/products');
 
         $response->assertOk();
-        $response->assertSee('Disponible en');
         $response->assertSee('Sincronización ContaPyme completada.');
-        $this->assertMatchesRegularExpression(
+        $response->assertSee('Sincronizar stock ContaPyme');
+        $this->assertDoesNotMatchRegularExpression(
             '/<button[^>]*data-contapyme-sync-button[^>]*disabled/',
             $response->getContent(),
         );
     }
 
-    public function test_products_page_disables_contapyme_sync_after_a_failed_job(): void
+    public function test_products_page_enables_contapyme_sync_after_a_failed_job(): void
     {
         $admin = User::factory()->admin()->create();
         Cache::flush();
         config(['contapyme.enabled' => true]);
 
         $state = app(ContaPymeSyncState::class);
-        $state->queue();
+        $owner = $state->queue();
         $state->fail('App\\Modules\\Inventory\\Jobs\\SyncContaPymeStockJob has been attempted too many times.');
+        $state->release($owner);
 
         $response = $this->actingAs($admin)
             ->get('/admin/products');
@@ -642,7 +644,7 @@ class AdminProductsIndexTest extends TestCase
         $response->assertOk();
         $response->assertSee('Última sincronización falló');
         $response->assertSee('has been attempted too many times');
-        $this->assertMatchesRegularExpression(
+        $this->assertDoesNotMatchRegularExpression(
             '/<button[^>]*data-contapyme-sync-button[^>]*disabled/',
             $response->getContent(),
         );
@@ -657,7 +659,7 @@ class AdminProductsIndexTest extends TestCase
         config(['contapyme.enabled' => true]);
 
         $state = app(ContaPymeSyncState::class);
-        $state->queue();
+        $owner = $state->queue();
         $state->fail('La sincronización masiva falló.', [
             'error_count' => 12,
             'error_groups' => [
@@ -669,6 +671,7 @@ class AdminProductsIndexTest extends TestCase
                 'message' => 'Timeout de ContaPyme',
             ])->all(),
         ]);
+        $state->release($owner);
 
         $response = $this->actingAs($admin)
             ->get('/admin/products');
@@ -699,7 +702,7 @@ class AdminProductsIndexTest extends TestCase
         );
     }
 
-    public function test_products_page_reenables_contapyme_sync_after_the_cooldown_expires(): void
+    public function test_products_page_recovers_after_an_abandoned_lock_expires(): void
     {
         $admin = User::factory()->admin()->create();
         Cache::flush();
@@ -709,7 +712,6 @@ class AdminProductsIndexTest extends TestCase
         try {
             $state = app(ContaPymeSyncState::class);
             $state->queue();
-            $state->complete('Sincronización completada.');
 
             Carbon::setTestNow('2026-07-10 10:12:01');
 

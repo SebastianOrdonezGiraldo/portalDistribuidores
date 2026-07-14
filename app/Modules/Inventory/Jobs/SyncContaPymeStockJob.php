@@ -29,6 +29,7 @@ class SyncContaPymeStockJob implements ShouldQueue
     public function __construct(
         public string $origin = 'manual',
         public ?string $runId = null,
+        public ?string $lockOwner = null,
     ) {}
 
     public function handle(
@@ -37,27 +38,32 @@ class SyncContaPymeStockJob implements ShouldQueue
     ): void {
         if (! (bool) config('contapyme.enabled')) {
             $syncState->block('La sincronizacion ContaPyme esta deshabilitada en este entorno.');
+            $syncState->release($this->lockOwner);
 
             return;
         }
 
-        $syncState->markRunning();
-        $runId = $this->runId ?? $syncState->status()['run_id'] ?? null;
-        $report = $runner->run(
-            origin: $this->origin,
-            runId: $runId,
-        );
+        try {
+            $syncState->markRunning();
+            $runId = $this->runId ?? $syncState->status()['run_id'] ?? null;
+            $report = $runner->run(
+                origin: $this->origin,
+                runId: $runId,
+            );
 
-        $this->runId = $report->runId;
+            $this->runId = $report->runId;
 
-        if ($report->exitCode() !== 0) {
-            $syncState->fail($report->summary(), $report->toArray());
+            if ($report->exitCode() !== 0) {
+                $syncState->fail($report->summary(), $report->toArray());
 
-            throw new RuntimeException($report->summary());
+                throw new RuntimeException($report->summary());
+            }
+
+            $syncState->complete($report->summary(), $report->toArray());
+            Cache::forget('admin.dashboard.metrics');
+        } finally {
+            $syncState->release($this->lockOwner);
         }
-
-        $syncState->complete($report->summary(), $report->toArray());
-        Cache::forget('admin.dashboard.metrics');
     }
 
     public function failed(?Throwable $exception): void
@@ -86,6 +92,7 @@ class SyncContaPymeStockJob implements ShouldQueue
         ];
 
         $syncState->fail($message, $diagnostics);
+        $syncState->release($this->lockOwner);
 
         if ($this->runId !== null) {
             ContaPymeSyncRun::query()->whereKey($this->runId)->update([
