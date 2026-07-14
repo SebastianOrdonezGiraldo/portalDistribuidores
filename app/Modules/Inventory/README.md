@@ -59,7 +59,9 @@ una visita publica.
   en `contapyme_inventory_mappings`; las demas se marcan como
   `skipped_variants` y conservan su stock.
 - El scheduler ejecuta el mismo `ContaPymeStockSyncJob` que el boton manual cada
-  cinco minutos. Ambos origenes comparten lock, cooldown, reporte y estado.
+  cinco minutos. Ambos origenes comparten un lock atomico mientras el job esta
+  activo; al finalizar, el lock se libera y el TTL queda solo como recuperacion
+  ante una terminacion abrupta del worker.
 - `php artisan contapyme:diagnose --json` valida `GetAuth` y `Test` sin modificar
   inventario ni mostrar `keyagente`.
 - Un timeout, respuesta HTTP/JSON/DataSnap invalida o bodega no confirmada no

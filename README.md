@@ -767,19 +767,23 @@ El script verifica previamente que existan PHP, Composer, npm y el archivo `.env
 ### Tareas programadas
 
 La sincronización automática de stock ContaPyme está definida cada cinco minutos
-en `routes/console.php` y usa el mismo dispatcher/job del botón manual. El
-servidor debe ejecutar el scheduler de Laravel con cron:
+en `routes/console.php` y usa el mismo dispatcher/job del botón manual.
+`deploy.sh` instala o actualiza de forma idempotente una entrada por entorno en
+`/etc/cron.d/portal-distribuidores-{entorno}`, valida que el daemon `cron` esté
+activo y confirma la tarea con `php artisan schedule:list`:
 
 ```bash
-crontab -u www-data -e
-# Agregar:
-* * * * * cd /var/www/portalDistribuidores && php artisan schedule:run >> /dev/null 2>&1
+* * * * * www-data cd /var/www/portalDistribuidores && /usr/bin/php artisan schedule:run >> /var/log/laravel/scheduler-production.log 2>&1
+* * * * * www-data cd /var/www/portalDistribuidores-staging && /usr/bin/php artisan schedule:run >> /var/log/laravel/scheduler-staging.log 2>&1
 ```
 
 Verificar la tarea registrada con:
 
 ```bash
-php artisan schedule:list
+systemctl status cron
+sudo -u www-data php artisan schedule:list
+tail -f /var/log/laravel/scheduler-production.log
+tail -f /var/log/laravel/scheduler-staging.log
 ```
 
 ---
