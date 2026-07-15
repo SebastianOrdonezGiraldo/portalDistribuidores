@@ -45,6 +45,12 @@ Durante la migracion existen fallbacks a `VPS_HOST`, `VPS_SSH_PORT`,
 `VPS_USER`, `VPS_SSH_KEY` y `VPS_SSH_FINGERPRINT`. Eliminarlos solo despues de
 dos promociones exitosas.
 
+Produccion valida el conjunto dedicado como una unidad: deben existir los cinco
+secretos `VPS_*_PRODUCTION` o ninguno. Un conjunto parcial detiene el workflow
+antes de abrir SSH para evitar mezclar host, usuario, llave o fingerprint de
+ambientes distintos. Mientras no exista ninguno, el fallback legacy sigue
+funcional y queda registrado como advertencia en el run.
+
 Las llaves deben ser dedicadas, distintas por entorno y sin passphrase para
 uso no interactivo. El fingerprint usa el formato `SHA256:...` producido por:
 
@@ -53,8 +59,9 @@ ssh-keyscan -p <puerto> <host> > /tmp/portal-host-keys
 ssh-keygen -lf /tmp/portal-host-keys -E sha256
 ```
 
-El workflow vuelve a obtener las host keys y corta antes de autenticar si
-ninguna coincide con el fingerprint almacenado.
+El workflow vuelve a obtener las host keys, reintenta hasta tres veces ante un
+timeout transitorio y corta antes de autenticar si ninguna coincide con el
+fingerprint almacenado.
 
 ## Bootstrap unico del VPS
 
@@ -81,6 +88,10 @@ Nginx/systemd que apuntan a `current` y valida los servicios. Esto no activa
 todavia un release nuevo y permite revertir la configuracion Nginx desde la
 copia `*.pre-cicd-v2-*`. Si el sitio real usa otra ruta, se pasa con
 `--nginx-site`; las plantillas con el marcador TLS no se copian directamente.
+Para mantener compatibilidad con Nginx 1.24+, el bootstrap usa
+`listen ... http2` antes de 1.25.1 y renderiza `http2 on` desde 1.25.1, donde el
+parametro antiguo esta deprecado y puede producir advertencias al compartir el
+puerto 443 entre staging y produccion.
 
 ## Layout y rollback
 

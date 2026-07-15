@@ -31,9 +31,22 @@ ssh-keygen -y -f "$KEY_PATH" >/dev/null 2>&1 || {
     exit 1
 }
 
-ssh-keyscan -T 15 -p "$SSH_PORT" "$SSH_HOST" 2>/dev/null > "$SCANNED_KEYS_PATH"
+for attempt in 1 2 3; do
+    : > "$SCANNED_KEYS_PATH"
+    ssh-keyscan -T 15 -p "$SSH_PORT" "$SSH_HOST" 2>/dev/null > "$SCANNED_KEYS_PATH" || true
+
+    if [[ -s "$SCANNED_KEYS_PATH" ]]; then
+        break
+    fi
+
+    echo "SSH host-key scan attempt ${attempt}/3 returned no keys from ${SSH_HOST}:${SSH_PORT}." >&2
+    if [[ "$attempt" -lt 3 ]]; then
+        sleep "$((attempt * 3))"
+    fi
+done
+
 [[ -s "$SCANNED_KEYS_PATH" ]] || {
-    echo "No SSH host keys were returned by ${SSH_HOST}:${SSH_PORT}." >&2
+    echo "No SSH host keys were returned by ${SSH_HOST}:${SSH_PORT} after 3 attempts." >&2
     exit 1
 }
 
