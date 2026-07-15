@@ -15,12 +15,13 @@ use Illuminate\View\View;
 class CatalogBannerAdminController extends Controller
 {
     private const MAX_FILE_SIZE_KB = 5120;
+
     private const MAX_BANNERS = 8;
 
     public function index(): View
     {
         return view('admin.catalog-banners.index', [
-            'bannersByPlacement' => CatalogBanner::query()->orderBy('placement')->orderBy('sort_order')->orderBy('id')->get()->groupBy(fn (CatalogBanner $banner) => $banner->placement->value),
+            'bannersByPlacement' => CatalogBanner::query()->orderBy('placement')->orderBy('sort_order')->orderBy('id')->get()->groupBy(fn (CatalogBanner $banner) => (string) $banner->getRawOriginal('placement')),
             'placements' => CatalogBannerPlacement::cases(),
             'maxFileSizeKb' => self::MAX_FILE_SIZE_KB,
             'maxBanners' => self::MAX_BANNERS,

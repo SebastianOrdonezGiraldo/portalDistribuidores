@@ -6,9 +6,9 @@ use App\Models\User;
 use App\Modules\Admin\Policies\DistributorPolicy;
 use App\Modules\Admin\Policies\UserPolicy;
 use App\Modules\AuthAccess\Models\Distributor;
-use App\Modules\Catalog\Models\Product;
-use App\Modules\Catalog\Models\CatalogBanner;
 use App\Modules\Catalog\Enums\CatalogBannerPlacement;
+use App\Modules\Catalog\Models\CatalogBanner;
+use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductDocument;
 use App\Modules\Catalog\Policies\ProductPolicy;
 use App\Modules\Catalog\Queries\PostgresSearchEngine;
@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -155,11 +156,20 @@ class AppServiceProvider extends ServiceProvider
         });
 
         View::composer('layouts.guest', function ($view): void {
-            $view->with('authBanners', CatalogBanner::query()
-                ->where('placement', CatalogBannerPlacement::Auth)
-                ->orderBy('sort_order')
-                ->orderBy('id')
-                ->get());
+            try {
+                $authBanners = Schema::hasTable('catalog_banners')
+                    ? CatalogBanner::query()
+                        ->where('placement', CatalogBannerPlacement::Auth)
+                        ->orderBy('sort_order')
+                        ->orderBy('id')
+                        ->get()
+                    : collect();
+            } catch (\Throwable) {
+                // Las vistas de autenticación deben poder renderizarse antes de migrar la tabla.
+                $authBanners = collect();
+            }
+
+            $view->with('authBanners', $authBanners);
         });
     }
 

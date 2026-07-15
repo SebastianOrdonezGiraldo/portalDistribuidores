@@ -1,7 +1,7 @@
 <?php
 
-use App\Modules\Admin\Http\Controllers\CategoryAdminController;
 use App\Modules\Admin\Http\Controllers\CatalogBannerAdminController;
+use App\Modules\Admin\Http\Controllers\CategoryAdminController;
 use App\Modules\Admin\Http\Controllers\DashboardController;
 use App\Modules\Admin\Http\Controllers\DistributorAdminController;
 use App\Modules\Admin\Http\Controllers\OrderAdminController;
