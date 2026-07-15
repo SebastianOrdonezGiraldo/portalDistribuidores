@@ -58,10 +58,12 @@ jobs:
             exit 1
           }
           IFS=$'\t' read -r proof_name proof_run_id <<< "$proof_record"
-          echo "promotion_sha=$promotion_sha" >> "$GITHUB_OUTPUT"
-          echo "source_tree=$source_tree" >> "$GITHUB_OUTPUT"
-          echo "proof_name=$proof_name" >> "$GITHUB_OUTPUT"
-          echo "proof_run_id=$proof_run_id" >> "$GITHUB_OUTPUT"
+          {
+            echo "promotion_sha=$promotion_sha"
+            echo "source_tree=$source_tree"
+            echo "proof_name=$proof_name"
+            echo "proof_run_id=$proof_run_id"
+          } >> "$GITHUB_OUTPUT"
       - name: Download staging proof
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -73,6 +75,7 @@ jobs:
       - name: Validate staging proof
         id: proof
         run: |
+          # shellcheck disable=SC2016
           php -r '
             $proof = json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR);
             foreach (["source_commit", "source_tree", "archive_sha256", "ci_run_id"] as $field) {
@@ -147,6 +150,7 @@ jobs:
           cd "$RUNNER_TEMP/release-artifact"
           sha256sum --check SHA256SUMS
           [[ "$(awk '{print $1}' "$RUNNER_TEMP/release-artifact/SHA256SUMS")" == "${{ needs.resolve.outputs.archive_sha256 }}" ]]
+          # shellcheck disable=SC2016
           php -r '
             $manifest = json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR);
             if (($manifest["source_commit"] ?? null) !== $argv[2] || ($manifest["source_tree"] ?? null) !== $argv[3]) { exit(1); }
@@ -213,10 +217,8 @@ jobs:
           elif [[ -z "$latest" ]]; then
             next="v1.0.0"
           else
-            major="${latest#v}"; major="${major%%.*}"
-            remainder="${latest#v${major}.}"
-            minor="${remainder%%.*}"
-            patch="${latest##*.}"
+            version="${latest#v}"
+            IFS='.' read -r major minor patch <<< "$version"
             next="v${major}.${minor}.$((patch + 1))"
           fi
 

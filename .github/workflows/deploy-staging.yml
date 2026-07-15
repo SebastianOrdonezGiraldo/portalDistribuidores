@@ -85,6 +85,7 @@ jobs:
       - name: Read artifact identity
         id: artifact
         run: |
+          # shellcheck disable=SC2016
           php -r '
             $manifest = json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR);
             if (($manifest["source_commit"] ?? null) !== $argv[2]) { exit(1); }
@@ -117,6 +118,7 @@ jobs:
       - name: Create staging proof
         run: |
           mkdir -p "$RUNNER_TEMP/staging-proof"
+          # shellcheck disable=SC2016
           php -r '
             file_put_contents($argv[1], json_encode([
               "schema" => 1,

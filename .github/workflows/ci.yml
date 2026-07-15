@@ -56,6 +56,11 @@ jobs:
           php-version: ${{ env.PHP_VERSION }}
           extensions: mbstring, xml, ctype, fileinfo, curl, dom, intl, bcmath, sqlite, pdo_sqlite, sockets
           coverage: none
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
       - name: Prepare Laravel
         run: cp .env.example .env
       - name: Install dependencies
@@ -136,6 +141,10 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Generate application key
         run: php artisan key:generate --ansi
+      - name: Build frontend assets
+        run: |
+          npm ci
+          npm run build
       - name: Run test suite
         run: composer test
 
@@ -174,12 +183,21 @@ jobs:
           php-version: ${{ env.PHP_VERSION }}
           extensions: mbstring, xml, ctype, fileinfo, curl, dom, intl, bcmath, pgsql, pdo_pgsql, sockets
           coverage: none
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
       - name: Prepare Laravel
         run: cp .env.example .env
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Generate application key
         run: php artisan key:generate --ansi
+      - name: Build frontend assets
+        run: |
+          npm ci
+          npm run build
       - name: Run PostgreSQL test suite
         run: composer test
 
@@ -354,6 +372,7 @@ jobs:
       - name: Create staging proof
         run: |
           mkdir -p "$RUNNER_TEMP/staging-proof"
+          # shellcheck disable=SC2016
           php -r '
             file_put_contents($argv[1], json_encode([
               "schema" => 1,
