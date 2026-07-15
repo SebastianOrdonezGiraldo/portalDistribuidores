@@ -77,6 +77,26 @@ run_in_staging_app() {
     sudo -u "$APP_USER" bash -lc "cd $(shell_escape "$STAGING_APP_DIR") && $command"
 }
 
+database_scalar() {
+    local host="$1"
+    local port="$2"
+    local user="$3"
+    local password="$4"
+    local database="$5"
+    local query="$6"
+
+    env PGPASSWORD="$password" \
+        "$PSQL_BIN" \
+        --host="${host:-127.0.0.1}" \
+        --port="${port:-5432}" \
+        --username="$user" \
+        --dbname="$database" \
+        --no-align \
+        --tuples-only \
+        --set=ON_ERROR_STOP=1 \
+        --command="$query"
+}
+
 require_file "$PRODUCTION_APP_DIR/.env"
 require_file "$STAGING_APP_DIR/.env"
 
@@ -84,6 +104,7 @@ PG_DUMP_BIN="$(resolve_cmd pg_dump)"
 PG_RESTORE_BIN="$(resolve_cmd pg_restore)"
 DROPDB_BIN="$(resolve_cmd dropdb)"
 CREATEDB_BIN="$(resolve_cmd createdb)"
+PSQL_BIN="$(resolve_cmd psql)"
 PHP_BIN="$(resolve_cmd php)"
 
 load_app_env "$PRODUCTION_APP_DIR/.env" PROD
@@ -102,11 +123,35 @@ STAGING_SANITIZE_PASSWORD="$(read_env_value "$STAGING_APP_DIR/.env" STAGING_SANI
 mkdir -p "$DUMP_DIR"
 chown "$APP_USER:$APP_USER" "$DUMP_DIR" || true
 
-DUMP_FILE="$DUMP_DIR/${PROD_DB_NAME}-$(date '+%Y%m%d-%H%M%S').dump"
+REFRESH_TIMESTAMP="$(date '+%Y%m%d-%H%M%S')"
+DUMP_FILE="$DUMP_DIR/${PROD_DB_NAME}-${REFRESH_TIMESTAMP}.dump"
+STAGING_BACKUP_FILE="$DUMP_DIR/${STAGING_DB_NAME}-before-refresh-${REFRESH_TIMESTAMP}.dump"
 STAGING_DOWN=false
 STAGING_QUEUE_STOPPED=false
 
 cleanup() {
+    local exit_code=$?
+
+    trap - EXIT
+
+    if (( exit_code != 0 )); then
+        log_error "El refresco fallo. Staging permanecera en mantenimiento y su worker detenido."
+
+        if systemctl cat laravel-queue-staging >/dev/null 2>&1; then
+            systemctl stop laravel-queue-staging >/dev/null 2>&1 || true
+            STAGING_QUEUE_STOPPED=true
+        fi
+
+        run_in_staging_app "$(shell_escape "$PHP_BIN") artisan down --render=\"errors::503\" --retry=60" >/dev/null 2>&1 || true
+        STAGING_DOWN=true
+
+        log_warn "Corrige la causa antes de levantar staging manualmente."
+        log_warn "Backup previo de staging: $STAGING_BACKUP_FILE"
+        log_warn "Dump de produccion: $DUMP_FILE"
+
+        exit "$exit_code"
+    fi
+
     if [[ "$STAGING_QUEUE_STOPPED" == "true" ]]; then
         log_warn "Levantando el worker de staging tras la operacion..."
         systemctl start laravel-queue-staging >/dev/null 2>&1 || true
@@ -117,6 +162,8 @@ cleanup() {
         log_warn "Levantando staging tras la operacion..."
         run_in_staging_app "$(shell_escape "$PHP_BIN") artisan up" || true
     fi
+
+    exit 0
 }
 trap cleanup EXIT
 
@@ -134,6 +181,28 @@ if systemctl cat laravel-queue-staging >/dev/null 2>&1; then
 else
     log_warn "No se encontro el servicio laravel-queue-staging. Continuando sin detenerlo."
 fi
+
+log_step "Creando backup de rollback de la base actual de staging..."
+sudo -u "$APP_USER" env PGPASSWORD="$STAGING_DB_PASSWORD" \
+    "$PG_DUMP_BIN" \
+    --host="${STAGING_DB_HOST:-127.0.0.1}" \
+    --port="${STAGING_DB_PORT:-5432}" \
+    --username="$STAGING_DB_USER" \
+    --format=custom \
+    --file="$STAGING_BACKUP_FILE" \
+    "$STAGING_DB_NAME"
+[[ -s "$STAGING_BACKUP_FILE" ]] || fail "No se pudo generar el backup previo de staging."
+log_ok "Backup previo de staging generado en $STAGING_BACKUP_FILE"
+
+CATALOG_FINGERPRINT_SQL="SELECT COUNT(*)::text || ':' || md5(COALESCE(string_agg(id::text || E'\\x1f' || COALESCE(sku, '') || E'\\x1f' || COALESCE(name, '') || E'\\x1f' || is_active::text, E'\\x1e' ORDER BY id), '')) FROM products;"
+PRODUCTION_CATALOG_FINGERPRINT="$(database_scalar \
+    "$PROD_DB_HOST" \
+    "$PROD_DB_PORT" \
+    "$PROD_DB_USER" \
+    "$PROD_DB_PASSWORD" \
+    "$PROD_DB_NAME" \
+    "$CATALOG_FINGERPRINT_SQL")"
+[[ -n "$PRODUCTION_CATALOG_FINGERPRINT" ]] || fail "No se pudo calcular la huella del catalogo de produccion."
 
 log_step "Creando dump solo lectura desde produccion..."
 sudo -u "$APP_USER" env PGPASSWORD="$PROD_DB_PASSWORD" \
@@ -179,6 +248,18 @@ log_step "Sanitizando datos en staging..."
 run_in_staging_app "$(shell_escape "$PHP_BIN") artisan staging:sanitize-data --password=$(shell_escape "$STAGING_SANITIZE_PASSWORD")"
 log_ok "Datos sanitizados"
 
+log_step "Verificando identidad del catalogo restaurado..."
+STAGING_CATALOG_FINGERPRINT="$(database_scalar \
+    "$STAGING_DB_HOST" \
+    "$STAGING_DB_PORT" \
+    "$STAGING_DB_USER" \
+    "$STAGING_DB_PASSWORD" \
+    "$STAGING_DB_NAME" \
+    "$CATALOG_FINGERPRINT_SQL")"
+[[ "$STAGING_CATALOG_FINGERPRINT" == "$PRODUCTION_CATALOG_FINGERPRINT" ]] \
+    || fail "La identidad del catalogo de staging no coincide con el snapshot esperado de produccion."
+log_ok "Catalogo de productos verificado: $STAGING_CATALOG_FINGERPRINT"
+
 log_step "Reiniciando la cola de staging..."
 run_in_staging_app "$(shell_escape "$PHP_BIN") artisan queue:restart" || true
 if systemctl cat laravel-queue-staging >/dev/null 2>&1; then
@@ -195,5 +276,6 @@ log_ok "Staging nuevamente en linea"
 
 echo -e "\n${GREEN}============================================"
 echo "  Refresco de staging completado"
-echo "  Dump usado: $DUMP_FILE"
+echo "  Dump de produccion usado: $DUMP_FILE"
+echo "  Backup previo de staging: $STAGING_BACKUP_FILE"
 echo -e "============================================${NC}\n"

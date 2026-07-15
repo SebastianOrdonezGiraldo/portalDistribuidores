@@ -50,7 +50,7 @@ Portal web para distribuidores de Import Corporal Medical SAS. Permite gestionar
 | PDF               | `barryvdh/laravel-dompdf`                     |
 | Almacenamiento    | Cloudflare R2 (S3-compatible)                 |
 | Correo            | SMTP (configurable)                           |
-| Colas             | Driver `database` (configurable a Redis)      |
+| Colas             | PostgreSQL mediante driver `database`         |
 | Búsqueda          | PostgreSQL full-text (stub para Meilisearch)  |
 
 ---
@@ -254,39 +254,19 @@ php artisan migrate:status
 
 ### Driver de colas
 
-El proyecto soporta **dos drivers** de colas:
+Staging y producción usan PostgreSQL tanto para la cola como para el cache de
+locks. Como cada entorno tiene una base separada, sus jobs y el lock de
+ContaPyme quedan aislados sin infraestructura adicional:
 
-| Driver | Entorno | Características |
-|--------|---------|---|
-| **`database`** (defecto) | Desarrollo, staging inicial | Jobs en tabla PostgreSQL; simple pero más lento; recomendado para testing |
-| **`redis`** | Producción, staging avanzado | Jobs en Redis server; ~4x más rápido; recomendado para alta concurrencia |
-
-#### Migración a Redis en Producción
-
-Para producción, se recomienda **migrar a Redis** por mejor performance y escalabilidad.
-
-**Requisitos:**
-- Redis server instalado en VPS (`sudo apt install -y redis-server redis-tools`)
-- Predis dependency en `composer.json` (`"predis/predis": "^2.2"`)
-- Variables `.env` configuradas
-
-**Cambiar driver:**
-```bash
-# En .env de staging/producción
-QUEUE_CONNECTION=redis
-REDIS_QUEUE_HOST=127.0.0.1
-REDIS_QUEUE_PORT=6379
-REDIS_QUEUE_DB=2
+```dotenv
+QUEUE_CONNECTION=database
+DB_QUEUE=default
+DB_QUEUE_RETRY_AFTER=660
+CACHE_STORE=database
 ```
 
-**Verificar conectividad:**
-```bash
-redis-cli ping  # Retorna: PONG
-php artisan tinker
->>> Redis::ping()  # Retorna: 'PONG'
-```
-
-> **Guía completa:** Ver [`REDIS_MIGRATION.md`](./REDIS_MIGRATION.md) para detalles de migración desde database a Redis, testing en staging y rollback.
+`DB_QUEUE_RETRY_AFTER` debe ser mayor que el timeout de 600 segundos del
+worker. Redis no forma parte de la arquitectura operativa del portal.
 
 ### Worker en desarrollo local
 
@@ -759,7 +739,7 @@ El script ejecuta automáticamente los siguientes pasos:
 4. Limpieza y regeneración de cachés (config, route, view, event)
 5. `npm ci --omit=dev && npm run build`
 6. Ajuste de permisos en `storage/` y `bootstrap/cache/`
-7. `php artisan queue:restart` + reinicio del servicio `laravel-queue`
+7. Instalación/verificación de la unidad systemd y reinicio del worker correspondiente
 8. `systemctl reload php8.3-fpm`
 
 El script verifica previamente que existan PHP, Composer, npm y el archivo `.env`. Si alguna verificación falla, el proceso se detiene antes de realizar cambios.
@@ -767,19 +747,23 @@ El script verifica previamente que existan PHP, Composer, npm y el archivo `.env
 ### Tareas programadas
 
 La sincronización automática de stock ContaPyme está definida cada cinco minutos
-en `routes/console.php` y usa el mismo dispatcher/job del botón manual. El
-servidor debe ejecutar el scheduler de Laravel con cron:
+en `routes/console.php` y usa el mismo dispatcher/job del botón manual.
+`deploy.sh` instala o actualiza de forma idempotente una entrada por entorno en
+`/etc/cron.d/portal-distribuidores-{entorno}`, valida que el daemon `cron` esté
+activo y confirma la tarea con `php artisan schedule:list`:
 
 ```bash
-crontab -u www-data -e
-# Agregar:
-* * * * * cd /var/www/portalDistribuidores && php artisan schedule:run >> /dev/null 2>&1
+* * * * * www-data cd /var/www/portalDistribuidores && /usr/bin/php artisan schedule:run >> /var/log/laravel/scheduler-production.log 2>&1
+* * * * * www-data cd /var/www/portalDistribuidores-staging && /usr/bin/php artisan schedule:run >> /var/log/laravel/scheduler-staging.log 2>&1
 ```
 
 Verificar la tarea registrada con:
 
 ```bash
-php artisan schedule:list
+systemctl status cron
+sudo -u www-data php artisan schedule:list
+tail -f /var/log/laravel/scheduler-production.log
+tail -f /var/log/laravel/scheduler-staging.log
 ```
 
 ---
@@ -912,7 +896,7 @@ systemctl restart php8.3-fpm
 - **Script de actualización:** [`deploy.sh`](./deploy.sh) — automatiza el ciclo completo de actualización en producción.
 - **Script de refresco de staging:** [`deploy/refresh-staging.sh`](./deploy/refresh-staging.sh) — crea un dump solo lectura desde produccion, restaura en staging y ejecuta la sanitizacion.
 - **Configuraciones de Nginx:** [`deploy/nginx.production.conf`](./deploy/nginx.production.conf) y [`deploy/nginx.staging.conf`](./deploy/nginx.staging.conf) — plantillas separadas por ambiente.
-- **Workers systemd:** [`deploy/laravel-queue-prod.service`](./deploy/laravel-queue-prod.service) y [`deploy/laravel-queue-staging.service`](./deploy/laravel-queue-staging.service) — unit files separados por ambiente.
+- **Workers systemd:** [`deploy/laravel-queue.service`](./deploy/laravel-queue.service) para producción y [`deploy/laravel-queue-staging.service`](./deploy/laravel-queue-staging.service) para staging.
 - **Worker Supervisor:** [`deploy/laravel-queue-supervisor.conf`](./deploy/laravel-queue-supervisor.conf) — configuración alternativa con Supervisor.
 - **Documentacion HTTP/OpenAPI:** [`docs/documentacion-api.md`](./docs/documentacion-api.md) — explica como generar y proteger `/docs`, `/docs.openapi` y `/docs.postman` con Scribe.
 - **Colección Postman:** [`postman/PortalDistribuidores.postman_collection.json`](./postman/PortalDistribuidores.postman_collection.json) — rutas principales del proyecto documentadas.

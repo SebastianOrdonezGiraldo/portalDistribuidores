@@ -24,7 +24,7 @@ class SyncContaPymeStockJobTest extends TestCase
     public function test_job_runs_the_stock_runner_and_publishes_its_summary(): void
     {
         $state = app(ContaPymeSyncState::class);
-        $state->queue();
+        $lockOwner = $state->queue();
         $runId = $state->status()['run_id'];
 
         $this->mock(ContaPymeStockSyncRunner::class, function ($mock) use ($runId): void {
@@ -48,7 +48,8 @@ class SyncContaPymeStockJobTest extends TestCase
             ));
         });
 
-        (new SyncContaPymeStockJob(runId: $runId))->handle($state, app(ContaPymeStockSyncRunner::class));
+        (new SyncContaPymeStockJob(runId: $runId, lockOwner: $lockOwner))
+            ->handle($state, app(ContaPymeStockSyncRunner::class));
 
         $status = $state->status();
 
@@ -56,14 +57,14 @@ class SyncContaPymeStockJobTest extends TestCase
         $this->assertSame('Sincronización de stock ContaPyme: procesados=1, actualizados=1, sin cambios=0, ausentes en ContaPyme=0, sin SKU=0, variantes omitidas=0, fallidos=0', $status['summary']);
         $this->assertSame(0, $status['error_count']);
         $this->assertFalse($state->isRunning());
-        $this->assertFalse($state->availability()['can_run']);
-        $this->assertSame('cooldown', $state->availability()['reason']);
+        $this->assertTrue($state->availability()['can_run']);
+        $this->assertSame('available', $state->availability()['reason']);
     }
 
-    public function test_failed_job_publishes_error_and_keeps_the_cooldown(): void
+    public function test_failed_job_publishes_error_and_releases_the_lock(): void
     {
         $state = app(ContaPymeSyncState::class);
-        $state->queue();
+        $lockOwner = $state->queue();
 
         $runId = $state->status()['run_id'];
         $this->mock(ContaPymeStockSyncRunner::class, function ($mock) use ($runId): void {
@@ -94,7 +95,7 @@ class SyncContaPymeStockJobTest extends TestCase
             ));
         });
 
-        $job = new SyncContaPymeStockJob(runId: $runId);
+        $job = new SyncContaPymeStockJob(runId: $runId, lockOwner: $lockOwner);
 
         try {
             $job->handle($state, app(ContaPymeStockSyncRunner::class));
@@ -113,7 +114,27 @@ class SyncContaPymeStockJobTest extends TestCase
         ], $status['error_groups']);
         $this->assertSame('ERR-001', $status['error_details'][0]['sku']);
         $this->assertFalse($state->isRunning());
-        $this->assertFalse($state->availability()['can_run']);
-        $this->assertSame('cooldown', $state->availability()['reason']);
+        $this->assertTrue($state->availability()['can_run']);
+        $this->assertSame('available', $state->availability()['reason']);
+    }
+
+    public function test_disabled_job_blocks_the_run_and_releases_the_lock(): void
+    {
+        $state = app(ContaPymeSyncState::class);
+        $lockOwner = $state->queue();
+        $runId = $state->status()['run_id'];
+        config(['contapyme.enabled' => false]);
+
+        $this->mock(ContaPymeStockSyncRunner::class, function ($mock): void {
+            $mock->shouldNotReceive('run');
+        });
+
+        (new SyncContaPymeStockJob(runId: $runId, lockOwner: $lockOwner))
+            ->handle($state, app(ContaPymeStockSyncRunner::class));
+
+        $this->assertSame('blocked', $state->status()['state']);
+
+        config(['contapyme.enabled' => true]);
+        $this->assertTrue($state->availability()['can_run']);
     }
 }

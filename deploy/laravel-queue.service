@@ -1,16 +1,15 @@
 # =============================================================================
-# laravel-queue.service - legacy alias for production
-# Prefer: deploy/laravel-queue-prod.service
+# laravel-queue.service - worker de produccion
 #
 # Instrucciones:
-#   sudo cp deploy/laravel-queue-prod.service /etc/systemd/system/laravel-queue-prod.service
+#   sudo cp deploy/laravel-queue.service /etc/systemd/system/laravel-queue.service
 #   sudo mkdir -p /var/log/laravel && sudo chown www-data:www-data /var/log/laravel
 #   sudo systemctl daemon-reload
-#   sudo systemctl enable --now laravel-queue-prod
-#   sudo systemctl status laravel-queue-prod
+#   sudo systemctl enable --now laravel-queue
+#   sudo systemctl status laravel-queue
 #
 # Para ver logs:
-#   journalctl -u laravel-queue-prod -f
+#   journalctl -u laravel-queue -f
 #   tail -f /var/log/laravel/queue-prod.log
 # =============================================================================
 

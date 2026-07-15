@@ -188,6 +188,8 @@ SESSION_DRIVER=database
 SESSION_LIFETIME=120
 SESSION_SECURE_COOKIE=true
 QUEUE_CONNECTION=database
+DB_QUEUE=default
+DB_QUEUE_RETRY_AFTER=660
 CACHE_STORE=database
 AUTH_ALLOW_PUBLIC_REGISTRATION=false
 
@@ -361,7 +363,7 @@ certbot renew --dry-run
 mkdir -p /var/log/laravel
 chown www-data:www-data /var/log/laravel
 
-# Copiar el unit file incluido en el repositorio
+# Producción: copiar el unit file incluido en el repositorio
 cp /var/www/portal-distribuidores/deploy/laravel-queue.service \
    /etc/systemd/system/laravel-queue.service
 
@@ -373,6 +375,10 @@ systemctl enable --now laravel-queue
 systemctl status laravel-queue
 journalctl -u laravel-queue -f  # Ver logs en tiempo real
 ```
+
+En staging se usa la unidad separada `laravel-queue-staging.service`. El
+`deploy.sh` instala o actualiza automáticamente la unidad correcta, valida
+`--queue=default` y `--timeout=600`, la habilita y comprueba que quede activa.
 
 ### Opción B: Supervisor (alternativa)
 
@@ -476,7 +482,7 @@ Si el smoke check falla:
 1. Revisar el log del job de deploy en GitHub Actions
 2. Revisar logs del VPS:
    - `tail -f storage/logs/laravel.log`
-   - `systemctl status laravel-queue-staging` o `systemctl status laravel-queue-prod`
+   - `systemctl status laravel-queue-staging` o `systemctl status laravel-queue`
    - `systemctl status php8.3-fpm`
 3. Confirmar respuesta manual:
    - `curl -I https://staging-pedidos.importcorporalmedical.com`
@@ -627,15 +633,39 @@ curl -s -o /dev/null -w "%{http_code}" https://tu-dominio.com/
 
 `/up` no está expuesto públicamente. Si se necesita un health check dedicado para balanceador o monitoreo, publícalo solo detrás de red interna o restricción por IP.
 
-### Tareas programadas (si se agregan en el futuro)
+### Tareas programadas
 
-Si el proyecto agrega `schedule:run` en el futuro, agregar al cron de `www-data`:
+El despliegue administra el scheduler de Laravel porque la sincronización de
+stock ContaPyme depende de él. `deploy.sh` crea una entrada separada por entorno
+en `/etc/cron.d`, activa `cron.service`, prepara el log y valida que
+`contapyme-stock-sync` aparezca en `schedule:list`:
 
 ```bash
-crontab -u www-data -e
-# Agregar:
-* * * * * cd /var/www/portalDistribuidores && php artisan schedule:run >> /dev/null 2>&1
+cat /etc/cron.d/portal-distribuidores-production
+cat /etc/cron.d/portal-distribuidores-staging
+systemctl status cron
+sudo -u www-data php artisan schedule:list
+tail -f /var/log/laravel/scheduler-production.log
+tail -f /var/log/laravel/scheduler-staging.log
 ```
+
+Cada archivo ejecuta `php artisan schedule:run` una vez por minuto como
+`www-data`; Laravel decide en los minutos `00, 05, 10...` si debe encolar la
+sincronización. Si el job anterior sigue activo, ese turno se omite sin crear
+una ejecución concurrente.
+
+### Recuperación de una cola ContaPyme huérfana
+
+Con el worker del entorno detenido, este comando marca como fallidas las
+ejecuciones que llevan al menos 15 minutos en `queued` sin haber iniciado y
+libera únicamente el estado operativo de ContaPyme:
+
+```bash
+sudo -u www-data php artisan contapyme:recover-sync-state --older-than=15 --force
+```
+
+Los registros se conservan para auditoría y los elementos históricos de
+`failed_jobs` no se reintentan automáticamente.
 
 ---
 
@@ -666,7 +696,7 @@ crontab -u www-data -e
 - [`STAGING.md`](./STAGING.md) - flujo de ramas `develop`/`master`, hosts reales, bucket `portal-distribuidores-staging` y refresco seguro de datos.
 - [`deploy/nginx.production.conf`](./deploy/nginx.production.conf) - plantilla Nginx para `pedidos.importcorporalmedical.com`.
 - [`deploy/nginx.staging.conf`](./deploy/nginx.staging.conf) - plantilla Nginx para `staging-pedidos.importcorporalmedical.com`.
-- [`deploy/laravel-queue-prod.service`](./deploy/laravel-queue-prod.service) - worker systemd para produccion.
+- [`deploy/laravel-queue.service`](./deploy/laravel-queue.service) - worker systemd para produccion.
 - [`deploy/laravel-queue-staging.service`](./deploy/laravel-queue-staging.service) - worker systemd para staging.
 - [`deploy/refresh-staging.sh`](./deploy/refresh-staging.sh) - script de copia y sanitizacion de datos hacia staging.
 

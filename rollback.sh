@@ -125,7 +125,7 @@ log_step "Reiniciando servicios..."
 APP_ENV_VALUE="$(grep -E '^APP_ENV=' "$APP_DIR/.env" | head -n1 | cut -d= -f2- | tr -d '"' || true)"
 
 if [[ "$APP_ENV_VALUE" == "production" ]]; then
-    QUEUE_SERVICE="laravel-queue-prod"
+    QUEUE_SERVICE="laravel-queue"
     PHP_FPM_SERVICE="php8.3-fpm"
 elif [[ "$APP_ENV_VALUE" == "staging" ]]; then
     QUEUE_SERVICE="laravel-queue-staging"

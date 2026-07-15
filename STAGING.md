@@ -8,7 +8,7 @@ Guia operativa para mantener `staging` y `production` en el mismo VPS sin poner 
   - URL: `https://pedidos.importcorporalmedical.com`
   - Carpeta: `/var/www/portalDistribuidores`
   - Rama: `master`
-  - Worker: `laravel-queue-prod`
+  - Worker: `laravel-queue`
 - Staging:
   - URL: `https://staging-pedidos.importcorporalmedical.com`
   - Carpeta: `/var/www/portalDistribuidores-staging`
@@ -107,10 +107,14 @@ Agregar en `.env` del VPS:
 
 ```dotenv
 DEPLOY_ENV_NAME=production
-DEPLOY_QUEUE_SERVICE=laravel-queue-prod
+DEPLOY_QUEUE_SERVICE=laravel-queue
 DEPLOY_PHP_FPM_SERVICE=php8.3-fpm
 DEPLOY_CREATE_DB_BACKUP=true
 DEPLOY_DB_BACKUP_DIR=/var/backups/portal-distribuidores/production
+QUEUE_CONNECTION=database
+DB_QUEUE=default
+DB_QUEUE_RETRY_AFTER=660
+CACHE_STORE=database
 ```
 
 Para staging:
@@ -130,7 +134,10 @@ AWS_BUCKET=portal-distribuidores-staging
 MAIL_MAILER=log
 ORDER_NOTIFICATION_EMAIL_DISPATCH=queue
 AUTH_ALLOW_PUBLIC_REGISTRATION=true
-REDIS_QUEUE_RETRY_AFTER=660
+QUEUE_CONNECTION=database
+DB_QUEUE=default
+DB_QUEUE_RETRY_AFTER=660
+CACHE_STORE=database
 
 DEPLOY_ENV_NAME=staging
 DEPLOY_QUEUE_SERVICE=laravel-queue-staging
@@ -142,16 +149,22 @@ STAGING_SANITIZE_PASSWORD=<password-controlado>
 
 El usuario PostgreSQL de staging debe tener permiso `CREATEDB`, porque `deploy/refresh-staging.sh` recrea la base `portal_distribuidores_staging` en cada refresco.
 
+El refresco reemplaza por completo la base de staging. Antes de hacerlo, el
+script genera un dump de rollback de la base actual dentro de
+`/var/backups/portal-distribuidores/staging-refresh`. Si cualquier paso falla,
+staging permanece en mantenimiento y `laravel-queue-staging` queda detenido;
+la recuperacion debe ser manual despues de revisar la causa.
+
 ## Archivos de infraestructura
 
 Usar estas plantillas:
 
 - Produccion Nginx: `deploy/nginx.production.conf`
 - Staging Nginx: `deploy/nginx.staging.conf`
-- Worker prod: `deploy/laravel-queue-prod.service`
+- Worker prod: `deploy/laravel-queue.service`
 - Worker staging: `deploy/laravel-queue-staging.service`
 
-Los archivos legacy `deploy/nginx.conf` y `deploy/laravel-queue.service` quedaron como alias de compatibilidad orientados a produccion.
+El archivo `deploy/nginx.conf` se conserva como alias de compatibilidad orientado a produccion.
 
 ## Refresco de datos a staging
 
@@ -169,12 +182,21 @@ El flujo del script es:
 4. Verifica que la DB destino sea `portal_distribuidores_staging`
 5. Pone staging en mantenimiento
 6. Detiene `laravel-queue-staging` para liberar conexiones
-7. Hace dump solo lectura desde produccion
-8. Recrea solo la base de staging
-9. Restaura el dump en staging
-10. Ejecuta `php artisan staging:sanitize-data`
-11. Reinicia la cola de staging
-12. Levanta staging
+7. Crea un backup de rollback de la base actual de staging
+8. Hace dump solo lectura desde produccion
+9. Recrea solo la base de staging
+10. Restaura el dump en staging
+11. Ejecuta `php artisan staging:sanitize-data`
+12. Verifica que no queden emails externos en usuarios, distribuidores ni pedidos
+13. Compara la huella `id + SKU + nombre + estado` del catalogo con produccion
+14. Reinicia la cola de staging
+15. Levanta staging
+
+La sanitizacion elimina sesiones, colas, cache, descargas y trazas operativas de
+inventario. Tambien reemplaza nombres, emails, NIT, telefonos, direcciones,
+sucursales y datos de contacto/notas de pedidos por valores controlados de
+staging. El refresco copia la base de datos, no los objetos de los buckets de
+media; los archivos de R2/S3 se gestionan por separado.
 
 ## Credenciales de acceso de staging
 

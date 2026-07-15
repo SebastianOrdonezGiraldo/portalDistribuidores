@@ -24,11 +24,17 @@ QUEUE_SERVICE=""
 PHP_FPM_SERVICE=""
 DEPLOY_CREATE_DB_BACKUP=""
 DEPLOY_DB_BACKUP_DIR=""
+SCHEDULER_CRON_FILE=""
+SCHEDULER_LOG_FILE=""
 DEPLOY_BRANCH_VALUE="${DEPLOY_BRANCH:-}"
 DEPLOY_TARGET_SHA_VALUE="${DEPLOY_TARGET_SHA:-}"
 
 APP_ENV_VALUE=""
 APP_DEBUG_VALUE=""
+QUEUE_CONNECTION_VALUE=""
+CACHE_STORE_VALUE=""
+DB_QUEUE_VALUE=""
+DB_QUEUE_RETRY_AFTER_VALUE=""
 DB_HOST_VALUE=""
 DB_PORT_VALUE=""
 DB_DATABASE_VALUE=""
@@ -43,6 +49,7 @@ ORDER_PDFS_DISK_VALUE=""
 TECH_SHEETS_DISK_VALUE=""
 
 APP_HOME=""
+QUEUE_UNIT_SOURCE=""
 PHP_BIN=""
 PG_DUMP_BIN=""
 COMPOSER_BIN=""
@@ -205,6 +212,87 @@ run_as_app() {
         bash -c "cd \"$APP_DIR\" && $1"
 }
 
+configure_scheduler() {
+    local cron_tmp
+    local schedule_list
+
+    SCHEDULER_CRON_FILE="/etc/cron.d/portal-distribuidores-${DEPLOY_ENV_NAME}"
+    SCHEDULER_LOG_FILE="/var/log/laravel/scheduler-${DEPLOY_ENV_NAME}.log"
+
+    systemctl cat cron.service >/dev/null 2>&1 \
+        || fail "No se encontro el servicio cron requerido por el scheduler de Laravel"
+
+    systemctl enable --now cron.service
+    systemctl is-active --quiet cron.service \
+        || fail "El servicio cron no quedo activo"
+
+    mkdir -p /var/log/laravel
+    touch "$SCHEDULER_LOG_FILE"
+    chown "$APP_USER:$APP_USER" "$SCHEDULER_LOG_FILE"
+    chmod 664 "$SCHEDULER_LOG_FILE"
+
+    cron_tmp="$(mktemp)"
+    {
+        printf 'SHELL=/bin/bash\n'
+        printf 'PATH=%s\n' "$SYSTEM_PATH"
+        printf '* * * * * %s cd %s && %s artisan schedule:run >> %s 2>&1\n' \
+            "$APP_USER" "$APP_DIR" "$PHP_BIN" "$SCHEDULER_LOG_FILE"
+    } > "$cron_tmp"
+
+    chown root:root "$cron_tmp"
+    chmod 644 "$cron_tmp"
+    mv "$cron_tmp" "$SCHEDULER_CRON_FILE"
+
+    schedule_list="$(run_as_app "\"$PHP_BIN\" artisan schedule:list")"
+    echo "$schedule_list"
+    grep -Fq 'contapyme-stock-sync' <<< "$schedule_list" \
+        || fail "Laravel no registro la tarea contapyme-stock-sync"
+
+    log_ok "Scheduler configurado en $SCHEDULER_CRON_FILE"
+    log_ok "Log del scheduler: $SCHEDULER_LOG_FILE"
+}
+
+configure_queue_worker() {
+    local target_unit="/etc/systemd/system/${QUEUE_SERVICE}.service"
+    local override_dir="/etc/systemd/system/${QUEUE_SERVICE}.service.d"
+    local override_file="$override_dir/override.conf"
+    local effective_exec_start
+    local queue_log_name
+
+    require_file "$QUEUE_UNIT_SOURCE"
+
+    if [[ -f "$override_file" ]] && grep -Eq -- '--queue=(production|staging)' "$override_file"; then
+        rm -f "$override_file"
+        rmdir "$override_dir" 2>/dev/null || true
+        log_warn "Se elimino el override temporal de Redis para $QUEUE_SERVICE"
+    fi
+
+    if [[ "$DEPLOY_ENV_NAME" == "production" ]] && systemctl cat laravel-queue-prod.service >/dev/null 2>&1; then
+        systemctl disable --now laravel-queue-prod.service >/dev/null 2>&1 || true
+        log_warn "Se deshabilito la unidad obsoleta laravel-queue-prod.service"
+    fi
+
+    queue_log_name="queue-staging"
+    [[ "$DEPLOY_ENV_NAME" == "production" ]] && queue_log_name="queue-prod"
+
+    mkdir -p /var/log/laravel
+    touch "/var/log/laravel/${queue_log_name}.log" "/var/log/laravel/${queue_log_name}-error.log"
+    chown "$APP_USER:$APP_USER" "/var/log/laravel/${queue_log_name}.log" "/var/log/laravel/${queue_log_name}-error.log"
+    chmod 664 "/var/log/laravel/${queue_log_name}.log" "/var/log/laravel/${queue_log_name}-error.log"
+
+    install -o root -g root -m 0644 "$QUEUE_UNIT_SOURCE" "$target_unit"
+    systemctl daemon-reload
+    systemctl enable "$QUEUE_SERVICE.service" >/dev/null
+
+    effective_exec_start="$(systemctl show "$QUEUE_SERVICE.service" --property=ExecStart --value)"
+    grep -Fq -- '--queue=default' <<< "$effective_exec_start" \
+        || fail "$QUEUE_SERVICE no escucha --queue=default. Revisa overrides en $override_dir"
+    grep -Fq -- '--timeout=600' <<< "$effective_exec_start" \
+        || fail "$QUEUE_SERVICE no usa --timeout=600"
+
+    log_ok "Unidad $QUEUE_SERVICE instalada y validada"
+}
+
 ensure_app_up() {
     if [[ "$MAINTENANCE_ACTIVE" == "true" ]]; then
         log_warn "Intentando levantar la aplicacion tras un error..."
@@ -225,6 +313,10 @@ trap 'on_error $? $LINENO' ERR
 load_deploy_config() {
     APP_ENV_VALUE="$(read_env_value APP_ENV)"
     APP_DEBUG_VALUE="$(read_env_value APP_DEBUG)"
+    QUEUE_CONNECTION_VALUE="$(read_env_value QUEUE_CONNECTION)"
+    CACHE_STORE_VALUE="$(read_env_value CACHE_STORE)"
+    DB_QUEUE_VALUE="$(read_env_value DB_QUEUE)"
+    DB_QUEUE_RETRY_AFTER_VALUE="$(read_env_value DB_QUEUE_RETRY_AFTER)"
     DB_HOST_VALUE="$(read_env_value DB_HOST)"
     DB_PORT_VALUE="$(read_env_value DB_PORT)"
     DB_DATABASE_VALUE="$(read_env_value DB_DATABASE)"
@@ -251,6 +343,10 @@ load_deploy_config() {
 
     DB_HOST_VALUE="${DB_HOST_VALUE:-127.0.0.1}"
     DB_PORT_VALUE="${DB_PORT_VALUE:-5432}"
+    QUEUE_CONNECTION_VALUE="${QUEUE_CONNECTION_VALUE:-database}"
+    CACHE_STORE_VALUE="${CACHE_STORE_VALUE:-database}"
+    DB_QUEUE_VALUE="${DB_QUEUE_VALUE:-default}"
+    DB_QUEUE_RETRY_AFTER_VALUE="${DB_QUEUE_RETRY_AFTER_VALUE:-660}"
     DEPLOY_ENV_NAME="${DEPLOY_ENV_NAME:-$APP_ENV_VALUE}"
     PHP_FPM_SERVICE="${PHP_FPM_SERVICE:-$DEFAULT_PHP_FPM_SERVICE}"
 
@@ -258,19 +354,29 @@ load_deploy_config() {
         production)
             [[ "$APP_ENV_VALUE" == "production" ]] || fail "DEPLOY_ENV_NAME=production exige APP_ENV=production. Valor actual: $APP_ENV_VALUE"
             [[ "$DB_DATABASE_VALUE" == "$EXPECTED_PRODUCTION_DB" ]] || fail "Produccion debe apuntar a DB_DATABASE=$EXPECTED_PRODUCTION_DB. Valor actual: $DB_DATABASE_VALUE"
-            QUEUE_SERVICE="${QUEUE_SERVICE:-laravel-queue-prod}"
+            QUEUE_SERVICE="${QUEUE_SERVICE:-laravel-queue}"
+            [[ "$QUEUE_SERVICE" == "laravel-queue" ]] || fail "Produccion exige DEPLOY_QUEUE_SERVICE=laravel-queue. Valor actual: $QUEUE_SERVICE"
+            QUEUE_UNIT_SOURCE="$APP_DIR/deploy/laravel-queue.service"
             DEPLOY_CREATE_DB_BACKUP="${DEPLOY_CREATE_DB_BACKUP:-true}"
             ;;
         staging)
             [[ "$APP_ENV_VALUE" == "staging" ]] || fail "DEPLOY_ENV_NAME=staging exige APP_ENV=staging. Valor actual: $APP_ENV_VALUE"
             [[ "$DB_DATABASE_VALUE" == "$EXPECTED_STAGING_DB" ]] || fail "Staging debe apuntar a DB_DATABASE=$EXPECTED_STAGING_DB. Valor actual: $DB_DATABASE_VALUE"
             QUEUE_SERVICE="${QUEUE_SERVICE:-laravel-queue-staging}"
+            [[ "$QUEUE_SERVICE" == "laravel-queue-staging" ]] || fail "Staging exige DEPLOY_QUEUE_SERVICE=laravel-queue-staging. Valor actual: $QUEUE_SERVICE"
+            QUEUE_UNIT_SOURCE="$APP_DIR/deploy/laravel-queue-staging.service"
             DEPLOY_CREATE_DB_BACKUP="${DEPLOY_CREATE_DB_BACKUP:-false}"
             ;;
         *)
             fail "DEPLOY_ENV_NAME debe ser 'production' o 'staging'. Valor actual: $DEPLOY_ENV_NAME"
             ;;
     esac
+
+    [[ "$QUEUE_CONNECTION_VALUE" == "database" ]] || fail "QUEUE_CONNECTION debe ser database en $DEPLOY_ENV_NAME. Valor actual: $QUEUE_CONNECTION_VALUE"
+    [[ "$CACHE_STORE_VALUE" == "database" ]] || fail "CACHE_STORE debe ser database en $DEPLOY_ENV_NAME. Valor actual: $CACHE_STORE_VALUE"
+    [[ "$DB_QUEUE_VALUE" == "default" ]] || fail "DB_QUEUE debe ser default en $DEPLOY_ENV_NAME. Valor actual: $DB_QUEUE_VALUE"
+    [[ "$DB_QUEUE_RETRY_AFTER_VALUE" =~ ^[0-9]+$ ]] || fail "DB_QUEUE_RETRY_AFTER debe ser numerico"
+    (( DB_QUEUE_RETRY_AFTER_VALUE > 600 )) || fail "DB_QUEUE_RETRY_AFTER debe ser mayor que el timeout del worker (600)"
 
     [[ "${APP_DEBUG_VALUE,,}" != "true" ]] || fail "APP_DEBUG no puede estar habilitado en ${DEPLOY_ENV_NAME}."
     bool_true "${SESSION_SECURE_COOKIE_VALUE:-false}" || fail "SESSION_SECURE_COOKIE debe ser true en ${DEPLOY_ENV_NAME}. Corrige el .env del servidor antes de desplegar."
@@ -542,18 +648,19 @@ chown "$APP_USER:$APP_USER" "$APP_DIR/.env"
 chmod 640 "$APP_DIR/.env"
 log_ok "Permisos finales ajustados"
 
+log_step "Configurando scheduler de Laravel..."
+configure_scheduler
+
+log_step "Configurando worker PostgreSQL..."
+configure_queue_worker
+
 log_step "Reiniciando worker de colas..."
 run_as_app "\"$PHP_BIN\" artisan queue:restart" || true
-if systemctl cat "$QUEUE_SERVICE" >/dev/null 2>&1; then
-    sleep 2
-    systemctl restart "$QUEUE_SERVICE"
-    log_ok "Servicio $QUEUE_SERVICE reiniciado"
-elif command -v supervisorctl >/dev/null 2>&1 && supervisorctl status "${QUEUE_SERVICE}:*" >/dev/null 2>&1; then
-    supervisorctl restart "${QUEUE_SERVICE}:*"
-    log_ok "Supervisor ${QUEUE_SERVICE}:* reiniciado"
-else
-    log_warn "No se encontro un servicio systemd o Supervisor para $QUEUE_SERVICE"
-fi
+sleep 2
+systemctl restart "$QUEUE_SERVICE.service"
+systemctl is-active --quiet "$QUEUE_SERVICE.service" \
+    || fail "El servicio $QUEUE_SERVICE no quedo activo"
+log_ok "Servicio $QUEUE_SERVICE reiniciado y activo"
 
 log_step "Recargando PHP-FPM..."
 if systemctl is-active --quiet "$PHP_FPM_SERVICE"; then
@@ -580,5 +687,6 @@ echo -e "============================================${NC}\n"
 
 echo "  Proximos pasos:"
 echo "   - Verificar logs:      tail -f storage/logs/laravel.log"
+echo "   - Verificar scheduler: systemctl status cron && tail -f $SCHEDULER_LOG_FILE"
 echo "   - Verificar worker:    systemctl status $QUEUE_SERVICE"
 echo "   - Verificar aplicacion: curl -I $(read_env_value APP_URL)"

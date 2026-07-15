@@ -18,15 +18,17 @@ class ContaPymeSyncState
     /**
      * Atomically reserve the manual synchronization slot and expose its queued state.
      */
-    public function queue(): bool
+    public function queue(): ?string
     {
         return $this->queueWithContext('manual', (string) Str::uuid());
     }
 
-    public function queueWithContext(string $origin, string $runId): bool
+    public function queueWithContext(string $origin, string $runId): ?string
     {
-        if (! Cache::add(self::LOCK_KEY, true, self::LOCK_TTL_SECONDS)) {
-            return false;
+        $lock = Cache::lock(self::LOCK_KEY, self::LOCK_TTL_SECONDS);
+
+        if (! $lock->get()) {
+            return null;
         }
 
         $queuedAt = now();
@@ -40,14 +42,14 @@ class ContaPymeSyncState
             availableAt: $queuedAt->copy()->addSeconds(self::LOCK_TTL_SECONDS)->toIso8601String(),
         );
 
-        return true;
+        return $lock->owner();
     }
 
     public function isRunning(): bool
     {
         $state = $this->status()['state'] ?? null;
 
-        return Cache::has(self::LOCK_KEY) && in_array($state, ['queued', 'running'], true);
+        return $this->lockIsHeld() && in_array($state, ['queued', 'running'], true);
     }
 
     /**
@@ -64,25 +66,17 @@ class ContaPymeSyncState
             ];
         }
 
-        if (! Cache::has(self::LOCK_KEY)) {
+        if (! $this->lockIsHeld()) {
             return $this->availableResponse();
         }
 
-        $status = $this->status();
-        $availableAt = $status['available_at'] ?? null;
-        $retryAfter = $this->retryAfter($availableAt);
-
-        if ($retryAfter <= 0) {
-            return $this->availableResponse();
-        }
+        $availableAt = $this->status()['available_at'] ?? null;
 
         return [
             'can_run' => false,
-            'reason' => in_array($status['state'] ?? null, ['queued', 'running'], true)
-                ? 'running'
-                : 'cooldown',
+            'reason' => 'running',
             'available_at' => $availableAt,
-            'retry_after' => $retryAfter,
+            'retry_after' => $this->retryAfter($availableAt),
         ];
     }
 
@@ -146,7 +140,7 @@ class ContaPymeSyncState
             queuedAt: $status['queued_at'] ?? null,
             startedAt: $status['started_at'] ?? null,
             completedAt: now()->toIso8601String(),
-            availableAt: $status['available_at'] ?? null,
+            availableAt: null,
             errorCount: (int) ($diagnostics['error_count'] ?? $diagnostics['failed'] ?? 0),
             errorGroups: (array) ($diagnostics['error_groups'] ?? []),
             errorDetails: (array) ($diagnostics['error_details'] ?? []),
@@ -171,7 +165,7 @@ class ContaPymeSyncState
             queuedAt: $status['queued_at'] ?? null,
             startedAt: $status['started_at'] ?? null,
             completedAt: now()->toIso8601String(),
-            availableAt: $status['available_at'] ?? null,
+            availableAt: null,
             errorCount: (int) ($diagnostics['error_count'] ?? $diagnostics['failed'] ?? 0),
             errorGroups: (array) ($diagnostics['error_groups'] ?? []),
             errorDetails: (array) ($diagnostics['error_details'] ?? []),
@@ -188,13 +182,24 @@ class ContaPymeSyncState
             completedAt: now()->toIso8601String(),
             availableAt: null,
         );
-
-        $this->release();
     }
 
-    public function release(): void
+    public function release(?string $lockOwner): void
     {
-        Cache::forget(self::LOCK_KEY);
+        if (! filled($lockOwner)) {
+            return;
+        }
+
+        Cache::restoreLock(self::LOCK_KEY, $lockOwner)->release();
+    }
+
+    /**
+     * Clear an orphaned synchronization state during an explicit operational recovery.
+     */
+    public function clearForRecovery(): void
+    {
+        Cache::forget(self::STATUS_KEY);
+        Cache::lock(self::LOCK_KEY, 1)->forceRelease();
     }
 
     private function store(
@@ -311,5 +316,18 @@ class ContaPymeSyncState
         }
 
         return max(0, now()->diffInSeconds($availableAt, false));
+    }
+
+    private function lockIsHeld(): bool
+    {
+        $probe = Cache::lock(self::LOCK_KEY, 1);
+
+        if (! $probe->get()) {
+            return true;
+        }
+
+        $probe->release();
+
+        return false;
     }
 }
