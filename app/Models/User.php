@@ -83,7 +83,7 @@ class User extends Authenticatable
      */
     public function generateEmailVerificationCode(): string
     {
-        $code = (string) random_int(100000, 999999);
+        $code = (string) random_int(1000, 9999);
 
         $this->update([
             'email_verification_code' => Hash::make($code),

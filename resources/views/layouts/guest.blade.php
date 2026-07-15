@@ -24,7 +24,7 @@ View contract:
 - Notes: authentication validation and redirects stay in auth controllers and middleware.
 --}}
 @php
-    $isRegistration = request()->routeIs('register');
+    $isRegistration = request()->routeIs('register*');
 @endphp
 <div class="min-h-dvh bg-[radial-gradient(circle_at_6%_48%,rgba(54,177,187,0.12),transparent_30%),linear-gradient(135deg,#f8fcfc_0%,#ffffff_60%,#f5fbfb_100%)]">
     <header class="border-b border-slate-200/90 bg-white/90 backdrop-blur">
