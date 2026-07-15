@@ -149,6 +149,12 @@ STAGING_SANITIZE_PASSWORD=<password-controlado>
 
 El usuario PostgreSQL de staging debe tener permiso `CREATEDB`, porque `deploy/refresh-staging.sh` recrea la base `portal_distribuidores_staging` en cada refresco.
 
+El refresco reemplaza por completo la base de staging. Antes de hacerlo, el
+script genera un dump de rollback de la base actual dentro de
+`/var/backups/portal-distribuidores/staging-refresh`. Si cualquier paso falla,
+staging permanece en mantenimiento y `laravel-queue-staging` queda detenido;
+la recuperacion debe ser manual despues de revisar la causa.
+
 ## Archivos de infraestructura
 
 Usar estas plantillas:
@@ -176,12 +182,21 @@ El flujo del script es:
 4. Verifica que la DB destino sea `portal_distribuidores_staging`
 5. Pone staging en mantenimiento
 6. Detiene `laravel-queue-staging` para liberar conexiones
-7. Hace dump solo lectura desde produccion
-8. Recrea solo la base de staging
-9. Restaura el dump en staging
-10. Ejecuta `php artisan staging:sanitize-data`
-11. Reinicia la cola de staging
-12. Levanta staging
+7. Crea un backup de rollback de la base actual de staging
+8. Hace dump solo lectura desde produccion
+9. Recrea solo la base de staging
+10. Restaura el dump en staging
+11. Ejecuta `php artisan staging:sanitize-data`
+12. Verifica que no queden emails externos en usuarios, distribuidores ni pedidos
+13. Compara la huella `id + SKU + nombre + estado` del catalogo con produccion
+14. Reinicia la cola de staging
+15. Levanta staging
+
+La sanitizacion elimina sesiones, colas, cache, descargas y trazas operativas de
+inventario. Tambien reemplaza nombres, emails, NIT, telefonos, direcciones,
+sucursales y datos de contacto/notas de pedidos por valores controlados de
+staging. El refresco copia la base de datos, no los objetos de los buckets de
+media; los archivos de R2/S3 se gestionan por separado.
 
 ## Credenciales de acceso de staging
 

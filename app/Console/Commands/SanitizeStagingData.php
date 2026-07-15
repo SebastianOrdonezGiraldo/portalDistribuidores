@@ -4,7 +4,6 @@ namespace App\Console\Commands;
 
 use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
-use App\Modules\Orders\Models\Order;
 use App\Modules\Shared\Enums\UserRole;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -68,10 +67,14 @@ class SanitizeStagingData extends Command
 
         DB::transaction(function () use ($knownPasswordHash, $disabledPasswordHash, $adminEmail, $distributorEmail): void {
             $this->clearOperationalTables();
-            $this->anonymizeDistributorEmails();
-            $this->anonymizeOrderEmails();
+            $this->anonymizeDistributors();
+            $this->anonymizeCompanyBranches();
+            $this->anonymizeOrders();
+            $this->anonymizeOrderStatusHistories();
+            $this->anonymizeCompanyLists();
             $this->lockDownUsers($disabledPasswordHash);
             $this->promoteAccessUsers($knownPasswordHash, $adminEmail, $distributorEmail);
+            $this->verifySanitizedEmails($adminEmail, $distributorEmail);
         }, 3);
 
         $this->components->info('Sanitizacion de staging completada.');
@@ -98,42 +101,121 @@ class SanitizeStagingData extends Command
 
     private function clearOperationalTables(): void
     {
-        foreach (['password_reset_tokens', 'sessions', 'jobs', 'job_batches', 'failed_jobs', 'cache', 'cache_locks'] as $table) {
+        foreach ([
+            'password_reset_tokens',
+            'sessions',
+            'jobs',
+            'job_batches',
+            'failed_jobs',
+            'cache',
+            'cache_locks',
+            'document_downloads',
+            'stock_movements',
+            'contapyme_sync_runs',
+        ] as $table) {
             if (Schema::hasTable($table)) {
                 DB::table($table)->delete();
             }
         }
     }
 
-    private function anonymizeDistributorEmails(): void
+    private function anonymizeDistributors(): void
     {
         Distributor::query()
             ->select(['id'])
-            ->whereNotNull('contact_email')
             ->orderBy('id')
             ->chunkById(100, function ($distributors): void {
                 foreach ($distributors as $distributor) {
                     DB::table('distributors')
                         ->where('id', $distributor->id)
                         ->update([
+                            'name' => "Distribuidor Staging {$distributor->id}",
+                            'nit' => '900'.str_pad((string) $distributor->id, 6, '0', STR_PAD_LEFT),
+                            'address' => "Direccion Staging {$distributor->id}",
+                            'city' => 'Ciudad Staging',
+                            'phone' => '0000000000',
                             'contact_email' => "staging+distributor-{$distributor->id}@example.test",
+                            'contact_name' => "Contacto Staging {$distributor->id}",
                         ]);
                 }
             });
     }
 
-    private function anonymizeOrderEmails(): void
+    private function anonymizeCompanyBranches(): void
     {
-        Order::query()
+        if (! Schema::hasTable('company_branches')) {
+            return;
+        }
+
+        DB::table('company_branches')
             ->select(['id'])
-            ->whereNotNull('contact_email')
+            ->orderBy('id')
+            ->chunkById(100, function ($branches): void {
+                foreach ($branches as $branch) {
+                    DB::table('company_branches')
+                        ->where('id', $branch->id)
+                        ->update([
+                            'name' => "Sucursal Staging {$branch->id}",
+                            'address' => "Direccion Staging {$branch->id}",
+                            'city' => 'Ciudad Staging',
+                        ]);
+                }
+            });
+    }
+
+    private function anonymizeOrders(): void
+    {
+        DB::table('orders')
+            ->select(['id'])
             ->orderBy('id')
             ->chunkById(100, function ($orders): void {
                 foreach ($orders as $order) {
                     DB::table('orders')
                         ->where('id', $order->id)
                         ->update([
+                            'contact_name' => "Contacto Staging {$order->id}",
                             'contact_email' => "staging+order-{$order->id}@example.test",
+                            'company_name' => "Empresa Staging {$order->id}",
+                            'company_nit' => '800'.str_pad((string) $order->id, 6, '0', STR_PAD_LEFT),
+                            'company_address' => "Direccion Staging {$order->id}",
+                            'city' => 'Ciudad Staging',
+                            'department' => 'Departamento Staging',
+                            'phone' => '0000000000',
+                            'notes' => null,
+                            'approval_note' => null,
+                            'pdf_path' => null,
+                        ]);
+                }
+            });
+    }
+
+    private function anonymizeOrderStatusHistories(): void
+    {
+        if (! Schema::hasTable('order_status_histories')) {
+            return;
+        }
+
+        DB::table('order_status_histories')->update([
+            'note' => null,
+            'metadata' => null,
+        ]);
+    }
+
+    private function anonymizeCompanyLists(): void
+    {
+        if (! Schema::hasTable('company_lists')) {
+            return;
+        }
+
+        DB::table('company_lists')
+            ->select(['id'])
+            ->orderBy('id')
+            ->chunkById(100, function ($lists): void {
+                foreach ($lists as $list) {
+                    DB::table('company_lists')
+                        ->where('id', $list->id)
+                        ->update([
+                            'name' => "Lista Staging {$list->id}",
                         ]);
                 }
             });
@@ -154,6 +236,7 @@ class SanitizeStagingData extends Command
                     DB::table('users')
                         ->where('id', $user->id)
                         ->update([
+                            'name' => "Usuario Staging {$user->id}",
                             'email' => "staging+user-{$user->id}@example.test",
                         ]);
                 }
@@ -171,6 +254,7 @@ class SanitizeStagingData extends Command
             DB::table('users')
                 ->where('id', $admin->id)
                 ->update([
+                    'name' => 'Admin Staging',
                     'email' => $adminEmail,
                     'password' => $knownPasswordHash,
                     'remember_token' => null,
@@ -201,6 +285,7 @@ class SanitizeStagingData extends Command
             DB::table('users')
                 ->where('id', $distributorUser->id)
                 ->update([
+                    'name' => 'Distribuidor Staging',
                     'email' => $distributorEmail,
                     'password' => $knownPasswordHash,
                     'remember_token' => null,
@@ -219,6 +304,26 @@ class SanitizeStagingData extends Command
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+        }
+    }
+
+    private function verifySanitizedEmails(string $adminEmail, string $distributorEmail): void
+    {
+        $unsafeUsers = DB::table('users')
+            ->whereNotIn('email', [$adminEmail, $distributorEmail])
+            ->where('email', 'not like', '%@example.test')
+            ->count();
+        $unsafeDistributors = DB::table('distributors')
+            ->whereNotNull('contact_email')
+            ->where('contact_email', 'not like', '%@example.test')
+            ->count();
+        $unsafeOrders = DB::table('orders')
+            ->whereNotNull('contact_email')
+            ->where('contact_email', 'not like', '%@example.test')
+            ->count();
+
+        if ($unsafeUsers + $unsafeDistributors + $unsafeOrders > 0) {
+            throw new RuntimeException('La sanitizacion dejo emails externos en la base de staging.');
         }
     }
 }
