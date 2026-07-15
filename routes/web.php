@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\HealthController;
 use App\Http\Controllers\ProfileController;
 use App\Modules\Catalog\Http\Controllers\CatalogController;
 use App\Modules\Catalog\Http\Controllers\ProductController;
@@ -8,6 +9,8 @@ use App\Modules\Orders\Http\Controllers\CartController;
 use App\Modules\Orders\Http\Controllers\CheckoutController;
 use App\Modules\Orders\Http\Controllers\OrderController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/up', HealthController::class)->name('health');
 
 Route::get('/', CatalogController::class)
     ->middleware(['throttle:catalog-scraping', 'suspicious_automation'])
