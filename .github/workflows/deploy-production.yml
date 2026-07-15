@@ -132,6 +132,40 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ needs.resolve.outputs.promotion_sha }}
+      - name: Validate production credential set
+        env:
+          HAS_PRODUCTION_HOST: ${{ secrets.VPS_HOST_PRODUCTION != '' }}
+          HAS_PRODUCTION_PORT: ${{ secrets.VPS_SSH_PORT_PRODUCTION != '' }}
+          HAS_PRODUCTION_USER: ${{ secrets.VPS_USER_PRODUCTION != '' }}
+          HAS_PRODUCTION_KEY: ${{ secrets.VPS_SSH_KEY_PRODUCTION != '' }}
+          HAS_PRODUCTION_FINGERPRINT: ${{ secrets.VPS_SSH_FINGERPRINT_PRODUCTION != '' }}
+        run: |
+          dedicated_count=0
+          for configured in \
+            "$HAS_PRODUCTION_HOST" \
+            "$HAS_PRODUCTION_PORT" \
+            "$HAS_PRODUCTION_USER" \
+            "$HAS_PRODUCTION_KEY" \
+            "$HAS_PRODUCTION_FINGERPRINT"; do
+            if [[ "$configured" == "true" ]]; then
+              dedicated_count=$((dedicated_count + 1))
+            fi
+          done
+
+          if [[ "$dedicated_count" -eq 0 ]]; then
+            echo "::warning::Production is using the legacy VPS_* credential set. Configure all five VPS_*_PRODUCTION secrets before removing the fallback."
+            credential_mode="legacy fallback"
+          elif [[ "$dedicated_count" -eq 5 ]]; then
+            credential_mode="dedicated production"
+          else
+            echo "Production secrets are partially configured (${dedicated_count}/5). Configure all five VPS_*_PRODUCTION secrets or remove the partial set." >&2
+            exit 1
+          fi
+
+          echo "Production credential mode: ${credential_mode}."
+          if [[ -n "$GITHUB_STEP_SUMMARY" ]]; then
+            echo "- SSH credentials: ${credential_mode}" >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Setup PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
