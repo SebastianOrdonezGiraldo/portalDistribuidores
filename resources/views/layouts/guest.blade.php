@@ -97,7 +97,29 @@ View contract:
                     </div>
                 @endif
 
-                <img src="{{ asset('images/auth-product-showcase.png') }}" alt="Equipos de bienestar disponibles próximamente" class="mt-7 block h-auto w-full max-w-full rounded-2xl shadow-soft">
+                @if($authBanners->isNotEmpty())
+                    @php
+                        $authBannerCount = $authBanners->count();
+                    @endphp
+                    <section
+                        class="auth-banner-carousel mt-7"
+                        aria-label="Banners informativos"
+                        @if($authBannerCount > 1)
+                            x-data="{ active: 0, total: {{ $authBannerCount }}, next() { this.active = (this.active + 1) % this.total }, previous() { this.active = (this.active - 1 + this.total) % this.total } }"
+                            x-init="setInterval(() => next(), 5500)"
+                        @endif
+                    >
+                        @foreach($authBanners as $banner)
+                            <figure class="auth-banner-slide" @if($authBannerCount > 1) x-show="active === {{ $loop->index }}" x-transition @endif>
+                                <img src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($banner->path) }}" alt="{{ $banner->title }}" title="{{ $banner->title }}" class="h-full w-full object-cover" loading="{{ $loop->first ? 'eager' : 'lazy' }}">
+                            </figure>
+                        @endforeach
+                        @if($authBannerCount > 1)
+                            <button type="button" class="auth-banner-control auth-banner-control--previous" @click="previous()" aria-label="Banner anterior">‹</button>
+                            <button type="button" class="auth-banner-control auth-banner-control--next" @click="next()" aria-label="Banner siguiente">›</button>
+                        @endif
+                    </section>
+                @endif
             </div>
         </section>
 
@@ -109,7 +131,7 @@ View contract:
 
                 <div class="mt-2 grid grid-cols-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
                     <a href="https://wa.me/573117479607?text=Hola%20vengo%20desde%20la%20plataforma" target="_blank" rel="noopener noreferrer" class="flex gap-3 p-4 transition hover:bg-emerald-50/60 focus-ring">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="mt-0.5 h-6 w-6 shrink-0 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.5 11.5a8.5 8.5 0 0 1-12.54 7.5L3 20l1.1-4.4A8.5 8.5 0 1 1 20.5 11.5Z"/><path d="M8 8.2c.2 2.4 2.5 4.7 4.9 4.9l1.2-1.2 1.8.8c.5.2.7.8.4 1.2l-.6.8c-.4.5-1.1.8-1.8.6-4.2-1.1-6.7-3.6-7.8-7.8-.2-.7.1-1.4.6-1.8l.8-.6c.4-.3 1-.1 1.2.4l.8 1.8Z"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="mt-0.5 h-6 w-6 shrink-0 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.5 11.7a8.5 8.5 0 0 1-12.56 7.5L3.5 20.5l1.3-4.2A8.5 8.5 0 1 1 20.5 11.7Z"/><path d="M8.1 7.8c.2-.5.5-.5.8-.5h.5c.2 0 .4.1.5.4l.7 1.7c.1.2.1.4 0 .6l-.5.7c-.1.2-.1.3 0 .5.6 1.1 1.5 2 2.6 2.6.2.1.3.1.5 0l.7-.5c.2-.1.4-.1.6 0l1.7.7c.3.1.4.3.4.5v.5c0 .3 0 .6-.5.8-.5.2-1.6.5-3-.1-1-.4-2.2-1.1-3.4-2.3-1-1-1.8-2.1-2.2-3.1-.6-1.4-.3-2.5-.1-3Z"/></svg>
                         <span><span class="block text-xs font-semibold text-slate-900">WhatsApp</span><span class="mt-0.5 block text-xs text-slate-500">Atención comercial inmediata</span></span>
                     </a>
                     <a href="mailto:comercial@importcorporal.com" class="flex gap-3 border-l border-slate-200 p-4 transition hover:bg-brand-primary/5 focus-ring">

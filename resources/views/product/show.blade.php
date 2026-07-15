@@ -27,7 +27,7 @@ View contract:
     ────────────────────────────────────────────────────────────────── --}}
     <x-slot name="header">
         <div class="flex flex-wrap items-center justify-between gap-3">
-            <nav class="flex min-w-0 items-center gap-1.5 text-sm" aria-label="Ruta del producto">
+            <nav class="flex min-w-0 items-center gap-1.5 text-xs sm:text-sm" aria-label="Ruta del producto">
                 <a
                     href="{{ route('catalog.index') }}"
                     class="inline-flex shrink-0 items-center gap-1.5 font-medium text-slate-500 transition hover:text-slate-900 focus-ring rounded"
@@ -37,38 +37,38 @@ View contract:
                     </svg>
                     Catálogo
                 </a>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="hidden h-3.5 w-3.5 shrink-0 text-slate-300 sm:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <path d="m9 18 6-6-6-6"/>
                 </svg>
                 @if($product->category_id)
                     <a
                         href="{{ route('catalog.index', ['category_id' => $product->category_id]) }}"
-                        class="inline-flex shrink-0 items-center rounded text-slate-500 transition hover:text-slate-900 focus-ring"
+                        class="hidden shrink-0 items-center rounded text-slate-500 transition hover:text-slate-900 focus-ring sm:inline-flex"
                     >
                         {{ $categoryName }}
                     </a>
                 @else
-                    <span class="shrink-0 text-slate-500">{{ $categoryName }}</span>
+                    <span class="hidden shrink-0 text-slate-500 sm:inline">{{ $categoryName }}</span>
                 @endif
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="hidden h-3.5 w-3.5 shrink-0 text-slate-300 sm:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <path d="m9 18 6-6-6-6"/>
                 </svg>
-                <span class="min-w-0 truncate font-semibold text-slate-900">{{ $product->name }}</span>
+                <span class="hidden min-w-0 truncate font-semibold text-slate-900 sm:inline">{{ $product->name }}</span>
             </nav>
         </div>
     </x-slot>
 
-    <div class="space-y-5 pb-24 lg:pb-8">
+    <div class="space-y-5 pb-32 sm:pb-24 lg:pb-8">
 
         {{-- ──────────────────────────────────────────────────────────────
              HERO: imagen (izquierda) + info + compra (derecha)
         ────────────────────────────────────────────────────────────────── --}}
-        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft lg:grid lg:grid-cols-2">
+        <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft sm:rounded-2xl lg:grid lg:grid-cols-2">
 
             {{-- Imagen principal: 50% en escritorio, miniaturas integradas abajo --}}
             <div class="relative flex flex-col overflow-hidden border-b border-slate-200 bg-slate-50/80 lg:border-b-0 lg:border-r">
                 <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(54,177,187,0.15),transparent_45%),radial-gradient(circle_at_82%_88%,rgba(15,23,42,0.07),transparent_40%)]"></div>
-                <div class="group/img relative flex min-h-[17rem] flex-1 items-center justify-center px-6 py-7 sm:min-h-[24rem] sm:px-10 sm:py-10">
+                <div class="group/img relative flex min-h-[14rem] flex-1 items-center justify-center px-5 py-6 sm:min-h-[24rem] sm:px-10 sm:py-10">
                     @if($mainPhoto)
                         <img
                             data-product-main-image
@@ -146,7 +146,7 @@ View contract:
             <div class="flex flex-col divide-y divide-slate-100">
 
                 {{-- Bloque: información del producto --}}
-                <div class="p-6 sm:p-7 lg:p-7 xl:p-8">
+                <div class="p-5 sm:p-7 lg:p-7 xl:p-8">
 
                     {{-- Badges de estado --}}
                     <div class="flex flex-wrap items-center gap-2">
@@ -173,7 +173,7 @@ View contract:
                     </p>
 
                     {{-- Nombre del producto --}}
-                    <h1 class="mt-1.5 text-balance text-2xl font-bold leading-snug text-slate-950 sm:text-[1.65rem]">
+                    <h1 class="mt-1.5 text-balance text-xl font-bold leading-snug text-slate-950 sm:text-[1.65rem]">
                         {{ $product->name }}
                     </h1>
 
@@ -230,7 +230,7 @@ View contract:
                 </div>
 
                 {{-- Bloque: precio y acción de compra --}}
-                <div class="bg-slate-50/60 p-6 sm:p-7 lg:p-7 xl:p-8">
+                <div class="bg-slate-50/60 p-5 sm:p-7 lg:p-7 xl:p-8">
 
                     {{-- Promo --}}
                     @if($promoLabel)
@@ -247,7 +247,7 @@ View contract:
                         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Precio</p>
                         <div class="mt-1 flex flex-wrap items-baseline gap-2">
                             <span
-                                class="text-4xl font-bold tabular-nums tracking-tight text-slate-950"
+                                class="text-3xl font-bold tabular-nums tracking-tight text-slate-950 sm:text-4xl"
                                 data-variant-price-target
                                 data-default-value="{{ $formattedPrice }}"
                             >{{ $formattedPrice }}</span>
@@ -454,10 +454,10 @@ View contract:
              Pestañas de contenido: solo se muestra un panel a la vez
         ────────────────────────────────────────────────────────────────── --}}
         <nav
-            class="-mx-4 overflow-x-auto border-y border-slate-200 bg-white/95 backdrop-blur sm:-mx-6 lg:-mx-8"
+            class="-mx-3 overflow-x-auto border-y border-slate-200 bg-white/95 backdrop-blur sm:-mx-6 lg:-mx-8"
             aria-label="Información del producto"
         >
-            <div class="flex min-w-max items-center px-4 sm:px-6 lg:px-8" role="tablist" aria-label="Información del producto">
+            <div class="flex min-w-max items-center px-3 sm:px-6 lg:px-8" role="tablist" aria-label="Información del producto">
                 @foreach($sections as $section)
                     <button
                         type="button"
@@ -888,6 +888,8 @@ View contract:
         />
 
     </div>
+
+    @include('catalog._floating-support-cards')
 
     {{-- ──────────────────────────────────────────────────────────────
          Barra de compra fija en mobile

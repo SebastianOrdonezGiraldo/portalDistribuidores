@@ -169,6 +169,16 @@ View contract:
                     >
                 </div>
 
+                <div class="catalog-header-category">
+                    <label class="sr-only" for="catalog-header-category">Categoría</label>
+                    <x-ui.select id="catalog-header-category" name="category_id" onchange="this.form.submit()">
+                        <option value="">Todas las categorías</option>
+                        @foreach($categories as $category)
+                            @include('catalog._category-option', ['category' => $category, 'depth' => 0, 'selected' => $search->categoryId])
+                        @endforeach
+                    </x-ui.select>
+                </div>
+
                 <input type="hidden" name="sort" value="{{ $selectedSort }}" data-catalog-sort-hidden>
 
                 <div class="catalog-mobile-actions">
@@ -295,7 +305,7 @@ View contract:
                 <div class="catalog-filters-grid">
                     <div>
                         <label class="form-label" for="catalog-category">Categoría</label>
-                        <x-ui.select id="catalog-category" name="category_id">
+                        <x-ui.select id="catalog-category">
                             <option value="">Todas las categorías</option>
                             @foreach($categories as $category)
                                 @include('catalog._category-option', ['category' => $category, 'depth' => 0, 'selected' => $search->categoryId])
@@ -305,7 +315,7 @@ View contract:
 
                     <div>
                         <label class="form-label" for="catalog-include-children">Alcance</label>
-                        <x-ui.select id="catalog-include-children" name="include_children">
+                        <x-ui.select id="catalog-include-children">
                             <option value="1" @selected($search->includeChildren)>Incluir subcategorías</option>
                             <option value="0" @selected(! $search->includeChildren)>Solo categoría seleccionada</option>
                         </x-ui.select>
@@ -313,7 +323,7 @@ View contract:
 
                     <div>
                         <label class="form-label" for="catalog-per-page">Productos por página</label>
-                        <x-ui.select id="catalog-per-page" name="per_page">
+                        <x-ui.select id="catalog-per-page">
                             <option value="20" @selected($search->perPage === 20)>20 productos</option>
                             <option value="30" @selected($search->perPage === 30)>30 productos</option>
                             <option value="40" @selected($search->perPage === 40)>40 productos</option>
@@ -355,7 +365,63 @@ View contract:
         </form>
     </x-slot>
 
-    <section>
+    <section class="catalog-page" x-data="{ filtersOpen: false }" @catalog-filters.window="filtersOpen = true">
+        @if($banners->isNotEmpty())
+            @php
+                $bannerCount = $banners->count();
+            @endphp
+            <section
+                class="catalog-banner-carousel"
+                aria-label="Banners destacados del catálogo"
+                @if($bannerCount > 1)
+                    x-data="{ active: 0, total: {{ $bannerCount }}, next() { this.active = (this.active + 1) % this.total }, previous() { this.active = (this.active - 1 + this.total) % this.total } }"
+                    x-init="setInterval(() => next(), 5500)"
+                @endif
+            >
+                @foreach($banners as $banner)
+                    <figure
+                        class="catalog-banner-slide"
+                        @if($bannerCount > 1)
+                            x-show="active === {{ $loop->index }}"
+                            x-transition:enter="transition ease-out duration-500"
+                            x-transition:enter-start="opacity-0"
+                            x-transition:enter-end="opacity-100"
+                        @endif
+                    >
+                        <img
+                            src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($banner->path) }}"
+                            alt="{{ $banner->title }}"
+                            title="{{ $banner->title }}"
+                            class="h-full w-full object-cover"
+                            loading="{{ $loop->first ? 'eager' : 'lazy' }}"
+                            fetchpriority="{{ $loop->first ? 'high' : 'auto' }}"
+                        >
+                    </figure>
+                @endforeach
+
+                @if($bannerCount > 1)
+                    <button type="button" class="catalog-banner-control catalog-banner-control--previous" @click="previous()" aria-label="Banner anterior">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <button type="button" class="catalog-banner-control catalog-banner-control--next" @click="next()" aria-label="Banner siguiente">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                    <div class="catalog-banner-dots" role="tablist" aria-label="Seleccionar banner">
+                        @foreach($banners as $banner)
+                            <button type="button" class="catalog-banner-dot" @click="active = {{ $loop->index }}" x-bind:class="active === {{ $loop->index }} ? 'is-active' : ''" aria-label="Ver banner {{ $loop->iteration }}"></button>
+                        @endforeach
+                    </div>
+                @endif
+            </section>
+        @endif
+
+        <div class="catalog-trust-strip" aria-label="Beneficios del portal">
+            <div><span class="catalog-trust-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h12v11H3z"/><path d="M15 10h3l3 3v4h-6z"/><circle cx="7" cy="19" r="1.6"/><circle cx="18" cy="19" r="1.6"/><path d="M3 10h12"/></svg></span><span><strong>Compra mayorista</strong><small>Precios para distribuidores</small></span></div>
+            <div><span class="catalog-trust-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4z"/><path d="M8 12h8M12 8l4 4-4 4"/></svg></span><span><strong>Envíos nacionales</strong><small>Entrega a todo el país</small></span></div>
+            <div><span class="catalog-trust-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 15a4 4 0 0 1-4 4h-1l-3 2v-2h-2a4 4 0 0 1-4-4V9a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4z"/><path d="M10 11h.01M15 11h.01"/></svg></span><span><strong>Asesoría especializada</strong><small>Te ayudamos a elegir</small></span></div>
+            <div><span class="catalog-trust-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5M9 15h6M9 18h4M9 12h3"/></svg></span><span><strong>Soporte técnico</strong><small>Documentos por producto</small></span></div>
+        </div>
+
         <div class="catalog-mobile-categories">
             <a
                 href="{{ $allCategoriesUrl }}"
@@ -379,23 +445,128 @@ View contract:
             @endforeach
         </div>
 
-        <header class="catalog-section-intro">
-            <h1 class="catalog-section-intro-title">Catálogo de Productos</h1>
-            <p class="catalog-section-intro-subtitle">Búsqueda rápida con filtros por categoría y carga directa al carrito de pedido.</p>
-        </header>
+        <div class="catalog-marketplace-layout">
+            <aside class="catalog-sidebar" aria-label="Categorías y filtros">
+                <div class="catalog-sidebar-card">
+                    <div class="catalog-sidebar-heading">
+                        <p>Categorías</p>
+                        <span>{{ number_format($flatCategories->count()) }}</span>
+                    </div>
+                    <nav class="catalog-sidebar-categories" aria-label="Categorías del catálogo">
+                        <a href="{{ $allCategoriesUrl }}" class="{{ $search->categoryId === null ? 'is-active' : '' }}">Todas las categorías</a>
+                        @foreach($flatCategories->take(12) as $category)
+                            <a href="{{ $categoryUrlFor($category->id) }}" class="{{ $search->categoryId === $category->id ? 'is-active' : '' }}">
+                                <span>{{ $category->name }}</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6" /></svg>
+                            </a>
+                        @endforeach
+                    </nav>
+                </div>
 
-        @if($products->isEmpty())
-            <x-ui.empty-state title="No encontramos productos" description="Prueba con una búsqueda distinta o habilita subcategorías para ampliar resultados.">
-                <x-slot name="action">
-                    <a href="{{ route('catalog.index') }}" class="btn btn-primary">Ver todo el catálogo</a>
-                </x-slot>
-            </x-ui.empty-state>
-        @else
-            <x-catalog.product-grid-section
-                id="catalog-results"
-                :products="$products"
-                list-key="catalog"
-            />
-        @endif
+                <form method="GET" action="{{ route('catalog.index') }}" class="catalog-sidebar-card catalog-sidebar-filter-form">
+                    @if(filled($search->term))<input type="hidden" name="term" value="{{ $search->term }}">@endif
+                    <div class="catalog-sidebar-heading">
+                        <p>Filtros</p>
+                        @if($activeFiltersCount > 0)<span class="catalog-sidebar-filter-count">{{ $activeFiltersCount }}</span>@endif
+                    </div>
+                    <label class="form-label" for="catalog-sidebar-category">Categoría</label>
+                    <x-ui.select id="catalog-sidebar-category" name="category_id">
+                        <option value="">Todas las categorías</option>
+                        @foreach($categories as $category)
+                            @include('catalog._category-option', ['category' => $category, 'depth' => 0, 'selected' => $search->categoryId])
+                        @endforeach
+                    </x-ui.select>
+                    <label class="form-label mt-4" for="catalog-sidebar-scope">Alcance</label>
+                    <x-ui.select id="catalog-sidebar-scope" name="include_children">
+                        <option value="1" @selected($search->includeChildren)>Incluir subcategorías</option>
+                        <option value="0" @selected(! $search->includeChildren)>Solo categoría seleccionada</option>
+                    </x-ui.select>
+                    <label class="form-label mt-4" for="catalog-sidebar-sort">Ordenar por</label>
+                    <x-ui.select id="catalog-sidebar-sort" name="sort">
+                        @foreach($sortOptions as $sortKey => $sortLabel)
+                            <option value="{{ $sortKey }}" @selected($selectedSort === $sortKey)>{{ $sortLabel }}</option>
+                        @endforeach
+                    </x-ui.select>
+                    <label class="form-label mt-4" for="catalog-sidebar-per-page">Productos por página</label>
+                    <x-ui.select id="catalog-sidebar-per-page" name="per_page">
+                        <option value="20" @selected($search->perPage === 20)>20 productos</option>
+                        <option value="30" @selected($search->perPage === 30)>30 productos</option>
+                        <option value="40" @selected($search->perPage === 40)>40 productos</option>
+                        <option value="50" @selected($search->perPage === 50)>50 productos</option>
+                    </x-ui.select>
+                    <div class="mt-4 flex gap-2">
+                        <a href="{{ route('catalog.index') }}" class="btn btn-secondary flex-1 justify-center">Limpiar</a>
+                        <x-ui.button type="submit" variant="primary" class="flex-1 justify-center">Aplicar</x-ui.button>
+                    </div>
+                </form>
+            </aside>
+
+            <div class="min-w-0">
+                <header class="catalog-results-heading">
+                    <div>
+                        <p class="catalog-results-eyebrow">Catálogo especializado</p>
+                        <h2>{{ filled($search->term) ? 'Resultados de búsqueda' : 'Productos para tu operación' }}</h2>
+                        <p>{{ number_format($resultsTotal, 0, ',', '.') }} productos disponibles para consulta y pedido.</p>
+                    </div>
+                </header>
+
+                @if($products->isEmpty())
+                    <x-ui.empty-state title="No encontramos productos" description="Prueba con una búsqueda distinta o habilita subcategorías para ampliar resultados.">
+                        <x-slot name="action">
+                            <a href="{{ route('catalog.index') }}" class="btn btn-primary">Ver todo el catálogo</a>
+                        </x-slot>
+                    </x-ui.empty-state>
+                @else
+                    <x-catalog.product-grid-section
+                        id="catalog-results"
+                        :products="$products"
+                        list-key="catalog"
+                    />
+                @endif
+
+            </div>
+        </div>
+
+        @include('catalog._floating-support-cards')
+
+        <div x-cloak x-show="filtersOpen" x-transition class="fixed inset-0 z-[70] lg:hidden" aria-label="Filtros del catálogo">
+            <div class="absolute inset-0 bg-slate-950/45" @click="filtersOpen = false"></div>
+            <form method="GET" action="{{ route('catalog.index') }}" class="absolute inset-x-3 bottom-3 max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-panel" @click.stop>
+                @if(filled($search->term))<input type="hidden" name="term" value="{{ $search->term }}">@endif
+                <div class="mb-4 flex items-center justify-between gap-3">
+                    <div><p class="text-base font-bold text-slate-900">Filtros</p><p class="mt-0.5 text-xs text-slate-500">Ajusta los resultados del catálogo.</p></div>
+                    <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 focus-ring" @click="filtersOpen = false" aria-label="Cerrar filtros">×</button>
+                </div>
+                <label class="form-label" for="catalog-mobile-filter-category">Categoría</label>
+                <x-ui.select id="catalog-mobile-filter-category" name="category_id">
+                    <option value="">Todas las categorías</option>
+                    @foreach($categories as $category)
+                        @include('catalog._category-option', ['category' => $category, 'depth' => 0, 'selected' => $search->categoryId])
+                    @endforeach
+                </x-ui.select>
+                <label class="form-label mt-4" for="catalog-mobile-filter-scope">Alcance</label>
+                <x-ui.select id="catalog-mobile-filter-scope" name="include_children">
+                    <option value="1" @selected($search->includeChildren)>Incluir subcategorías</option>
+                    <option value="0" @selected(! $search->includeChildren)>Solo categoría seleccionada</option>
+                </x-ui.select>
+                <label class="form-label mt-4" for="catalog-mobile-filter-sort">Ordenar por</label>
+                <x-ui.select id="catalog-mobile-filter-sort" name="sort">
+                    @foreach($sortOptions as $sortKey => $sortLabel)
+                        <option value="{{ $sortKey }}" @selected($selectedSort === $sortKey)>{{ $sortLabel }}</option>
+                    @endforeach
+                </x-ui.select>
+                <label class="form-label mt-4" for="catalog-mobile-filter-per-page">Productos por página</label>
+                <x-ui.select id="catalog-mobile-filter-per-page" name="per_page">
+                    <option value="20" @selected($search->perPage === 20)>20 productos</option>
+                    <option value="30" @selected($search->perPage === 30)>30 productos</option>
+                    <option value="40" @selected($search->perPage === 40)>40 productos</option>
+                    <option value="50" @selected($search->perPage === 50)>50 productos</option>
+                </x-ui.select>
+                <div class="mt-5 grid grid-cols-2 gap-3">
+                    <a href="{{ route('catalog.index') }}" class="btn btn-secondary justify-center">Limpiar</a>
+                    <x-ui.button type="submit" variant="primary" class="justify-center">Aplicar</x-ui.button>
+                </div>
+            </form>
+        </div>
     </section>
 </x-app-layout>

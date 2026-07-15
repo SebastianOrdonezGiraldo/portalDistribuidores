@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Admin\Http\Controllers\CatalogBannerAdminController;
 use App\Modules\Admin\Http\Controllers\CategoryAdminController;
 use App\Modules\Admin\Http\Controllers\DashboardController;
 use App\Modules\Admin\Http\Controllers\DistributorAdminController;
@@ -19,6 +20,10 @@ Route::middleware(['auth', 'verified', 'role:admin'])
 
         Route::patch('categories/{category}/status', [CategoryAdminController::class, 'setStatus'])->name('categories.status');
         Route::resource('categories', CategoryAdminController::class)->except('show');
+
+        Route::get('catalog-banners', [CatalogBannerAdminController::class, 'index'])->name('catalog-banners.index');
+        Route::post('catalog-banners', [CatalogBannerAdminController::class, 'store'])->name('catalog-banners.store');
+        Route::delete('catalog-banners/{catalogBanner}', [CatalogBannerAdminController::class, 'destroy'])->name('catalog-banners.destroy');
 
         Route::get('products/check-sku', [ProductAdminController::class, 'checkSku'])
             ->middleware(['throttle:api-endpoints', 'suspicious_automation'])
