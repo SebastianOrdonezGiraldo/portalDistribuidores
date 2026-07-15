@@ -72,6 +72,10 @@ View contract:
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                         Categorías
                     </x-ui.sidebar-link>
+                    <x-ui.sidebar-link :href="route('admin.catalog-banners.index')" :active="request()->routeIs('admin.catalog-banners.*')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.4"/><path d="m5 17 4.5-4.5 3.2 3.2 2.3-2.3L19 17"/></svg>
+                        Banners
+                    </x-ui.sidebar-link>
                 </div>
 
                 <p class="sidebar-section-label mt-5">Gestión</p>
@@ -163,19 +167,19 @@ View contract:
     <div class="flex min-h-dvh min-w-0 flex-col {{ $isAuthenticated ? 'lg:pl-60' : '' }}">
         <header class="sticky top-0 z-30 border-b border-slate-200/95 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
             <div class="flex flex-col gap-2 px-3 py-3 sm:px-6 lg:px-8">
-                <div class="flex min-w-0 items-center gap-2 sm:gap-3">
+                <div class="relative flex min-w-0 items-center gap-2 sm:gap-3 {{ isset($catalogToolbar) ? 'flex-wrap sm:flex-nowrap' : '' }}">
                     @if($isAuthenticated)
                         <button
                             type="button"
                             data-sidebar-toggle
-                            class="btn btn-secondary !min-h-10 !px-2.5 lg:hidden"
+                            class="btn btn-secondary !min-h-10 !px-2.5 lg:hidden {{ isset($catalogToolbar) ? 'hidden' : '' }}"
                             aria-label="Abrir menú"
                             aria-controls="app-sidebar"
                             aria-expanded="false"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M3 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4A1 1 0 0 1 3 5Zm0 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm1 4a1 1 0 1 0 0 2h12a1 1 0 1 0 0-2H4Z" /></svg>
                         </button>
-                        <a href="{{ route('dashboard') }}" class="hidden min-w-0 items-center gap-2 rounded-lg focus-ring lg:flex">
+                        <a href="{{ route('dashboard') }}" class="flex min-w-0 items-center gap-2 rounded-lg focus-ring">
                             <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-8 w-auto">
                             <span class="truncate text-sm font-semibold text-slate-900">Portal Distribuidores</span>
                         </a>
@@ -186,9 +190,43 @@ View contract:
                         </a>
                     @endif
 
-                    <div class="ml-auto flex shrink-0 items-center gap-2">
+                    @isset($catalogToolbar)
+                        <div class="catalog-desktop-header-search hidden lg:block">
+                            <div class="catalog-header-search">
+                                {{ $catalogToolbar }}
+                            </div>
+                        </div>
+                    @endisset
+
+                    <div
+                        class="ml-auto flex shrink-0 items-center gap-2 {{ $isAuthenticated ? '' : 'relative' }}"
+                        @if(! $isAuthenticated)
+                            x-data="{ guestMenuOpen: false }"
+                            @keydown.escape.window="guestMenuOpen = false"
+                        @endif
+                    >
                         @if($isAuthenticated)
-                            <div class="relative" x-data="{ profileMenuOpen: false }" @keydown.escape.window="profileMenuOpen = false">
+                            @isset($catalogToolbar)
+                                <div class="relative" x-data="{ catalogMenuOpen: false }" @keydown.escape.window="catalogMenuOpen = false">
+                                    <a href="{{ route('cart.index') }}" class="btn btn-secondary relative !min-h-10 !min-w-10 !px-2.5 lg:hidden" aria-label="Ver carrito">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
+                                        <x-ui.badge :variant="($navCartCount ?? 0) > 0 ? 'brand' : 'neutral'" class="absolute -right-1.5 -top-1.5 !min-w-5 !px-1" data-cart-badge>{{ $navCartCount ?? 0 }}</x-ui.badge>
+                                    </a>
+                                    <button type="button" class="btn btn-secondary !min-h-10 !px-2.5 lg:hidden" @click="$dispatch('catalog-filters')" aria-label="Abrir filtros">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+                                    </button>
+                                    <button type="button" class="btn btn-secondary !min-h-10 !px-2.5 lg:hidden" @click="catalogMenuOpen = !catalogMenuOpen" x-bind:aria-expanded="catalogMenuOpen.toString()" aria-label="Abrir menú del catálogo" aria-controls="catalog-header-menu">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+                                    </button>
+                                    <div id="catalog-header-menu" x-cloak x-show="catalogMenuOpen" x-transition class="absolute right-0 top-[calc(100%+0.65rem)] z-[80] w-[min(32rem,calc(100vw-2rem))] max-h-[calc(100dvh-6rem)] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-panel sm:p-6">
+                                        <div class="mx-auto grid w-full max-w-2xl gap-6">
+                                            <div class="catalog-menu-panel-tools"><p class="catalog-menu-panel-title">Encuentra lo que necesitas</p><div class="catalog-header-search">{{ $catalogToolbar }}</div></div>
+                                            <a href="{{ route('profile.edit') }}" class="btn btn-primary min-h-12 w-full justify-center !px-4">Mi perfil</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endisset
+                            <div class="{{ isset($catalogToolbar) ? 'hidden lg:block' : '' }} relative" x-data="{ profileMenuOpen: false }" @keydown.escape.window="profileMenuOpen = false">
                                 <button
                                     type="button"
                                     class="btn btn-ghost !min-h-10 !px-2"
@@ -223,24 +261,69 @@ View contract:
                                 </div>
                             </div>
                         @else
-                            <a href="{{ route('cart.index') }}" class="btn btn-secondary !min-h-10 !px-3 sm:!px-4">
-                                Carrito
-                                @if(($navCartCount ?? 0) > 0)
-                                    <x-ui.badge variant="brand" class="ml-1" data-cart-badge>{{ $navCartCount }}</x-ui.badge>
+                            @isset($catalogToolbar)
+                                <a href="{{ route('cart.index') }}" class="btn btn-secondary relative !min-h-10 !min-w-10 !px-2.5 lg:hidden" aria-label="Ver carrito">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
+                                    <x-ui.badge :variant="($navCartCount ?? 0) > 0 ? 'brand' : 'neutral'" class="absolute -right-1.5 -top-1.5 !min-w-5 !px-1" data-cart-badge>{{ $navCartCount ?? 0 }}</x-ui.badge>
+                                </a>
+                                <button type="button" class="btn btn-secondary !min-h-10 !px-2.5 lg:hidden" @click="$dispatch('catalog-filters')" aria-label="Abrir filtros">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+                                </button>
+                            @endisset
+                            <button
+                                type="button"
+                                class="btn btn-secondary !min-h-10 !px-2.5 {{ isset($catalogToolbar) ? 'lg:hidden' : 'sm:hidden' }}"
+                                @click="guestMenuOpen = !guestMenuOpen"
+                                x-bind:aria-expanded="guestMenuOpen.toString()"
+                                aria-label="Abrir menú"
+                                aria-controls="guest-header-menu"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+                            </button>
+                            <div
+                                id="guest-header-menu"
+                                x-cloak
+                                x-show="guestMenuOpen"
+                                x-transition:enter="transition ease-out duration-150"
+                                x-transition:enter-start="opacity-0 scale-95 translate-y-1"
+                                x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                                x-transition:leave="transition ease-in duration-100"
+                                x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+                                x-transition:leave-end="opacity-0 scale-95 translate-y-1"
+                                class="{{ isset($catalogToolbar) ? 'absolute right-0 top-[calc(100%+0.65rem)] z-[80] w-[min(32rem,calc(100vw-2rem))] max-h-[calc(100dvh-6rem)] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-panel sm:p-6' : 'absolute right-0 top-[calc(100%+0.5rem)] z-40 grid w-52 gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-panel sm:hidden' }}"
+                            >
+                                @isset($catalogToolbar)
+                                    <div class="mx-auto grid w-full max-w-2xl gap-6">
+                                        <div class="catalog-menu-panel-tools">
+                                            <p class="catalog-menu-panel-title">Encuentra lo que necesitas</p>
+                                            <div class="catalog-header-search">
+                                                {{ $catalogToolbar }}
+                                            </div>
+                                        </div>
+                                        <a href="{{ route('login') }}" class="btn btn-primary min-h-12 w-full justify-center !px-4">Iniciar sesión</a>
+                                    </div>
                                 @else
-                                    <x-ui.badge variant="neutral" class="ml-1" data-cart-badge>0</x-ui.badge>
+                                    <a href="{{ route('cart.index') }}" class="btn btn-secondary w-full justify-between !px-3">
+                                        Carrito
+                                        <x-ui.badge :variant="($navCartCount ?? 0) > 0 ? 'brand' : 'neutral'" data-cart-badge>{{ $navCartCount ?? 0 }}</x-ui.badge>
+                                    </a>
+                                    <a href="{{ route('login') }}" class="btn btn-primary w-full justify-center !px-3">Iniciar sesión</a>
+                                @endisset
+                            </div>
+                            <a href="{{ route('cart.index') }}" class="btn btn-secondary relative {{ isset($catalogToolbar) ? 'hidden lg:inline-flex' : 'hidden sm:inline-flex' }} !min-h-10 !min-w-10 !px-2.5" aria-label="Ver carrito" title="Carrito">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
+                                @if(($navCartCount ?? 0) > 0)
+                                    <x-ui.badge variant="brand" class="absolute -right-1.5 -top-1.5 !min-w-5 !px-1" data-cart-badge>{{ $navCartCount }}</x-ui.badge>
+                                @else
+                                    <x-ui.badge variant="neutral" class="absolute -right-1.5 -top-1.5 !min-w-5 !px-1" data-cart-badge>0</x-ui.badge>
                                 @endif
                             </a>
-                            <a href="{{ route('login') }}" class="btn btn-primary !min-h-10 !px-3 sm:!px-4">Iniciar sesión</a>
+                            <a href="{{ route('login') }}" class="btn btn-primary {{ isset($catalogToolbar) ? 'hidden lg:inline-flex' : 'hidden sm:inline-flex' }} !min-h-10 !px-3 sm:!px-4">Iniciar sesión</a>
                         @endif
                     </div>
                 </div>
 
-                @isset($catalogToolbar)
-                    <div class="border-t border-slate-200/80 pt-3">
-                        {{ $catalogToolbar }}
-                    </div>
-                @elseif($isAdmin && request()->routeIs('admin.dashboard'))
+                @if(!isset($catalogToolbar) && $isAdmin && request()->routeIs('admin.dashboard'))
                     <div class="admin-top-toolbar">
                         <div class="admin-top-toolbar-meta">
                             <p class="admin-top-toolbar-eyebrow">Vista ejecutiva</p>
@@ -298,7 +381,7 @@ View contract:
     </div>
 </x-ui.modal>
 
-@if(!$isAdmin && view()->exists('layouts.partials.whatsapp-float'))
+@if(!$isAdmin && !request()->routeIs('catalog.*', 'products.show') && view()->exists('layouts.partials.whatsapp-float'))
     @include('layouts.partials.whatsapp-float')
 @endif
 

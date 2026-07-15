@@ -5,6 +5,7 @@ namespace App\Modules\Catalog\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Http\Middleware\AddServerTiming;
 use App\Modules\Catalog\Http\Requests\ProductSearchRequest;
+use App\Modules\Catalog\Models\CatalogBanner;
 use App\Modules\Categories\Queries\CategoryTreeQuery;
 use App\Modules\Shared\Contracts\SearchEngineInterface;
 use App\Modules\Shared\ValueObjects\ProductSearchQuery;
@@ -56,6 +57,7 @@ class CatalogController extends Controller
 
         $treeStartedAt = microtime(true);
         $categories = $categoryTreeQuery->execute();
+        $banners = CatalogBanner::query()->orderBy('sort_order')->orderBy('id')->get();
         AddServerTiming::addMetric(
             $request,
             'catalog_category_tree',
@@ -72,6 +74,7 @@ class CatalogController extends Controller
         return view('catalog.index', [
             'products' => $products,
             'categories' => $categories,
+            'banners' => $banners,
             'search' => $searchQuery,
             'canonicalUrl' => $this->canonicalUrl($searchQuery),
             'robotsContent' => $this->robotsContent($searchQuery),
