@@ -6,7 +6,9 @@ ENVIRONMENT=""
 BASE_DIR=""
 NGINX_SITE=""
 TLS_CONFIGURATION=""
+HTTPS_LISTEN_CONFIGURATION=""
 RENDERED_NGINX=""
+NGINX_VERSION=""
 
 while [[ "$#" -gt 0 ]]; do
     case "$1" in
@@ -47,11 +49,31 @@ esac
 [[ -f "$NGINX_SITE" ]] || { echo "The active HTTPS Nginx site is required to preserve its TLS configuration." >&2; exit 1; }
 
 TLS_CONFIGURATION="$(mktemp)"
+HTTPS_LISTEN_CONFIGURATION="$(mktemp)"
 RENDERED_NGINX="$(mktemp)"
 cleanup() {
-    rm -f "$TLS_CONFIGURATION" "$RENDERED_NGINX"
+    rm -f "$TLS_CONFIGURATION" "$HTTPS_LISTEN_CONFIGURATION" "$RENDERED_NGINX"
 }
 trap cleanup EXIT
+
+NGINX_VERSION="$(nginx -v 2>&1)"
+NGINX_VERSION="${NGINX_VERSION##*/}"
+NGINX_VERSION="${NGINX_VERSION%% *}"
+[[ "$NGINX_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+    echo "Unable to determine the installed Nginx version." >&2
+    exit 1
+}
+
+if [[ "$(printf '%s\n' "1.25.1" "$NGINX_VERSION" | sort -V | head -n 1)" == "1.25.1" ]]; then
+    printf '%s\n' \
+        '    listen 443 ssl;' \
+        '    listen [::]:443 ssl;' \
+        '    http2 on;' > "$HTTPS_LISTEN_CONFIGURATION"
+else
+    printf '%s\n' \
+        '    listen 443 ssl http2;' \
+        '    listen [::]:443 ssl http2;' > "$HTTPS_LISTEN_CONFIGURATION"
+fi
 
 grep -E \
     '^[[:space:]]*(ssl_certificate|ssl_certificate_key|ssl_trusted_certificate|ssl_dhparam)[[:space:]]|^[[:space:]]*include[[:space:]]+/etc/letsencrypt/' \
@@ -59,7 +81,12 @@ grep -E \
 grep -Eq '^[[:space:]]*ssl_certificate[[:space:]]' "$TLS_CONFIGURATION" || { echo "The existing Nginx site has no TLS certificate directive." >&2; exit 1; }
 grep -Eq '^[[:space:]]*ssl_certificate_key[[:space:]]' "$TLS_CONFIGURATION" || { echo "The existing Nginx site has no TLS private-key directive." >&2; exit 1; }
 
-awk -v tls_file="$TLS_CONFIGURATION" '
+awk -v tls_file="$TLS_CONFIGURATION" -v https_file="$HTTPS_LISTEN_CONFIGURATION" '
+    /__HTTPS_LISTEN_CONFIGURATION__/ {
+        while ((getline line < https_file) > 0) { print line }
+        close(https_file)
+        next
+    }
     /__TLS_CONFIGURATION__/ {
         while ((getline line < tls_file) > 0) { print line }
         close(tls_file)
@@ -67,7 +94,10 @@ awk -v tls_file="$TLS_CONFIGURATION" '
     }
     { print }
 ' "$NGINX_TEMPLATE" > "$RENDERED_NGINX"
-grep -Fq '__TLS_CONFIGURATION__' "$RENDERED_NGINX" && { echo "TLS template rendering failed." >&2; exit 1; }
+grep -Eq '__TLS_CONFIGURATION__|__HTTPS_LISTEN_CONFIGURATION__' "$RENDERED_NGINX" && {
+    echo "Nginx template rendering failed." >&2
+    exit 1
+}
 
 install -d -m 0755 "$BASE_DIR/releases" "$BASE_DIR/shared" "$BASE_DIR/shared/deployments"
 

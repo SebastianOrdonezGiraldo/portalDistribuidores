@@ -14,7 +14,7 @@ class ProductBulkImportService
     private const MAX_ERRORS = 60;
 
     /**
-     * @var array<string, bool>
+     * @var array<int, bool>
      */
     private array $categoryIds = [];
 
@@ -341,7 +341,7 @@ class ProductBulkImportService
         if (preg_match('/^-?\d+$/', $trimmed)) {
             $id = (int) $trimmed;
 
-            return isset($this->categoryIds[(string) $id])
+            return isset($this->categoryIds[$id])
                 ? [$id, false]
                 : [null, true];
         }
@@ -506,7 +506,7 @@ class ProductBulkImportService
         foreach ($categories as $category) {
             $id = (int) $category->id;
 
-            $this->categoryIds[(string) $id] = true;
+            $this->categoryIds[$id] = true;
             $this->rememberCategoryLookup($this->categoryIdBySlug, $this->normalizeLookupKey((string) $category->slug), $id);
             $this->rememberCategoryLookup($this->categoryIdByName, $this->normalizeLookupKey((string) $category->name), $id);
         }
