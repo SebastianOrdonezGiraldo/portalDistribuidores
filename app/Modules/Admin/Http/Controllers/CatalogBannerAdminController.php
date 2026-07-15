@@ -4,10 +4,12 @@ namespace App\Modules\Admin\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Catalog\Actions\UploadCatalogBannerAction;
+use App\Modules\Catalog\Enums\CatalogBannerPlacement;
 use App\Modules\Catalog\Models\CatalogBanner;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class CatalogBannerAdminController extends Controller
@@ -18,7 +20,8 @@ class CatalogBannerAdminController extends Controller
     public function index(): View
     {
         return view('admin.catalog-banners.index', [
-            'banners' => CatalogBanner::query()->orderBy('sort_order')->orderBy('id')->get(),
+            'bannersByPlacement' => CatalogBanner::query()->orderBy('placement')->orderBy('sort_order')->orderBy('id')->get()->groupBy(fn (CatalogBanner $banner) => $banner->placement->value),
+            'placements' => CatalogBannerPlacement::cases(),
             'maxFileSizeKb' => self::MAX_FILE_SIZE_KB,
             'maxBanners' => self::MAX_BANNERS,
             'recommendedDimensions' => '1600 × 480 px',
@@ -29,17 +32,21 @@ class CatalogBannerAdminController extends Controller
     {
         $request->validate([
             'title' => ['required', 'string', 'max:120'],
+            'placement' => ['required', Rule::enum(CatalogBannerPlacement::class)],
             'image' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp,avif', 'max:'.self::MAX_FILE_SIZE_KB],
         ]);
 
-        if (CatalogBanner::query()->count() >= self::MAX_BANNERS) {
-            return back()->withErrors(['image' => 'Puedes cargar máximo '.self::MAX_BANNERS.' banners.']);
+        $placement = CatalogBannerPlacement::from((string) $request->input('placement'));
+
+        if (CatalogBanner::query()->where('placement', $placement)->count() >= self::MAX_BANNERS) {
+            return back()->withErrors(['image' => 'Puedes cargar máximo '.self::MAX_BANNERS.' banners por ubicación.']);
         }
 
         $uploadBannerAction->execute(
             $request->file('image'),
             trim((string) $request->string('title')),
-            (int) (CatalogBanner::query()->max('sort_order') ?? -1) + 1,
+            $placement,
+            (int) (CatalogBanner::query()->where('placement', $placement)->max('sort_order') ?? -1) + 1,
         );
 
         return back()->with('status', 'Banner agregado al carrusel.');

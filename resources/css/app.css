@@ -760,6 +760,21 @@
     .catalog-banner-dot { width: 0.48rem; height: 0.48rem; border-radius: 9999px; background: rgb(255 255 255 / 0.62); box-shadow: 0 0.1rem 0.35rem rgb(15 23 42 / 0.28); transition: width 150ms ease, background 150ms ease; }
     .catalog-banner-dot.is-active { width: 1.25rem; background: white; }
 
+    .auth-banner-carousel {
+        position: relative;
+        height: clamp(9rem, 15vw, 13rem);
+        overflow: hidden;
+        border: 1px solid rgb(226 232 240);
+        border-radius: 1rem;
+        background: rgb(241 245 249);
+        box-shadow: 0 0.45rem 1.1rem rgb(15 23 42 / 0.08);
+    }
+
+    .auth-banner-slide { position: absolute; inset: 0; margin: 0; }
+    .auth-banner-control { position: absolute; top: 50%; display: inline-flex; width: 2rem; height: 2rem; align-items: center; justify-content: center; border-radius: 9999px; background: rgb(255 255 255 / 0.9); color: rgb(15 23 42); font-size: 1.45rem; line-height: 1; box-shadow: 0 0.25rem 0.7rem rgb(15 23 42 / 0.14); transform: translateY(-50%); }
+    .auth-banner-control--previous { left: 0.65rem; }
+    .auth-banner-control--next { right: 0.65rem; }
+
     .catalog-hero {
         position: relative;
         display: grid;

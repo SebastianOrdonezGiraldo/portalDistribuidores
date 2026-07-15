@@ -7,6 +7,8 @@ use App\Modules\Admin\Policies\DistributorPolicy;
 use App\Modules\Admin\Policies\UserPolicy;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Catalog\Models\Product;
+use App\Modules\Catalog\Models\CatalogBanner;
+use App\Modules\Catalog\Enums\CatalogBannerPlacement;
 use App\Modules\Catalog\Models\ProductDocument;
 use App\Modules\Catalog\Policies\ProductPolicy;
 use App\Modules\Catalog\Queries\PostgresSearchEngine;
@@ -150,6 +152,14 @@ class AppServiceProvider extends ServiceProvider
                 'headerQuickCategories' => $headerQuickCategories,
                 'pendingApprovalCount' => 0,
             ]);
+        });
+
+        View::composer('layouts.guest', function ($view): void {
+            $view->with('authBanners', CatalogBanner::query()
+                ->where('placement', CatalogBannerPlacement::Auth)
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get());
         });
     }
 

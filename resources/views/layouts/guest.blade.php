@@ -97,7 +97,29 @@ View contract:
                     </div>
                 @endif
 
-                <img src="{{ asset('images/auth-product-showcase.png') }}" alt="Equipos de bienestar disponibles próximamente" class="mt-7 block h-auto w-full max-w-full rounded-2xl shadow-soft">
+                @if($authBanners->isNotEmpty())
+                    @php
+                        $authBannerCount = $authBanners->count();
+                    @endphp
+                    <section
+                        class="auth-banner-carousel mt-7"
+                        aria-label="Banners informativos"
+                        @if($authBannerCount > 1)
+                            x-data="{ active: 0, total: {{ $authBannerCount }}, next() { this.active = (this.active + 1) % this.total }, previous() { this.active = (this.active - 1 + this.total) % this.total } }"
+                            x-init="setInterval(() => next(), 5500)"
+                        @endif
+                    >
+                        @foreach($authBanners as $banner)
+                            <figure class="auth-banner-slide" @if($authBannerCount > 1) x-show="active === {{ $loop->index }}" x-transition @endif>
+                                <img src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($banner->path) }}" alt="{{ $banner->title }}" title="{{ $banner->title }}" class="h-full w-full object-cover" loading="{{ $loop->first ? 'eager' : 'lazy' }}">
+                            </figure>
+                        @endforeach
+                        @if($authBannerCount > 1)
+                            <button type="button" class="auth-banner-control auth-banner-control--previous" @click="previous()" aria-label="Banner anterior">‹</button>
+                            <button type="button" class="auth-banner-control auth-banner-control--next" @click="next()" aria-label="Banner siguiente">›</button>
+                        @endif
+                    </section>
+                @endif
             </div>
         </section>
 
