@@ -2,7 +2,6 @@ name: CI
 
 on:
   schedule:
-    # Runs daily without triggering deploy workflows because deploys require workflow_run.event == 'push'.
     - cron: "0 12 * * *"
   workflow_dispatch:
   pull_request:
@@ -18,201 +17,362 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  PHP_VERSION: "8.3"
+  NODE_VERSION: "24"
 
 jobs:
-  # ─────────────────────────────────────────────────────────────────
-  # Job 1: Code style (Laravel Pint)
-  # ─────────────────────────────────────────────────────────────────
   lint:
     name: Code Style (Pint)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
-          php-version: "8.3"
-          extensions: mbstring, xml, ctype, fileinfo, curl
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, xml, ctype, fileinfo, curl, sockets
           coverage: none
-
-      - name: Get Composer cache directory
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.composer-cache.outputs.dir }}
-          key: ${{ runner.os }}-php-8.3-composer-${{ hashFiles('composer.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-php-8.3-composer-
-
-      - name: Install PHP dependencies
+      - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
-
-      - name: Run Laravel Pint (code style check)
+      - name: Run Pint
         run: ./vendor/bin/pint --test
 
-  # ─────────────────────────────────────────────────────────────────
-  # Job 2: Static analysis (PHPStan via Larastan)
-  # ─────────────────────────────────────────────────────────────────
   stan:
     name: Static Analysis (PHPStan)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-
+    timeout-minutes: 12
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
-          php-version: "8.3"
-          extensions: mbstring, xml, ctype, fileinfo, curl, dom, intl, bcmath, sqlite, pdo_sqlite
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, xml, ctype, fileinfo, curl, dom, intl, bcmath, sqlite, pdo_sqlite, sockets
           coverage: none
-
-      - name: Get Composer cache directory
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.composer-cache.outputs.dir }}
-          key: ${{ runner.os }}-php-8.3-composer-${{ hashFiles('composer.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-php-8.3-composer-
-
-      - name: Prepare Laravel environment
+      - name: Prepare Laravel
         run: cp .env.example .env
-
-      - name: Install PHP dependencies
+      - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
-
       - name: Generate application key
         run: php artisan key:generate --ansi
-
       - name: Run PHPStan
         run: ./vendor/bin/phpstan analyse --no-progress --memory-limit=512M
 
-  # ─────────────────────────────────────────────────────────────────
-  # Job 3: Security audit (PHP + Node.js)
-  # ─────────────────────────────────────────────────────────────────
   security:
-    name: Security Audit
+    name: Security & Workflow Validation
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
-          php-version: "8.3"
-          extensions: mbstring, xml, ctype, fileinfo, curl
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, xml, ctype, fileinfo, curl, sockets
           coverage: none
-
-      - name: Get Composer cache directory
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.composer-cache.outputs.dir }}
-          key: ${{ runner.os }}-php-8.3-composer-${{ hashFiles('composer.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-php-8.3-composer-
-
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: "20"
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
-
-      - name: Install PHP dependencies
-        run: composer install --no-interaction --prefer-dist --no-progress
-
+      - name: Validate Composer metadata
+        run: composer validate --strict --no-check-publish
       - name: Audit PHP dependencies
         run: |
           for attempt in 1 2 3; do
             if composer audit --locked --ignore-unreachable; then
               exit 0
             fi
-            if [ "$attempt" -lt 3 ]; then
-              echo "composer audit fallo en el intento $attempt. Reintentando..."
-              sleep $((attempt * 5))
-            fi
+            [[ "$attempt" -eq 3 ]] && exit 1
+            sleep $((attempt * 5))
           done
-          echo "composer audit fallo despues de 3 intentos."
-          exit 1
-
-      - name: Install Node.js dependencies
-        run: npm ci
-
       - name: Audit Node.js dependencies
-        run: npm audit --audit-level=high
+        run: |
+          npm ci
+          npm audit --audit-level=high
+      - name: Install actionlint with checksum verification
+        run: |
+          mkdir -p "$RUNNER_TEMP/actionlint"
+          cd "$RUNNER_TEMP/actionlint"
+          gh release download v1.7.12 \
+            --repo rhysd/actionlint \
+            --pattern 'actionlint_1.7.12_linux_amd64.tar.gz' \
+            --pattern 'actionlint_1.7.12_checksums.txt'
+          grep 'actionlint_1.7.12_linux_amd64.tar.gz' actionlint_1.7.12_checksums.txt | sha256sum --check
+          tar -xzf actionlint_1.7.12_linux_amd64.tar.gz actionlint
+          echo "$RUNNER_TEMP/actionlint" >> "$GITHUB_PATH"
+      - name: Validate workflows and shell scripts
+        run: |
+          actionlint
+          shellcheck deploy.sh rollback.sh deploy/*.sh .github/scripts/*.sh
+          bash -n deploy.sh rollback.sh deploy/*.sh .github/scripts/*.sh
 
-  # ─────────────────────────────────────────────────────────────────
-  # Job 4: Tests (PHPUnit) + Frontend build
-  # ─────────────────────────────────────────────────────────────────
-  test:
-    name: Tests (PHPUnit)
+  test-sqlite:
+    name: Tests (SQLite)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
-          php-version: "8.3"
-          extensions: mbstring, xml, ctype, fileinfo, curl, dom, intl, bcmath, sqlite, pdo_sqlite
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, xml, ctype, fileinfo, curl, dom, intl, bcmath, sqlite, pdo_sqlite, sockets
           coverage: none
-
-      - name: Get Composer cache directory
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.composer-cache.outputs.dir }}
-          key: ${{ runner.os }}-php-8.3-composer-${{ hashFiles('composer.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-php-8.3-composer-
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-
-      - name: Prepare Laravel environment
+      - name: Prepare Laravel
         run: cp .env.example .env
-
-      - name: Install PHP dependencies
+      - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
-
       - name: Generate application key
         run: php artisan key:generate --ansi
-
-      - name: Install Node.js dependencies
-        run: npm ci
-
-      - name: Build frontend assets
-        run: npm run build
-
       - name: Run test suite
         run: composer test
+
+  test-postgres:
+    name: Tests (PostgreSQL 16)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: portal_test
+          POSTGRES_USER: portal
+          POSTGRES_PASSWORD: portal
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U portal -d portal_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: portal_test
+      DB_USERNAME: portal
+      DB_PASSWORD: portal
+      DB_SSLMODE: prefer
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, xml, ctype, fileinfo, curl, dom, intl, bcmath, pgsql, pdo_pgsql, sockets
+          coverage: none
+      - name: Prepare Laravel
+        run: cp .env.example .env
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Generate application key
+        run: php artisan key:generate --ansi
+      - name: Run PostgreSQL test suite
+        run: composer test
+
+  build:
+    name: Build Release Artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs:
+      - lint
+      - stan
+      - security
+      - test-sqlite
+      - test-postgres
+    outputs:
+      artifact_name: ${{ steps.package.outputs.artifact_name }}
+      source_sha: ${{ steps.package.outputs.source_sha }}
+      source_tree: ${{ steps.package.outputs.source_tree }}
+      archive_sha256: ${{ steps.package.outputs.archive_sha256 }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, xml, ctype, fileinfo, curl, dom, intl, bcmath, pgsql, sockets
+          coverage: none
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Prepare Laravel
+        run: cp .env.example .env
+      - name: Install production PHP dependencies
+        run: composer install --no-dev --no-interaction --prefer-dist --no-progress --classmap-authoritative
+      - name: Build frontend assets
+        run: |
+          npm ci
+          npm run build
+      - name: Package release
+        id: package
+        run: bash deploy/build-artifact.sh "$RUNNER_TEMP/release-artifact"
+      - name: Upload promotable artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.package.outputs.artifact_name }}
+          path: ${{ runner.temp }}/release-artifact
+          if-no-files-found: error
+          retention-days: 30
+          overwrite: true
+
+  staging-promotion-gate:
+    name: Staging Promotion Gate
+    if: github.event_name == 'pull_request' && github.base_ref == 'master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      deployments: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      HEAD_REF: ${{ github.event.pull_request.head.ref }}
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ env.HEAD_SHA }}
+          fetch-depth: 0
+      - name: Require tested develop head
+        run: |
+          [[ "$HEAD_REF" == "develop" ]] || {
+            echo "Only develop can be promoted to master." >&2
+            exit 1
+          }
+          git fetch --no-tags origin master
+          git merge-base --is-ancestor origin/master "$HEAD_SHA" || {
+            echo "master must be an ancestor of develop; merge master into develop and restage first." >&2
+            exit 1
+          }
+          tree_sha="$(git rev-parse "${HEAD_SHA}^{tree}")"
+          proof_name="staging-proof-${tree_sha}"
+          proof_count="$(gh api -X GET "repos/${GITHUB_REPOSITORY}/actions/artifacts" -f name="$proof_name" --jq '[.artifacts[] | select(.expired == false)] | length')"
+          [[ "$proof_count" -gt 0 ]] || {
+            echo "No non-expired staging proof exists for tree ${tree_sha}." >&2
+            exit 1
+          }
+          deployment_ids="$(gh api -X GET "repos/${GITHUB_REPOSITORY}/deployments" -f sha="$HEAD_SHA" -f environment=staging -f per_page=100 --jq '.[].id')"
+          [[ -n "$deployment_ids" ]] || {
+            echo "No staging deployment exists for ${HEAD_SHA}." >&2
+            exit 1
+          }
+          deployment_ok=false
+          while IFS= read -r deployment_id; do
+            if gh api "repos/${GITHUB_REPOSITORY}/deployments/${deployment_id}/statuses" --jq 'any(.[]; .state == "success")' | grep -Fxq true; then
+              deployment_ok=true
+              break
+            fi
+          done <<< "$deployment_ids"
+          [[ "$deployment_ok" == true ]] || {
+            echo "The staging deployment for ${HEAD_SHA} is not successful." >&2
+            exit 1
+          }
+          echo "Staging proof and deployment verified for ${HEAD_SHA} (${tree_sha})."
+
+  deploy-staging:
+    name: Deploy Staging
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    needs:
+      - build
+    permissions:
+      actions: read
+      contents: read
+      deployments: write
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    environment:
+      name: staging
+      url: https://staging-pedidos.importcorporalmedical.com
+    env:
+      DEPLOY_URL: https://staging-pedidos.importcorporalmedical.com
+      DEPLOY_BASE_DIR: /var/www/portalDistribuidores-staging
+      SSH_HOST: ${{ secrets.VPS_HOST_STAGING || secrets.VPS_HOST }}
+      SSH_PORT: ${{ secrets.VPS_SSH_PORT_STAGING || secrets.VPS_SSH_PORT || '22' }}
+      SSH_USER: ${{ secrets.VPS_USER_STAGING || secrets.VPS_USER }}
+      SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_KEY_STAGING || secrets.VPS_SSH_KEY }}
+      SSH_EXPECTED_FINGERPRINT: ${{ secrets.VPS_SSH_FINGERPRINT_STAGING || secrets.VPS_SSH_FINGERPRINT }}
+    steps:
+      - name: Checkout deployment tooling
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          coverage: none
+      - name: Download release artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ needs.build.outputs.artifact_name }}
+          path: ${{ runner.temp }}/release-artifact
+      - name: Verify SSH identity
+        id: ssh
+        run: bash .github/scripts/prepare-ssh.sh
+        env:
+          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_PORT: ${{ env.SSH_PORT }}
+          SSH_PRIVATE_KEY: ${{ env.SSH_PRIVATE_KEY }}
+          SSH_EXPECTED_FINGERPRINT: ${{ env.SSH_EXPECTED_FINGERPRINT }}
+      - name: Deploy exact artifact to staging
+        run: bash .github/scripts/deploy-over-ssh.sh
+        env:
+          DEPLOY_ENVIRONMENT: staging
+          DEPLOY_BASE_DIR: ${{ env.DEPLOY_BASE_DIR }}
+          DEPLOY_URL: ${{ env.DEPLOY_URL }}
+          SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
+          PROMOTION_SHA: ${{ needs.build.outputs.source_sha }}
+          ARTIFACT_DIR: ${{ runner.temp }}/release-artifact
+          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_PORT: ${{ env.SSH_PORT }}
+          SSH_USER: ${{ env.SSH_USER }}
+          SSH_KEY_PATH: ${{ steps.ssh.outputs.key_path }}
+          SSH_KNOWN_HOSTS_PATH: ${{ steps.ssh.outputs.known_hosts_path }}
+          ROLLBACK_DRILL: ${{ vars.STAGING_ROLLBACK_DRILL == 'true' }}
+      - name: Create staging proof
+        run: |
+          mkdir -p "$RUNNER_TEMP/staging-proof"
+          php -r '
+            file_put_contents($argv[1], json_encode([
+              "schema" => 1,
+              "source_commit" => $argv[2],
+              "source_tree" => $argv[3],
+              "archive_sha256" => $argv[4],
+              "ci_run_id" => (int) $argv[5],
+              "deployed_at" => gmdate("c"),
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
+          ' "$RUNNER_TEMP/staging-proof/proof.json" \
+            "${{ needs.build.outputs.source_sha }}" \
+            "${{ needs.build.outputs.source_tree }}" \
+            "${{ needs.build.outputs.archive_sha256 }}" \
+            "${{ github.run_id }}"
+      - name: Upload staging proof
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: staging-proof-${{ needs.build.outputs.source_tree }}
+          path: ${{ runner.temp }}/staging-proof/proof.json
+          if-no-files-found: error
+          retention-days: 30
+          overwrite: true

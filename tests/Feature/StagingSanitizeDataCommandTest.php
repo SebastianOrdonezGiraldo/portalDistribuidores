@@ -17,7 +17,7 @@ class StagingSanitizeDataCommandTest extends TestCase
     public function test_command_refuses_to_run_outside_staging_app_env(): void
     {
         config(['app.env' => 'production']);
-        config(['database.connections.sqlite.database' => 'portal_distribuidores']);
+        $this->setConfiguredDatabaseName('portal_distribuidores');
 
         $this->artisan('staging:sanitize-data', ['--password' => 'secret123'])
             ->expectsOutputToContain('APP_ENV=staging')
@@ -27,7 +27,7 @@ class StagingSanitizeDataCommandTest extends TestCase
     public function test_command_refuses_to_run_against_non_staging_database(): void
     {
         config(['app.env' => 'staging']);
-        config(['database.connections.sqlite.database' => 'portal_distribuidores']);
+        $this->setConfiguredDatabaseName('portal_distribuidores');
 
         $this->artisan('staging:sanitize-data', ['--password' => 'secret123'])
             ->expectsOutputToContain('portal_distribuidores_staging')
@@ -37,7 +37,7 @@ class StagingSanitizeDataCommandTest extends TestCase
     public function test_command_sanitizes_staging_data_and_creates_known_access_users(): void
     {
         config(['app.env' => 'staging']);
-        config(['database.connections.sqlite.database' => 'portal_distribuidores_staging']);
+        $this->setConfiguredDatabaseName('portal_distribuidores_staging');
 
         $distributor = Distributor::factory()->create([
             'name' => 'Empresa Real SAS',
@@ -250,5 +250,12 @@ class StagingSanitizeDataCommandTest extends TestCase
         $this->assertDatabaseCount('cache_locks', 0);
         $this->assertDatabaseCount('stock_movements', 0);
         $this->assertDatabaseCount('contapyme_sync_runs', 0);
+    }
+
+    private function setConfiguredDatabaseName(string $database): void
+    {
+        $connection = (string) config('database.default');
+
+        config(["database.connections.{$connection}.database" => $database]);
     }
 }

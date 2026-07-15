@@ -93,7 +93,7 @@ app/
 - PHP 8.3+
 - Composer 2.7+
 - PostgreSQL 15 o 16
-- Node.js 20 LTS + npm
+- Node.js 24 LTS + npm
 
 ### Producción (VPS)
 
@@ -102,7 +102,7 @@ app/
 - Nginx 1.24+
 - PHP-FPM 8.3
 - PostgreSQL 15 o 16 (local en el VPS)
-- Node.js 20 LTS + npm
+- Node.js 24 LTS + npm
 - Composer 2.7+
 - Certbot (SSL con Let's Encrypt)
 
@@ -379,8 +379,8 @@ apt install -y \
 curl -sS https://getcomposer.org/installer | php
 mv composer.phar /usr/local/bin/composer && chmod +x /usr/local/bin/composer
 
-# Node.js 20 LTS
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+# Node.js 24 LTS
+curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
 apt install -y nodejs
 
 # PostgreSQL 16
@@ -893,9 +893,10 @@ systemctl restart php8.3-fpm
 
 - **Guía completa de despliegue:** [`DEPLOY.md`](./DEPLOY.md) — cubre en detalle cada paso del despliegue inicial en el VPS, incluyendo preparación del servidor, configuración de PostgreSQL, Nginx, SSL y worker de colas.
 - **Guia de staging y produccion:** [`STAGING.md`](./STAGING.md) — define la separacion de ambientes, los workflows `develop`/`master`, el bucket `portal-distribuidores-staging` y el refresco seguro de datos hacia staging.
-- **Script de actualización:** [`deploy.sh`](./deploy.sh) — automatiza el ciclo completo de actualización en producción.
+- **CI/CD y activacion:** [`CI_CD_SETUP.md`](./CI_CD_SETUP.md) — artefactos, staging gate, bootstrap, drills y promocion manual.
+- **Deploy atomico:** [`deploy.sh`](./deploy.sh) y [`rollback.sh`](./rollback.sh) — releases versionados sin build ni rollback de DB en el VPS.
 - **Script de refresco de staging:** [`deploy/refresh-staging.sh`](./deploy/refresh-staging.sh) — crea un dump solo lectura desde produccion, restaura en staging y ejecuta la sanitizacion.
-- **Configuraciones de Nginx:** [`deploy/nginx.production.conf`](./deploy/nginx.production.conf) y [`deploy/nginx.staging.conf`](./deploy/nginx.staging.conf) — plantillas separadas por ambiente.
+- **Configuraciones de Nginx:** [`deploy/nginx.production.conf`](./deploy/nginx.production.conf) y [`deploy/nginx.staging.conf`](./deploy/nginx.staging.conf) — plantillas separadas por ambiente que el bootstrap renderiza preservando TLS.
 - **Workers systemd:** [`deploy/laravel-queue.service`](./deploy/laravel-queue.service) para producción y [`deploy/laravel-queue-staging.service`](./deploy/laravel-queue-staging.service) para staging.
 - **Worker Supervisor:** [`deploy/laravel-queue-supervisor.conf`](./deploy/laravel-queue-supervisor.conf) — configuración alternativa con Supervisor.
 - **Documentacion HTTP/OpenAPI:** [`docs/documentacion-api.md`](./docs/documentacion-api.md) — explica como generar y proteger `/docs`, `/docs.openapi` y `/docs.postman` con Scribe.

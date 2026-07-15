@@ -1,7 +1,7 @@
 # Guía de Despliegue — Portal Distribuidores
 
 **Plataforma:** Hostinger VPS · Ubuntu 24.04 LTS  
-**Stack:** Nginx · PHP 8.3-FPM · PostgreSQL 16 · Node.js 20 · Laravel 12
+**Stack:** Nginx · PHP 8.3-FPM · PostgreSQL 16 · Node.js 24 (build) · Laravel 12
 
 > Para la separacion completa entre `staging` y `production`, revisa tambien [`STAGING.md`](./STAGING.md).
 
@@ -34,7 +34,7 @@
 | PHP             | 8.3            | Con extensiones requeridas         |
 | PostgreSQL      | 15 / 16        | Local en el VPS                    |
 | Nginx           | 1.24+          | Como servidor web                  |
-| Node.js         | 20 LTS         | Para compilar assets con Vite      |
+| Node.js         | 24 LTS         | Para compilar assets con Vite      |
 | Composer        | 2.7+           | Gestor de dependencias PHP         |
 | Git             | cualquiera     | Para clonar y actualizar el repo   |
 
@@ -72,8 +72,8 @@ curl -sS https://getcomposer.org/installer | php
 mv composer.phar /usr/local/bin/composer
 chmod +x /usr/local/bin/composer
 
-# Instalar Node.js 20 LTS
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+# Instalar Node.js 24 LTS
+curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
 apt install -y nodejs
 
 # Instalar PostgreSQL 16
@@ -455,27 +455,29 @@ ls -la /var/www/portal-distribuidores/bootstrap/cache/
 
 ---
 
-## 12. Actualizaciones futuras con deploy.sh
+## 12. Actualizaciones futuras con artefactos atomicos
 
-Para actualizaciones del código, usa el script incluido:
+Los workflows construyen las dependencias y assets una sola vez. El VPS recibe
+`portal.tar.gz`, `manifest.json` y `SHA256SUMS`; no ejecuta Git, Composer ni npm.
+El uso manual de bajo nivel es:
 
 ```bash
-# Dar permiso de ejecución (solo la primera vez)
-chmod +x /var/www/portal-distribuidores/deploy.sh
-
-# Ejecutar despliegue
-cd /var/www/portalDistribuidores
-sudo bash deploy.sh
+sudo bash deploy.sh deploy \
+  --environment production \
+  --base-dir /var/www/portalDistribuidores \
+  --artifact /tmp/portal-deploy-<sha>/portal.tar.gz \
+  --source-sha <sha-develop> \
+  --promotion-sha <sha-master>
 ```
 
-El script hace automáticamente: `git pull` → `composer install` → `migrate` →  
-`config/route/view:cache` → `npm ci` → `npm run build` → reinicio del worker.
+El script verifica identidad/checksum, prepara `releases/<sha>`, enlaza
+`shared/.env` y `shared/storage`, crea backup productivo, migra, cambia `current`
+atomicamente y valida servicios.
 
 ### Smoke check después del deploy
 
-Los workflows de GitHub Actions para `staging` y `production` hacen un smoke check HTTP
-al terminar el SSH deploy. La validación consulta la URL canónica del entorno y acepta
-`200`, `301` o `302`.
+Los workflows validan `/up` internamente y exigen externamente la pagina HTTPS y
+un asset bajo `/build/`.
 
 Si el smoke check falla:
 
@@ -490,20 +492,16 @@ Si el smoke check falla:
 
 ### Rollback operativo recomendado
 
-Rollback normal de aplicación:
+El rollback cambia `current` al release anterior, reinicia servicios y comprueba
+salud. No ejecuta `migrate:rollback` ni restaura PostgreSQL:
 
-1. Identificar el commit o merge problemático en GitHub
-2. Hacer `git revert` del cambio en la rama objetivo
-3. Hacer merge del revert
-4. Dejar que el mismo pipeline vuelva a desplegar
+```bash
+sudo bash rollback.sh \
+  --environment production
+```
 
-Limitación importante:
-
-- El `deploy.sh` siempre sincroniza contra `origin/<branch>`, así que hoy no existe un rollback seguro de "un clic" a un commit viejo directamente desde el VPS.
-- Si una migración en producción deja el sistema inconsistente, la ruta segura es:
-  - revertir el código en GitHub,
-  - desplegar el revert,
-  - y evaluar restaurar el backup de PostgreSQL creado por `deploy.sh` en `/var/backups/portal-distribuidores/production` solo como operación manual de incidente.
+Una restauracion del dump de `/var/backups/portal-distribuidores/production`
+sigue siendo una operacion manual de incidente.
 
 ---
 
@@ -694,8 +692,8 @@ Los registros se conservan para auditoría y los elementos históricos de
 ## Recursos relacionados
 
 - [`STAGING.md`](./STAGING.md) - flujo de ramas `develop`/`master`, hosts reales, bucket `portal-distribuidores-staging` y refresco seguro de datos.
-- [`deploy/nginx.production.conf`](./deploy/nginx.production.conf) - plantilla Nginx para `pedidos.importcorporalmedical.com`.
-- [`deploy/nginx.staging.conf`](./deploy/nginx.staging.conf) - plantilla Nginx para `staging-pedidos.importcorporalmedical.com`.
+- [`deploy/nginx.production.conf`](./deploy/nginx.production.conf) - plantilla Nginx para `pedidos.importcorporalmedical.com`, renderizada por el bootstrap para preservar TLS.
+- [`deploy/nginx.staging.conf`](./deploy/nginx.staging.conf) - plantilla Nginx para `staging-pedidos.importcorporalmedical.com`, renderizada por el bootstrap para preservar TLS.
 - [`deploy/laravel-queue.service`](./deploy/laravel-queue.service) - worker systemd para produccion.
 - [`deploy/laravel-queue-staging.service`](./deploy/laravel-queue-staging.service) - worker systemd para staging.
 - [`deploy/refresh-staging.sh`](./deploy/refresh-staging.sh) - script de copia y sanitizacion de datos hacia staging.
