@@ -446,6 +446,38 @@ View contract:
     </div>
 </x-ui.modal>
 
+@guest
+    <div id="login-required-modal" data-modal data-login-required-modal class="fixed inset-0 z-[90] hidden items-end justify-center bg-slate-950/55 p-3 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="login-required-modal-title">
+        <div class="login-required-panel">
+            <button type="button" class="login-required-close" data-login-required-close aria-label="Cerrar">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+                    <path d="M6 6l12 12"></path>
+                    <path d="M18 6L6 18"></path>
+                </svg>
+            </button>
+
+            <div class="login-required-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+                    <circle cx="9" cy="20.5" r="1.25"></circle>
+                    <circle cx="17.5" cy="20.5" r="1.25"></circle>
+                    <path d="M3 3h2l2.3 10.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 7H7.2"></path>
+                </svg>
+            </div>
+
+            <p class="login-required-eyebrow">Carrito distribuidor</p>
+            <h2 id="login-required-modal-title" class="login-required-title">Inicia sesión para continuar</h2>
+            <p class="login-required-copy">
+                Te llevamos al login y, al entrar, vuelves al producto para completar el agregado al carrito.
+            </p>
+
+            <div class="login-required-actions">
+                <a href="{{ route('login') }}" class="btn btn-primary w-full justify-center" data-login-required-link>Iniciar sesión</a>
+                <button type="button" class="btn btn-secondary w-full justify-center" data-login-required-close>Seguir viendo catálogo</button>
+            </div>
+        </div>
+    </div>
+@endguest
+
 @if(!$isAdmin && !request()->routeIs('catalog.*', 'products.show') && view()->exists('layouts.partials.whatsapp-float'))
     @include('layouts.partials.whatsapp-float')
 @endif

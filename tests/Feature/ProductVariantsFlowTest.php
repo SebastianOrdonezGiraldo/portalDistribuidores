@@ -118,11 +118,11 @@ class ProductVariantsFlowTest extends TestCase
             'qty' => 1,
         ])->assertStatus(422)->assertJsonValidationErrors('variant_id');
 
-        $this->postJson(route('cart.store'), [
+        $this->post(route('cart.store'), [
             'product_id' => $product->id,
             'variant_id' => $variant->id,
             'qty' => 2,
-        ])->assertOk();
+        ])->assertRedirect();
 
         $response = $this->post(route('orders.store'), [
             'contact_name' => 'Cliente Test',

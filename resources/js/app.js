@@ -304,7 +304,38 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    const cartSuccessToast = document.querySelector('[data-toast][data-cart-success="true"]');
+    const loginRequiredModal = document.querySelector('[data-login-required-modal]');
+    const loginRequiredLink = loginRequiredModal?.querySelector('[data-login-required-link]');
+    const showLoginRequiredModal = (payload = {}) => {
+        if (!loginRequiredModal) {
+            window.location.href = payload.login_url || '/login';
+            return;
+        }
+
+        if (loginRequiredLink && payload.login_url) {
+            loginRequiredLink.setAttribute('href', payload.login_url);
+        }
+
+        openModal(loginRequiredModal);
+    };
+
+    loginRequiredModal?.querySelectorAll('[data-login-required-close]').forEach((button) => {
+        button.addEventListener('click', () => closeModal(loginRequiredModal));
+    });
+
+    loginRequiredModal?.addEventListener('click', (event) => {
+        if (event.target === loginRequiredModal) {
+            closeModal(loginRequiredModal);
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && loginRequiredModal && !loginRequiredModal.classList.contains('hidden')) {
+            closeModal(loginRequiredModal);
+        }
+    });
+
+    const cartSuccessFlash = document.querySelector('[data-cart-flash]');
     const prefersReducedMotion = typeof window.matchMedia === 'function'
         && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const animateCartBadges = (withCountFlip = false) => {
@@ -382,17 +413,17 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const getCartBadgeTarget = () => {
-        const badges = Array.from(document.querySelectorAll('[data-cart-badge]'));
-        const visibleBadge = badges.find((badge) => isVisibleCartTarget(badge));
-
-        if (visibleBadge) {
-            return visibleBadge;
-        }
-
         const targets = Array.from(document.querySelectorAll('[data-cart-target]'));
         const visibleTarget = targets.find((target) => isVisibleCartTarget(target));
 
-        return visibleTarget || badges[0] || targets[0] || null;
+        if (visibleTarget) {
+            return visibleTarget;
+        }
+
+        const badges = Array.from(document.querySelectorAll('[data-cart-badge]'));
+        const visibleBadge = badges.find((badge) => isVisibleCartTarget(badge));
+
+        return visibleBadge || targets[0] || badges[0] || null;
     };
 
     const getProductNameFromForm = (form) => {
@@ -561,6 +592,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const showCartTooltip = (message) => {
         const target = getCartBadgeTarget();
+        const detailMessage = message.replace(/\s+agregado al carrito\.?$/i, '').trim();
+        const displayMessage = detailMessage && detailMessage.toLowerCase() !== 'producto'
+            ? detailMessage
+            : 'Tu pedido se actualizo correctamente.';
 
         if (!target) {
             showInlineToast(message, 'success');
@@ -575,22 +610,114 @@ document.addEventListener('DOMContentLoaded', () => {
         tooltip.className = 'cart-tooltip animate-cart-tooltip-in';
         tooltip.setAttribute('role', 'status');
         tooltip.setAttribute('aria-live', 'polite');
+        Object.assign(tooltip.style, {
+            position: 'fixed',
+            zIndex: '120',
+            boxSizing: 'border-box',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '0.75rem',
+            width: 'min(21rem, calc(100vw - 1.5rem))',
+            maxWidth: '21rem',
+            padding: '0.85rem 0.9rem',
+            border: '1px solid rgba(20, 184, 166, 0.18)',
+            borderRadius: '1rem',
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.98), rgba(236,253,253,0.96))',
+            color: '#0f172a',
+            boxShadow: '0 18px 46px rgba(15, 23, 42, 0.16), 0 8px 18px rgba(20, 184, 166, 0.10)',
+            backdropFilter: 'blur(10px)',
+        });
+
+        const arrow = document.createElement('span');
+        arrow.dataset.cartTooltipArrow = 'true';
+        Object.assign(arrow.style, {
+            position: 'absolute',
+            top: '-0.42rem',
+            width: '0.82rem',
+            height: '0.82rem',
+            borderTop: '1px solid rgba(20, 184, 166, 0.18)',
+            borderLeft: '1px solid rgba(20, 184, 166, 0.18)',
+            background: 'rgba(255, 255, 255, 0.98)',
+            transform: 'translateX(-50%) rotate(45deg)',
+            boxShadow: '-4px -4px 10px rgba(15, 23, 42, 0.035)',
+        });
 
         const icon = document.createElement('span');
         icon.className = 'cart-tooltip-icon';
         icon.innerHTML = makeCheckSvg();
+        Object.assign(icon.style, {
+            position: 'relative',
+            zIndex: '1',
+            display: 'inline-flex',
+            width: '2.35rem',
+            height: '2.35rem',
+            flexShrink: '0',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '0.8rem',
+            background: '#0f8f95',
+            color: '#ffffff',
+            boxShadow: '0 10px 22px rgba(15, 143, 149, 0.26)',
+        });
+
+        const content = document.createElement('span');
+        Object.assign(content.style, {
+            position: 'relative',
+            zIndex: '1',
+            minWidth: '0',
+            flex: '1',
+            display: 'grid',
+            gap: '0.15rem',
+            paddingTop: '0.08rem',
+        });
+
+        const title = document.createElement('span');
+        title.textContent = 'Agregado al carrito';
+        Object.assign(title.style, {
+            display: 'block',
+            fontSize: '0.84rem',
+            fontWeight: '800',
+            lineHeight: '1.15',
+            color: '#0f172a',
+        });
 
         const text = document.createElement('span');
         text.className = 'cart-tooltip-text';
-        text.textContent = message;
+        text.textContent = displayMessage;
+        Object.assign(text.style, {
+            display: 'block',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            fontSize: '0.78rem',
+            fontWeight: '600',
+            lineHeight: '1.35',
+            color: '#52637a',
+            whiteSpace: 'nowrap',
+        });
 
         const closeButton = document.createElement('button');
         closeButton.type = 'button';
         closeButton.className = 'cart-tooltip-close';
         closeButton.setAttribute('aria-label', 'Cerrar');
         closeButton.innerHTML = '<svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+        Object.assign(closeButton.style, {
+            position: 'relative',
+            zIndex: '1',
+            display: 'inline-flex',
+            width: '1.85rem',
+            height: '1.85rem',
+            flexShrink: '0',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '0',
+            borderRadius: '0.65rem',
+            background: 'rgba(15, 23, 42, 0.045)',
+            color: '#64748b',
+            cursor: 'pointer',
+        });
 
-        tooltip.append(icon, text, closeButton);
+        content.append(title, text);
+        tooltip.append(arrow, icon, content, closeButton);
         document.body.append(tooltip);
 
         const position = () => {
@@ -608,6 +735,7 @@ document.addEventListener('DOMContentLoaded', () => {
             tooltip.style.left = `${left}px`;
             tooltip.style.top = `${top}px`;
             tooltip.style.setProperty('--cart-tooltip-arrow-x', `${rect.left + rect.width / 2 - left}px`);
+            arrow.style.left = `${rect.left + rect.width / 2 - left}px`;
         };
 
         position();
@@ -631,10 +759,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const makeCrossSvg = () =>
         `<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
 
-    if (cartSuccessToast) {
+    if (cartSuccessFlash) {
         animateCartBadges();
-        showCartTooltip(cartSuccessToast.dataset.toastMessage || 'Producto agregado al carrito.');
-        cartSuccessToast.remove();
+        showCartTooltip(cartSuccessFlash.dataset.cartMessage || 'Producto agregado al carrito.');
+        cartSuccessFlash.remove();
     }
 
     document.addEventListener('click', (event) => {
@@ -800,6 +928,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 const payload = await response.json().catch(() => ({}));
+
+                if (response.status === 401 && payload.requires_login) {
+                    resetButton();
+                    showLoginRequiredModal(payload);
+                    return;
+                }
 
                 if (!response.ok) {
                     throw new Error(payload.message || 'No se pudo agregar al carrito.');

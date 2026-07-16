@@ -36,12 +36,19 @@ Component contract:
 @if(count($messages) > 0)
     <div class="pointer-events-none fixed inset-x-3 bottom-3 z-[100] w-auto space-y-2 sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-[min(92vw,28rem)]">
         @foreach($messages as $message)
+            @if(!empty($message['cart_success']))
+                <div
+                    hidden
+                    data-cart-flash
+                    data-cart-message="{{ $message['text'] }}"
+                ></div>
+                @continue
+            @endif
+
             <x-ui.alert
                 :variant="$message['variant']"
                 data-toast
                 data-toast-timeout="5000"
-                data-toast-message="{{ $message['text'] }}"
-                data-cart-success="{{ !empty($message['cart_success']) ? 'true' : 'false' }}"
                 class="pointer-events-auto animate-toast-in"
             >
                 <div class="flex items-start justify-between gap-3">
