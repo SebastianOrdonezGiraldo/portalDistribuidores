@@ -52,16 +52,16 @@ Flujo esperado:
 4. Merge a `develop` despliega staging
 5. Probar staging
 6. Abrir PR de `develop` hacia `master`
-7. CI valida otra vez
-8. Merge a `master` despliega produccion
+7. `Staging Promotion Gate` valida el deployment y artefacto exactos
+8. Merge a `master` habilita una promocion manual; no despliega automaticamente
 
 Notas operativas:
 
-- `CI` reutiliza cache de Composer y cache de npm para reducir tiempo y dependencia de red.
-- Los deploys por SSH usan `command_timeout` explicito y `set -e` en el shell remoto para cortar antes ante fallos parciales fuera de `deploy.sh`.
-- Cada deploy termina con un smoke check HTTP con reintentos contra la URL canonica del entorno; si la app no responde con `200`, `301` o `302`, el workflow falla.
+- `CI` usa PHP 8.3, Node 24, SQLite y PostgreSQL 16 y construye un artefacto inmutable.
+- SSH exige que la host key coincida con el fingerprint configurado antes de usar la llave privada.
+- Cada deploy valida `/up` desde localhost y la pagina/asset versionado desde HTTPS externo.
 - Los workflows aceptan secretos dedicados por entorno con fallback a los secretos legacy `VPS_*`, para no romper el flujo actual mientras separas accesos.
-- `deploy.sh` refresca en cada ejecucion las host keys de `github.com` en `~/.ssh/known_hosts` del usuario de la app para evitar fallos por claves obsoletas durante `git fetch`.
+- El VPS ya no hace `git fetch`, Composer ni npm durante deploy; recibe el mismo archivo probado en CI.
 
 Si el job falla en `Check SSH port reachability`:
 
@@ -78,7 +78,7 @@ Secretos opcionales para staging:
 - `VPS_SSH_PORT_STAGING`
 - `VPS_USER_STAGING`
 - `VPS_SSH_KEY_STAGING`
-- `VPS_SSH_PASSPHRASE_STAGING`
+- `VPS_SSH_FINGERPRINT_STAGING`
 
 Secretos opcionales para produccion:
 
@@ -86,20 +86,20 @@ Secretos opcionales para produccion:
 - `VPS_SSH_PORT_PRODUCTION`
 - `VPS_USER_PRODUCTION`
 - `VPS_SSH_KEY_PRODUCTION`
-- `VPS_SSH_PASSPHRASE_PRODUCTION`
+- `VPS_SSH_FINGERPRINT_PRODUCTION`
 
 Comportamiento actual:
 
 - Si defines los secretos dedicados por entorno, cada workflow usa esos valores.
-- Si no existen, staging y produccion siguen usando los secretos legacy `VPS_HOST`, `VPS_SSH_PORT`, `VPS_USER`, `VPS_SSH_KEY` y `VPS_SSH_PASSPHRASE`.
+- Si no existen, staging y produccion siguen usando temporalmente los secretos legacy `VPS_HOST`, `VPS_SSH_PORT`, `VPS_USER`, `VPS_SSH_KEY` y `VPS_SSH_FINGERPRINT`.
 - Cuando quieras endurecer mas el control, puedes mover esta misma separacion a GitHub Environments `staging` y `production` sin cambiar el flujo de ramas.
 
 ## Branch protection
 
 Esto no se puede forzar solo con archivos del repo. Configuralo manualmente en GitHub:
 
-- `develop`: PR obligatorio, status checks obligatorios, sin push directo
-- `master`: PR obligatorio, status checks obligatorios, al menos 1 review, sin push directo
+- `develop`: PR, una review, checks de CI, conversaciones resueltas y sin push directo
+- `master`: lo anterior mas `Staging Promotion Gate`; solo PR desde `develop`
 
 ## Variables de entorno nuevas
 
@@ -163,6 +163,10 @@ Usar estas plantillas:
 - Staging Nginx: `deploy/nginx.staging.conf`
 - Worker prod: `deploy/laravel-queue.service`
 - Worker staging: `deploy/laravel-queue-staging.service`
+
+Las plantillas Nginx se renderizan con `deploy/bootstrap-release-layout.sh`,
+que preserva las directivas TLS del sitio HTTPS existente. No se deben copiar
+directamente mientras contengan `__TLS_CONFIGURATION__`.
 
 El archivo `deploy/nginx.conf` se conserva como alias de compatibilidad orientado a produccion.
 

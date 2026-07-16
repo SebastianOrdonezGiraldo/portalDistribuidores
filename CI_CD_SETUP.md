@@ -1,250 +1,169 @@
-# CI/CD Setup — Portal Distribuidores
+# CI/CD v2 - operacion y activacion
 
-Guía completa para configurar los pipelines de integración y entrega continua del proyecto en GitHub Actions.
+Esta guia describe el pipeline real. `master` es una rama de promocion: ningun
+cambio se prueba por primera vez alli y ningun push a `master` despliega
+produccion automaticamente.
 
----
+## Flujo
 
-## Tabla de contenidos
+1. Crear una rama desde `develop` y abrir PR hacia `develop`.
+2. CI ejecuta Pint, PHPStan, auditorias, actionlint, ShellCheck, tests SQLite,
+   tests PostgreSQL 16 y build con Node 24.
+3. El push resultante en `develop` construye `portal-<sha>` y despliega ese
+   archivo en staging.
+4. El job de staging publica `staging-proof-<tree-sha>` con commit, tree SHA,
+   checksum y run de CI.
+5. El PR `develop -> master` solo pasa `Staging Promotion Gate` cuando el HEAD
+   de `develop` tiene CI, artefacto y deployment de staging exitosos.
+6. El merge a `master` no despliega. `Promote Production` debe iniciarse
+   manualmente por `SebastianOrdonezGiraldo`.
+7. Produccion busca la prueba con el mismo tree SHA que `master`, promueve el
+   archivo exacto de staging y crea el release despues del health check.
 
-1. [Arquitectura del pipeline](#1-arquitectura-del-pipeline)
-2. [Secretos y variables necesarios](#2-secretos-y-variables-necesarios)
-3. [Configurar el environment de producción](#3-configurar-el-environment-de-producción)
-4. [Notificaciones Slack](#4-notificaciones-slack)
-5. [Scripts de deploy y rollback](#5-scripts-de-deploy-y-rollback)
-6. [Flujo de trabajo recomendado](#6-flujo-de-trabajo-recomendado)
-7. [Troubleshooting](#7-troubleshooting)
+## Checks obligatorios
 
----
+- `Code Style (Pint)`
+- `Static Analysis (PHPStan)`
+- `Security & Workflow Validation`
+- `Tests (SQLite)`
+- `Tests (PostgreSQL 16)`
+- `Build Release Artifact`
+- `Staging Promotion Gate` solo para `master`
 
-## 1. Arquitectura del pipeline
+## GitHub Environments y secretos
 
-```
-┌───────────────────────────────────────────────────────────┐
-│  Push a develop                                           │
-│    ↓                                                      │
-│  CI (4 jobs en paralelo)                                  │
-│    ├─ lint     → Laravel Pint (code style)                │
-│    ├─ stan     → PHPStan nivel 5 (análisis estático)      │
-│    ├─ security → composer audit + npm audit               │
-│    └─ test     → PHPUnit + build de assets                │
-│    ↓ (todos pasan)                                        │
-│  Deploy Staging (automático)                              │
-│    ├─ Slack: deploy iniciado                              │
-│    ├─ SSH → deploy.sh en VPS staging                      │
-│    ├─ Health check (10 intentos × 10s)                    │
-│    ├─ Rollback automático si falla                        │
-│    └─ Slack: éxito / fallo                                │
-└───────────────────────────────────────────────────────────┘
+Crear `staging` limitado a `develop` y `production` limitado a `master`. Copiar
+los valores actuales a secretos propios de cada environment; GitHub no permite
+leer ni copiar el valor de un secret mediante API.
 
-┌───────────────────────────────────────────────────────────┐
-│  Push a master                                            │
-│    ↓                                                      │
-│  CI (mismos 4 jobs)                                       │
-│    ↓ (todos pasan)                                        │
-│  Release (crea tag vX.Y.Z + release en GitHub)            │
-│    ↓                                                      │
-│  Deploy Production                                        │
-│    ├─ Slack: aprobación requerida                         │
-│    ├─ ⏳ ESPERA aprobación manual (environment protection)│
-│    ├─ Slack: deploy iniciado                              │
-│    ├─ SSH → deploy.sh en VPS producción                   │
-│    ├─ Health check (10 intentos × 10s)                    │
-│    ├─ Rollback automático si falla                        │
-│    └─ Slack: éxito / fallo                                │
-└───────────────────────────────────────────────────────────┘
-```
+| Environment | Secretos |
+| --- | --- |
+| `staging` | `VPS_HOST_STAGING`, `VPS_SSH_PORT_STAGING`, `VPS_USER_STAGING`, `VPS_SSH_KEY_STAGING`, `VPS_SSH_FINGERPRINT_STAGING` |
+| `production` | `VPS_HOST_PRODUCTION`, `VPS_SSH_PORT_PRODUCTION`, `VPS_USER_PRODUCTION`, `VPS_SSH_KEY_PRODUCTION`, `VPS_SSH_FINGERPRINT_PRODUCTION` |
 
----
+Durante la migracion existen fallbacks a `VPS_HOST`, `VPS_SSH_PORT`,
+`VPS_USER`, `VPS_SSH_KEY` y `VPS_SSH_FINGERPRINT`. Eliminarlos solo despues de
+dos promociones exitosas.
 
-## 2. Secretos y variables necesarios
+Produccion valida el conjunto dedicado como una unidad: deben existir los cinco
+secretos `VPS_*_PRODUCTION` o ninguno. Un conjunto parcial detiene el workflow
+antes de abrir SSH para evitar mezclar host, usuario, llave o fingerprint de
+ambientes distintos. Mientras no exista ninguno, el fallback legacy sigue
+funcional y queda registrado como advertencia en el run.
 
-Ve a **Settings → Secrets and variables → Actions** en tu repositorio.
-
-### Secretos (sensibles)
-
-| Nombre | Descripción | Ejemplo |
-|--------|-------------|---------|
-| `VPS_HOST_STAGING` | IP o hostname del VPS de staging | `203.0.113.10` |
-| `VPS_SSH_PORT_STAGING` | Puerto SSH de staging | `22` |
-| `VPS_USER_STAGING` | Usuario SSH de staging | `deploy` |
-| `VPS_SSH_KEY_STAGING` | Clave privada SSH (formato PEM completo) | `-----BEGIN OPENSSH...` |
-| `VPS_SSH_PASSPHRASE_STAGING` | Passphrase de la clave SSH (si aplica) | *(vacío si no tiene)* |
-| `VPS_HOST_PRODUCTION` | IP o hostname del VPS de producción | `203.0.113.20` |
-| `VPS_SSH_PORT_PRODUCTION` | Puerto SSH de producción | `22` |
-| `VPS_USER_PRODUCTION` | Usuario SSH de producción | `deploy` |
-| `VPS_SSH_KEY_PRODUCTION` | Clave privada SSH (formato PEM completo) | `-----BEGIN OPENSSH...` |
-| `VPS_SSH_PASSPHRASE_PRODUCTION` | Passphrase de la clave SSH (si aplica) | *(vacío si no tiene)* |
-| `SLACK_WEBHOOK_URL` | URL del Incoming Webhook de Slack | `https://hooks.slack.com/...` |
-
-> **Nota:** Los secretos `VPS_HOST`, `VPS_SSH_PORT`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_SSH_PASSPHRASE` (sin sufijo) se usan como fallback si los específicos por ambiente no están definidos.
-
-### Variables (no sensibles)
-
-| Nombre | Descripción | Valores |
-|--------|-------------|---------|
-| `SLACK_NOTIFICATIONS_ENABLED` | Activa/desactiva notificaciones Slack | `true` / `false` |
-
----
-
-## 3. Configurar el environment de producción
-
-El deploy a producción requiere aprobación manual. Para activarlo:
-
-1. Ve a **Settings → Environments** en tu repositorio.
-2. Crea un environment llamado exactamente **`production`**.
-3. Activa **"Required reviewers"** y agrega los usuarios/equipos que pueden aprobar.
-4. Opcionalmente configura un **"Wait timer"** (tiempo de espera antes de permitir el deploy).
-5. Guarda los cambios.
-
-Cada vez que CI pase en `master`, el workflow de deploy esperará la aprobación de uno de los reviewers antes de conectar al VPS.
-
----
-
-## 4. Notificaciones Slack
-
-### Crear un Incoming Webhook en Slack
-
-1. Ve a https://api.slack.com/apps → **Create New App** → **From scratch**.
-2. Nombre: `Portal Distribuidores CI/CD` — Workspace: el tuyo.
-3. En el menú izquierdo, ve a **Incoming Webhooks** → activar → **Add New Webhook**.
-4. Selecciona el canal donde quieres recibir notificaciones (ej: `#deploys`).
-5. Copia la URL del webhook y agrégala como secreto `SLACK_WEBHOOK_URL`.
-6. Agrega la variable `SLACK_NOTIFICATIONS_ENABLED = true`.
-
----
-
-## 5. Scripts de deploy y rollback
-
-### `deploy.sh`
-
-Script principal de despliegue. Se ejecuta en el VPS como `root`/`sudo`.
+Las llaves deben ser dedicadas, distintas por entorno y sin passphrase para
+uso no interactivo. El fingerprint usa el formato `SHA256:...` producido por:
 
 ```bash
-# Uso básico (se detecta el ambiente desde APP_ENV en .env)
-sudo bash deploy.sh
+ssh-keyscan -p <puerto> <host> > /tmp/portal-host-keys
+ssh-keygen -lf /tmp/portal-host-keys -E sha256
 ```
 
-### `rollback.sh`
+El workflow vuelve a obtener las host keys, reintenta hasta tres veces ante un
+timeout transitorio y corta antes de autenticar si ninguna coincide con el
+fingerprint almacenado.
 
-Revierte al commit anterior en caso de fallo.
+## Bootstrap unico del VPS
+
+Antes del primer artefacto atomico, actualizar el checkout legacy del entorno a
+la version aprobada y ejecutar:
 
 ```bash
-# Revertir al commit anterior
-sudo bash rollback.sh
+# Staging
+cd /var/www/portalDistribuidores-staging
+sudo bash deploy/bootstrap-release-layout.sh \
+  --environment staging \
+  --base-dir /var/www/portalDistribuidores-staging
+
+# Produccion, solo despues de validar staging
+cd /var/www/portalDistribuidores
+sudo bash deploy/bootstrap-release-layout.sh \
+  --environment production \
+  --base-dir /var/www/portalDistribuidores
 ```
 
-El script:
-- Hace `git reset --hard HEAD~1`
-- Reinstala dependencias del commit anterior
-- Reconstruye assets frontend
-- Revierte la última migración de DB (`migrate:rollback --step=1`)
-- Reinicia PHP-FPM y la cola de trabajos
-- Limpia y reconstruye cachés de Laravel
+El bootstrap crea inicialmente `current -> <checkout legacy>`, conserva las
+directivas TLS del sitio Nginx HTTPS existente, instala las plantillas
+Nginx/systemd que apuntan a `current` y valida los servicios. Esto no activa
+todavia un release nuevo y permite revertir la configuracion Nginx desde la
+copia `*.pre-cicd-v2-*`. Si el sitio real usa otra ruta, se pasa con
+`--nginx-site`; las plantillas con el marcador TLS no se copian directamente.
+Para mantener compatibilidad con Nginx 1.24+, el bootstrap usa
+`listen ... http2` antes de 1.25.1 y renderiza `http2 on` desde 1.25.1, donde el
+parametro antiguo esta deprecado y puede producir advertencias al compartir el
+puerto 443 entre staging y produccion.
 
-### `health-check.sh`
+## Layout y rollback
 
-Verifica que la aplicación responde correctamente.
+```text
+/var/www/portalDistribuidores[-staging]/
+  current -> releases/<source-sha>
+  releases/<source-sha>/
+  shared/.env
+  shared/storage/
+  shared/deployments/
+```
+
+`deploy.sh` verifica checksum y metadata, prepara el candidato, ejecuta
+migraciones forward-only, cambia `current` atomicamente y valida `/up`, worker y
+scheduler. En produccion crea antes un dump PostgreSQL.
+
+Un fallo posterior al symlink restaura el target anterior. El rollback nunca
+ejecuta `migrate:rollback` ni restaura automaticamente la base:
 
 ```bash
-# Verificar producción
-bash health-check.sh https://pedidos.importcorporalmedical.com
+sudo bash rollback.sh \
+  --environment production
 
-# Verificar staging
-bash health-check.sh https://staging-pedidos.importcorporalmedical.com
+sudo bash rollback.sh \
+  --environment staging \
+  --to <source-sha>
 ```
 
----
+Las migraciones deben usar expand/contract. Una eliminacion o renombre de
+columna no puede compartir release con codigo que haga necesario volver al
+esquema anterior.
 
-## 6. Flujo de trabajo recomendado
+## Validacion inicial antes de `master`
 
-### Desarrollo de features
+1. Merge del PR CI/CD hacia `develop`; CI debe quedar verde.
+2. Ejecutar el bootstrap de staging.
+3. Reejecutar el run exitoso de `develop` para obtener el primer deploy atomico.
+4. Reejecutarlo otra vez y confirmar idempotencia.
+5. Activar temporalmente la variable de repositorio
+   `STAGING_ROLLBACK_DRILL=true` y reejecutar el mismo run. El job fuerza una
+   falla post-switch, exige `ROLLBACK_RESULT status=success` y redespliega el
+   candidato normalmente.
+6. Eliminar la variable o cambiarla a `false` inmediatamente.
+7. Confirmar en el summary: commit, tree, checksum, `/up`, pagina HTTPS, asset,
+   PHP-FPM, cola, cron y `contapyme-stock-sync`.
+8. Solo entonces abrir `develop -> master`.
 
-```bash
-git checkout develop
-git checkout -b feature/mi-nueva-funcionalidad
-# ... hacer cambios ...
-git push origin feature/mi-nueva-funcionalidad
-# Abrir PR hacia develop
-```
+Cuando el workflow ya exista en la rama por defecto, `Staging Drill` ofrece el
+mismo ejercicio mediante `workflow_dispatch` con `rollback_drill=true`.
 
-### Deploy a staging
+## Rulesets y politica de Actions
 
-```bash
-# Merge de PR a develop
-git checkout develop
-git merge feature/mi-nueva-funcionalidad
-git push origin develop
-# → CI corre automáticamente → Deploy staging automático
-```
+Activar estos controles despues de que los checks nuevos hayan aparecido al
+menos una vez; hacerlo antes bloquearia ramas con checks inexistentes.
 
-### Deploy a producción
+- `develop`: PR, una aprobacion, dismiss stale reviews, aprobacion del ultimo
+  push, conversaciones resueltas, rama actualizada y seis checks de CI.
+- `master`: los mismos controles mas `Staging Promotion Gate`.
+- Ambas: sin push directo, borrado, force-push ni bypass configurado.
+- Tags `v*`: prohibir eliminacion y reescritura.
+- Actions: `sha_pinning_required=true`; permitir solo Actions de GitHub y
+  `shivammathur/setup-php`.
 
-```bash
-# Abrir PR de develop → master
-# Revisar y aprobar PR
-# Al hacer merge a master:
-# → CI corre automáticamente
-# → Se crea un Release vX.Y.Z automáticamente
-# → Deploy espera aprobación manual en GitHub
-# → Reviewer aprueba en GitHub Actions
-# → Deploy a producción
-```
+## Diagnostico
 
----
-
-## 7. Troubleshooting
-
-### CI falla en "Audit Node.js dependencies"
-
-```
-Error: npm audit found vulnerabilities
-```
-
-**Solución:** Revisa las vulnerabilidades con `npm audit` localmente y actualiza los paquetes afectados con `npm update` o `npm audit fix`.
-
-### CI falla en "Run Laravel Pint"
-
-```
-Error: Found X issues
-```
-
-**Solución:** Ejecuta `./vendor/bin/pint` localmente para auto-corregir el estilo de código antes de hacer push.
-
-### CI falla en "Run PHPStan"
-
-```
-Error: X errors found
-```
-
-**Solución:** Ejecuta `./vendor/bin/phpstan analyse` localmente para ver los errores detallados y corrígelos.
-
-### Deploy falla: "SSH no accesible"
-
-1. Verifica que el secreto `VPS_HOST_STAGING` / `VPS_HOST_PRODUCTION` es correcto.
-2. Verifica que el puerto SSH está abierto en el firewall del VPS.
-3. Asegúrate de que fail2ban no está bloqueando las IPs de GitHub Actions.
-
-Para obtener las IPs de GitHub Actions: https://api.github.com/meta (campo `actions`).
-
-### Deploy falla: "Health check fallido"
-
-1. Conecta al VPS y revisa los logs: `sudo journalctl -u php8.3-fpm -n 50`
-2. Revisa los logs de Nginx: `sudo tail -100 /var/log/nginx/error.log`
-3. Revisa los logs de Laravel: `tail -100 /var/www/portalDistribuidores/storage/logs/laravel.log`
-4. El rollback automático debería haberse ejecutado; verifica el estado de la aplicación.
-
-### Rollback manual de emergencia
-
-Si necesitas hacer rollback manualmente:
-
-```bash
-ssh usuario@vps
-cd /var/www/portalDistribuidores  # o portalDistribuidores-staging
-sudo bash rollback.sh
-```
-
-### Ver logs del pipeline
-
-1. Ve a **Actions** en el repositorio de GitHub.
-2. Selecciona el workflow run fallido.
-3. Haz clic en el job específico para ver los logs detallados.
+- Fallo de fingerprint: revisar el secret; no sustituirlo por `ssh-keyscan` sin
+  comparacion.
+- No hay `staging-proof`: rerun completo de CI en el SHA de `develop`; el
+  artefacto expira a los 30 dias.
+- `/up` falla: revisar `storage/logs/laravel.log`, DB/cache, permisos de
+  `shared/storage`, PHP-FPM, cola y cron. Publicamente `/up` debe seguir
+  bloqueado por Nginx.
+- Fallo antes del symlink: `current` debe permanecer igual.
+- Fallo despues del symlink: buscar `ROLLBACK_RESULT`; si tambien falla,
+  detener promociones y ejecutar el rollback manual.

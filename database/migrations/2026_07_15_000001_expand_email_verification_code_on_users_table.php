@@ -9,14 +9,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('email_verification_code', 255)->nullable()->change();
+            $table->string('email_verification_code')->nullable()->change();
         });
     }
 
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->string('email_verification_code', 6)->nullable()->change();
-        });
+        // Intentionally irreversible: shrinking this column would truncate password hashes.
     }
 };

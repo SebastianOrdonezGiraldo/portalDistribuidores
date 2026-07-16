@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2016
+# shellcheck disable=SC2016
 
 set -Eeuo pipefail
 
@@ -101,6 +102,8 @@ run_as_app() {
 read_env_value() {
     local key="$1"
     local raw
+    raw="$(grep -E "^${key}=" "$SHARED_DIR/.env" | head -n 1 | cut -d= -f2- || true)"
+    raw="${raw%\"}"; raw="${raw#\"}"; raw="${raw%\'}"; raw="${raw#\'}"
     raw="$(grep -E "^${key}=" "$SHARED_DIR/.env" | head -n 1 | cut -d= -f2- || true)"
     raw="${raw%\"}"; raw="${raw#\"}"; raw="${raw%\'}"; raw="${raw#\'}"
     printf '%s' "$raw"
@@ -476,6 +479,11 @@ if [[ "$SIMULATE_FAILURE" == true ]]; then
     [[ -n "$PREVIOUS_TARGET" && "$PREVIOUS_TARGET" != "$RELEASE_DIR" ]] || fail "A previous release is required for a rollback drill."
     fail "Simulated post-switch failure for rollback drill."
 fi
+
+verify_health "$RELEASE_DIR"
+
+if [[ -n "$PREVIOUS_TARGET" && "$PREVIOUS_TARGET" != "$RELEASE_DIR" ]]; then
+    printf '%s\n' "$PREVIOUS_TARGET" > "$SHARED_DIR/deployments/previous-release"
 
 verify_health "$RELEASE_DIR"
 
