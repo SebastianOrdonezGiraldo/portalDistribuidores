@@ -28,20 +28,24 @@
         <tr>
             <td align="center">
                 <table role="presentation" class="email-shell" width="600" cellpadding="0" cellspacing="0" style="width: 600px; max-width: 600px; background-color: #ffffff; border-radius: 14px; overflow: hidden;">
-                    <tr>
-                        <td style="padding: 20px 28px; background-color: #051b26; border-bottom: 4px solid #36b1bb;">
-                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                                <tr>
-                                    <td valign="middle">
-                                        <img src="{{ rtrim((string) config('app.url'), '/') }}/images/import-corporal-logo.png" alt="Import Corporal Medical SAS" width="150" style="display: block; width: 150px; height: auto; max-width: 150px;">
-                                    </td>
-                                    <td valign="middle" align="right" style="font-size: 12px; color: #cbd5e1; letter-spacing: 0.3px;">
-                                        Portal de Distribuidores
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
+                    @hasSection('email_header')
+                        @yield('email_header')
+                    @else
+                        <tr>
+                            <td style="padding: 20px 28px; background-color: #051b26; border-bottom: 4px solid #36b1bb;">
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td valign="middle">
+                                            <img src="{{ rtrim((string) config('app.url'), '/') }}/images/import-corporal-logo.png" alt="Import Corporal Medical SAS" width="150" style="display: block; width: 150px; height: auto; max-width: 150px;">
+                                        </td>
+                                        <td valign="middle" align="right" style="font-size: 12px; color: #cbd5e1; letter-spacing: 0.3px;">
+                                            Portal de Distribuidores
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    @endif
 
                     <tr>
                         <td class="email-body" style="padding: 32px 36px;">

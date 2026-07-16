@@ -2,7 +2,6 @@
 
 namespace App\Modules\AuthAccess\Mail;
 
-use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -15,7 +14,7 @@ class EmailVerificationCodeMail extends Mailable
     use SerializesModels;
 
     public function __construct(
-        public readonly User $user,
+        public readonly string $recipientName,
         public readonly string $code,
     ) {}
 
@@ -32,7 +31,7 @@ class EmailVerificationCodeMail extends Mailable
             view: 'emails.auth.email-verification-code',
             text: 'emails.auth.email-verification-code-text',
             with: [
-                'user' => $this->user,
+                'recipientName' => $this->recipientName,
                 'code' => $this->code,
             ],
         );

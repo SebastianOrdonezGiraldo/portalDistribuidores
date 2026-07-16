@@ -51,12 +51,16 @@ case "$ENVIRONMENT" in
         EXPECTED_DB="$EXPECTED_PRODUCTION_DB"
         QUEUE_SERVICE="laravel-queue"
         QUEUE_UNIT_NAME="laravel-queue.service"
+        NGINX_TEMPLATE_NAME="nginx.production.conf"
+        NGINX_SITE_NAME="portal-distribuidores"
         ;;
     staging)
         [[ "$BASE_DIR" == "/var/www/portalDistribuidores-staging" ]] || fail "Unexpected staging base directory."
         EXPECTED_DB="$EXPECTED_STAGING_DB"
         QUEUE_SERVICE="laravel-queue-staging"
         QUEUE_UNIT_NAME="laravel-queue-staging.service"
+        NGINX_TEMPLATE_NAME="nginx.staging.conf"
+        NGINX_SITE_NAME="portal-distribuidores-staging"
         ;;
 esac
 
@@ -71,12 +75,20 @@ MANIFEST_FILE="$ARTIFACT_DIR/manifest.json"
 CHECKSUM_FILE="$ARTIFACT_DIR/SHA256SUMS"
 APP_HOME="$(getent passwd "$APP_USER" | cut -d: -f6 || true)"
 PHP_BIN="$(command -v php8.3 2>/dev/null || command -v php 2>/dev/null || true)"
+NGINX_BIN="$(command -v nginx 2>/dev/null || true)"
 BACKUP_FILE=""
 PREVIOUS_TARGET=""
 SWITCHED=false
+NGINX_SITE="/etc/nginx/sites-available/$NGINX_SITE_NAME"
+NGINX_ENABLED_LINK="/etc/nginx/sites-enabled/$NGINX_SITE_NAME"
+NGINX_BACKUP=""
+NGINX_LINK_EXISTED=false
+NGINX_PREVIOUS_LINK_TARGET=""
+NGINX_CONFIG_CHANGED=false
 
 [[ -n "$APP_HOME" ]] || fail "Application user $APP_USER does not exist."
 [[ -n "$PHP_BIN" ]] || fail "PHP was not found."
+[[ -n "$NGINX_BIN" ]] || fail "Nginx was not found."
 [[ -f "$MANIFEST_FILE" && -f "$CHECKSUM_FILE" ]] || fail "Artifact metadata is incomplete."
 
 run_as_app() {
@@ -109,6 +121,128 @@ activate_target() {
     rm -f "$temporary_link"
     ln -s "$target" "$temporary_link"
     mv -Tf "$temporary_link" "$CURRENT_LINK"
+}
+
+restore_nginx_configuration() {
+    local restore_candidate
+
+    [[ "$NGINX_CONFIG_CHANGED" == true ]] || return 0
+    [[ -f "$NGINX_BACKUP" ]] || return 1
+
+    restore_candidate="$(mktemp "/etc/nginx/sites-available/.${NGINX_SITE_NAME}.restore.XXXXXX")"
+    install -o root -g root -m 0644 "$NGINX_BACKUP" "$restore_candidate"
+    mv -f "$restore_candidate" "$NGINX_SITE"
+
+    if [[ "$NGINX_LINK_EXISTED" == true ]]; then
+        ln -sfn "$NGINX_PREVIOUS_LINK_TARGET" "$NGINX_ENABLED_LINK"
+    else
+        rm -f "$NGINX_ENABLED_LINK"
+    fi
+
+    if ! "$NGINX_BIN" -t; then
+        echo "NGINX_ROLLBACK_RESULT status=failure reason=restored_configuration_invalid" >&2
+        return 1
+    fi
+
+    if ! systemctl reload nginx.service; then
+        echo "NGINX_ROLLBACK_RESULT status=failure reason=reload_failed" >&2
+        return 1
+    fi
+
+    NGINX_CONFIG_CHANGED=false
+    echo "NGINX_ROLLBACK_RESULT status=success site=$NGINX_SITE" >&2
+}
+
+install_nginx_configuration() {
+    local template="$RELEASE_DIR/deploy/$NGINX_TEMPLATE_NAME"
+    local tls_configuration https_listen_configuration rendered_configuration candidate nginx_version
+
+    [[ -f "$template" ]] || fail "Nginx template is missing: $template"
+    [[ -f "$NGINX_SITE" ]] || fail "The active Nginx site is required to preserve its TLS configuration: $NGINX_SITE"
+
+    if [[ -e "$NGINX_ENABLED_LINK" && ! -L "$NGINX_ENABLED_LINK" ]]; then
+        fail "$NGINX_ENABLED_LINK exists and is not a symlink."
+    fi
+
+    tls_configuration="$(mktemp)"
+    https_listen_configuration="$(mktemp)"
+    rendered_configuration="$(mktemp)"
+    candidate="$(mktemp "/etc/nginx/sites-available/.${NGINX_SITE_NAME}.candidate.XXXXXX")"
+
+    nginx_version="$("$NGINX_BIN" -v 2>&1)"
+    nginx_version="${nginx_version##*/}"
+    nginx_version="${nginx_version%% *}"
+    [[ "$nginx_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+        || fail "Unable to determine the installed Nginx version."
+
+    if [[ "$(printf '%s\n' "1.25.1" "$nginx_version" | sort -V | head -n 1)" == "1.25.1" ]]; then
+        printf '%s\n' \
+            '    listen 443 ssl;' \
+            '    listen [::]:443 ssl;' \
+            '    http2 on;' > "$https_listen_configuration"
+    else
+        printf '%s\n' \
+            '    listen 443 ssl http2;' \
+            '    listen [::]:443 ssl http2;' > "$https_listen_configuration"
+    fi
+
+    grep -E \
+        '^[[:space:]]*(ssl_certificate|ssl_certificate_key|ssl_trusted_certificate|ssl_dhparam)[[:space:]]|^[[:space:]]*include[[:space:]]+/etc/letsencrypt/' \
+        "$NGINX_SITE" > "$tls_configuration" || true
+    grep -Eq '^[[:space:]]*ssl_certificate[[:space:]]' "$tls_configuration" \
+        || fail "The active Nginx site has no TLS certificate directive."
+    grep -Eq '^[[:space:]]*ssl_certificate_key[[:space:]]' "$tls_configuration" \
+        || fail "The active Nginx site has no TLS private-key directive."
+    grep -Fq '__TLS_CONFIGURATION__' "$template" \
+        || fail "The Nginx template has no TLS placeholder."
+    grep -Fq '__HTTPS_LISTEN_CONFIGURATION__' "$template" \
+        || fail "The Nginx template has no HTTPS listen placeholder."
+
+    awk -v tls_file="$tls_configuration" -v https_file="$https_listen_configuration" '
+        /__HTTPS_LISTEN_CONFIGURATION__/ {
+            while ((getline line < https_file) > 0) { print line }
+            close(https_file)
+            next
+        }
+        /__TLS_CONFIGURATION__/ {
+            while ((getline line < tls_file) > 0) { print line }
+            close(tls_file)
+            next
+        }
+        { print }
+    ' "$template" > "$rendered_configuration"
+
+    grep -Eq '__TLS_CONFIGURATION__|__HTTPS_LISTEN_CONFIGURATION__' "$rendered_configuration" \
+        && fail "The Nginx template was not fully rendered."
+    grep -Fq "$BASE_DIR/current/public" "$rendered_configuration" \
+        || fail "The Nginx template does not target the atomic current symlink."
+
+    NGINX_BACKUP="$(mktemp "$SHARED_DIR/deployments/nginx-${ENVIRONMENT}.previous.XXXXXX")"
+    cp -a "$NGINX_SITE" "$NGINX_BACKUP"
+
+    if [[ -L "$NGINX_ENABLED_LINK" ]]; then
+        NGINX_LINK_EXISTED=true
+        NGINX_PREVIOUS_LINK_TARGET="$(readlink "$NGINX_ENABLED_LINK")"
+    fi
+
+    install -o root -g root -m 0644 "$rendered_configuration" "$candidate"
+    mv -f "$candidate" "$NGINX_SITE"
+    ln -sfn "$NGINX_SITE" "$NGINX_ENABLED_LINK"
+    NGINX_CONFIG_CHANGED=true
+
+    rm -f "$tls_configuration" "$https_listen_configuration" "$rendered_configuration"
+
+    if ! "$NGINX_BIN" -t; then
+        restore_nginx_configuration || true
+        fail "The candidate Nginx configuration is invalid; the previous site was restored."
+    fi
+
+    if ! systemctl reload nginx.service; then
+        restore_nginx_configuration || true
+        fail "Nginx could not be reloaded; the previous site was restored."
+    fi
+
+    echo "NGINX_DEPLOY_RESULT status=success environment=$ENVIRONMENT site=$NGINX_SITE"
 }
 
 restart_runtime() {
@@ -165,6 +299,10 @@ rollback_after_failure() {
     local line_number="$2"
     trap - ERR
     echo "DEPLOY_RESULT status=failure source_sha=$SOURCE_SHA line=$line_number" >&2
+
+    if [[ "$NGINX_CONFIG_CHANGED" == true ]]; then
+        restore_nginx_configuration || true
+    fi
 
     if [[ "$SWITCHED" == true && -n "$PREVIOUS_TARGET" && -d "$PREVIOUS_TARGET" ]]; then
         echo "Restoring previous release: $PREVIOUS_TARGET" >&2
@@ -298,8 +436,6 @@ if [[ "${PRIVATE_DISK_DRIVER_VALUE,,}" == "s3" ]]; then
     [[ -n "$PRIVATE_BUCKET_VALUE" ]] || fail "PRIVATE_BUCKET is required when PRIVATE_DISK_DRIVER=s3."
 fi
 
-nginx -T 2>/dev/null | grep -Fq "$BASE_DIR/current/public" || fail "Nginx is not bootstrapped for the atomic current symlink."
-
 if [[ "$ENVIRONMENT" == "production" ]]; then
     PG_DUMP_BIN="$(command -v pg_dump 2>/dev/null || true)"
     [[ -n "$PG_DUMP_BIN" ]] || fail "pg_dump is required in production."
@@ -352,6 +488,8 @@ PATH=$SYSTEM_PATH
 CRON
 chmod 0644 "/etc/cron.d/portal-distribuidores-${ENVIRONMENT}"
 
+install_nginx_configuration
+
 activate_target "$RELEASE_DIR"
 SWITCHED=true
 restart_runtime
@@ -383,5 +521,8 @@ if (( ${#ALL_RELEASES[@]} > 5 )); then
         rm -rf "$old_release"
     done
 fi
+
+rm -f "$NGINX_BACKUP"
+NGINX_CONFIG_CHANGED=false
 
 echo "DEPLOY_RESULT status=success environment=$ENVIRONMENT source_sha=$SOURCE_SHA source_tree=$MANIFEST_SOURCE_TREE promotion_sha=$PROMOTION_SHA previous=${PREVIOUS_TARGET:-none} backup=${BACKUP_FILE:-none}"
