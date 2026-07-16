@@ -23,6 +23,10 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Keep the deployment health check reachable while the public portal is
+        // intentionally unavailable through Laravel's maintenance mode.
+        $middleware->preventRequestsDuringMaintenance(except: ['up']);
+
         $middleware->alias([
             'role' => RoleMiddleware::class,
             'suspicious_automation' => ThrottleSuspiciousAutomation::class,
