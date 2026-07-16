@@ -166,6 +166,13 @@ Usar estas plantillas:
 
 El archivo `deploy/nginx.conf` se conserva como alias de compatibilidad orientado a produccion.
 
+Durante cada despliegue atomico, `deploy.sh` renderiza la plantilla Nginx del
+entorno desde la release candidata, conserva las directivas TLS administradas
+por Certbot, actualiza el sitio de `/etc/nginx/sites-available/` y su enlace en
+`sites-enabled`, ejecuta `nginx -t` y solo entonces recarga Nginx. Si la
+validacion, la recarga o una fase posterior del deploy falla, se restaura la
+configuracion Nginx anterior junto con la release previa.
+
 ## Refresco de datos a staging
 
 Script:
