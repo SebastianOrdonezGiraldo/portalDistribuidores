@@ -305,6 +305,16 @@ View contract:
                                     </div>
                                 </div>
                             @endisset
+                            @if($isDistributor)
+                                <a href="{{ route('cart.index') }}" class="btn btn-secondary relative {{ isset($catalogToolbar) ? 'hidden lg:inline-flex' : 'hidden sm:inline-flex' }} !min-h-10 !min-w-10 !px-2.5" aria-label="Ver carrito" title="Carrito" data-cart-target>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
+                                    @if(($navCartCount ?? 0) > 0)
+                                        <x-ui.badge variant="brand" class="absolute -right-1.5 -top-1.5 !min-w-5 !px-1" data-cart-badge>{{ $navCartCount }}</x-ui.badge>
+                                    @else
+                                        <x-ui.badge variant="neutral" class="absolute -right-1.5 -top-1.5 !min-w-5 !px-1" data-cart-badge>0</x-ui.badge>
+                                    @endif
+                                </a>
+                            @endif
                             <div class="{{ isset($catalogToolbar) ? 'hidden lg:block' : '' }} relative" x-data="{ profileMenuOpen: false }" @keydown.escape.window="profileMenuOpen = false">
                                 <button
                                     type="button"
