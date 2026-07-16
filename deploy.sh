@@ -494,6 +494,9 @@ activate_target "$RELEASE_DIR"
 SWITCHED=true
 restart_runtime
 
+# A previous operational intervention may leave the shared Laravel maintenance
+# marker active. A successful release must be live before its health checks run.
+run_as_app "$RELEASE_DIR" "$PHP_BIN" artisan up
 run_as_app "$RELEASE_DIR" "$PHP_BIN" artisan queue:restart || true
 run_as_app "$RELEASE_DIR" "$PHP_BIN" artisan schedule:list | grep -Fq 'contapyme-stock-sync' || fail "ContaPyme schedule is missing."
 
