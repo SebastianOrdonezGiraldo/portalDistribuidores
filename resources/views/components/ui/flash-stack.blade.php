@@ -40,6 +40,7 @@ Component contract:
                 :variant="$message['variant']"
                 data-toast
                 data-toast-timeout="5000"
+                data-toast-message="{{ $message['text'] }}"
                 data-cart-success="{{ !empty($message['cart_success']) ? 'true' : 'false' }}"
                 class="pointer-events-auto animate-toast-in"
             >

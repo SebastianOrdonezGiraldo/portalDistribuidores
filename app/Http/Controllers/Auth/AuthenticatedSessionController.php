@@ -28,7 +28,7 @@ class AuthenticatedSessionController extends Controller
     /**
      * Iniciar sesion.
      *
-     * Autentica con sesion web y redirige al dashboard segun el rol.
+     * Autentica con sesion web y redirige segun el rol.
      *
      * @group Autenticacion
      *
@@ -37,7 +37,7 @@ class AuthenticatedSessionController extends Controller
      * @bodyParam email string required Correo del usuario. Example: admin@importcorporal.test
      * @bodyParam password string required Contrasena del usuario. Example: secret
      *
-     * @response 302 {"redirect":"dashboard"}
+     * @response 302 {"redirect":"catalog.index|dashboard"}
      * @response 422 {"message":"Credenciales invalidas o campos requeridos"}
      * @response 429 {"message":"Has realizado demasiados intentos."}
      */
@@ -46,6 +46,10 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $request->session()->regenerate();
+
+        if ($request->user()?->isDistributor()) {
+            return redirect()->route('catalog.index');
+        }
 
         return redirect()->intended(route('dashboard', absolute: false));
     }

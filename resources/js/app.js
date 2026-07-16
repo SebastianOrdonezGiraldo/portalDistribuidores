@@ -26,6 +26,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebar = document.querySelector('[data-sidebar]');
     const sidebarOverlay = document.querySelector('[data-sidebar-overlay]');
     const sidebarToggles = Array.from(document.querySelectorAll('[data-sidebar-toggle]'));
+    const sidebarCollapseButton = document.querySelector('[data-sidebar-collapse]');
+    const sidebarCollapseIcon = sidebarCollapseButton?.querySelector('[data-sidebar-collapse-icon]');
+    const sidebarExpandIcon = sidebarCollapseButton?.querySelector('[data-sidebar-expand-icon]');
+    const sidebarNavLinks = Array.from(document.querySelectorAll('[data-sidebar-nav-link]'));
     const cookieBanner = document.querySelector('[data-cookie-banner]');
     const cookieAcceptButton = cookieBanner?.querySelector('[data-cookie-accept]');
     const cookieConsentKey = 'portal_cookie_consent_v1';
@@ -40,6 +44,64 @@ document.addEventListener('DOMContentLoaded', () => {
         '[tabindex]:not([tabindex="-1"])',
     ].join(', ');
     let lastSidebarTrigger = null;
+    const distributorSidebarStorageKey = 'distributor_sidebar_collapsed_v1';
+
+    sidebarNavLinks.forEach((link) => {
+        const labelSource = link.cloneNode(true);
+        labelSource.querySelectorAll('.badge').forEach((badge) => badge.remove());
+        link.dataset.sidebarLabel = (labelSource.textContent || '').replace(/\s+/g, ' ').trim();
+    });
+
+    const readDesktopSidebarPreference = () => {
+        if (!sidebarCollapseButton || !sidebar) {
+            return false;
+        }
+
+        try {
+            const storedState = window.localStorage.getItem(distributorSidebarStorageKey);
+
+            if (storedState !== null) {
+                return storedState === '1';
+            }
+        } catch {
+            // Fall back to the route-specific initial state below.
+        }
+
+        return sidebar.dataset.sidebarDefaultCollapsed === 'true';
+    };
+
+    let desktopSidebarCollapsed = readDesktopSidebarPreference();
+
+    const renderDesktopSidebarState = ({ persist = false } = {}) => {
+        const collapsed = Boolean(sidebarCollapseButton && isDesktopViewport() && desktopSidebarCollapsed);
+
+        document.documentElement.classList.toggle('distributor-sidebar-collapsed', collapsed);
+
+        if (sidebarCollapseButton) {
+            sidebarCollapseButton.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            sidebarCollapseButton.setAttribute('aria-label', collapsed ? 'Expandir menú lateral' : 'Contraer menú lateral');
+            sidebarCollapseButton.setAttribute('title', collapsed ? 'Expandir menú' : 'Contraer menú');
+        }
+
+        sidebarCollapseIcon?.classList.toggle('hidden', collapsed);
+        sidebarExpandIcon?.classList.toggle('hidden', !collapsed);
+
+        sidebarNavLinks.forEach((link) => {
+            if (collapsed && link.dataset.sidebarLabel) {
+                link.setAttribute('title', link.dataset.sidebarLabel);
+            } else {
+                link.removeAttribute('title');
+            }
+        });
+
+        if (persist) {
+            try {
+                window.localStorage.setItem(distributorSidebarStorageKey, desktopSidebarCollapsed ? '1' : '0');
+            } catch {
+                // The control remains functional for the current page without persistence.
+            }
+        }
+    };
 
     const hasCookieConsent = () => {
         try {
@@ -155,9 +217,11 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.classList.remove('sidebar-open');
             setSidebarInteractivity(true);
             setSidebarExpanded(false);
+            renderDesktopSidebarState();
             return;
         }
 
+        document.documentElement.classList.remove('distributor-sidebar-collapsed');
         sidebar.classList.add('-translate-x-full');
         sidebarOverlay?.classList.add('hidden');
         document.body.classList.remove('sidebar-open');
@@ -169,6 +233,11 @@ document.addEventListener('DOMContentLoaded', () => {
         button.addEventListener('click', () => {
             showSidebar(button);
         });
+    });
+
+    sidebarCollapseButton?.addEventListener('click', () => {
+        desktopSidebarCollapsed = !desktopSidebarCollapsed;
+        renderDesktopSidebarState({ persist: true });
     });
 
     document.querySelectorAll('[data-sidebar-close], [data-sidebar-overlay]').forEach((button) => {
@@ -490,6 +559,69 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 360);
     };
 
+    const showCartTooltip = (message) => {
+        const target = getCartBadgeTarget();
+
+        if (!target) {
+            showInlineToast(message, 'success');
+            return;
+        }
+
+        document.querySelectorAll('[data-cart-tooltip]').forEach((tooltip) => tooltip.remove());
+
+        const rect = target.getBoundingClientRect();
+        const tooltip = document.createElement('div');
+        tooltip.dataset.cartTooltip = 'true';
+        tooltip.className = 'cart-tooltip animate-cart-tooltip-in';
+        tooltip.setAttribute('role', 'status');
+        tooltip.setAttribute('aria-live', 'polite');
+
+        const icon = document.createElement('span');
+        icon.className = 'cart-tooltip-icon';
+        icon.innerHTML = makeCheckSvg();
+
+        const text = document.createElement('span');
+        text.className = 'cart-tooltip-text';
+        text.textContent = message;
+
+        const closeButton = document.createElement('button');
+        closeButton.type = 'button';
+        closeButton.className = 'cart-tooltip-close';
+        closeButton.setAttribute('aria-label', 'Cerrar');
+        closeButton.innerHTML = '<svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
+        tooltip.append(icon, text, closeButton);
+        document.body.append(tooltip);
+
+        const position = () => {
+            const tooltipRect = tooltip.getBoundingClientRect();
+            const viewportPadding = 12;
+            const left = Math.min(
+                Math.max(viewportPadding, rect.left + rect.width / 2 - tooltipRect.width / 2),
+                window.innerWidth - tooltipRect.width - viewportPadding,
+            );
+            const top = Math.min(
+                Math.max(viewportPadding, rect.bottom + 12),
+                window.innerHeight - tooltipRect.height - viewportPadding,
+            );
+
+            tooltip.style.left = `${left}px`;
+            tooltip.style.top = `${top}px`;
+            tooltip.style.setProperty('--cart-tooltip-arrow-x', `${rect.left + rect.width / 2 - left}px`);
+        };
+
+        position();
+
+        const close = () => {
+            tooltip.classList.remove('animate-cart-tooltip-in');
+            tooltip.classList.add('inline-toast-leave');
+            window.setTimeout(() => tooltip.remove(), 220);
+        };
+
+        closeButton.addEventListener('click', close);
+        window.setTimeout(close, 3200);
+    };
+
     const makeSpinnerSvg = (extraClass = '') =>
         `<svg class="h-4 w-4 btn-spinning${extraClass ? ' ' + extraClass : ''}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.568 3 7.212l3-2.921z"></path></svg>`;
 
@@ -501,6 +633,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (cartSuccessToast) {
         animateCartBadges();
+        showCartTooltip(cartSuccessToast.dataset.toastMessage || 'Producto agregado al carrito.');
+        cartSuccessToast.remove();
     }
 
     document.addEventListener('click', (event) => {
@@ -699,7 +833,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     ? payload.message
                     : fallbackMessage;
 
-                showInlineToast(successMessage, 'success');
+                showCartTooltip(successMessage);
 
                 // Reset button after success display
                 window.setTimeout(resetButton, 1300);

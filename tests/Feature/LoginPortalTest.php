@@ -38,7 +38,7 @@ class LoginPortalTest extends TestCase
             'password' => $password,
         ]);
 
-        $response->assertRedirect('/dashboard');
+        $response->assertRedirect(route('catalog.index', absolute: false));
         $this->assertAuthenticated();
     }
 

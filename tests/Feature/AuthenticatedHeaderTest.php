@@ -12,6 +12,19 @@ class AuthenticatedHeaderTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_guest_catalog_moves_distributor_registration_to_header_and_uses_compact_whatsapp_access(): void
+    {
+        $response = $this->get(route('catalog.index'));
+
+        $response
+            ->assertOk()
+            ->assertSee('href="'.route('register').'"', false)
+            ->assertSee('Ser distribuidor')
+            ->assertSee('catalog-support-bubble--whatsapp', false)
+            ->assertDontSee('¿Quieres ser distribuidor?')
+            ->assertDontSee('¿Necesitas ayuda?');
+    }
+
     public function test_distributor_header_contains_catalog_search_in_its_main_row(): void
     {
         $user = $this->distributorUser();
@@ -23,7 +36,8 @@ class AuthenticatedHeaderTest extends TestCase
             ->assertSee('data-global-catalog-search', false)
             ->assertSee('action="'.route('catalog.index').'"', false)
             ->assertSee('name="term"', false)
-            ->assertSee('Buscar producto, SKU, marca o categoría');
+            ->assertSee('Buscar producto, SKU, marca o categoría')
+            ->assertDontSee('Ser distribuidor');
 
         $html = $response->getContent();
         $this->assertIsString($html);
@@ -69,6 +83,27 @@ class AuthenticatedHeaderTest extends TestCase
         $this->assertIsString($html);
         $this->assertMatchesRegularExpression(
             '/<header[^>]*>.*data-global-admin-search.*<\/header>/s',
+            $html
+        );
+    }
+
+    public function test_distributor_sidebar_exposes_a_desktop_collapse_control_and_linked_icons(): void
+    {
+        $user = $this->distributorUser();
+
+        $response = $this->actingAs($user)->get(route('profile.edit'));
+
+        $response
+            ->assertOk()
+            ->assertSee('data-distributor-sidebar', false)
+            ->assertSee('data-sidebar-collapse', false)
+            ->assertSee('data-sidebar-nav-link', false)
+            ->assertSee('data-app-content', false);
+
+        $html = $response->getContent();
+        $this->assertIsString($html);
+        $this->assertMatchesRegularExpression(
+            '/<a[^>]*data-sidebar-nav-link[^>]*href="[^"]+"[^>]*>.*?<svg/s',
             $html
         );
     }
