@@ -17,8 +17,11 @@ Route::middleware('guest')->group(function () {
         Route::get('register', [RegisteredUserController::class, 'create'])
             ->name('register');
 
-        Route::post('register', [RegisteredUserController::class, 'store']);
-        // ->middleware(['throttle:account-creation', 'suspicious_automation']);
+        Route::post('register', [RegisteredUserController::class, 'store'])
+            ->middleware([
+                'throttle:account-creation',
+                'suspicious_automation',
+            ]);
 
         Route::get('register/pending', [RegisteredUserController::class, 'pending'])
             ->name('register.pending');
@@ -39,7 +42,10 @@ Route::middleware('guest')->group(function () {
         ->name('login');
 
     Route::post('login', [AuthenticatedSessionController::class, 'store'])
-        ->middleware(['throttle:login-attempts', 'suspicious_automation']);
+        ->middleware([
+            'throttle:login-attempts',
+            'suspicious_automation',
+        ]);
 
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
@@ -59,10 +65,16 @@ Route::middleware('auth')->group(function () {
         ->name('verification.notice');
 
     Route::get('verify-email/{id}/{hash}', VerifyEmailController::class)
-        ->middleware(['signed', 'throttle:6,1'])
+        ->middleware([
+            'signed',
+            'throttle:6,1',
+        ])
         ->name('verification.verify');
 
-    Route::post('email/verification-notification', [EmailVerificationNotificationController::class, 'store'])
+    Route::post(
+        'email/verification-notification',
+        [EmailVerificationNotificationController::class, 'store']
+    )
         ->middleware('throttle:6,1')
         ->name('verification.send');
 
@@ -71,7 +83,8 @@ Route::middleware('auth')->group(function () {
 
     Route::post('confirm-password', [ConfirmablePasswordController::class, 'store']);
 
-    Route::put('password', [PasswordController::class, 'update'])->name('password.update');
+    Route::put('password', [PasswordController::class, 'update'])
+        ->name('password.update');
 
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
