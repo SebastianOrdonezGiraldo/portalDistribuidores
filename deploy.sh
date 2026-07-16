@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2016
-# shellcheck disable=SC2016
 
 set -Eeuo pipefail
 
@@ -104,8 +103,6 @@ read_env_value() {
     local raw
     raw="$(grep -E "^${key}=" "$SHARED_DIR/.env" | head -n 1 | cut -d= -f2- || true)"
     raw="${raw%\"}"; raw="${raw#\"}"; raw="${raw%\'}"; raw="${raw#\'}"
-    raw="$(grep -E "^${key}=" "$SHARED_DIR/.env" | head -n 1 | cut -d= -f2- || true)"
-    raw="${raw%\"}"; raw="${raw#\"}"; raw="${raw%\'}"; raw="${raw#\'}"
     printf '%s' "$raw"
 }
 
@@ -158,7 +155,7 @@ restore_nginx_configuration() {
 
 install_nginx_configuration() {
     local template="$RELEASE_DIR/deploy/$NGINX_TEMPLATE_NAME"
-    local tls_configuration rendered_configuration candidate
+    local tls_configuration https_listen_configuration rendered_configuration candidate nginx_version
 
     [[ -f "$template" ]] || fail "Nginx template is missing: $template"
     [[ -f "$NGINX_SITE" ]] || fail "The active Nginx site is required to preserve its TLS configuration: $NGINX_SITE"
@@ -168,8 +165,26 @@ install_nginx_configuration() {
     fi
 
     tls_configuration="$(mktemp)"
+    https_listen_configuration="$(mktemp)"
     rendered_configuration="$(mktemp)"
     candidate="$(mktemp "/etc/nginx/sites-available/.${NGINX_SITE_NAME}.candidate.XXXXXX")"
+
+    nginx_version="$("$NGINX_BIN" -v 2>&1)"
+    nginx_version="${nginx_version##*/}"
+    nginx_version="${nginx_version%% *}"
+    [[ "$nginx_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+        || fail "Unable to determine the installed Nginx version."
+
+    if [[ "$(printf '%s\n' "1.25.1" "$nginx_version" | sort -V | head -n 1)" == "1.25.1" ]]; then
+        printf '%s\n' \
+            '    listen 443 ssl;' \
+            '    listen [::]:443 ssl;' \
+            '    http2 on;' > "$https_listen_configuration"
+    else
+        printf '%s\n' \
+            '    listen 443 ssl http2;' \
+            '    listen [::]:443 ssl http2;' > "$https_listen_configuration"
+    fi
 
     grep -E \
         '^[[:space:]]*(ssl_certificate|ssl_certificate_key|ssl_trusted_certificate|ssl_dhparam)[[:space:]]|^[[:space:]]*include[[:space:]]+/etc/letsencrypt/' \
@@ -180,8 +195,15 @@ install_nginx_configuration() {
         || fail "The active Nginx site has no TLS private-key directive."
     grep -Fq '__TLS_CONFIGURATION__' "$template" \
         || fail "The Nginx template has no TLS placeholder."
+    grep -Fq '__HTTPS_LISTEN_CONFIGURATION__' "$template" \
+        || fail "The Nginx template has no HTTPS listen placeholder."
 
-    awk -v tls_file="$tls_configuration" '
+    awk -v tls_file="$tls_configuration" -v https_file="$https_listen_configuration" '
+        /__HTTPS_LISTEN_CONFIGURATION__/ {
+            while ((getline line < https_file) > 0) { print line }
+            close(https_file)
+            next
+        }
         /__TLS_CONFIGURATION__/ {
             while ((getline line < tls_file) > 0) { print line }
             close(tls_file)
@@ -190,8 +212,8 @@ install_nginx_configuration() {
         { print }
     ' "$template" > "$rendered_configuration"
 
-    grep -Fq '__TLS_CONFIGURATION__' "$rendered_configuration" \
-        && fail "The Nginx TLS template was not rendered."
+    grep -Eq '__TLS_CONFIGURATION__|__HTTPS_LISTEN_CONFIGURATION__' "$rendered_configuration" \
+        && fail "The Nginx template was not fully rendered."
     grep -Fq "$BASE_DIR/current/public" "$rendered_configuration" \
         || fail "The Nginx template does not target the atomic current symlink."
 
@@ -208,7 +230,7 @@ install_nginx_configuration() {
     ln -sfn "$NGINX_SITE" "$NGINX_ENABLED_LINK"
     NGINX_CONFIG_CHANGED=true
 
-    rm -f "$tls_configuration" "$rendered_configuration"
+    rm -f "$tls_configuration" "$https_listen_configuration" "$rendered_configuration"
 
     if ! "$NGINX_BIN" -t; then
         restore_nginx_configuration || true
@@ -479,11 +501,6 @@ if [[ "$SIMULATE_FAILURE" == true ]]; then
     [[ -n "$PREVIOUS_TARGET" && "$PREVIOUS_TARGET" != "$RELEASE_DIR" ]] || fail "A previous release is required for a rollback drill."
     fail "Simulated post-switch failure for rollback drill."
 fi
-
-verify_health "$RELEASE_DIR"
-
-if [[ -n "$PREVIOUS_TARGET" && "$PREVIOUS_TARGET" != "$RELEASE_DIR" ]]; then
-    printf '%s\n' "$PREVIOUS_TARGET" > "$SHARED_DIR/deployments/previous-release"
 
 verify_health "$RELEASE_DIR"
 

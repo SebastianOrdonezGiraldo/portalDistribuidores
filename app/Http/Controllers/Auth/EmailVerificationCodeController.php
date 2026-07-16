@@ -45,8 +45,27 @@ class EmailVerificationCodeController extends Controller
         }
 
         $distributor = DB::transaction(function () use ($pending): Distributor {
-            $distributor = Distributor::create(['name' => $pending['company_name'], 'status' => DistributorStatus::PendingReview, 'nit' => $pending['nit'], 'address' => $pending['address'], 'city' => $pending['city'], 'phone' => $pending['phone'], 'contact_email' => $pending['email'], 'contact_name' => $pending['name']]);
-            User::create(['name' => $pending['name'], 'email' => $pending['email'], 'password' => $pending['password'], 'role' => UserRole::Distributor, 'distributor_id' => $distributor->id, 'is_active' => true, 'email_verified_at' => now()]);
+            $distributor = Distributor::create([
+                'name' => $pending['company_name'],
+                'status' => DistributorStatus::PendingReview,
+                'nit' => $pending['nit'],
+                'address' => $pending['address'],
+                'city' => $pending['city'],
+                'phone' => $pending['phone'],
+                'contact_email' => $pending['email'],
+                'contact_name' => $pending['name'],
+            ]);
+
+            $user = User::create([
+                'name' => $pending['name'],
+                'email' => $pending['email'],
+                'password' => $pending['password'],
+                'role' => UserRole::Distributor,
+                'distributor_id' => $distributor->id,
+                'is_active' => true,
+            ]);
+            $user->email_verified_at = now();
+            $user->save();
 
             return $distributor;
         });
