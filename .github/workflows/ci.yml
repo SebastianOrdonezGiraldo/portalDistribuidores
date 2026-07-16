@@ -266,6 +266,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
     steps:
       - name: Checkout candidate
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -278,9 +279,12 @@ jobs:
             echo "Only develop can be promoted to master." >&2
             exit 1
           }
-          git fetch --no-tags origin master
-          git merge-base --is-ancestor origin/master "$HEAD_SHA" || {
-            echo "master must be an ancestor of develop; merge master into develop and restage first." >&2
+          git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null || {
+            echo "The pull request base commit ${BASE_SHA} is not available in the checkout." >&2
+            exit 1
+          }
+          git merge-base --is-ancestor "$BASE_SHA" "$HEAD_SHA" || {
+            echo "The master base ${BASE_SHA} must be an ancestor of develop ${HEAD_SHA}; merge master into develop and restage first." >&2
             exit 1
           }
           tree_sha="$(git rev-parse "${HEAD_SHA}^{tree}")"
