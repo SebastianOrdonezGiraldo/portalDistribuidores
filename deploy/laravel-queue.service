@@ -22,7 +22,7 @@ Requires=postgresql.service
 [Service]
 User=www-data
 Group=www-data
-WorkingDirectory=/var/www/portalDistribuidores
+WorkingDirectory=/var/www/portalDistribuidores/current
 
 # Comando del worker:
 #   --sleep=3          Espera 3 segundos si la cola está vacía

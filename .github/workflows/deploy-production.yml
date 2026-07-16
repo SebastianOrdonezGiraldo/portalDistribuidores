@@ -1,222 +1,281 @@
-name: Deploy Production
+name: Promote Production
 
 on:
-  workflow_run:
-    workflows:
-      - CI
-    types:
-      - completed
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
   group: deploy-production
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  # ─────────────────────────────────────────────────────────────────
-  # Job 1: Notificación de aprobación pendiente
-  # ─────────────────────────────────────────────────────────────────
-  notify_pending:
-    name: Notificar aprobación pendiente
-    if: >-
-      ${{
-        github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.event == 'push' &&
-        github.event.workflow_run.head_branch == 'master'
-      }}
+  resolve:
+    name: Resolve staged master artifact
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ALLOWED_DEPLOYER: SebastianOrdonezGiraldo
+    outputs:
+      promotion_sha: ${{ steps.identity.outputs.promotion_sha }}
+      source_sha: ${{ steps.proof.outputs.source_sha }}
+      source_tree: ${{ steps.identity.outputs.source_tree }}
+      ci_run_id: ${{ steps.proof.outputs.ci_run_id }}
+      archive_sha256: ${{ steps.proof.outputs.archive_sha256 }}
     steps:
-      - name: Notify Slack — aprobación requerida
-        if: vars.SLACK_NOTIFICATIONS_ENABLED == 'true'
-        uses: slackapi/slack-github-action@v2.1.0
+      - name: Authorize manual promoter
+        run: |
+          [[ "$GITHUB_ACTOR" == "$ALLOWED_DEPLOYER" ]] || {
+            echo "Only ${ALLOWED_DEPLOYER} may promote production." >&2
+            exit 1
+          }
+      - name: Checkout current master
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
-          webhook-type: incoming-webhook
-          payload: |
-            {
-              "text": "⏳ *Deploy a Producción requiere aprobación manual*",
-              "attachments": [{
-                "color": "#f0ad4e",
-                "fields": [
-                  {"title": "Repositorio", "value": "${{ github.repository }}", "short": true},
-                  {"title": "Commit",      "value": "${{ github.event.workflow_run.head_sha }}", "short": true},
-                  {"title": "Autor",       "value": "${{ github.event.workflow_run.actor.login }}", "short": true},
-                  {"title": "Aprobar en", "value": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}", "short": false}
-                ]
-              }]
+          ref: master
+          fetch-depth: 0
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: "8.3"
+          coverage: none
+      - name: Resolve master tree and staging proof
+        id: identity
+        run: |
+          promotion_sha="$(git rev-parse HEAD)"
+          source_tree="$(git rev-parse 'HEAD^{tree}')"
+          proof_name="staging-proof-${source_tree}"
+          proof_record="$(gh api -X GET "repos/${GITHUB_REPOSITORY}/actions/artifacts" \
+            -f name="$proof_name" \
+            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse | .[0] | [.name, (.workflow_run.id | tostring)] | @tsv')"
+          [[ -n "$proof_record" && "$proof_record" != "null" ]] || {
+            echo "No staged artifact matches master tree ${source_tree}." >&2
+            exit 1
+          }
+          IFS=$'\t' read -r proof_name proof_run_id <<< "$proof_record"
+          {
+            echo "promotion_sha=$promotion_sha"
+            echo "source_tree=$source_tree"
+            echo "proof_name=$proof_name"
+            echo "proof_run_id=$proof_run_id"
+          } >> "$GITHUB_OUTPUT"
+      - name: Download staging proof
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ steps.identity.outputs.proof_name }}
+          path: ${{ runner.temp }}/staging-proof
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.identity.outputs.proof_run_id }}
+          github-token: ${{ github.token }}
+      - name: Validate staging proof
+        id: proof
+        run: |
+          # shellcheck disable=SC2016
+          php -r '
+            $proof = json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR);
+            foreach (["source_commit", "source_tree", "archive_sha256", "ci_run_id"] as $field) {
+              if (!array_key_exists($field, $proof)) { exit(1); }
             }
+            if ($proof["source_tree"] !== $argv[2]
+              || !preg_match("/^[0-9a-f]{40}$/", $proof["source_commit"])
+              || !preg_match("/^[0-9a-f]{64}$/", $proof["archive_sha256"])
+              || !is_int($proof["ci_run_id"])) { exit(1); }
+            $output = getenv("GITHUB_OUTPUT");
+            file_put_contents($output, "source_sha=".$proof["source_commit"].PHP_EOL, FILE_APPEND);
+            file_put_contents($output, "ci_run_id=".$proof["ci_run_id"].PHP_EOL, FILE_APPEND);
+            file_put_contents($output, "archive_sha256=".$proof["archive_sha256"].PHP_EOL, FILE_APPEND);
+          ' "$RUNNER_TEMP/staging-proof/proof.json" "${{ steps.identity.outputs.source_tree }}"
+      - name: Validate staged ancestry
+        run: |
+          git merge-base --is-ancestor "${{ steps.proof.outputs.source_sha }}" "${{ steps.identity.outputs.promotion_sha }}" || {
+            echo "The staged source commit is not an ancestor of master." >&2
+            exit 1
+          }
+          if [[ -n "$GITHUB_STEP_SUMMARY" ]]; then
+            {
+              echo "### Production candidate"
+              echo
+              echo "- Master: \`${{ steps.identity.outputs.promotion_sha }}\`"
+              echo "- Staged source: \`${{ steps.proof.outputs.source_sha }}\`"
+              echo "- Tree: \`${{ steps.identity.outputs.source_tree }}\`"
+              echo "- Artifact digest: \`${{ steps.proof.outputs.archive_sha256 }}\`"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
-  # ─────────────────────────────────────────────────────────────────
-  # Job 2: Deploy (requiere aprobación del environment "production")
-  # ─────────────────────────────────────────────────────────────────
   deploy:
-    name: Deploy production via SSH
-    needs: notify_pending
-    if: >-
-      ${{
-        github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.event == 'push' &&
-        github.event.workflow_run.head_branch == 'master'
-      }}
+    name: Deploy Production
+    needs: resolve
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
+    permissions:
+      actions: read
+      contents: read
+      deployments: write
     environment:
       name: production
-      url: ${{ env.DEPLOY_URL }}
+      url: https://pedidos.importcorporalmedical.com
     env:
       DEPLOY_URL: https://pedidos.importcorporalmedical.com
+      DEPLOY_BASE_DIR: /var/www/portalDistribuidores
       SSH_HOST: ${{ secrets.VPS_HOST_PRODUCTION || secrets.VPS_HOST }}
       SSH_PORT: ${{ secrets.VPS_SSH_PORT_PRODUCTION || secrets.VPS_SSH_PORT || '22' }}
       SSH_USER: ${{ secrets.VPS_USER_PRODUCTION || secrets.VPS_USER }}
-      SSH_KEY: ${{ secrets.VPS_SSH_KEY_PRODUCTION || secrets.VPS_SSH_KEY }}
-      SSH_PASSPHRASE: ${{ secrets.VPS_SSH_PASSPHRASE_PRODUCTION || secrets.VPS_SSH_PASSPHRASE }}
-
+      SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_KEY_PRODUCTION || secrets.VPS_SSH_KEY }}
+      SSH_EXPECTED_FINGERPRINT: ${{ secrets.VPS_SSH_FINGERPRINT_PRODUCTION || secrets.VPS_SSH_FINGERPRINT }}
     steps:
-      - name: Notify Slack — deploy iniciado
-        if: vars.SLACK_NOTIFICATIONS_ENABLED == 'true'
-        uses: slackapi/slack-github-action@v2.1.0
+      - name: Checkout deployment tooling
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
-          webhook-type: incoming-webhook
-          payload: |
-            {
-              "text": "🚀 *Deploy a Producción aprobado e iniciado*",
-              "attachments": [{
-                "color": "#5865f2",
-                "fields": [
-                  {"title": "Repositorio", "value": "${{ github.repository }}", "short": true},
-                  {"title": "Commit",      "value": "${{ github.event.workflow_run.head_sha }}", "short": true},
-                  {"title": "Aprobado por","value": "${{ github.actor }}", "short": true}
-                ]
-              }]
-            }
-
-      - name: Check SSH port reachability
+          ref: ${{ needs.resolve.outputs.promotion_sha }}
+      - name: Validate production credential set
+        env:
+          HAS_PRODUCTION_HOST: ${{ secrets.VPS_HOST_PRODUCTION != '' }}
+          HAS_PRODUCTION_PORT: ${{ secrets.VPS_SSH_PORT_PRODUCTION != '' }}
+          HAS_PRODUCTION_USER: ${{ secrets.VPS_USER_PRODUCTION != '' }}
+          HAS_PRODUCTION_KEY: ${{ secrets.VPS_SSH_KEY_PRODUCTION != '' }}
+          HAS_PRODUCTION_FINGERPRINT: ${{ secrets.VPS_SSH_FINGERPRINT_PRODUCTION != '' }}
         run: |
-          set -euo pipefail
-          echo "Resolviendo ${SSH_HOST}..."
-          getent ahostsv4 "$SSH_HOST" || getent ahosts "$SSH_HOST" || true
-
-          echo "Probando conectividad TCP IPv4 a ${SSH_HOST}:${SSH_PORT}..."
-          for attempt in 1 2 3; do
-            echo "Intento ${attempt}/3..."
-            if nc -4 -vz -w 15 "$SSH_HOST" "$SSH_PORT"; then
-              exit 0
+          dedicated_count=0
+          for configured in \
+            "$HAS_PRODUCTION_HOST" \
+            "$HAS_PRODUCTION_PORT" \
+            "$HAS_PRODUCTION_USER" \
+            "$HAS_PRODUCTION_KEY" \
+            "$HAS_PRODUCTION_FINGERPRINT"; do
+            if [[ "$configured" == "true" ]]; then
+              dedicated_count=$((dedicated_count + 1))
             fi
-            sleep 3
           done
 
-          echo "::error title=SSH no accesible::No se pudo abrir TCP IPv4 a ${SSH_HOST}:${SSH_PORT}. Verifica los secretos VPS_HOST_PRODUCTION/VPS_HOST y VPS_SSH_PORT_PRODUCTION/VPS_SSH_PORT, que sshd escuche en ese puerto y que el firewall o fail2ban permitan conexiones desde GitHub-hosted runners." >&2
-          exit 1
+          if [[ "$dedicated_count" -eq 0 ]]; then
+            echo "::warning::Production is using the legacy VPS_* credential set. Configure all five VPS_*_PRODUCTION secrets before removing the fallback."
+            credential_mode="legacy fallback"
+          elif [[ "$dedicated_count" -eq 5 ]]; then
+            credential_mode="dedicated production"
+          else
+            echo "Production secrets are partially configured (${dedicated_count}/5). Configure all five VPS_*_PRODUCTION secrets or remove the partial set." >&2
+            exit 1
+          fi
 
-      - name: Deploy production on VPS
-        id: deploy
-        uses: appleboy/ssh-action@v1.2.5
+          echo "Production credential mode: ${credential_mode}."
+          if [[ -n "$GITHUB_STEP_SUMMARY" ]]; then
+            echo "- SSH credentials: ${credential_mode}" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
-          host: ${{ env.SSH_HOST }}
-          username: ${{ env.SSH_USER }}
-          key: ${{ env.SSH_KEY }}
-          passphrase: ${{ env.SSH_PASSPHRASE }}
-          port: ${{ env.SSH_PORT }}
-          protocol: tcp4
-          command_timeout: 25m
-          debug: true
-          script: |
-            set -e
-            cd /var/www/portalDistribuidores
-
-            if grep -q '^AUTH_ALLOW_PUBLIC_REGISTRATION=' .env; then
-              sed -i "s/^AUTH_ALLOW_PUBLIC_REGISTRATION=.*/AUTH_ALLOW_PUBLIC_REGISTRATION=true/" .env
-            else
-              echo "AUTH_ALLOW_PUBLIC_REGISTRATION=true" >> .env
-            fi
-
-            sudo env \
-              DEPLOY_BRANCH="${{ github.event.workflow_run.head_branch }}" \
-              DEPLOY_TARGET_SHA="${{ github.event.workflow_run.head_sha }}" \
-              bash deploy.sh
-
-      - name: Health check production
-        id: health
+          php-version: "8.3"
+          coverage: none
+      - name: Download staged artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: portal-${{ needs.resolve.outputs.source_sha }}
+          path: ${{ runner.temp }}/release-artifact
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.resolve.outputs.ci_run_id }}
+          github-token: ${{ github.token }}
+      - name: Verify artifact identity
         run: |
-          set -euo pipefail
-          echo "Esperando que la aplicacion arranque..."
-          sleep 15
+          cd "$RUNNER_TEMP/release-artifact"
+          sha256sum --check SHA256SUMS
+          [[ "$(awk '{print $1}' "$RUNNER_TEMP/release-artifact/SHA256SUMS")" == "${{ needs.resolve.outputs.archive_sha256 }}" ]]
+          # shellcheck disable=SC2016
+          php -r '
+            $manifest = json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR);
+            if (($manifest["source_commit"] ?? null) !== $argv[2] || ($manifest["source_tree"] ?? null) !== $argv[3]) { exit(1); }
+          ' "$RUNNER_TEMP/release-artifact/manifest.json" \
+            "${{ needs.resolve.outputs.source_sha }}" \
+            "${{ needs.resolve.outputs.source_tree }}"
+      - name: Verify SSH identity
+        id: ssh
+        run: bash .github/scripts/prepare-ssh.sh
+        env:
+          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_PORT: ${{ env.SSH_PORT }}
+          SSH_PRIVATE_KEY: ${{ env.SSH_PRIVATE_KEY }}
+          SSH_EXPECTED_FINGERPRINT: ${{ env.SSH_EXPECTED_FINGERPRINT }}
+      - name: Promote exact staged artifact
+        run: bash .github/scripts/deploy-over-ssh.sh
+        env:
+          DEPLOY_ENVIRONMENT: production
+          DEPLOY_BASE_DIR: ${{ env.DEPLOY_BASE_DIR }}
+          DEPLOY_URL: ${{ env.DEPLOY_URL }}
+          SOURCE_SHA: ${{ needs.resolve.outputs.source_sha }}
+          PROMOTION_SHA: ${{ needs.resolve.outputs.promotion_sha }}
+          ARTIFACT_DIR: ${{ runner.temp }}/release-artifact
+          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_PORT: ${{ env.SSH_PORT }}
+          SSH_USER: ${{ env.SSH_USER }}
+          SSH_KEY_PATH: ${{ steps.ssh.outputs.key_path }}
+          SSH_KNOWN_HOSTS_PATH: ${{ steps.ssh.outputs.known_hosts_path }}
+          ROLLBACK_DRILL: "false"
 
-          for attempt in 1 2 3 4 5 6 7 8 9 10; do
-            status_code="$(curl --silent --show-error --output /dev/null --write-out "%{http_code}" --max-time 20 "$DEPLOY_URL" || true)"
-            echo "Intento ${attempt}/10: HTTP ${status_code}"
-
-            case "$status_code" in
-              200|301|302)
-                echo "Health check OK"
-                exit 0
-                ;;
-            esac
-
-            sleep 10
-          done
-
-          echo "::error title=Health check fallido::La aplicacion no respondio con HTTP 2xx/3xx en ${DEPLOY_URL} despues de 10 intentos."
-          exit 1
-
-      - name: Rollback automático si el health check falla
-        if: failure() && steps.deploy.outcome == 'success'
-        uses: appleboy/ssh-action@v1.2.5
+  release:
+    name: Create GitHub Release
+    needs:
+      - resolve
+      - deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PROMOTION_SHA: ${{ needs.resolve.outputs.promotion_sha }}
+      SOURCE_SHA: ${{ needs.resolve.outputs.source_sha }}
+      SOURCE_TREE: ${{ needs.resolve.outputs.source_tree }}
+      ARCHIVE_SHA256: ${{ needs.resolve.outputs.archive_sha256 }}
+    steps:
+      - name: Checkout release history
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          host: ${{ env.SSH_HOST }}
-          username: ${{ env.SSH_USER }}
-          key: ${{ env.SSH_KEY }}
-          passphrase: ${{ env.SSH_PASSPHRASE }}
-          port: ${{ env.SSH_PORT }}
-          protocol: tcp4
-          command_timeout: 10m
-          script: |
-            set -e
-            cd /var/www/portalDistribuidores
-            echo "Iniciando rollback de produccion..."
-            if [ -f rollback.sh ]; then
-              sudo bash rollback.sh
+          ref: ${{ env.PROMOTION_SHA }}
+          fetch-depth: 0
+      - name: Create idempotent patch release
+        run: |
+          git fetch --tags
+          existing_tag="$(git tag --points-at "$PROMOTION_SHA" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1 || true)"
+          if [[ -n "$existing_tag" ]] && gh release view "$existing_tag" >/dev/null 2>&1; then
+            echo "Release ${existing_tag} already exists for ${PROMOTION_SHA}."
+            exit 0
+          fi
+
+          latest="$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1 || true)"
+          if [[ -n "$existing_tag" ]]; then
+            next="$existing_tag"
+          elif [[ -z "$latest" ]]; then
+            next="v1.0.0"
+          else
+            version="${latest#v}"
+            IFS='.' read -r major minor patch <<< "$version"
+            next="v${major}.${minor}.$((patch + 1))"
+          fi
+
+          notes_file="$RUNNER_TEMP/release-notes.md"
+          {
+            echo "## Deployment evidence"
+            echo
+            echo "- Production commit: \`${PROMOTION_SHA}\`"
+            echo "- Staged source commit: \`${SOURCE_SHA}\`"
+            echo "- Source tree: \`${SOURCE_TREE}\`"
+            echo "- Artifact SHA-256: \`${ARCHIVE_SHA256}\`"
+            echo
+            echo "## Changes"
+            if [[ -n "$latest" ]]; then
+              git log "${latest}..${PROMOTION_SHA}" --pretty=format:'- %s (%h)'
+              echo
             else
-              git stash || true
-              sudo bash deploy.sh
+              git log "$PROMOTION_SHA" -20 --pretty=format:'- %s (%h)'
+              echo
             fi
+          } > "$notes_file"
 
-      - name: Notify Slack — deploy exitoso
-        if: success() && vars.SLACK_NOTIFICATIONS_ENABLED == 'true'
-        uses: slackapi/slack-github-action@v2.1.0
-        with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
-          webhook-type: incoming-webhook
-          payload: |
-            {
-              "text": "✅ *Producción deploy exitoso*",
-              "attachments": [{
-                "color": "#36a64f",
-                "fields": [
-                  {"title": "URL",    "value": "${{ env.DEPLOY_URL }}", "short": true},
-                  {"title": "Commit", "value": "${{ github.event.workflow_run.head_sha }}", "short": true}
-                ]
-              }]
-            }
-
-      - name: Notify Slack — deploy fallido
-        if: failure() && vars.SLACK_NOTIFICATIONS_ENABLED == 'true'
-        uses: slackapi/slack-github-action@v2.1.0
-        with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
-          webhook-type: incoming-webhook
-          payload: |
-            {
-              "text": "🔴 *Producción deploy FALLIDO — se ejecutó rollback*",
-              "attachments": [{
-                "color": "#d9534f",
-                "fields": [
-                  {"title": "Repositorio", "value": "${{ github.repository }}", "short": true},
-                  {"title": "Commit",      "value": "${{ github.event.workflow_run.head_sha }}", "short": true},
-                  {"title": "Run",         "value": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}", "short": false}
-                ]
-              }]
-            }
+          gh release create "$next" \
+            --title "Release $next" \
+            --notes-file "$notes_file" \
+            --target "$PROMOTION_SHA"

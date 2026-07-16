@@ -17,6 +17,8 @@ class ContaPymeDatabaseQueueTest extends TestCase
 {
     use RefreshDatabase;
 
+    private ?string $cacheConnection = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -27,9 +29,20 @@ class ContaPymeDatabaseQueueTest extends TestCase
             'queue.connections.database.retry_after' => 660,
             'contapyme.enabled' => true,
         ]);
+        $this->configureNonTransactionalPostgresCache();
         app('cache')->setDefaultDriver('database');
         app('queue')->setDefaultDriver('database');
         Cache::flush();
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->cacheConnection !== null) {
+            Cache::flush();
+            DB::disconnect($this->cacheConnection);
+        }
+
+        parent::tearDown();
     }
 
     public function test_database_queue_preserves_the_lock_owner_until_the_job_releases_it(): void
@@ -72,5 +85,23 @@ class ContaPymeDatabaseQueueTest extends TestCase
 
         $this->assertSame('completed', app(ContaPymeSyncState::class)->status()['state']);
         $this->assertTrue(app(ContaPymeSyncState::class)->availability()['can_run']);
+    }
+
+    private function configureNonTransactionalPostgresCache(): void
+    {
+        $defaultConnection = (string) config('database.default');
+
+        if ((string) config("database.connections.{$defaultConnection}.driver") !== 'pgsql') {
+            return;
+        }
+
+        $this->cacheConnection = 'pgsql_test_cache';
+        config([
+            "database.connections.{$this->cacheConnection}" => config("database.connections.{$defaultConnection}"),
+            'cache.stores.database.connection' => $this->cacheConnection,
+            'cache.stores.database.lock_connection' => $this->cacheConnection,
+        ]);
+        DB::purge($this->cacheConnection);
+        Cache::forgetDriver('database');
     }
 }
