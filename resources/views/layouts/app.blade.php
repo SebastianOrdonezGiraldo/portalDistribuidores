@@ -171,7 +171,7 @@ View contract:
     <div class="flex min-h-dvh min-w-0 flex-col {{ $isAuthenticated ? 'lg:pl-60' : '' }}">
         <header class="sticky top-0 z-30 border-b border-slate-200/95 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
             <div class="flex flex-col gap-2 px-3 py-3 sm:px-6 lg:px-8">
-                <div class="relative flex min-w-0 items-center gap-2 sm:gap-3 {{ isset($catalogToolbar) ? 'flex-wrap sm:flex-nowrap' : '' }}">
+                <div class="relative flex min-w-0 items-center gap-2 sm:gap-3">
                     @if($isAuthenticated)
                         <button
                             type="button"
@@ -183,10 +183,6 @@ View contract:
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M3 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4A1 1 0 0 1 3 5Zm0 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm1 4a1 1 0 1 0 0 2h12a1 1 0 1 0 0-2H4Z" /></svg>
                         </button>
-                        <a href="{{ route('dashboard') }}" class="flex min-w-0 items-center gap-2 rounded-lg focus-ring">
-                            <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-8 w-auto">
-                            <span class="truncate text-sm font-semibold text-slate-900">Portal Distribuidores</span>
-                        </a>
                     @else
                         <a href="{{ route('catalog.index') }}" class="flex min-w-0 items-center gap-2 rounded-lg focus-ring">
                             <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-8 w-auto">
@@ -201,6 +197,44 @@ View contract:
                             </div>
                         </div>
                     @endisset
+
+                    @if($isDistributor && !isset($catalogToolbar))
+                        <form method="GET" action="{{ route('catalog.index') }}" class="global-header-catalog-search" data-global-catalog-search>
+                            <label class="sr-only" for="global-header-catalog-search">Buscar productos en el catálogo</label>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <circle cx="11" cy="11" r="8" />
+                                <path d="m21 21-4.35-4.35" />
+                            </svg>
+                            <input
+                                id="global-header-catalog-search"
+                                type="search"
+                                name="term"
+                                value="{{ request()->routeIs('catalog.*') ? request('term') : '' }}"
+                                placeholder="Buscar producto, SKU, marca o categoría"
+                                class="catalog-search-input"
+                                autocomplete="off"
+                            >
+                        </form>
+                    @endif
+
+                    @if($isAdmin && !isset($catalogToolbar))
+                        <form method="GET" action="{{ route('admin.orders.index') }}" class="global-header-admin-search" data-global-admin-search>
+                            <label class="sr-only" for="global-header-admin-search">Buscar pedidos</label>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <circle cx="11" cy="11" r="8" />
+                                <path d="m21 21-4.35-4.35" />
+                            </svg>
+                            <input
+                                id="global-header-admin-search"
+                                type="search"
+                                name="q"
+                                value="{{ request()->routeIs('admin.orders.index') ? request('q') : '' }}"
+                                placeholder="Buscar CTC, cliente, contacto o correo"
+                                class="catalog-search-input"
+                                autocomplete="off"
+                            >
+                        </form>
+                    @endif
 
                     <div
                         class="ml-auto flex shrink-0 items-center gap-2 {{ $isAuthenticated ? '' : 'relative' }}"
@@ -333,25 +367,8 @@ View contract:
                             <p class="admin-top-toolbar-eyebrow">Vista ejecutiva</p>
                             <p class="admin-top-toolbar-caption">Resumen comercial y señales de seguimiento</p>
                         </div>
-                        <form method="GET" action="{{ route('admin.orders.index') }}" class="relative w-full md:max-w-sm lg:max-w-md">
-                            <label class="sr-only" for="top-search-admin-dashboard">Buscar pedido</label>
-                            <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                            <input id="top-search-admin-dashboard" type="text" name="q" value="{{ request('q') }}" placeholder="Buscar pedido puntual" class="form-input !min-h-10 py-2 pl-9 pr-4">
-                        </form>
                         <a href="{{ route('admin.orders.index') }}" class="btn btn-secondary !min-h-10 !px-3">Ver pedidos</a>
                     </div>
-                @elseif($isAdmin)
-                    <form method="GET" action="{{ route('admin.orders.index') }}" class="relative w-full lg:mx-auto lg:max-w-2xl">
-                        <label class="sr-only" for="top-search-admin">Buscar pedido</label>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                        <input id="top-search-admin" type="text" name="q" value="{{ request('q') }}" placeholder="Buscar CTC, cliente o contacto" class="form-input py-2.5 pl-9 pr-4">
-                    </form>
-                @elseif(!request()->routeIs('catalog.*', 'products.show'))
-                    <form method="GET" action="{{ route('catalog.index') }}" class="relative w-full lg:mx-auto lg:max-w-2xl">
-                        <label class="sr-only" for="top-search-catalog">Buscar producto</label>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                        <input id="top-search-catalog" type="text" name="term" value="{{ request('term') }}" placeholder="Buscar producto o categoría" class="form-input py-2.5 pl-9 pr-4">
-                    </form>
                 @endif
             </div>
         </header>

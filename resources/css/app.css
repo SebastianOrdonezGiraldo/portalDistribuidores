@@ -512,6 +512,27 @@
         max-width: none;
     }
 
+    .global-header-catalog-search,
+    .global-header-admin-search {
+        position: relative;
+        min-width: 0;
+        flex: 1 1 auto;
+        margin-inline: auto;
+    }
+
+    @media (min-width: 1024px) {
+        .catalog-desktop-header-search,
+        .global-header-catalog-search,
+        .global-header-admin-search {
+            position: absolute;
+            left: 50%;
+            width: min(52vw, 48rem);
+            max-width: none;
+            margin-inline: 0;
+            transform: translateX(-50%);
+        }
+    }
+
     .catalog-menu-panel-tools {
         border: 1px solid rgb(226 232 240);
         border-radius: 1rem;
@@ -1095,7 +1116,6 @@
     @media (min-width: 1024px) {
         .catalog-desktop-header-search {
             width: min(52vw, 48rem);
-            margin-inline: auto;
         }
 
         .catalog-desktop-header-search .catalog-header-search .catalog-toolbar-controls {
