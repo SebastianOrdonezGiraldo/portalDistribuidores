@@ -4,146 +4,142 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Modules\AuthAccess\Mail\DistributorRegistrationNotificationMail;
 use App\Modules\AuthAccess\Mail\EmailVerificationCodeMail;
+use App\Modules\AuthAccess\Models\Distributor;
+use App\Modules\Shared\Enums\DistributorStatus;
+use App\Modules\Shared\Enums\UserRole;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\View\View;
 
 class EmailVerificationCodeController extends Controller
 {
-    /**
-     * Mostrar formulario de codigo de verificacion.
-     *
-     * @group Autenticacion
-     *
-     * @unauthenticated
-     *
-     * @response 200 {"content":"Vista HTML para ingresar codigo"}
-     * @response 302 {"redirect":"register"}
-     */
     public function show(Request $request): RedirectResponse|View
     {
-        $userId = $request->session()->get('verify_email_user_id');
+        $pending = $this->pending($request);
 
-        if (! $userId) {
+        if (! $pending) {
             return redirect()->route('register');
         }
 
-        $user = User::find($userId);
-
-        if (! $user) {
-            $request->session()->forget('verify_email_user_id');
-
-            return redirect()->route('register');
-        }
-
-        if ($user->email_verified_at !== null) {
-            $request->session()->forget('verify_email_user_id');
-
-            return redirect()->route('register.pending')
-                ->with('status', 'Tu correo ya estaba verificado.');
-        }
-
-        return view('auth.verify-email-code', ['email' => $user->email]);
+        return view('auth.verify-email-code', ['email' => $pending['email'], 'resendCooldown' => RateLimiter::availableIn($this->key($pending['email']))]);
     }
 
-    /**
-     * Verificar correo con codigo.
-     *
-     * @group Autenticacion
-     *
-     * @unauthenticated
-     *
-     * @bodyParam code string required Codigo numerico de 6 digitos. Example: 123456
-     *
-     * @response 302 {"redirect":"register.pending"}
-     * @response 422 {"message":"El codigo es incorrecto o ha expirado."}
-     * @response 429 {"message":"Has realizado demasiados intentos."}
-     */
     public function store(Request $request): RedirectResponse
     {
-        $request->validate([
-            'code' => ['required', 'string', 'digits:6'],
-        ], [
-            'code.required' => 'El código de verificación es requerido.',
-            'code.digits' => 'El código debe ser de 6 dígitos numéricos.',
-        ]);
+        $request->validate(['code' => ['required', 'string', 'digits:4']]);
+        $pending = $this->pending($request);
 
-        $userId = $request->session()->get('verify_email_user_id');
-
-        if (! $userId) {
+        if (! $pending) {
             return redirect()->route('register');
         }
 
-        $user = User::find($userId);
-
-        if (! $user) {
-            $request->session()->forget('verify_email_user_id');
-
-            return redirect()->route('register');
+        if ($pending['expires_at'] <= now()->timestamp || ! Hash::check($request->string('code')->toString(), $pending['code'])) {
+            return back()->withErrors(['code' => 'El código es incorrecto o ha expirado.']);
         }
 
-        if (! $user->hasValidVerificationCode($request->input('code'))) {
+        $distributor = DB::transaction(function () use ($pending): Distributor {
+            $distributor = Distributor::create([
+                'name' => $pending['company_name'],
+                'status' => DistributorStatus::PendingReview,
+                'nit' => $pending['nit'],
+                'address' => $pending['address'],
+                'city' => $pending['city'],
+                'phone' => $pending['phone'],
+                'contact_email' => $pending['email'],
+                'contact_name' => $pending['name'],
+            ]);
+
+            $user = User::create([
+                'name' => $pending['name'],
+                'email' => $pending['email'],
+                'password' => $pending['password'],
+                'role' => UserRole::Distributor,
+                'distributor_id' => $distributor->id,
+                'is_active' => true,
+            ]);
+            $user->email_verified_at = now();
+            $user->save();
+
+            return $distributor;
+        });
+        $this->notifyAdmin($distributor);
+        $request->session()->forget('pending_registration');
+        RateLimiter::clear($this->key($pending['email']));
+
+        return redirect()->route('register.pending')->with('status', 'Recibimos tu solicitud. Validaremos tus datos y activaremos tu acceso.');
+    }
+
+    public function resend(Request $request): RedirectResponse
+    {
+        $pending = $this->pending($request);
+
+        if (! $pending) {
+            return redirect()->route('register');
+        }
+        $key = $this->key($pending['email']);
+
+        if (RateLimiter::tooManyAttempts($key, 1)) {
+            return back()->with('status', 'Espera un momento antes de solicitar otro código.');
+        }
+        $code = (string) random_int(1000, 9999);
+
+        try {
+            Mail::to($pending['email'])->send(new EmailVerificationCodeMail($pending['name'], $code));
+        } catch (\Throwable $exception) {
+            Log::error('email_verification_code.resend.failed', [
+                'email' => $pending['email'],
+                'mailer' => config('mail.default'),
+                'error' => $exception->getMessage(),
+            ]);
+
             return back()->withErrors([
-                'code' => 'El código es incorrecto o ha expirado.',
+                'resend' => 'No pudimos reenviar el código. Inténtalo nuevamente en unos segundos.',
             ]);
         }
 
-        $user->email_verified_at = now();
-        $user->save();
-        $user->clearEmailVerificationCode();
+        $pending['code'] = Hash::make($code);
+        $pending['expires_at'] = now()->addMinutes(15)->timestamp;
+        $request->session()->put('pending_registration', $pending);
+        RateLimiter::hit($key, 60);
 
-        $request->session()->forget('verify_email_user_id');
-
-        return redirect()->route('register.pending')
-            ->with('status', 'Recibimos tu solicitud. Validaremos tus datos y activaremos tu acceso.');
+        return back()->with('status', 'Te enviamos un nuevo código de verificación.');
     }
 
-    /**
-     * Reenviar codigo de verificacion.
-     *
-     * @group Autenticacion
-     *
-     * @unauthenticated
-     *
-     * @response 302 {"redirect":"back"}
-     * @response 429 {"message":"Has realizado demasiados intentos."}
-     */
-    public function resend(Request $request): RedirectResponse
+    private function pending(Request $request): ?array
     {
-        $userId = $request->session()->get('verify_email_user_id');
+        $data = $request->session()->get('pending_registration');
 
-        if (! $userId) {
-            return redirect()->route('register');
+        return is_array($data) ? $data : null;
+    }
+
+    private function key(string $email): string
+    {
+        return 'registration-email-verification-resend:'.hash('sha256', $email);
+    }
+
+    private function notifyAdmin(Distributor $distributor): void
+    {
+        $to = trim((string) config('mail.registration_notification_to'));
+
+        if ($to === '' || ! filter_var($to, FILTER_VALIDATE_EMAIL)) {
+            return;
         }
-
-        $user = User::find($userId);
-
-        if (! $user) {
-            $request->session()->forget('verify_email_user_id');
-
-            return redirect()->route('register');
-        }
-
-        if ($user->email_verified_at !== null) {
-            $request->session()->forget('verify_email_user_id');
-
-            return redirect()->route('register.pending');
-        }
-
-        $code = $user->generateEmailVerificationCode();
 
         try {
-            Mail::to($user->email)->send(new EmailVerificationCodeMail($user, $code));
+            Mail::to($to)->send(new DistributorRegistrationNotificationMail($distributor));
         } catch (\Throwable $exception) {
-            Log::error('email_verification_code.resend.failed', [
-                'user_id' => $user->id,
+            Log::error('distributor.registration_notification_email.failed', [
+                'distributor_id' => $distributor->id,
+                'mailer' => config('mail.default'),
                 'error' => $exception->getMessage(),
             ]);
         }
-
-        return back()->with('status', 'Te enviamos un nuevo código de verificación.');
     }
 }
