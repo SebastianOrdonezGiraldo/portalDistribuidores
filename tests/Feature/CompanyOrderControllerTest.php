@@ -474,7 +474,11 @@ class CompanyOrderControllerTest extends TestCase
     public function test_reorder_adds_active_products_to_cart(): void
     {
         [$distA, $userA] = $this->makeDistributorWithUser();
-        $product = Product::factory()->create(['price' => 8000, 'is_active' => true]);
+        $product = Product::factory()->create([
+            'price' => 8000,
+            'stock' => 10,
+            'is_active' => true,
+        ]);
         $order = Order::factory()->forDistributor($distA)->create();
 
         OrderItem::factory()->create([
