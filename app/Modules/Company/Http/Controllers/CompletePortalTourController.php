@@ -14,11 +14,13 @@ class CompletePortalTourController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        abort_unless($user->distributor_id !== null, 404);
+        $distributor = $user->distributor;
 
-        $user->distributor()
-            ->whereNull('portal_tour_completed_at')
-            ->update(['portal_tour_completed_at' => now()]);
+        abort_unless($distributor !== null, 404);
+
+        if ($distributor->portal_tour_completed_at === null) {
+            $distributor->update(['portal_tour_completed_at' => now()]);
+        }
 
         return response()->json(['ok' => true]);
     }
