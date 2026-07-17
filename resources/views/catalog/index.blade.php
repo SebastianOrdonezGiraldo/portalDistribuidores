@@ -511,11 +511,25 @@ View contract:
                 </header>
 
                 @if($products->isEmpty())
-                    <x-ui.empty-state title="No encontramos productos" description="Prueba con una búsqueda distinta o habilita subcategorías para ampliar resultados.">
+                    <x-ui.empty-state-panel
+                        eyebrow="Búsqueda sin coincidencias"
+                        title="No encontramos productos para esta búsqueda"
+                        description="Prueba con otro término, cambia la categoría o ajusta los filtros laterales para ampliar los resultados del catálogo."
+                    >
+                        <x-slot name="icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-9 w-9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                                <circle cx="11" cy="11" r="6.5" />
+                                <path d="m20 20-3.5-3.5" />
+                                <path d="M9 11h4" />
+                            </svg>
+                        </x-slot>
                         <x-slot name="action">
                             <a href="{{ route('catalog.index') }}" class="btn btn-primary">Ver todo el catálogo</a>
+                            @if($activeFiltersCount > 0 || filled($search->term))
+                                <a href="{{ route('catalog.index') }}" class="btn btn-secondary">Quitar filtros</a>
+                            @endif
                         </x-slot>
-                    </x-ui.empty-state>
+                    </x-ui.empty-state-panel>
                 @else
                     <x-catalog.product-grid-section
                         id="catalog-results"

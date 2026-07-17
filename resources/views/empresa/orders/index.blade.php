@@ -72,11 +72,27 @@ View contract:
     <x-ui.card class="mt-4">
         @if($orders->isEmpty())
             <div class="p-5">
-                <x-ui.empty-state
-                    title="Sin resultados"
-                    description="{{ $activeFiltersCount > 0 ? 'No se encontraron pedidos con los filtros aplicados.' : 'Aún no hay pedidos registrados para tu empresa.' }}"
-                    compact
-                />
+                <x-ui.empty-state-panel
+                    eyebrow="Historial comercial"
+                    :title="$activeFiltersCount > 0 ? 'No encontramos pedidos con esos filtros' : 'Tu historial de pedidos aún está vacío'"
+                    :description="$activeFiltersCount > 0 ? 'Prueba con otra búsqueda, cambia el estado o limpia los filtros para ampliar los resultados.' : 'Cuando tu empresa genere cotizaciones o pedidos, aquí podrás revisarlos con fecha, estado y trazabilidad completa.'"
+                >
+                    <x-slot name="icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-9 w-9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                            <path d="M8 7V5a4 4 0 1 1 8 0v2" />
+                            <path d="M6 9h12l-1 10H7z" />
+                            <path d="M9.5 13.5h5" />
+                            <path d="M9.5 17h3" />
+                        </svg>
+                    </x-slot>
+                    <x-slot name="action">
+                        @if($activeFiltersCount > 0)
+                            <a href="{{ route('empresa.orders.index') }}" class="btn btn-secondary">Limpiar filtros</a>
+                        @else
+                            <a href="{{ route('checkout.show') }}" class="btn btn-primary">Crear primer pedido</a>
+                        @endif
+                    </x-slot>
+                </x-ui.empty-state-panel>
             </div>
         @else
             <x-ui.table>
