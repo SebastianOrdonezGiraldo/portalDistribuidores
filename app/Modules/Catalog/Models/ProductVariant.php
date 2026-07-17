@@ -3,6 +3,7 @@
 namespace App\Modules\Catalog\Models;
 
 use App\Modules\Inventory\Models\ContaPymeInventoryMapping;
+use App\Modules\Orders\Models\CartItem;
 use App\Modules\Orders\Models\OrderItem;
 use Database\Factories\ProductVariantFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -59,6 +60,12 @@ class ProductVariant extends Model
     public function orderItems(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    /** @return HasMany<CartItem, $this> */
+    public function cartItems(): HasMany
+    {
+        return $this->hasMany(CartItem::class, 'product_variant_id');
     }
 
     /** @return HasOne<ContaPymeInventoryMapping, $this> */
