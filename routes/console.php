@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Inventory\Services\ContaPymeSyncDispatcher;
+use App\Modules\Orders\Services\Cart\AbandonedCartService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Mail;
@@ -11,6 +12,14 @@ Schedule::call(function (): void {
 })
     ->everyFiveMinutes()
     ->name('contapyme-stock-sync')
+    ->withoutOverlapping(10);
+
+Schedule::call(function (): void {
+    app(AbandonedCartService::class)->process();
+})
+    ->hourly()
+    ->name('abandoned-carts')
+    ->onOneServer()
     ->withoutOverlapping(10);
 
 Artisan::command('inspire', function () {
