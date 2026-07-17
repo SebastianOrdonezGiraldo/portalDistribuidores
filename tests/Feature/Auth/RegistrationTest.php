@@ -9,6 +9,7 @@ use App\Modules\Shared\Enums\DistributorStatus;
 use App\Modules\Shared\Enums\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Tests\TestCase;
 
 class RegistrationTest extends TestCase
@@ -37,7 +38,18 @@ class RegistrationTest extends TestCase
             'email' => 'notif-dist@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
-        ]);
+        ])->assertRedirect(route('register.verify-email', absolute: false));
+
+        $verificationCode = null;
+        Mail::assertSent(EmailVerificationCodeMail::class, function (EmailVerificationCodeMail $mail) use (&$verificationCode): bool {
+            $verificationCode = $mail->code;
+
+            return $mail->recipientName === 'María López';
+        });
+
+        $this->post(route('register.verify-email.store'), [
+            'code' => $verificationCode,
+        ])->assertRedirect(route('register.pending', absolute: false));
 
         Mail::assertSent(DistributorRegistrationNotificationMail::class, function (DistributorRegistrationNotificationMail $mail): bool {
             return $mail->distributor->nit === '9009998887'
@@ -64,15 +76,25 @@ class RegistrationTest extends TestCase
         $this->assertGuest();
         $response->assertRedirect(route('register.verify-email', absolute: false));
 
+        $this->assertDatabaseMissing('users', ['email' => 'registro@example.com']);
+        $this->assertDatabaseMissing('distributors', ['nit' => '9001234567']);
+
+        $verificationCode = null;
+        Mail::assertSent(EmailVerificationCodeMail::class, function (EmailVerificationCodeMail $mail) use (&$verificationCode): bool {
+            $verificationCode = $mail->code;
+
+            return $mail->recipientName === 'Juan Pérez'
+                && preg_match('/^\\d{4}$/', $mail->code) === 1;
+        });
+
+        $this->post(route('register.verify-email.store'), [
+            'code' => $verificationCode,
+        ])->assertRedirect(route('register.pending', absolute: false));
+
         $user = User::query()->where('email', 'registro@example.com')->firstOrFail();
         $this->assertSame(UserRole::Distributor, $user->role);
         $this->assertNotNull($user->distributor_id);
-        $this->assertNotNull($user->email_verification_code);
-        $this->assertNotNull($user->email_verification_code_expires_at);
-
-        Mail::assertSent(EmailVerificationCodeMail::class, function (EmailVerificationCodeMail $mail) use ($user): bool {
-            return $mail->user->id === $user->id;
-        });
+        $this->assertNotNull($user->email_verified_at);
 
         $this->assertDatabaseHas('distributors', [
             'id' => $user->distributor_id,
@@ -103,6 +125,63 @@ class RegistrationTest extends TestCase
 
         $response->assertRedirect('/register');
         $response->assertSessionHasErrors(['nit', 'city', 'phone']);
+    }
+
+    public function test_email_verification_code_resend_has_a_one_minute_cooldown(): void
+    {
+        Mail::fake();
+
+        $email = 'cooldown@example.com';
+        $key = 'registration-email-verification-resend:'.hash('sha256', $email);
+        RateLimiter::hit($key, 60);
+
+        $response = $this
+            ->withSession(['pending_registration' => [
+                'name' => 'Usuario Prueba',
+                'email' => $email,
+                'password' => 'hashed-password',
+                'company_name' => 'Empresa Prueba',
+                'nit' => '9000000001',
+                'city' => 'Bogotá',
+                'address' => null,
+                'phone' => '3000000000',
+                'code' => 'hashed-code',
+                'expires_at' => now()->addMinutes(15)->timestamp,
+            ]])
+            ->from(route('register.verify-email'))
+            ->post(route('register.verify-email.resend'));
+
+        $response
+            ->assertRedirect(route('register.verify-email', absolute: false))
+            ->assertSessionHas('status', 'Espera un momento antes de solicitar otro código.');
+        Mail::assertNothingSent();
+
+        RateLimiter::clear($key);
+    }
+
+    public function test_invalid_verification_code_does_not_create_the_registration(): void
+    {
+        Mail::fake();
+
+        $this->post('/register', [
+            'name' => 'Ana Prueba',
+            'company_name' => 'Empresa Sin Verificar SAS',
+            'nit' => '9005554443',
+            'city' => 'Cali',
+            'address' => null,
+            'phone' => '3005554443',
+            'email' => 'sin-verificar@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
+
+        $this->post(route('register.verify-email.store'), [
+            'code' => '0000',
+        ])->assertSessionHasErrors('code');
+
+        $this->assertDatabaseMissing('users', ['email' => 'sin-verificar@example.com']);
+        $this->assertDatabaseMissing('distributors', ['nit' => '9005554443']);
+        Mail::assertNotSent(DistributorRegistrationNotificationMail::class);
     }
 
     public function test_registration_can_be_disabled_by_configuration(): void
