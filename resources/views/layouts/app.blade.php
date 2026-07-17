@@ -138,7 +138,7 @@ View contract:
 
             @if($isDistributor)
                 <p class="sidebar-section-label">Mi Empresa</p>
-                <div class="mt-2 space-y-0.5">
+                <div class="mt-2 space-y-0.5" data-portal-tour-target="company">
                     <x-ui.sidebar-link :href="route('empresa.dashboard')" :active="request()->routeIs('empresa.dashboard')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
                         Inicio
@@ -232,7 +232,7 @@ View contract:
                     @endif
 
                     @isset($catalogToolbar)
-                        <div class="catalog-desktop-header-search hidden lg:block">
+                        <div class="catalog-desktop-header-search hidden lg:block" data-portal-tour-target="search-desktop">
                             <div class="catalog-header-search">
                                 {{ $catalogToolbar }}
                             </div>
@@ -285,21 +285,28 @@ View contract:
                         @endif
                     >
                         @if($isAuthenticated)
+                            @if($isDistributor)
+                                @if(request()->routeIs('catalog.index'))
+                                    <button type="button" class="portal-tour-help" data-portal-tour-restart aria-label="Ver tutorial del portal" title="Ver tutorial">?</button>
+                                @else
+                                    <a href="{{ route('catalog.index', ['tutorial' => 1]) }}" class="portal-tour-help" aria-label="Ver tutorial del portal" title="Ver tutorial">?</a>
+                                @endif
+                            @endif
                             @isset($catalogToolbar)
                                 <div class="relative" x-data="{ catalogMenuOpen: false }" @keydown.escape.window="catalogMenuOpen = false">
                                     <a href="{{ route('cart.index') }}" class="btn btn-secondary relative !min-h-10 !min-w-10 !px-2.5 lg:hidden" aria-label="Ver carrito" data-cart-target>
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
                                         <x-ui.badge :variant="($navCartCount ?? 0) > 0 ? 'brand' : 'neutral'" class="absolute -right-1.5 -top-1.5 !min-w-5 !px-1" data-cart-badge>{{ $navCartCount ?? 0 }}</x-ui.badge>
                                     </a>
-                                    <button type="button" class="btn btn-secondary !min-h-10 !px-2.5 lg:hidden" @click="$dispatch('catalog-filters')" aria-label="Abrir filtros">
+                                    <button type="button" class="btn btn-secondary !min-h-10 !px-2.5 lg:hidden" @click="$dispatch('catalog-filters')" aria-label="Abrir filtros" data-portal-tour-target="filters-mobile">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
                                     </button>
-                                    <button type="button" class="btn btn-secondary !min-h-10 !px-2.5 lg:hidden" @click="catalogMenuOpen = !catalogMenuOpen" x-bind:aria-expanded="catalogMenuOpen.toString()" aria-label="Abrir menú del catálogo" aria-controls="catalog-header-menu">
+                                    <button type="button" class="btn btn-secondary !min-h-10 !px-2.5 lg:hidden" @click="catalogMenuOpen = !catalogMenuOpen" x-bind:aria-expanded="catalogMenuOpen.toString()" aria-label="Abrir menú del catálogo" aria-controls="catalog-header-menu" data-portal-tour-catalog-menu-toggle>
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
                                     </button>
                                     <div id="catalog-header-menu" x-cloak x-show="catalogMenuOpen" x-transition class="absolute right-0 top-[calc(100%+0.65rem)] z-[80] w-[min(32rem,calc(100vw-2rem))] max-h-[calc(100dvh-6rem)] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-panel sm:p-6">
                                         <div class="mx-auto grid w-full max-w-2xl gap-6">
-                                            <div class="catalog-menu-panel-tools"><p class="catalog-menu-panel-title">Encuentra lo que necesitas</p><div class="catalog-header-search">{{ $catalogToolbar }}</div></div>
+                                            <div class="catalog-menu-panel-tools" data-portal-tour-target="search-mobile"><p class="catalog-menu-panel-title">Encuentra lo que necesitas</p><div class="catalog-header-search">{{ $catalogToolbar }}</div></div>
                                             <a href="{{ route('profile.edit') }}" class="btn btn-primary min-h-12 w-full justify-center !px-4">Mi perfil</a>
                                         </div>
                                     </div>
@@ -490,6 +497,10 @@ View contract:
 
 @if(!$isAdmin && !request()->routeIs('catalog.*', 'products.show') && view()->exists('layouts.partials.whatsapp-float'))
     @include('layouts.partials.whatsapp-float')
+@endif
+
+@if($isDistributor && request()->routeIs('catalog.index'))
+    @include('layouts.partials.portal-tour')
 @endif
 
 @include('layouts.partials.cookie-banner')

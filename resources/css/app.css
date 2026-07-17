@@ -63,6 +63,226 @@
 }
 
 @layer components {
+    body.portal-tour-open {
+        overflow: hidden;
+        touch-action: none;
+    }
+
+    .portal-tour-help {
+        @apply focus-ring inline-flex h-9 w-9 flex-none items-center justify-center rounded-full border border-brand-primary/40 bg-brand-primary/10 text-sm font-bold text-brand-dark shadow-sm transition hover:-translate-y-0.5 hover:border-brand-primary hover:bg-brand-primary/20;
+        font-family: 'Sora', 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    }
+
+    .portal-tour-highlight {
+        position: fixed;
+        z-index: 100;
+        border: 2px solid rgb(var(--brand-primary));
+        border-radius: 1rem;
+        background: transparent;
+        box-shadow:
+            0 0 0 9999px rgba(2, 6, 23, 0.62),
+            0 0 0 5px rgba(54, 177, 187, 0.2),
+            0 12px 35px rgba(15, 23, 42, 0.2);
+        pointer-events: none;
+        transition:
+            left 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
+            top 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
+            width 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
+            height 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .portal-tour-dialog {
+        --portal-tour-arrow-offset: 50%;
+        position: fixed;
+        z-index: 101;
+        width: min(22.5rem, calc(100vw - 1.5rem));
+        border: 1px solid rgba(54, 177, 187, 0.35);
+        border-radius: 1.25rem;
+        background:
+            radial-gradient(circle at 100% 0, rgba(54, 177, 187, 0.12), transparent 42%),
+            #fff;
+        padding: 1.15rem;
+        color: rgb(15 23 42);
+        box-shadow: 0 24px 70px rgba(2, 6, 23, 0.3);
+    }
+
+    .portal-tour-dialog-enter {
+        animation: portal-tour-dialog-in 180ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+    }
+
+    .portal-tour-arrow {
+        position: absolute;
+        z-index: -1;
+        width: 0.85rem;
+        height: 0.85rem;
+        border: 1px solid rgba(54, 177, 187, 0.35);
+        background: white;
+        transform: rotate(45deg);
+    }
+
+    .portal-tour-dialog[data-placement='below'] .portal-tour-arrow {
+        top: -0.45rem;
+        left: var(--portal-tour-arrow-offset);
+        margin-left: -0.425rem;
+        border-right: 0;
+        border-bottom: 0;
+    }
+
+    .portal-tour-dialog[data-placement='above'] .portal-tour-arrow {
+        bottom: -0.45rem;
+        left: var(--portal-tour-arrow-offset);
+        margin-left: -0.425rem;
+        border-top: 0;
+        border-left: 0;
+    }
+
+    .portal-tour-dialog[data-placement='right'] .portal-tour-arrow {
+        top: var(--portal-tour-arrow-offset);
+        left: -0.45rem;
+        margin-top: -0.425rem;
+        border-top: 0;
+        border-right: 0;
+    }
+
+    .portal-tour-dialog[data-placement='left'] .portal-tour-arrow {
+        top: var(--portal-tour-arrow-offset);
+        right: -0.45rem;
+        margin-top: -0.425rem;
+        border-bottom: 0;
+        border-left: 0;
+    }
+
+    .portal-tour-dialog[data-placement='docked'] .portal-tour-arrow {
+        top: -0.45rem;
+        left: var(--portal-tour-arrow-offset);
+        margin-left: -0.425rem;
+        border-right: 0;
+        border-bottom: 0;
+    }
+
+    .portal-tour-close {
+        @apply focus-ring absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-lg leading-none text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800;
+    }
+
+    .portal-tour-heading {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding-right: 2rem;
+    }
+
+    .portal-tour-icon {
+        display: inline-flex;
+        width: 2.65rem;
+        height: 2.65rem;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.85rem;
+        background: linear-gradient(145deg, rgba(54, 177, 187, 0.2), rgba(54, 177, 187, 0.08));
+        color: rgb(8 128 137);
+    }
+
+    .portal-tour-icon svg {
+        width: 1.35rem;
+        height: 1.35rem;
+    }
+
+    .portal-tour-progress {
+        color: rgb(8 128 137);
+        font-size: 0.68rem;
+        font-weight: 750;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+    }
+
+    .portal-tour-title {
+        margin-top: 0.15rem;
+        color: rgb(15 23 42);
+        font-size: 1rem;
+        font-weight: 700;
+        line-height: 1.3;
+    }
+
+    .portal-tour-description {
+        margin-top: 0.85rem;
+        color: rgb(71 85 105);
+        font-size: 0.875rem;
+        line-height: 1.55;
+    }
+
+    .portal-tour-dots {
+        display: flex;
+        gap: 0.35rem;
+        margin-top: 0.9rem;
+    }
+
+    .portal-tour-dots span {
+        width: 0.38rem;
+        height: 0.38rem;
+        border-radius: 9999px;
+        background: rgb(203 213 225);
+        transition: width 180ms ease, background-color 180ms ease;
+    }
+
+    .portal-tour-dots span.is-active {
+        width: 1.15rem;
+        background: rgb(var(--brand-primary));
+    }
+
+    .portal-tour-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-top: 1rem;
+        padding-top: 0.9rem;
+        border-top: 1px solid rgb(226 232 240);
+    }
+
+    .portal-tour-skip {
+        @apply focus-ring rounded-lg px-1 py-1 text-xs font-semibold text-slate-500 transition hover:text-slate-800;
+    }
+
+    @keyframes portal-tour-dialog-in {
+        from {
+            opacity: 0;
+            transform: translateY(5px) scale(0.98);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    @media (max-width: 639px) {
+        .portal-tour-help {
+            width: 2.5rem;
+            height: 2.5rem;
+        }
+
+        .portal-tour-dialog {
+            padding: 1rem;
+            border-radius: 1.1rem;
+        }
+
+        .portal-tour-actions {
+            align-items: flex-end;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .portal-tour-highlight {
+            transition: none;
+        }
+
+        .portal-tour-dialog-enter {
+            animation: none;
+        }
+    }
+}
+
+@layer components {
     .focus-ring {
         @apply focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white;
     }

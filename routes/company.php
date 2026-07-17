@@ -4,6 +4,7 @@ use App\Modules\Company\Http\Controllers\CompanyBranchController;
 use App\Modules\Company\Http\Controllers\CompanyDashboardController;
 use App\Modules\Company\Http\Controllers\CompanyOrderController;
 use App\Modules\Company\Http\Controllers\CompanyProfileController;
+use App\Modules\Company\Http\Controllers\CompletePortalTourController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'role:distributor'])
@@ -34,6 +35,8 @@ Route::middleware(['auth', 'verified', 'role:distributor'])
         // Datos de la empresa
         Route::get('/perfil', [CompanyProfileController::class, 'edit'])->name('profile.edit');
         Route::put('/perfil', [CompanyProfileController::class, 'update'])->name('profile.update');
+
+        Route::post('/tutorial/completar', CompletePortalTourController::class)->name('portal-tour.complete');
 
         // Usuarios de la empresa (deshabilitado: 1 cuenta por distribuidor)
         Route::redirect('/usuarios', '/empresa', 302);

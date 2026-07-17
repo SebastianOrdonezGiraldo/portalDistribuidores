@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -19,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property DistributorStatus $status
  * @property string|null $contact_email
  * @property string|null $contact_name
+ * @property Carbon|null $portal_tour_completed_at
  */
 class Distributor extends Model
 {
@@ -38,12 +40,14 @@ class Distributor extends Model
         'phone',
         'contact_email',
         'contact_name',
+        'portal_tour_completed_at',
     ];
 
     protected function casts(): array
     {
         return [
             'status' => DistributorStatus::class,
+            'portal_tour_completed_at' => 'datetime',
         ];
     }
 
