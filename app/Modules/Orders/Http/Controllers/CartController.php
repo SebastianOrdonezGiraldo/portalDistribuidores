@@ -15,6 +15,8 @@ use Illuminate\View\View;
 
 class CartController extends Controller
 {
+    public const PENDING_CART_SESSION_KEY = 'orders.pending_cart_after_login';
+
     /**
      * Ver carrito.
      *
@@ -64,6 +66,27 @@ class CartController extends Controller
             }
 
             return back()->withErrors('El producto no está disponible.');
+        }
+
+        if (! $request->user() && $request->expectsJson()) {
+            $returnUrl = route('products.show', $product, absolute: false);
+
+            $request->session()->put(self::PENDING_CART_SESSION_KEY, [
+                'product_id' => $product->id,
+                'variant_id' => $request->integer('variant_id') ?: null,
+                'qty' => $request->integer('qty', 1),
+                'unit_label' => $request->string('unit_label')->toString() ?: 'unidades',
+                'return_url' => $returnUrl,
+            ]);
+            $request->session()->put('url.intended', $returnUrl);
+
+            return response()->json([
+                'ok' => false,
+                'requires_login' => true,
+                'message' => 'Inicia sesión para agregar productos al carrito.',
+                'login_url' => route('login', absolute: false),
+                'return_url' => $returnUrl,
+            ], 401);
         }
 
         $variant = null;

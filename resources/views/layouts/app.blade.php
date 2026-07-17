@@ -31,28 +31,69 @@ View contract:
     $isDistributor = $user?->isDistributor();
 @endphp
 
+@if($isDistributor)
+    <script>
+        try {
+            const storedSidebarState = window.localStorage.getItem('distributor_sidebar_collapsed_v1');
+            const catalogDefaultsToCollapsed = {{ request()->routeIs('catalog.*', 'products.show') ? 'true' : 'false' }};
+
+            if (storedSidebarState === '1' || (storedSidebarState === null && catalogDefaultsToCollapsed)) {
+                document.documentElement.classList.add('distributor-sidebar-collapsed');
+            }
+        } catch {
+            // The expanded sidebar remains the safe fallback when storage is unavailable.
+        }
+    </script>
+@endif
+
 <div class="app-shell relative min-h-dvh">
     <x-ui.flash-stack />
 
     @if($isAuthenticated)
         <div data-sidebar-overlay class="fixed inset-0 z-40 hidden bg-slate-950/45 lg:hidden" aria-hidden="true"></div>
 
-        <aside id="app-sidebar" data-sidebar class="fixed inset-y-0 left-0 z-50 flex w-60 max-w-[calc(100vw-2rem)] -translate-x-full pointer-events-none flex-col border-r border-slate-200 bg-white shadow-panel transition-transform duration-200 ease-out lg:translate-x-0 lg:pointer-events-auto">
-        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-            <a href="{{ route('dashboard') }}" class="flex min-w-0 items-center gap-3 focus-ring rounded-lg">
-                <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-9 w-auto">
-                <div class="min-w-0">
+        <aside
+            id="app-sidebar"
+            data-sidebar
+            @if($isDistributor)
+                data-distributor-sidebar
+                data-sidebar-default-collapsed="{{ request()->routeIs('catalog.*', 'products.show') ? 'true' : 'false' }}"
+            @endif
+            class="fixed inset-y-0 left-0 z-50 flex w-60 max-w-[calc(100vw-2rem)] -translate-x-full pointer-events-none flex-col border-r border-slate-200 bg-white shadow-panel transition-[width,transform] duration-200 ease-out lg:translate-x-0 lg:pointer-events-auto"
+        >
+        <div data-sidebar-brand class="relative flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <a href="{{ route('dashboard') }}" class="flex min-w-0 items-center gap-3 focus-ring rounded-lg" data-sidebar-brand-link>
+                <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-9 w-auto" data-sidebar-logo-full>
+                @if($isDistributor)
+                    <img src="{{ asset('favicon.png') }}" alt="" class="hidden h-8 w-8 object-contain" data-sidebar-logo-compact aria-hidden="true">
+                @endif
+                <div class="min-w-0" data-sidebar-brand-copy>
                     <p class="truncate text-sm font-semibold leading-tight text-slate-900">Portal Distribuidores</p>
                     <p class="truncate text-xs text-slate-500">Import Corporal Medical SAS</p>
                 </div>
             </a>
+
+            @if($isDistributor)
+                <button
+                    type="button"
+                    data-sidebar-collapse
+                    class="btn btn-secondary absolute -right-3 top-1/2 z-10 hidden !h-7 !min-h-7 !w-7 -translate-y-1/2 rounded-full !p-0 shadow-sm lg:inline-flex"
+                    aria-label="Contraer menú lateral"
+                    aria-controls="app-sidebar"
+                    aria-expanded="true"
+                    title="Contraer menú"
+                >
+                    <svg data-sidebar-collapse-icon xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+                    <svg data-sidebar-expand-icon xmlns="http://www.w3.org/2000/svg" class="hidden h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+            @endif
 
             <button type="button" data-sidebar-close class="btn btn-ghost !min-h-10 !px-2 lg:hidden" aria-label="Cerrar menú" aria-controls="app-sidebar">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 0 1 1.414 0L10 8.586l4.293-4.293a1 1 0 1 1 1.414 1.414L11.414 10l4.293 4.293a1 1 0 0 1-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 0 1-1.414-1.414L8.586 10 4.293 5.707a1 1 0 0 1 0-1.414Z" clip-rule="evenodd" /></svg>
             </button>
         </div>
 
-        <div class="flex-1 overflow-y-auto px-4 py-4">
+        <div data-sidebar-navigation class="flex-1 overflow-y-auto px-4 py-4">
             @if($isAdmin)
                 <p class="sidebar-section-label">Operación</p>
                 <div class="mt-2 space-y-0.5">
@@ -147,19 +188,19 @@ View contract:
             </div>
         </div>
 
-        <div class="border-t border-slate-200 px-4 py-4">
-            <div class="mb-3 flex items-center gap-3 px-1">
+        <div data-sidebar-footer class="border-t border-slate-200 px-4 py-4">
+            <div data-sidebar-user class="mb-3 flex items-center gap-3 px-1">
                 <span class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-brand-primary/15 text-sm font-semibold text-brand-dark">
                     {{ strtoupper(substr($user->name, 0, 1)) }}
                 </span>
-                <div class="min-w-0">
+                <div class="min-w-0" data-sidebar-user-copy>
                     <p class="truncate text-sm font-semibold text-slate-900">{{ $user->name }}</p>
                     <p class="truncate text-xs text-slate-500">{{ $isDistributor ? ($user->distributor?->name ?? 'Distribuidor') : 'Administrador' }}</p>
                 </div>
             </div>
             <form action="{{ route('logout') }}" method="POST">
                 @csrf
-                <button type="submit" class="btn btn-ghost w-full justify-center text-slate-600">
+                <button type="submit" class="btn btn-ghost w-full justify-center text-slate-600" data-sidebar-logout title="Cerrar sesión">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                     Cerrar sesión
                 </button>
@@ -168,10 +209,10 @@ View contract:
         </aside>
     @endif
 
-    <div class="flex min-h-dvh min-w-0 flex-col {{ $isAuthenticated ? 'lg:pl-60' : '' }}">
+    <div data-app-content class="flex min-h-dvh min-w-0 flex-col transition-[padding] duration-200 {{ $isAuthenticated ? 'lg:pl-60' : '' }}">
         <header class="sticky top-0 z-30 border-b border-slate-200/95 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
             <div class="flex flex-col gap-2 px-3 py-3 sm:px-6 lg:px-8">
-                <div class="relative flex min-w-0 items-center gap-2 sm:gap-3 {{ isset($catalogToolbar) ? 'flex-wrap sm:flex-nowrap' : '' }}">
+                <div class="relative flex min-w-0 items-center gap-2 sm:gap-3">
                     @if($isAuthenticated)
                         <button
                             type="button"
@@ -183,10 +224,6 @@ View contract:
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M3 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4A1 1 0 0 1 3 5Zm0 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm1 4a1 1 0 1 0 0 2h12a1 1 0 1 0 0-2H4Z" /></svg>
                         </button>
-                        <a href="{{ route('dashboard') }}" class="flex min-w-0 items-center gap-2 rounded-lg focus-ring">
-                            <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-8 w-auto">
-                            <span class="truncate text-sm font-semibold text-slate-900">Portal Distribuidores</span>
-                        </a>
                     @else
                         <a href="{{ route('catalog.index') }}" class="flex min-w-0 items-center gap-2 rounded-lg focus-ring">
                             <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-8 w-auto">
@@ -202,6 +239,44 @@ View contract:
                         </div>
                     @endisset
 
+                    @if($isDistributor && !isset($catalogToolbar))
+                        <form method="GET" action="{{ route('catalog.index') }}" class="global-header-catalog-search" data-global-catalog-search>
+                            <label class="sr-only" for="global-header-catalog-search">Buscar productos en el catálogo</label>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <circle cx="11" cy="11" r="8" />
+                                <path d="m21 21-4.35-4.35" />
+                            </svg>
+                            <input
+                                id="global-header-catalog-search"
+                                type="search"
+                                name="term"
+                                value="{{ request()->routeIs('catalog.*') ? request('term') : '' }}"
+                                placeholder="Buscar producto, SKU, marca o categoría"
+                                class="catalog-search-input"
+                                autocomplete="off"
+                            >
+                        </form>
+                    @endif
+
+                    @if($isAdmin && !isset($catalogToolbar))
+                        <form method="GET" action="{{ route('admin.orders.index') }}" class="global-header-admin-search" data-global-admin-search>
+                            <label class="sr-only" for="global-header-admin-search">Buscar pedidos</label>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <circle cx="11" cy="11" r="8" />
+                                <path d="m21 21-4.35-4.35" />
+                            </svg>
+                            <input
+                                id="global-header-admin-search"
+                                type="search"
+                                name="q"
+                                value="{{ request()->routeIs('admin.orders.index') ? request('q') : '' }}"
+                                placeholder="Buscar CTC, cliente, contacto o correo"
+                                class="catalog-search-input"
+                                autocomplete="off"
+                            >
+                        </form>
+                    @endif
+
                     <div
                         class="ml-auto flex shrink-0 items-center gap-2 {{ $isAuthenticated ? '' : 'relative' }}"
                         @if(! $isAuthenticated)
@@ -212,7 +287,7 @@ View contract:
                         @if($isAuthenticated)
                             @isset($catalogToolbar)
                                 <div class="relative" x-data="{ catalogMenuOpen: false }" @keydown.escape.window="catalogMenuOpen = false">
-                                    <a href="{{ route('cart.index') }}" class="btn btn-secondary relative !min-h-10 !min-w-10 !px-2.5 lg:hidden" aria-label="Ver carrito">
+                                    <a href="{{ route('cart.index') }}" class="btn btn-secondary relative !min-h-10 !min-w-10 !px-2.5 lg:hidden" aria-label="Ver carrito" data-cart-target>
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
                                         <x-ui.badge :variant="($navCartCount ?? 0) > 0 ? 'brand' : 'neutral'" class="absolute -right-1.5 -top-1.5 !min-w-5 !px-1" data-cart-badge>{{ $navCartCount ?? 0 }}</x-ui.badge>
                                     </a>
@@ -230,6 +305,16 @@ View contract:
                                     </div>
                                 </div>
                             @endisset
+                            @if($isDistributor)
+                                <a href="{{ route('cart.index') }}" class="btn btn-secondary relative {{ isset($catalogToolbar) ? 'hidden lg:inline-flex' : 'hidden sm:inline-flex' }} !min-h-10 !min-w-10 !px-2.5" aria-label="Ver carrito" title="Carrito" data-cart-target>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
+                                    @if(($navCartCount ?? 0) > 0)
+                                        <x-ui.badge variant="brand" class="absolute -right-1.5 -top-1.5 !min-w-5 !px-1" data-cart-badge>{{ $navCartCount }}</x-ui.badge>
+                                    @else
+                                        <x-ui.badge variant="neutral" class="absolute -right-1.5 -top-1.5 !min-w-5 !px-1" data-cart-badge>0</x-ui.badge>
+                                    @endif
+                                </a>
+                            @endif
                             <div class="{{ isset($catalogToolbar) ? 'hidden lg:block' : '' }} relative" x-data="{ profileMenuOpen: false }" @keydown.escape.window="profileMenuOpen = false">
                                 <button
                                     type="button"
@@ -266,7 +351,7 @@ View contract:
                             </div>
                         @else
                             @isset($catalogToolbar)
-                                <a href="{{ route('cart.index') }}" class="btn btn-secondary relative !min-h-10 !min-w-10 !px-2.5 lg:hidden" aria-label="Ver carrito">
+                                <a href="{{ route('cart.index') }}" class="btn btn-secondary relative !min-h-10 !min-w-10 !px-2.5 lg:hidden" aria-label="Ver carrito" data-cart-target>
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
                                     <x-ui.badge :variant="($navCartCount ?? 0) > 0 ? 'brand' : 'neutral'" class="absolute -right-1.5 -top-1.5 !min-w-5 !px-1" data-cart-badge>{{ $navCartCount ?? 0 }}</x-ui.badge>
                                 </a>
@@ -304,6 +389,7 @@ View contract:
                                                 {{ $catalogToolbar }}
                                             </div>
                                         </div>
+                                        <a href="{{ route('register') }}" class="btn btn-secondary min-h-12 w-full justify-center !px-4">Ser distribuidor</a>
                                         <a href="{{ route('login') }}" class="btn btn-primary min-h-12 w-full justify-center !px-4">Iniciar sesión</a>
                                     </div>
                                 @else
@@ -311,10 +397,11 @@ View contract:
                                         Carrito
                                         <x-ui.badge :variant="($navCartCount ?? 0) > 0 ? 'brand' : 'neutral'" data-cart-badge>{{ $navCartCount ?? 0 }}</x-ui.badge>
                                     </a>
+                                    <a href="{{ route('register') }}" class="btn btn-secondary w-full justify-center !px-3">Ser distribuidor</a>
                                     <a href="{{ route('login') }}" class="btn btn-primary w-full justify-center !px-3">Iniciar sesión</a>
                                 @endisset
                             </div>
-                            <a href="{{ route('cart.index') }}" class="btn btn-secondary relative {{ isset($catalogToolbar) ? 'hidden lg:inline-flex' : 'hidden sm:inline-flex' }} !min-h-10 !min-w-10 !px-2.5" aria-label="Ver carrito" title="Carrito">
+                            <a href="{{ route('cart.index') }}" class="btn btn-secondary relative {{ isset($catalogToolbar) ? 'hidden lg:inline-flex' : 'hidden sm:inline-flex' }} !min-h-10 !min-w-10 !px-2.5" aria-label="Ver carrito" title="Carrito" data-cart-target>
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
                                 @if(($navCartCount ?? 0) > 0)
                                     <x-ui.badge variant="brand" class="absolute -right-1.5 -top-1.5 !min-w-5 !px-1" data-cart-badge>{{ $navCartCount }}</x-ui.badge>
@@ -322,6 +409,7 @@ View contract:
                                     <x-ui.badge variant="neutral" class="absolute -right-1.5 -top-1.5 !min-w-5 !px-1" data-cart-badge>0</x-ui.badge>
                                 @endif
                             </a>
+                            <a href="{{ route('register') }}" class="btn btn-secondary {{ isset($catalogToolbar) ? 'hidden lg:inline-flex' : 'hidden sm:inline-flex' }} !min-h-10 !px-3 sm:!px-4">Ser distribuidor</a>
                             <a href="{{ route('login') }}" class="btn btn-primary {{ isset($catalogToolbar) ? 'hidden lg:inline-flex' : 'hidden sm:inline-flex' }} !min-h-10 !px-3 sm:!px-4">Iniciar sesión</a>
                         @endif
                     </div>
@@ -333,25 +421,8 @@ View contract:
                             <p class="admin-top-toolbar-eyebrow">Vista ejecutiva</p>
                             <p class="admin-top-toolbar-caption">Resumen comercial y señales de seguimiento</p>
                         </div>
-                        <form method="GET" action="{{ route('admin.orders.index') }}" class="relative w-full md:max-w-sm lg:max-w-md">
-                            <label class="sr-only" for="top-search-admin-dashboard">Buscar pedido</label>
-                            <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                            <input id="top-search-admin-dashboard" type="text" name="q" value="{{ request('q') }}" placeholder="Buscar pedido puntual" class="form-input !min-h-10 py-2 pl-9 pr-4">
-                        </form>
                         <a href="{{ route('admin.orders.index') }}" class="btn btn-secondary !min-h-10 !px-3">Ver pedidos</a>
                     </div>
-                @elseif($isAdmin)
-                    <form method="GET" action="{{ route('admin.orders.index') }}" class="relative w-full lg:mx-auto lg:max-w-2xl">
-                        <label class="sr-only" for="top-search-admin">Buscar pedido</label>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                        <input id="top-search-admin" type="text" name="q" value="{{ request('q') }}" placeholder="Buscar CTC, cliente o contacto" class="form-input py-2.5 pl-9 pr-4">
-                    </form>
-                @elseif(!request()->routeIs('catalog.*', 'products.show'))
-                    <form method="GET" action="{{ route('catalog.index') }}" class="relative w-full lg:mx-auto lg:max-w-2xl">
-                        <label class="sr-only" for="top-search-catalog">Buscar producto</label>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                        <input id="top-search-catalog" type="text" name="term" value="{{ request('term') }}" placeholder="Buscar producto o categoría" class="form-input py-2.5 pl-9 pr-4">
-                    </form>
                 @endif
             </div>
         </header>
@@ -384,6 +455,38 @@ View contract:
         <x-ui.button type="button" variant="danger" class="w-full justify-center sm:w-auto" data-confirm-approve>Confirmar</x-ui.button>
     </div>
 </x-ui.modal>
+
+@guest
+    <div id="login-required-modal" data-modal data-login-required-modal class="fixed inset-0 z-[90] hidden items-end justify-center bg-slate-950/55 p-3 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="login-required-modal-title">
+        <div class="login-required-panel">
+            <button type="button" class="login-required-close" data-login-required-close aria-label="Cerrar">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+                    <path d="M6 6l12 12"></path>
+                    <path d="M18 6L6 18"></path>
+                </svg>
+            </button>
+
+            <div class="login-required-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+                    <circle cx="9" cy="20.5" r="1.25"></circle>
+                    <circle cx="17.5" cy="20.5" r="1.25"></circle>
+                    <path d="M3 3h2l2.3 10.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 7H7.2"></path>
+                </svg>
+            </div>
+
+            <p class="login-required-eyebrow">Carrito distribuidor</p>
+            <h2 id="login-required-modal-title" class="login-required-title">Inicia sesión para continuar</h2>
+            <p class="login-required-copy">
+                Te llevamos al login y, al entrar, vuelves al producto para completar el agregado al carrito.
+            </p>
+
+            <div class="login-required-actions">
+                <a href="{{ route('login') }}" class="btn btn-primary w-full justify-center" data-login-required-link>Iniciar sesión</a>
+                <button type="button" class="btn btn-secondary w-full justify-center" data-login-required-close>Seguir viendo catálogo</button>
+            </div>
+        </div>
+    </div>
+@endguest
 
 @if(!$isAdmin && !request()->routeIs('catalog.*', 'products.show') && view()->exists('layouts.partials.whatsapp-float'))
     @include('layouts.partials.whatsapp-float')
