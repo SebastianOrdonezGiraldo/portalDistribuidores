@@ -11,7 +11,6 @@ Component contract:
     use Illuminate\Pagination\UrlWindow;
 
     $isLengthAware = $paginator instanceof LengthAwarePaginator;
-
     if ($isLengthAware) {
         $paginator->onEachSide(1);
         $window   = UrlWindow::make($paginator);

@@ -761,13 +761,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Cart animation helpers
     const isVisibleCartTarget = (element) => {
-        if (!element) {
+        if (!(element instanceof HTMLElement)) {
             return false;
         }
 
         const rect = element.getBoundingClientRect();
+        const styles = window.getComputedStyle(element);
 
-        return rect.width > 0 && rect.height > 0 && rect.top >= 0 && rect.top <= window.innerHeight;
+        return styles.display !== 'none'
+            && styles.visibility !== 'hidden'
+            && rect.width > 0
+            && rect.height > 0
+            && rect.right > 0
+            && rect.left < window.innerWidth
+            && rect.bottom > 0
+            && rect.top < window.innerHeight;
     };
 
     const getCartBadgeTarget = () => {
@@ -962,7 +970,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.querySelectorAll('[data-cart-tooltip]').forEach((tooltip) => tooltip.remove());
 
-        const rect = target.getBoundingClientRect();
         const tooltip = document.createElement('div');
         tooltip.dataset.cartTooltip = 'true';
         tooltip.className = 'cart-tooltip animate-cart-tooltip-in';
@@ -1079,21 +1086,27 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.append(tooltip);
 
         const position = () => {
+            const rect = target.getBoundingClientRect();
             const tooltipRect = tooltip.getBoundingClientRect();
             const viewportPadding = 12;
-            const left = Math.min(
-                Math.max(viewportPadding, rect.left + rect.width / 2 - tooltipRect.width / 2),
-                window.innerWidth - tooltipRect.width - viewportPadding,
+            const availableWidth = Math.max(0, window.innerWidth - tooltipRect.width - viewportPadding);
+            const availableHeight = Math.max(0, window.innerHeight - tooltipRect.height - viewportPadding);
+            const targetCenterX = rect.left + rect.width / 2;
+            const targetBottom = Math.max(viewportPadding, Math.min(rect.bottom, window.innerHeight - viewportPadding));
+            const left = Math.max(
+                viewportPadding,
+                Math.min(targetCenterX - tooltipRect.width / 2, availableWidth),
             );
             const top = Math.min(
-                Math.max(viewportPadding, rect.bottom + 12),
-                window.innerHeight - tooltipRect.height - viewportPadding,
+                Math.max(viewportPadding, targetBottom + 12),
+                availableHeight,
             );
+            const arrowX = Math.max(22, Math.min(targetCenterX - left, tooltipRect.width - 22));
 
             tooltip.style.left = `${left}px`;
             tooltip.style.top = `${top}px`;
-            tooltip.style.setProperty('--cart-tooltip-arrow-x', `${rect.left + rect.width / 2 - left}px`);
-            arrow.style.left = `${rect.left + rect.width / 2 - left}px`;
+            tooltip.style.setProperty('--cart-tooltip-arrow-x', `${arrowX}px`);
+            arrow.style.left = `${arrowX}px`;
         };
 
         position();
@@ -1101,10 +1114,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const close = () => {
             tooltip.classList.remove('animate-cart-tooltip-in');
             tooltip.classList.add('inline-toast-leave');
+            window.removeEventListener('resize', position);
+            window.removeEventListener('scroll', position);
             window.setTimeout(() => tooltip.remove(), 220);
         };
 
         closeButton.addEventListener('click', close);
+        window.addEventListener('resize', position, { passive: true });
+        window.addEventListener('scroll', position, { passive: true });
         window.setTimeout(close, 3200);
     };
 
