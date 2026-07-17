@@ -465,7 +465,7 @@ View contract:
 
                 <form method="GET" action="{{ route('catalog.index') }}" class="catalog-sidebar-card catalog-sidebar-filter-form">
                     @if(filled($search->term))<input type="hidden" name="term" value="{{ $search->term }}">@endif
-                    <div class="catalog-sidebar-heading">
+                    <div class="catalog-sidebar-heading" data-portal-tour-target="filters-desktop">
                         <p>Filtros</p>
                         @if($activeFiltersCount > 0)<span class="catalog-sidebar-filter-count">{{ $activeFiltersCount }}</span>@endif
                     </div>
