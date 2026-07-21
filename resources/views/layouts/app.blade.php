@@ -244,17 +244,7 @@ View contract:
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M3 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4A1 1 0 0 1 3 5Zm0 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm1 4a1 1 0 1 0 0 2h12a1 1 0 1 0 0-2H4Z" /></svg>
                         </button>
-                        @if($isAdminDashboard)
-                            <div class="admin-dashboard-workspace" aria-label="Espacio de trabajo actual">
-                                <span class="admin-dashboard-workspace-icon" aria-hidden="true">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 21h16"/><path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2"/></svg>
-                                </span>
-                                <span class="min-w-0">
-                                    <span class="block text-[0.65rem] font-medium text-slate-500">Workspace</span>
-                                    <span class="block truncate text-sm font-semibold text-slate-900">Plataforma Global</span>
-                                </span>
-                            </div>
-                        @elseif($isAdmin)
+                        @if($isAdmin && ! $isAdminDashboard)
                             <a href="{{ route('dashboard') }}" class="flex min-w-0 items-center gap-2 rounded-lg focus-ring">
                                 <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-8 w-auto">
                                 <span class="truncate text-sm font-semibold text-slate-900">Portal Distribuidores</span>

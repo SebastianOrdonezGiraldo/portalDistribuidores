@@ -109,40 +109,15 @@
             <div class="min-w-0 space-y-4">
                 <section class="admin-dashboard-kpis" aria-label="Indicadores principales">
                     @foreach($executiveCards as $card)
-                        @php
-                            $trend = is_string($card['trend']) ? ltrim($card['trend']) : null;
-                            $trendTone = $trend && str_starts_with($trend, '+')
-                                ? 'positive'
-                                : ($trend && str_starts_with($trend, '-') ? 'negative' : 'neutral');
-                        @endphp
-                        <a href="{{ $card['href'] }}" class="admin-dashboard-kpi admin-dashboard-kpi--{{ $card['tone'] }}">
-                            <div class="admin-dashboard-kpi-heading">
-                                <span class="admin-dashboard-kpi-icon" aria-hidden="true">
-                                    @switch($card['icon'])
-                                        @case('orders')
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/><path d="M3 4h2l2.4 10.4A2 2 0 0 0 9.35 16H17a2 2 0 0 0 1.94-1.52L21 7H6"/></svg>
-                                            @break
-                                        @case('users')
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>
-                                            @break
-                                        @case('products')
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4.4 7.7 7.6 4.4 7.6-4.4M12 12.1V21"/></svg>
-                                            @break
-                                        @default
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
-                                    @endswitch
-                                </span>
-                                <span>{{ $card['label'] }}</span>
-                            </div>
-                            <p class="admin-dashboard-kpi-value">{{ $card['value'] }}</p>
-                            @if($trend)
-                                <div class="admin-dashboard-kpi-meta">
-                                    <span class="admin-dashboard-trend admin-dashboard-trend--{{ $trendTone }}">{{ $trend }}</span>
-                                </div>
-                            @else
-                                <p class="admin-dashboard-kpi-hint">{{ $card['hint'] }}</p>
-                            @endif
-                        </a>
+                        <x-ui.admin-metric-card
+                            :label="$card['label']"
+                            :value="$card['value']"
+                            :trend="$card['trend']"
+                            :hint="$card['hint']"
+                            :href="$card['href']"
+                            :icon="$card['icon']"
+                            :tone="$card['tone']"
+                        />
                     @endforeach
                 </section>
 
