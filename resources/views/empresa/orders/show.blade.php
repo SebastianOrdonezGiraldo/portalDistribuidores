@@ -240,6 +240,8 @@ View contract:
         </div>
 
         <div class="space-y-4">
+            <x-orders.shipping-info :order="$order" />
+
             {{-- Trazabilidad --}}
             <x-ui.card class="p-5">
                 <h2 class="card-title">Estado y Trazabilidad</h2>

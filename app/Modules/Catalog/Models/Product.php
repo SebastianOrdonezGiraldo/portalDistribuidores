@@ -4,6 +4,7 @@ namespace App\Modules\Catalog\Models;
 
 use App\Modules\Categories\Models\Category;
 use App\Modules\Inventory\Models\ContaPymeInventoryMapping;
+use App\Modules\Orders\Models\CartItem;
 use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Shared\Support\TextNormalizer;
 use Carbon\CarbonInterface;
@@ -112,6 +113,12 @@ class Product extends Model
     public function orderItems(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    /** @return HasMany<CartItem, $this> */
+    public function cartItems(): HasMany
+    {
+        return $this->hasMany(CartItem::class);
     }
 
     public function scopeActive(Builder $query): Builder

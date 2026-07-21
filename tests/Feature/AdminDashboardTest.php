@@ -63,9 +63,12 @@ class AdminDashboardTest extends TestCase
             ->get('/admin');
 
         $response->assertOk();
-        $response->assertSee('Panel operativo');
-        $response->assertSee('Pedidos Recientes');
-        $response->assertSee('Pedido '.$order->oc_number);
+        $response->assertSee('Bienvenido, '.$admin->name);
+        $response->assertDontSee('Plataforma Global');
+        $response->assertSee('Pedidos del mes');
+        $response->assertSee('Salud del sistema');
+        $response->assertSee($order->oc_number);
+        $response->assertDontSee('Buscar producto o categoría');
     }
 
     public function test_guest_is_redirected_from_sync_endpoint(): void
@@ -160,7 +163,7 @@ class AdminDashboardTest extends TestCase
         $response->assertSee('Sincronización ContaPyme');
         $response->assertSee('Estado');
         $response->assertSee('Última sincronización');
-        $response->assertSee('Sincronizados');
+        $response->assertSee('Registros procesados');
     }
 
     public function test_dashboard_shows_the_latest_contapyme_run_diagnostics(): void
