@@ -1577,6 +1577,78 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    document.querySelectorAll('form[data-status-form], form[data-shipping-form]').forEach((shippingForm) => {
+        const statusSelect = shippingForm.querySelector('[data-status-select]');
+        const shippingFields = shippingForm.querySelector('[data-shipping-fields]');
+        const trackingInput = shippingForm.querySelector('[data-tracking-number]');
+        const carrierInput = shippingForm.querySelector('[data-carrier-input]');
+        const carrierEditButton = shippingForm.querySelector('[data-carrier-edit]');
+        const carrierData = shippingForm.querySelector('[data-carrier-prefixes]');
+
+        if (!shippingFields || !trackingInput || !carrierInput) {
+            return;
+        }
+
+        let carrierWasEdited = carrierInput.dataset.carrierManual === 'true';
+
+        let carrierPrefixes = {};
+
+        try {
+            carrierPrefixes = JSON.parse(carrierData?.textContent || '{}');
+        } catch {
+            carrierPrefixes = {};
+        }
+
+        const renderCarrier = () => {
+            if (carrierWasEdited) {
+                return;
+            }
+
+            const prefix = trackingInput.value.trim().charAt(0);
+            const suggestedCarrier = carrierPrefixes[prefix] || '';
+
+            carrierInput.value = suggestedCarrier;
+            carrierInput.readOnly = suggestedCarrier !== '';
+        };
+
+        const syncShippingFields = () => {
+            const isDispatched = statusSelect ? statusSelect.value === 'dispatched' : true;
+
+            shippingFields.classList.toggle('hidden', !isDispatched);
+            trackingInput.required = isDispatched;
+            trackingInput.disabled = !isDispatched;
+            carrierInput.required = isDispatched;
+            carrierInput.disabled = !isDispatched;
+
+            if (isDispatched) {
+                renderCarrier();
+            }
+        };
+
+        statusSelect?.addEventListener('change', syncShippingFields);
+        trackingInput.addEventListener('input', () => {
+            if (trackingInput.value.trim() === '') {
+                carrierWasEdited = false;
+                carrierInput.value = '';
+                carrierInput.readOnly = false;
+
+                return;
+            }
+
+            renderCarrier();
+        });
+        carrierInput.addEventListener('input', () => {
+            carrierWasEdited = true;
+        });
+        carrierEditButton?.addEventListener('click', () => {
+            carrierWasEdited = true;
+            carrierInput.readOnly = false;
+            carrierInput.focus();
+            carrierInput.select();
+        });
+        syncShippingFields();
+    });
+
     const productForm = document.querySelector('form[data-product-form]');
 
     if (productForm) {

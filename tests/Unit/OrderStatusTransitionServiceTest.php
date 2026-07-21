@@ -90,12 +90,14 @@ class OrderStatusTransitionServiceTest extends TestCase
             ->expects($this->never())
             ->method('increaseForOrder');
 
-        $updatedOrder = $this->service->transition($order, OrderStatus::Dispatched, $actor, '  despacho parcial  ');
+        $updatedOrder = $this->service->transition($order, OrderStatus::Dispatched, $actor, '  despacho parcial  ', ' 2258298191 ');
 
         $this->assertTrue($updatedOrder->status === OrderStatus::Dispatched);
         $this->assertDatabaseHas('orders', [
             'id' => $order->id,
             'status' => OrderStatus::Dispatched->value,
+            'tracking_number' => '2258298191',
+            'shipping_carrier' => 'servientrega',
         ]);
         $this->assertDatabaseHas('order_status_histories', [
             'order_id' => $order->id,
@@ -162,12 +164,77 @@ class OrderStatusTransitionServiceTest extends TestCase
             ->expects($this->never())
             ->method('increaseForOrder');
 
-        $this->service->transition($order, OrderStatus::Dispatched, null, 'guia 123');
+        $this->service->transition($order, OrderStatus::Dispatched, null, 'guia 123', '888004907296');
 
         $this->assertDatabaseHas('orders', [
             'id' => $order->id,
             'status' => OrderStatus::Dispatched->value,
+            'tracking_number' => '888004907296',
+            'shipping_carrier' => 'deprisa',
         ]);
+    }
+
+    public function test_transition_to_dispatched_requires_tracking_number(): void
+    {
+        $order = Order::factory()->create(['status' => OrderStatus::Sold]);
+
+        $this->inventoryService
+            ->expects($this->never())
+            ->method('decreaseForOrder');
+        $this->inventoryService
+            ->expects($this->never())
+            ->method('increaseForOrder');
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('El número de guía es obligatorio para marcar el pedido como despachado.');
+
+        $this->service->transition($order, OrderStatus::Dispatched, null, 'Salida de bodega.');
+    }
+
+    public function test_later_transition_preserves_shipping_details(): void
+    {
+        $order = Order::factory()->create([
+            'status' => OrderStatus::Dispatched,
+            'tracking_number' => '957000255300',
+            'shipping_carrier' => 'envia',
+        ]);
+
+        $this->inventoryService
+            ->expects($this->never())
+            ->method('decreaseForOrder');
+        $this->inventoryService
+            ->expects($this->never())
+            ->method('increaseForOrder');
+
+        $updatedOrder = $this->service->transition($order, OrderStatus::Sent);
+
+        $this->assertTrue($updatedOrder->status === OrderStatus::Sent);
+        $this->assertSame('957000255300', $updatedOrder->tracking_number);
+        $this->assertSame('envia', $updatedOrder->shipping_carrier);
+    }
+
+    public function test_custom_shipping_carrier_overrides_detected_suggestion(): void
+    {
+        $order = Order::factory()->create(['status' => OrderStatus::Sold]);
+
+        $this->inventoryService
+            ->expects($this->never())
+            ->method('decreaseForOrder');
+        $this->inventoryService
+            ->expects($this->never())
+            ->method('increaseForOrder');
+
+        $updatedOrder = $this->service->transition(
+            $order,
+            OrderStatus::Dispatched,
+            null,
+            'Envío especial.',
+            '2258298191',
+            'Carga aérea especial',
+        );
+
+        $this->assertSame('Carga aérea especial', $updatedOrder->shipping_carrier);
+        $this->assertSame('Carga aérea especial', $updatedOrder->shippingCarrierLabel());
     }
 
     public function test_transition_does_not_adjust_inventory_when_neither_status_consumes_inventory(): void
