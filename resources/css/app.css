@@ -425,61 +425,532 @@
         @apply flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white;
     }
 
-    .admin-top-toolbar {
-        @apply flex flex-col gap-2 border-t border-slate-200/80 pt-3 md:flex-row md:items-center md:justify-between;
+    .admin-dashboard-body {
+        background-color: rgb(248 250 252);
+        background-image:
+            radial-gradient(circle at 78% 3%, rgba(54, 177, 187, 0.08), transparent 26rem),
+            linear-gradient(180deg, rgb(255 255 255) 0, rgb(248 250 252) 18rem);
     }
 
-    .admin-top-toolbar-meta {
-        @apply hidden min-w-0 md:block;
+    .admin-dashboard-body #app-sidebar {
+        box-shadow: none;
     }
 
-    .admin-top-toolbar-eyebrow {
-        @apply text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-slate-500;
+    .admin-sidebar-brand-mark {
+        @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-teal-600 text-white shadow-sm;
     }
 
-    .admin-top-toolbar-caption {
-        @apply mt-0.5 truncate text-xs font-medium text-slate-500;
+    .admin-sidebar-brand-mark svg {
+        @apply h-5 w-5;
     }
 
-    .admin-exec-hero {
-        @apply rounded-2xl border border-slate-200 bg-white/95 p-5 shadow-panel lg:flex lg:items-start lg:justify-between lg:gap-6;
-        background-image: linear-gradient(140deg, rgba(54, 177, 187, 0.08), rgba(255, 255, 255, 0) 50%);
+    .admin-dashboard-workspace {
+        @apply hidden min-w-44 items-center gap-2.5 sm:flex;
     }
 
-    .admin-exec-hero-main {
-        @apply min-w-0;
+    .admin-dashboard-workspace-icon {
+        @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm;
     }
 
-    .admin-exec-hero-eyebrow {
-        @apply text-[0.68rem] font-bold uppercase tracking-[0.1em] text-brand-dark;
+    .admin-dashboard-workspace-icon svg {
+        @apply h-5 w-5;
     }
 
-    .admin-exec-hero-title {
-        @apply mt-1 text-2xl font-semibold tracking-tight text-slate-900;
+    .admin-dashboard-global-search {
+        @apply relative order-last w-full md:order-none md:mx-auto md:max-w-xl md:flex-1;
     }
 
-    .admin-exec-hero-subtitle {
-        @apply mt-1 max-w-3xl text-sm text-slate-600;
+    .admin-dashboard-global-search input {
+        @apply h-10 w-full rounded-xl border border-slate-200 bg-slate-50/80 py-2 pl-10 pr-14 text-sm text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-brand-primary focus:bg-white focus:ring-2 focus:ring-brand-primary/15;
     }
 
-    .admin-exec-hero-meta {
-        @apply mt-3 flex flex-wrap items-center gap-2;
+    .admin-dashboard-search-hint {
+        @apply pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[0.65rem] font-semibold text-slate-400 shadow-sm lg:block;
     }
 
-    .admin-exec-hero-actions {
-        @apply mt-4 flex flex-col gap-2 sm:flex-row lg:mt-0 lg:shrink-0;
+    .admin-dashboard-icon-button {
+        @apply focus-ring inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-transparent text-slate-600 transition hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900;
     }
 
-    .admin-section-intro {
-        @apply flex flex-col gap-1;
+    .admin-dashboard-icon-button svg {
+        @apply h-5 w-5;
     }
 
-    .admin-section-eyebrow {
-        @apply text-[0.68rem] font-semibold uppercase tracking-[0.1em] text-slate-500;
+    .admin-dashboard-create-button {
+        @apply border-brand-primary bg-brand-primary text-white shadow-sm hover:border-brand-hover hover:bg-brand-hover hover:text-white;
     }
 
-    .admin-section-title {
-        @apply text-lg font-semibold text-slate-900;
+    .admin-dashboard-create-menu {
+        @apply absolute right-0 z-50 mt-2 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-panel;
+    }
+
+    .admin-dashboard-create-menu a {
+        @apply block rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950;
+    }
+
+    .admin-dashboard-notification-count {
+        @apply absolute -right-0.5 -top-0.5 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full border-2 border-white bg-brand-primary px-0.5 text-[0.58rem] font-bold leading-none text-white;
+    }
+
+    .admin-dashboard-profile-trigger {
+        @apply focus-ring inline-flex min-h-10 items-center gap-2 rounded-xl border border-transparent px-1.5 py-1 text-slate-600 transition hover:border-slate-200 hover:bg-slate-50;
+    }
+
+    .admin-dashboard-main {
+        @apply bg-transparent pb-10 lg:px-7 2xl:px-8;
+    }
+
+    .admin-dashboard-page {
+        @apply mx-auto w-full max-w-[96rem];
+    }
+
+    .admin-dashboard-breadcrumb {
+        @apply mb-3 flex items-center gap-1.5 text-xs font-medium text-slate-500;
+    }
+
+    .admin-dashboard-breadcrumb a {
+        @apply rounded-md px-1 py-0.5 transition hover:bg-white hover:text-brand-dark;
+    }
+
+    .admin-dashboard-breadcrumb svg {
+        @apply h-3.5 w-3.5 text-slate-300;
+    }
+
+    .admin-dashboard-welcome {
+        @apply mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between;
+    }
+
+    .admin-dashboard-welcome h1 {
+        @apply text-2xl font-semibold tracking-tight text-slate-950;
+    }
+
+    .admin-dashboard-welcome p {
+        @apply mt-1 text-sm text-slate-500;
+    }
+
+    .admin-dashboard-period {
+        @apply inline-flex w-fit shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-medium text-slate-700 shadow-sm;
+    }
+
+    .admin-dashboard-period svg {
+        @apply h-4 w-4 text-slate-500;
+    }
+
+    .admin-dashboard-grid {
+        @apply grid min-w-0 gap-4;
+    }
+
+    @media (min-width: 1280px) {
+        .admin-dashboard-grid {
+            grid-template-columns: minmax(0, 1fr) 18rem;
+        }
+    }
+
+    .admin-dashboard-kpis {
+        @apply grid gap-3 sm:grid-cols-2 xl:grid-cols-4;
+    }
+
+    .admin-dashboard-kpi {
+        @apply focus-ring relative min-h-36 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-panel;
+        animation: admin-dashboard-rise 420ms both;
+    }
+
+    .admin-dashboard-kpi:nth-child(2) { animation-delay: 55ms; }
+    .admin-dashboard-kpi:nth-child(3) { animation-delay: 110ms; }
+    .admin-dashboard-kpi:nth-child(4) { animation-delay: 165ms; }
+
+    .admin-dashboard-kpi::after {
+        content: '';
+        position: absolute;
+        right: -1.2rem;
+        bottom: -1.4rem;
+        width: 5.25rem;
+        height: 5.25rem;
+        border-radius: 9999px;
+        background: radial-gradient(circle, rgba(54, 177, 187, 0.1) 0 1.5px, transparent 1.7px);
+        background-size: 8px 8px;
+        pointer-events: none;
+    }
+
+    .admin-dashboard-kpi--amber::after {
+        background-image: radial-gradient(circle, rgba(245, 158, 11, 0.15) 0 1.5px, transparent 1.7px);
+    }
+
+    .admin-dashboard-kpi--green::after {
+        background-image: radial-gradient(circle, rgba(16, 185, 129, 0.13) 0 1.5px, transparent 1.7px);
+    }
+
+    .admin-dashboard-kpi-heading {
+        @apply flex items-center gap-2.5 text-xs font-semibold text-slate-600;
+    }
+
+    .admin-dashboard-kpi-icon {
+        @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-teal-600 text-white shadow-sm;
+    }
+
+    .admin-dashboard-kpi--amber .admin-dashboard-kpi-icon {
+        @apply from-amber-400 to-orange-500;
+    }
+
+    .admin-dashboard-kpi--green .admin-dashboard-kpi-icon {
+        @apply from-emerald-400 to-teal-600;
+    }
+
+    .admin-dashboard-kpi-icon svg {
+        @apply h-5 w-5;
+    }
+
+    .admin-dashboard-kpi-value {
+        @apply mt-4 text-3xl font-semibold leading-none tracking-tight text-slate-950;
+    }
+
+    .admin-dashboard-kpi-meta {
+        @apply mt-2 flex items-center;
+    }
+
+    .admin-dashboard-trend {
+        @apply inline-flex max-w-full rounded-md px-1.5 py-0.5 text-[0.66rem] font-semibold;
+    }
+
+    .admin-dashboard-trend--positive {
+        @apply bg-emerald-50 text-emerald-700;
+    }
+
+    .admin-dashboard-trend--negative {
+        @apply bg-rose-50 text-rose-700;
+    }
+
+    .admin-dashboard-trend--neutral {
+        @apply bg-slate-100 text-slate-600;
+    }
+
+    .admin-dashboard-kpi-hint {
+        @apply mt-2 max-w-[85%] text-[0.7rem] leading-relaxed text-slate-500;
+    }
+
+    .admin-dashboard-panel {
+        @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+    }
+
+    .admin-orders-panel {
+        @apply overflow-hidden;
+        animation: admin-dashboard-rise 480ms 140ms both;
+    }
+
+    .admin-orders-toolbar {
+        @apply flex flex-col gap-3 border-b border-slate-200 px-4 py-3 lg:flex-row lg:items-center lg:justify-between;
+    }
+
+    .admin-order-tabs {
+        @apply flex min-w-0 gap-1.5 overflow-x-auto pb-1 lg:pb-0;
+        scrollbar-width: thin;
+    }
+
+    .admin-order-tabs a {
+        @apply inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[0.7rem] font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900;
+    }
+
+    .admin-order-tabs a span {
+        @apply text-[0.64rem] font-medium text-slate-400;
+    }
+
+    .admin-order-tabs a.is-active {
+        @apply border-brand-primary bg-brand-primary text-white shadow-sm;
+    }
+
+    .admin-order-tabs a.is-active span {
+        @apply text-white/80;
+    }
+
+    .admin-orders-actions {
+        @apply flex shrink-0 flex-wrap items-center gap-2;
+    }
+
+    .admin-dashboard-primary-button,
+    .admin-dashboard-secondary-button {
+        @apply focus-ring inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition;
+    }
+
+    .admin-dashboard-primary-button {
+        @apply border-brand-primary bg-brand-primary text-white shadow-sm hover:border-brand-hover hover:bg-brand-hover;
+    }
+
+    .admin-dashboard-secondary-button {
+        @apply border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50;
+    }
+
+    .admin-dashboard-primary-button svg,
+    .admin-dashboard-secondary-button svg {
+        @apply h-4 w-4;
+    }
+
+    .admin-dashboard-table-shell {
+        @apply overflow-x-auto;
+    }
+
+    .admin-dashboard-orders-table {
+        @apply min-w-[52rem];
+    }
+
+    .admin-dashboard-orders-table thead th {
+        @apply whitespace-nowrap bg-slate-50/80 px-4 py-3 text-[0.68rem] normal-case tracking-normal text-slate-500;
+    }
+
+    .admin-dashboard-orders-table tbody td {
+        @apply whitespace-nowrap px-4 py-3 text-xs;
+    }
+
+    .admin-dashboard-orders-table tbody tr:not(:last-child) {
+        @apply border-b border-slate-100;
+    }
+
+    .admin-dashboard-row-action {
+        @apply focus-ring inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700;
+    }
+
+    .admin-dashboard-row-action svg {
+        @apply h-4 w-4;
+    }
+
+    .admin-orders-footer {
+        @apply flex flex-col gap-2 border-t border-slate-200 px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between;
+    }
+
+    .admin-orders-footer a {
+        @apply font-semibold text-brand-dark transition hover:text-brand-hover;
+    }
+
+    .admin-dashboard-empty {
+        @apply flex min-h-64 flex-col items-center justify-center px-6 py-10 text-center;
+    }
+
+    .admin-dashboard-empty > span {
+        @apply inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400;
+    }
+
+    .admin-dashboard-empty svg {
+        @apply h-6 w-6;
+    }
+
+    .admin-dashboard-empty h3 {
+        @apply mt-3 text-sm font-semibold text-slate-900;
+    }
+
+    .admin-dashboard-empty p {
+        @apply mt-1 text-xs text-slate-500;
+    }
+
+    .admin-sync-strip {
+        @apply grid items-center gap-4 p-4 lg:grid-cols-[minmax(12rem,1.1fr)_minmax(28rem,3fr)_auto];
+        animation: admin-dashboard-rise 480ms 220ms both;
+    }
+
+    .admin-sync-identity {
+        @apply flex min-w-0 items-center gap-3;
+    }
+
+    .admin-sync-icon {
+        @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-dark;
+    }
+
+    .admin-sync-icon svg {
+        @apply h-5 w-5;
+    }
+
+    .admin-sync-identity h2 {
+        @apply text-sm font-semibold text-slate-950;
+    }
+
+    .admin-sync-metrics {
+        @apply grid grid-cols-2 gap-y-3 sm:grid-cols-4;
+    }
+
+    .admin-sync-metrics > div {
+        @apply border-l border-slate-200 px-4 first:border-l-0 first:pl-0;
+    }
+
+    .admin-sync-metrics dt {
+        @apply text-[0.66rem] font-medium text-slate-500;
+    }
+
+    .admin-sync-metrics dd {
+        @apply mt-1 text-xs font-semibold text-slate-900;
+    }
+
+    .admin-sync-metrics dd.is-good,
+    .admin-sync-metrics dd.is-warning {
+        @apply flex items-center gap-1.5;
+    }
+
+    .admin-sync-metrics dd.is-good { @apply text-emerald-600; }
+    .admin-sync-metrics dd.is-warning { @apply text-amber-600; }
+
+    .admin-sync-metrics dd span {
+        @apply inline-block h-1.5 w-1.5 rounded-full bg-current;
+    }
+
+    .admin-sync-diagnostic {
+        @apply col-span-full flex flex-col gap-1 rounded-xl border border-amber-100 bg-amber-50/70 px-3 py-2 text-[0.68rem] text-amber-900 sm:flex-row sm:items-center sm:justify-between;
+    }
+
+    .admin-sync-diagnostic span {
+        @apply font-mono text-[0.62rem] text-amber-700;
+    }
+
+    .admin-dashboard-aside {
+        @apply grid content-start gap-4 md:grid-cols-2 xl:grid-cols-3;
+    }
+
+    @media (min-width: 1280px) {
+        .admin-dashboard-aside {
+            @apply grid-cols-1;
+        }
+    }
+
+    .admin-dashboard-aside > section {
+        animation: admin-dashboard-rise 480ms both;
+    }
+
+    .admin-dashboard-aside > section:nth-child(1) { animation-delay: 80ms; }
+    .admin-dashboard-aside > section:nth-child(2) { animation-delay: 150ms; }
+    .admin-dashboard-aside > section:nth-child(3) { animation-delay: 220ms; }
+
+    .admin-dashboard-panel-heading {
+        @apply flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3.5;
+    }
+
+    .admin-dashboard-panel-heading h2 {
+        @apply text-sm font-semibold text-slate-950;
+    }
+
+    .admin-dashboard-panel-heading > a {
+        @apply text-[0.68rem] font-semibold text-brand-dark hover:text-brand-hover;
+    }
+
+    .admin-system-state {
+        @apply inline-flex items-center gap-1.5 text-[0.66rem] font-semibold;
+    }
+
+    .admin-system-state > span {
+        @apply h-1.5 w-1.5 rounded-full bg-current;
+    }
+
+    .admin-system-state.is-good { @apply text-emerald-600; }
+    .admin-system-state.is-warning { @apply text-amber-600; }
+
+    .admin-system-list {
+        @apply divide-y divide-slate-100 px-4;
+    }
+
+    .admin-system-list > div {
+        @apply flex items-center gap-2.5 py-3 text-xs;
+    }
+
+    .admin-system-item-icon {
+        @apply inline-flex h-6 w-6 shrink-0 items-center justify-center text-emerald-600;
+    }
+
+    .admin-system-item-icon svg {
+        @apply h-4 w-4;
+    }
+
+    .admin-system-list p {
+        @apply min-w-0 flex-1 font-medium text-slate-700;
+    }
+
+    .admin-system-list strong {
+        @apply text-[0.68rem] font-semibold text-slate-700;
+    }
+
+    .admin-system-footer {
+        @apply flex items-center justify-between border-t border-slate-200 px-4 py-3 text-[0.66rem] text-slate-500;
+    }
+
+    .admin-system-footer a {
+        @apply inline-flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900;
+    }
+
+    .admin-system-footer svg {
+        @apply h-3.5 w-3.5;
+    }
+
+    .admin-alerts-list {
+        @apply divide-y divide-slate-100 px-4;
+    }
+
+    .admin-alert-item {
+        @apply grid grid-cols-[auto_minmax(0,1fr)] gap-x-2.5 gap-y-1 py-3;
+    }
+
+    .admin-alert-icon {
+        @apply row-span-2 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600;
+    }
+
+    .admin-alert-item--info .admin-alert-icon {
+        @apply bg-sky-50 text-sky-600;
+    }
+
+    .admin-alert-icon svg {
+        @apply h-4 w-4;
+    }
+
+    .admin-alert-item h3,
+    .admin-alert-empty h3 {
+        @apply text-xs font-semibold text-slate-900;
+    }
+
+    .admin-alert-item p,
+    .admin-alert-empty p {
+        @apply mt-0.5 text-[0.68rem] leading-relaxed text-slate-500;
+    }
+
+    .admin-alert-meta {
+        @apply col-start-2 text-[0.62rem] leading-relaxed text-slate-400;
+    }
+
+    .admin-alert-empty {
+        @apply flex items-start gap-2.5 py-4;
+    }
+
+    .admin-alert-empty > span {
+        @apply inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-xs font-bold text-emerald-600;
+    }
+
+    .admin-quick-actions {
+        @apply md:col-span-2 xl:col-span-1;
+    }
+
+    .admin-quick-actions-list {
+        @apply grid gap-2 p-4;
+    }
+
+    .admin-quick-actions-list a,
+    .admin-quick-actions-list button {
+        @apply focus-ring flex min-h-9 w-full items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-left text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:bg-white hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-55;
+    }
+
+    .admin-quick-actions-list svg {
+        @apply h-4 w-4 shrink-0 text-slate-500;
+    }
+
+    @keyframes admin-dashboard-rise {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .admin-dashboard-kpi,
+        .admin-orders-panel,
+        .admin-sync-strip,
+        .admin-dashboard-aside > section {
+            animation: none;
+        }
     }
 
     .stat-chip-label {
@@ -500,14 +971,6 @@
 
     .status-meter-fill {
         @apply h-full rounded-full transition-all duration-500;
-    }
-
-    .admin-quick-link {
-        @apply flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-white hover:text-slate-900;
-    }
-
-    .admin-quick-link-icon {
-        @apply inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg;
     }
 
     .table-wrap {
