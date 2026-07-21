@@ -13,6 +13,6 @@ Component contract:
         : 'border border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-100 hover:text-slate-900';
 @endphp
 
-<a {{ $attributes->merge(['class' => $base.' '.$state]) }}>
+<a data-sidebar-nav-link {{ $attributes->merge(['class' => $base.' '.$state]) }}>
     <span class="inline-flex items-center gap-2">{{ $slot }}</span>
 </a>

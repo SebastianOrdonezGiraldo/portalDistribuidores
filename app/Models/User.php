@@ -3,12 +3,14 @@
 namespace App\Models;
 
 use App\Modules\AuthAccess\Models\Distributor;
+use App\Modules\Orders\Models\Cart;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Shared\Enums\UserRole;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -134,6 +136,12 @@ class User extends Authenticatable
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    /** @return HasOne<Cart, $this> */
+    public function cart(): HasOne
+    {
+        return $this->hasOne(Cart::class);
     }
 
     public function isAdmin(): bool

@@ -26,6 +26,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebar = document.querySelector('[data-sidebar]');
     const sidebarOverlay = document.querySelector('[data-sidebar-overlay]');
     const sidebarToggles = Array.from(document.querySelectorAll('[data-sidebar-toggle]'));
+    const sidebarCollapseButton = document.querySelector('[data-sidebar-collapse]');
+    const sidebarCollapseIcon = sidebarCollapseButton?.querySelector('[data-sidebar-collapse-icon]');
+    const sidebarExpandIcon = sidebarCollapseButton?.querySelector('[data-sidebar-expand-icon]');
+    const sidebarNavLinks = Array.from(document.querySelectorAll('[data-sidebar-nav-link]'));
     const cookieBanner = document.querySelector('[data-cookie-banner]');
     const cookieAcceptButton = cookieBanner?.querySelector('[data-cookie-accept]');
     const cookieConsentKey = 'portal_cookie_consent_v1';
@@ -40,6 +44,64 @@ document.addEventListener('DOMContentLoaded', () => {
         '[tabindex]:not([tabindex="-1"])',
     ].join(', ');
     let lastSidebarTrigger = null;
+    const distributorSidebarStorageKey = 'distributor_sidebar_collapsed_v1';
+
+    sidebarNavLinks.forEach((link) => {
+        const labelSource = link.cloneNode(true);
+        labelSource.querySelectorAll('.badge').forEach((badge) => badge.remove());
+        link.dataset.sidebarLabel = (labelSource.textContent || '').replace(/\s+/g, ' ').trim();
+    });
+
+    const readDesktopSidebarPreference = () => {
+        if (!sidebarCollapseButton || !sidebar) {
+            return false;
+        }
+
+        try {
+            const storedState = window.localStorage.getItem(distributorSidebarStorageKey);
+
+            if (storedState !== null) {
+                return storedState === '1';
+            }
+        } catch {
+            // Fall back to the route-specific initial state below.
+        }
+
+        return sidebar.dataset.sidebarDefaultCollapsed === 'true';
+    };
+
+    let desktopSidebarCollapsed = readDesktopSidebarPreference();
+
+    const renderDesktopSidebarState = ({ persist = false } = {}) => {
+        const collapsed = Boolean(sidebarCollapseButton && isDesktopViewport() && desktopSidebarCollapsed);
+
+        document.documentElement.classList.toggle('distributor-sidebar-collapsed', collapsed);
+
+        if (sidebarCollapseButton) {
+            sidebarCollapseButton.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            sidebarCollapseButton.setAttribute('aria-label', collapsed ? 'Expandir menú lateral' : 'Contraer menú lateral');
+            sidebarCollapseButton.setAttribute('title', collapsed ? 'Expandir menú' : 'Contraer menú');
+        }
+
+        sidebarCollapseIcon?.classList.toggle('hidden', collapsed);
+        sidebarExpandIcon?.classList.toggle('hidden', !collapsed);
+
+        sidebarNavLinks.forEach((link) => {
+            if (collapsed && link.dataset.sidebarLabel) {
+                link.setAttribute('title', link.dataset.sidebarLabel);
+            } else {
+                link.removeAttribute('title');
+            }
+        });
+
+        if (persist) {
+            try {
+                window.localStorage.setItem(distributorSidebarStorageKey, desktopSidebarCollapsed ? '1' : '0');
+            } catch {
+                // The control remains functional for the current page without persistence.
+            }
+        }
+    };
 
     const hasCookieConsent = () => {
         try {
@@ -155,9 +217,11 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.classList.remove('sidebar-open');
             setSidebarInteractivity(true);
             setSidebarExpanded(false);
+            renderDesktopSidebarState();
             return;
         }
 
+        document.documentElement.classList.remove('distributor-sidebar-collapsed');
         sidebar.classList.add('-translate-x-full');
         sidebarOverlay?.classList.add('hidden');
         document.body.classList.remove('sidebar-open');
@@ -169,6 +233,11 @@ document.addEventListener('DOMContentLoaded', () => {
         button.addEventListener('click', () => {
             showSidebar(button);
         });
+    });
+
+    sidebarCollapseButton?.addEventListener('click', () => {
+        desktopSidebarCollapsed = !desktopSidebarCollapsed;
+        renderDesktopSidebarState({ persist: true });
     });
 
     document.querySelectorAll('[data-sidebar-close], [data-sidebar-overlay]').forEach((button) => {
@@ -191,6 +260,364 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.addEventListener('resize', syncSidebarLayout);
     syncSidebarLayout();
+
+    const portalTourRoot = document.querySelector('[data-portal-tour-root]');
+
+    if (portalTourRoot) {
+        const tourHighlight = portalTourRoot.querySelector('[data-portal-tour-highlight]');
+        const tourDialog = portalTourRoot.querySelector('[data-portal-tour-dialog]');
+        const tourTitle = portalTourRoot.querySelector('[data-portal-tour-title]');
+        const tourDescription = portalTourRoot.querySelector('[data-portal-tour-description]');
+        const tourProgress = portalTourRoot.querySelector('[data-portal-tour-progress]');
+        const tourIcon = portalTourRoot.querySelector('[data-portal-tour-icon]');
+        const tourDots = portalTourRoot.querySelector('[data-portal-tour-dots]');
+        const tourPrevious = portalTourRoot.querySelector('[data-portal-tour-previous]');
+        const tourNext = portalTourRoot.querySelector('[data-portal-tour-next]');
+        const tourSkipButtons = portalTourRoot.querySelectorAll('[data-portal-tour-skip]');
+        const tourRestartButtons = document.querySelectorAll('[data-portal-tour-restart]');
+        const catalogMenuToggle = document.querySelector('[data-portal-tour-catalog-menu-toggle]');
+        const originalDesktopSidebarState = desktopSidebarCollapsed;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        let currentTourStep = 0;
+        let tourRenderSequence = 0;
+        let tourIsOpen = false;
+
+        const tourSteps = [
+            {
+                key: 'company',
+                title: 'Tu empresa, en un solo lugar',
+                description: 'Desde este menú consultas pedidos, administras tus sedes y actualizas los datos de la empresa.',
+                selector: '[data-portal-tour-target="company"]',
+                icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/><path d="M9 10h.01M15 10h.01"/></svg>',
+            },
+            {
+                key: 'search',
+                title: 'Encuentra productos rápido',
+                description: 'Busca por nombre, SKU o marca y limita los resultados a una categoría.',
+                selector: '[data-portal-tour-target="search-desktop"], [data-portal-tour-target="search-mobile"]',
+                icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>',
+            },
+            {
+                key: 'filters',
+                title: 'Afina tu búsqueda',
+                description: 'Usa los filtros para ordenar el catálogo y mostrar justo los productos que necesitas.',
+                selector: '[data-portal-tour-target="filters-desktop"], [data-portal-tour-target="filters-mobile"]',
+                icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 6h16M7 12h10M10 18h4"/></svg>',
+            },
+            {
+                key: 'cart',
+                title: 'Tu pedido siempre a la mano',
+                description: 'Aquí ves cuántos productos llevas y continúas con la preparación de tu pedido.',
+                selector: '[data-cart-target]',
+                icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/><path d="M3 4h2l2.2 10h10.6L20 7H6"/></svg>',
+            },
+        ];
+
+        const waitForTourLayout = (milliseconds = 180) => new Promise((resolve) => {
+            window.setTimeout(resolve, milliseconds);
+        });
+
+        const isElementVisible = (element) => {
+            if (!(element instanceof HTMLElement)) {
+                return false;
+            }
+
+            const rect = element.getBoundingClientRect();
+            const styles = window.getComputedStyle(element);
+
+            return styles.display !== 'none'
+                && styles.visibility !== 'hidden'
+                && rect.width > 0
+                && rect.height > 0
+                && rect.right > 0
+                && rect.left < window.innerWidth
+                && rect.bottom > 0
+                && rect.top < window.innerHeight;
+        };
+
+        const isElementRendered = (element) => {
+            if (!(element instanceof HTMLElement)) {
+                return false;
+            }
+
+            const rect = element.getBoundingClientRect();
+            const styles = window.getComputedStyle(element);
+
+            return styles.display !== 'none'
+                && styles.visibility !== 'hidden'
+                && rect.width > 0
+                && rect.height > 0;
+        };
+
+        const findTourTarget = (selector) => {
+            const candidates = Array.from(document.querySelectorAll(selector));
+
+            return candidates.find((element) => isElementVisible(element))
+                || candidates.find((element) => isElementRendered(element));
+        };
+
+        const closeCatalogMenu = async () => {
+            if (catalogMenuToggle?.getAttribute('aria-expanded') === 'true') {
+                catalogMenuToggle.click();
+                await waitForTourLayout(170);
+            }
+        };
+
+        const prepareTourStep = async (step) => {
+            if (!isDesktopViewport()) {
+                if (step.key === 'company') {
+                    await closeCatalogMenu();
+
+                    if (!document.body.classList.contains('sidebar-open')) {
+                        showSidebar();
+                        await waitForTourLayout(220);
+                    }
+
+                    return;
+                }
+
+                if (document.body.classList.contains('sidebar-open')) {
+                    hideSidebar();
+                    await waitForTourLayout(190);
+                }
+
+                if (step.key === 'search') {
+                    if (catalogMenuToggle?.getAttribute('aria-expanded') !== 'true') {
+                        catalogMenuToggle?.click();
+                        await waitForTourLayout(190);
+                    }
+
+                    return;
+                }
+
+                await closeCatalogMenu();
+                return;
+            }
+
+            if (step.key === 'company' && desktopSidebarCollapsed) {
+                desktopSidebarCollapsed = false;
+                renderDesktopSidebarState();
+                await waitForTourLayout(220);
+            }
+        };
+
+        const placeTourDialog = (targetRect) => {
+            if (!tourDialog || !targetRect) {
+                return;
+            }
+
+            const viewportPadding = 12;
+            const targetGap = 16;
+            const dialogRect = tourDialog.getBoundingClientRect();
+            const availableBelow = window.innerHeight - targetRect.bottom;
+            const availableAbove = targetRect.top;
+            const availableRight = window.innerWidth - targetRect.right;
+            const availableLeft = targetRect.left;
+            let placement = 'below';
+            let left = targetRect.left + ((targetRect.width - dialogRect.width) / 2);
+            let top = targetRect.bottom + targetGap;
+
+            if (availableBelow < dialogRect.height + targetGap && availableAbove >= dialogRect.height + targetGap) {
+                placement = 'above';
+                top = targetRect.top - dialogRect.height - targetGap;
+            } else if (availableBelow < dialogRect.height + targetGap && availableRight >= dialogRect.width + targetGap) {
+                placement = 'right';
+                left = targetRect.right + targetGap;
+                top = targetRect.top + ((targetRect.height - dialogRect.height) / 2);
+            } else if (availableBelow < dialogRect.height + targetGap && availableLeft >= dialogRect.width + targetGap) {
+                placement = 'left';
+                left = targetRect.left - dialogRect.width - targetGap;
+                top = targetRect.top + ((targetRect.height - dialogRect.height) / 2);
+            } else if (window.innerWidth < 640 && availableBelow < dialogRect.height + targetGap) {
+                placement = 'docked';
+                left = viewportPadding;
+                top = window.innerHeight - dialogRect.height - viewportPadding;
+            }
+
+            left = Math.max(viewportPadding, Math.min(left, window.innerWidth - dialogRect.width - viewportPadding));
+            top = Math.max(viewportPadding, Math.min(top, window.innerHeight - dialogRect.height - viewportPadding));
+
+            tourDialog.dataset.placement = placement;
+            tourDialog.style.left = `${Math.round(left)}px`;
+            tourDialog.style.top = `${Math.round(top)}px`;
+
+            const arrowOffset = ['above', 'below', 'docked'].includes(placement)
+                ? Math.max(24, Math.min(targetRect.left + (targetRect.width / 2) - left, dialogRect.width - 24))
+                : Math.max(24, Math.min(targetRect.top + (targetRect.height / 2) - top, dialogRect.height - 24));
+
+            tourDialog.style.setProperty('--portal-tour-arrow-offset', `${Math.round(arrowOffset)}px`);
+        };
+
+        const renderTourStep = async () => {
+            const renderSequence = ++tourRenderSequence;
+            const step = tourSteps[currentTourStep];
+
+            await prepareTourStep(step);
+
+            if (renderSequence !== tourRenderSequence || !tourIsOpen) {
+                return;
+            }
+
+            let target = findTourTarget(step.selector);
+
+            if (!target) {
+                target = findTourTarget('[data-portal-tour-restart]') || document.querySelector('header');
+            }
+
+            const initialRect = target?.getBoundingClientRect();
+
+            if (initialRect && (initialRect.top < 72 || initialRect.bottom > window.innerHeight - 24)) {
+                target.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
+                await waitForTourLayout(prefersReducedMotion ? 20 : 420);
+            }
+
+            if (renderSequence !== tourRenderSequence || !tourIsOpen) {
+                return;
+            }
+
+            const targetRect = target?.getBoundingClientRect();
+
+            if (!targetRect || !tourHighlight || !tourDialog) {
+                return;
+            }
+
+            const highlightPadding = window.innerWidth < 640 ? 5 : 7;
+            tourHighlight.style.left = `${Math.max(4, targetRect.left - highlightPadding)}px`;
+            tourHighlight.style.top = `${Math.max(4, targetRect.top - highlightPadding)}px`;
+            tourHighlight.style.width = `${Math.min(window.innerWidth - 8, targetRect.width + (highlightPadding * 2))}px`;
+            tourHighlight.style.height = `${Math.min(window.innerHeight - 8, targetRect.height + (highlightPadding * 2))}px`;
+
+            tourProgress.textContent = `${currentTourStep + 1} de ${tourSteps.length}`;
+            tourTitle.textContent = step.title;
+            tourDescription.textContent = step.description;
+            tourIcon.innerHTML = step.icon;
+            tourPrevious.classList.toggle('hidden', currentTourStep === 0);
+            tourNext.textContent = currentTourStep === tourSteps.length - 1 ? 'Entendido' : 'Siguiente';
+            tourDots.innerHTML = tourSteps.map((_, index) => `<span class="${index === currentTourStep ? 'is-active' : ''}"></span>`).join('');
+
+            tourDialog.style.visibility = 'hidden';
+            tourDialog.classList.remove('portal-tour-dialog-enter');
+            placeTourDialog(targetRect);
+            tourDialog.style.visibility = 'visible';
+            void tourDialog.offsetWidth;
+            tourDialog.classList.add('portal-tour-dialog-enter');
+            tourNext.focus({ preventScroll: true });
+        };
+
+        const restorePageAfterTour = async () => {
+            await closeCatalogMenu();
+
+            if (!isDesktopViewport() && document.body.classList.contains('sidebar-open')) {
+                hideSidebar();
+            }
+
+            if (isDesktopViewport() && desktopSidebarCollapsed !== originalDesktopSidebarState) {
+                desktopSidebarCollapsed = originalDesktopSidebarState;
+                renderDesktopSidebarState();
+            }
+        };
+
+        const closePortalTour = async ({ persist = false } = {}) => {
+            if (!tourIsOpen) {
+                return;
+            }
+
+            tourIsOpen = false;
+            tourRenderSequence += 1;
+            portalTourRoot.classList.add('hidden');
+            portalTourRoot.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('portal-tour-open');
+            await restorePageAfterTour();
+
+            if (!persist) {
+                return;
+            }
+
+            try {
+                const response = await fetch(portalTourRoot.dataset.completeUrl, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    keepalive: true,
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    body: JSON.stringify({ completed: true }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`El servidor respondió con estado ${response.status}.`);
+                }
+            } catch (error) {
+                console.warn('No se pudo guardar el estado del tutorial.', error);
+            }
+        };
+
+        const openPortalTour = () => {
+            currentTourStep = 0;
+            tourIsOpen = true;
+            portalTourRoot.classList.remove('hidden');
+            portalTourRoot.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('portal-tour-open');
+            renderTourStep();
+        };
+
+        tourPrevious?.addEventListener('click', () => {
+            if (currentTourStep === 0) {
+                return;
+            }
+
+            currentTourStep -= 1;
+            renderTourStep();
+        });
+
+        tourNext?.addEventListener('click', () => {
+            if (currentTourStep === tourSteps.length - 1) {
+                closePortalTour({ persist: true });
+                return;
+            }
+
+            currentTourStep += 1;
+            renderTourStep();
+        });
+
+        tourSkipButtons.forEach((button) => {
+            button.addEventListener('click', () => closePortalTour({ persist: true }));
+        });
+
+        tourRestartButtons.forEach((button) => {
+            button.addEventListener('click', openPortalTour);
+        });
+
+        window.addEventListener('resize', () => {
+            if (tourIsOpen) {
+                renderTourStep();
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (!tourIsOpen) {
+                return;
+            }
+
+            if (event.key === 'ArrowRight') {
+                tourNext?.click();
+            } else if (event.key === 'ArrowLeft') {
+                tourPrevious?.click();
+            }
+        });
+
+        if (portalTourRoot.dataset.replayRequested === 'true') {
+            const cleanUrl = new URL(window.location.href);
+            cleanUrl.searchParams.delete('tutorial');
+            window.history.replaceState({}, '', `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
+        }
+
+        if (portalTourRoot.dataset.autoStart === 'true') {
+            window.setTimeout(openPortalTour, 320);
+        }
+    }
 
     document.querySelectorAll('dialog.modal-dialog').forEach((dialog) => {
         dialog.addEventListener('click', (event) => {
@@ -235,7 +662,38 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    const cartSuccessToast = document.querySelector('[data-toast][data-cart-success="true"]');
+    const loginRequiredModal = document.querySelector('[data-login-required-modal]');
+    const loginRequiredLink = loginRequiredModal?.querySelector('[data-login-required-link]');
+    const showLoginRequiredModal = (payload = {}) => {
+        if (!loginRequiredModal) {
+            window.location.href = payload.login_url || '/login';
+            return;
+        }
+
+        if (loginRequiredLink && payload.login_url) {
+            loginRequiredLink.setAttribute('href', payload.login_url);
+        }
+
+        openModal(loginRequiredModal);
+    };
+
+    loginRequiredModal?.querySelectorAll('[data-login-required-close]').forEach((button) => {
+        button.addEventListener('click', () => closeModal(loginRequiredModal));
+    });
+
+    loginRequiredModal?.addEventListener('click', (event) => {
+        if (event.target === loginRequiredModal) {
+            closeModal(loginRequiredModal);
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && loginRequiredModal && !loginRequiredModal.classList.contains('hidden')) {
+            closeModal(loginRequiredModal);
+        }
+    });
+
+    const cartSuccessFlash = document.querySelector('[data-cart-flash]');
     const prefersReducedMotion = typeof window.matchMedia === 'function'
         && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const animateCartBadges = (withCountFlip = false) => {
@@ -303,27 +761,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Cart animation helpers
     const isVisibleCartTarget = (element) => {
-        if (!element) {
+        if (!(element instanceof HTMLElement)) {
             return false;
         }
 
         const rect = element.getBoundingClientRect();
+        const styles = window.getComputedStyle(element);
 
-        return rect.width > 0 && rect.height > 0 && rect.top >= 0 && rect.top <= window.innerHeight;
+        return styles.display !== 'none'
+            && styles.visibility !== 'hidden'
+            && rect.width > 0
+            && rect.height > 0
+            && rect.right > 0
+            && rect.left < window.innerWidth
+            && rect.bottom > 0
+            && rect.top < window.innerHeight;
     };
 
     const getCartBadgeTarget = () => {
-        const badges = Array.from(document.querySelectorAll('[data-cart-badge]'));
-        const visibleBadge = badges.find((badge) => isVisibleCartTarget(badge));
-
-        if (visibleBadge) {
-            return visibleBadge;
-        }
-
         const targets = Array.from(document.querySelectorAll('[data-cart-target]'));
         const visibleTarget = targets.find((target) => isVisibleCartTarget(target));
 
-        return visibleTarget || badges[0] || targets[0] || null;
+        if (visibleTarget) {
+            return visibleTarget;
+        }
+
+        const badges = Array.from(document.querySelectorAll('[data-cart-badge]'));
+        const visibleBadge = badges.find((badge) => isVisibleCartTarget(badge));
+
+        return visibleBadge || targets[0] || badges[0] || null;
     };
 
     const getProductNameFromForm = (form) => {
@@ -490,6 +956,175 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 360);
     };
 
+    const showCartTooltip = (message) => {
+        const target = getCartBadgeTarget();
+        const detailMessage = message.replace(/\s+agregado al carrito\.?$/i, '').trim();
+        const displayMessage = detailMessage && detailMessage.toLowerCase() !== 'producto'
+            ? detailMessage
+            : 'Tu pedido se actualizo correctamente.';
+
+        if (!target) {
+            showInlineToast(message, 'success');
+            return;
+        }
+
+        document.querySelectorAll('[data-cart-tooltip]').forEach((tooltip) => tooltip.remove());
+
+        const tooltip = document.createElement('div');
+        tooltip.dataset.cartTooltip = 'true';
+        tooltip.className = 'cart-tooltip animate-cart-tooltip-in';
+        tooltip.setAttribute('role', 'status');
+        tooltip.setAttribute('aria-live', 'polite');
+        Object.assign(tooltip.style, {
+            position: 'fixed',
+            zIndex: '120',
+            boxSizing: 'border-box',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '0.75rem',
+            width: 'min(21rem, calc(100vw - 1.5rem))',
+            maxWidth: '21rem',
+            padding: '0.85rem 0.9rem',
+            border: '1px solid rgba(20, 184, 166, 0.18)',
+            borderRadius: '1rem',
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.98), rgba(236,253,253,0.96))',
+            color: '#0f172a',
+            boxShadow: '0 18px 46px rgba(15, 23, 42, 0.16), 0 8px 18px rgba(20, 184, 166, 0.10)',
+            backdropFilter: 'blur(10px)',
+        });
+
+        const arrow = document.createElement('span');
+        arrow.dataset.cartTooltipArrow = 'true';
+        Object.assign(arrow.style, {
+            position: 'absolute',
+            top: '-0.42rem',
+            width: '0.82rem',
+            height: '0.82rem',
+            borderTop: '1px solid rgba(20, 184, 166, 0.18)',
+            borderLeft: '1px solid rgba(20, 184, 166, 0.18)',
+            background: 'rgba(255, 255, 255, 0.98)',
+            transform: 'translateX(-50%) rotate(45deg)',
+            boxShadow: '-4px -4px 10px rgba(15, 23, 42, 0.035)',
+        });
+
+        const icon = document.createElement('span');
+        icon.className = 'cart-tooltip-icon';
+        icon.innerHTML = makeCheckSvg();
+        Object.assign(icon.style, {
+            position: 'relative',
+            zIndex: '1',
+            display: 'inline-flex',
+            width: '2.35rem',
+            height: '2.35rem',
+            flexShrink: '0',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '0.8rem',
+            background: '#0f8f95',
+            color: '#ffffff',
+            boxShadow: '0 10px 22px rgba(15, 143, 149, 0.26)',
+        });
+
+        const content = document.createElement('span');
+        Object.assign(content.style, {
+            position: 'relative',
+            zIndex: '1',
+            minWidth: '0',
+            flex: '1',
+            display: 'grid',
+            gap: '0.15rem',
+            paddingTop: '0.08rem',
+        });
+
+        const title = document.createElement('span');
+        title.textContent = 'Agregado al carrito';
+        Object.assign(title.style, {
+            display: 'block',
+            fontSize: '0.84rem',
+            fontWeight: '800',
+            lineHeight: '1.15',
+            color: '#0f172a',
+        });
+
+        const text = document.createElement('span');
+        text.className = 'cart-tooltip-text';
+        text.textContent = displayMessage;
+        Object.assign(text.style, {
+            display: 'block',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            fontSize: '0.78rem',
+            fontWeight: '600',
+            lineHeight: '1.35',
+            color: '#52637a',
+            whiteSpace: 'nowrap',
+        });
+
+        const closeButton = document.createElement('button');
+        closeButton.type = 'button';
+        closeButton.className = 'cart-tooltip-close';
+        closeButton.setAttribute('aria-label', 'Cerrar');
+        closeButton.innerHTML = '<svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+        Object.assign(closeButton.style, {
+            position: 'relative',
+            zIndex: '1',
+            display: 'inline-flex',
+            width: '1.85rem',
+            height: '1.85rem',
+            flexShrink: '0',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '0',
+            borderRadius: '0.65rem',
+            background: 'rgba(15, 23, 42, 0.045)',
+            color: '#64748b',
+            cursor: 'pointer',
+        });
+
+        content.append(title, text);
+        tooltip.append(arrow, icon, content, closeButton);
+        document.body.append(tooltip);
+
+        const position = () => {
+            const rect = target.getBoundingClientRect();
+            const tooltipRect = tooltip.getBoundingClientRect();
+            const viewportPadding = 12;
+            const availableWidth = Math.max(0, window.innerWidth - tooltipRect.width - viewportPadding);
+            const availableHeight = Math.max(0, window.innerHeight - tooltipRect.height - viewportPadding);
+            const targetCenterX = rect.left + rect.width / 2;
+            const targetBottom = Math.max(viewportPadding, Math.min(rect.bottom, window.innerHeight - viewportPadding));
+            const left = Math.max(
+                viewportPadding,
+                Math.min(targetCenterX - tooltipRect.width / 2, availableWidth),
+            );
+            const top = Math.min(
+                Math.max(viewportPadding, targetBottom + 12),
+                availableHeight,
+            );
+            const arrowX = Math.max(22, Math.min(targetCenterX - left, tooltipRect.width - 22));
+
+            tooltip.style.left = `${left}px`;
+            tooltip.style.top = `${top}px`;
+            tooltip.style.setProperty('--cart-tooltip-arrow-x', `${arrowX}px`);
+            arrow.style.left = `${arrowX}px`;
+        };
+
+        position();
+
+        const close = () => {
+            tooltip.classList.remove('animate-cart-tooltip-in');
+            tooltip.classList.add('inline-toast-leave');
+            window.removeEventListener('resize', position);
+            window.removeEventListener('scroll', position);
+            window.setTimeout(() => tooltip.remove(), 220);
+        };
+
+        closeButton.addEventListener('click', close);
+        window.addEventListener('resize', position, { passive: true });
+        window.addEventListener('scroll', position, { passive: true });
+        window.setTimeout(close, 3200);
+    };
+
     const makeSpinnerSvg = (extraClass = '') =>
         `<svg class="h-4 w-4 btn-spinning${extraClass ? ' ' + extraClass : ''}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.568 3 7.212l3-2.921z"></path></svg>`;
 
@@ -499,8 +1134,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const makeCrossSvg = () =>
         `<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
 
-    if (cartSuccessToast) {
+    if (cartSuccessFlash) {
         animateCartBadges();
+        showCartTooltip(cartSuccessFlash.dataset.cartMessage || 'Producto agregado al carrito.');
+        cartSuccessFlash.remove();
     }
 
     document.addEventListener('click', (event) => {
@@ -667,6 +1304,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const payload = await response.json().catch(() => ({}));
 
+                if (response.status === 401 && payload.requires_login) {
+                    resetButton();
+                    showLoginRequiredModal(payload);
+                    return;
+                }
+
                 if (!response.ok) {
                     throw new Error(payload.message || 'No se pudo agregar al carrito.');
                 }
@@ -699,7 +1342,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     ? payload.message
                     : fallbackMessage;
 
-                showInlineToast(successMessage, 'success');
+                showCartTooltip(successMessage);
 
                 // Reset button after success display
                 window.setTimeout(resetButton, 1300);

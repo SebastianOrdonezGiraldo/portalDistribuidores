@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
+use App\Modules\Orders\Http\Controllers\CartController;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -134,18 +136,42 @@ class CartControllerTest extends TestCase
 
     public function test_adding_active_product_via_json_returns_ok_response(): void
     {
+        $user = User::factory()->create();
         $product = Product::factory()->create(['stock' => 20]);
 
-        $this->postJson(route('cart.store'), ['product_id' => $product->id, 'qty' => 1])
+        $this->actingAs($user)
+            ->postJson(route('cart.store'), ['product_id' => $product->id, 'qty' => 1])
             ->assertOk()
             ->assertJson(['ok' => true]);
     }
 
+    public function test_guest_adding_active_product_via_json_requires_login_and_stores_pending_cart(): void
+    {
+        $product = Product::factory()->create(['stock' => 20]);
+
+        $this->postJson(route('cart.store'), ['product_id' => $product->id, 'qty' => 2])
+            ->assertUnauthorized()
+            ->assertJson([
+                'ok' => false,
+                'requires_login' => true,
+                'login_url' => route('login', absolute: false),
+                'return_url' => route('products.show', $product, absolute: false),
+            ]);
+
+        $this->assertSame(
+            $product->id,
+            session(CartController::PENDING_CART_SESSION_KEY.'.product_id'),
+        );
+        $this->assertSame(2, session(CartController::PENDING_CART_SESSION_KEY.'.qty'));
+    }
+
     public function test_adding_product_above_stock_is_rejected(): void
     {
+        $user = User::factory()->create();
         $product = Product::factory()->create(['stock' => 5]);
 
-        $this->postJson(route('cart.store'), ['product_id' => $product->id, 'qty' => 6])
+        $this->actingAs($user)
+            ->postJson(route('cart.store'), ['product_id' => $product->id, 'qty' => 6])
             ->assertStatus(422)
             ->assertJson([
                 'ok' => false,
@@ -222,34 +248,38 @@ class CartControllerTest extends TestCase
 
     public function test_adding_product_with_valid_variant_succeeds(): void
     {
+        $user = User::factory()->create();
         $product = Product::factory()->create(['stock' => 20]);
         $variant = ProductVariant::factory()->forProduct($product)->create([
             'is_active' => true,
             'stock' => 20,
         ]);
 
-        $this->postJson(route('cart.store'), [
-            'product_id' => $product->id,
-            'qty' => 1,
-            'variant_id' => $variant->id,
-        ])
+        $this->actingAs($user)
+            ->postJson(route('cart.store'), [
+                'product_id' => $product->id,
+                'qty' => 1,
+                'variant_id' => $variant->id,
+            ])
             ->assertOk()
             ->assertJson(['ok' => true]);
     }
 
     public function test_adding_product_with_variant_above_variant_stock_is_rejected(): void
     {
+        $user = User::factory()->create();
         $product = Product::factory()->create(['stock' => 999]);
         $variant = ProductVariant::factory()->forProduct($product)->create([
             'is_active' => true,
             'stock' => 2,
         ]);
 
-        $this->postJson(route('cart.store'), [
-            'product_id' => $product->id,
-            'variant_id' => $variant->id,
-            'qty' => 3,
-        ])
+        $this->actingAs($user)
+            ->postJson(route('cart.store'), [
+                'product_id' => $product->id,
+                'variant_id' => $variant->id,
+                'qty' => 3,
+            ])
             ->assertStatus(422)
             ->assertJson([
                 'ok' => false,

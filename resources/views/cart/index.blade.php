@@ -28,11 +28,22 @@ View contract:
     </x-slot>
 
     @if($items->isEmpty())
-        <x-ui.empty-state title="Tu carrito está vacío" description="Agrega productos desde el catálogo para iniciar tu pedido comercial.">
+        <x-ui.empty-state-panel
+            eyebrow="Pedido en preparación"
+            title="Tu carrito está listo para empezar"
+            description="Explora el catálogo, agrega los productos que necesitas y arma tu pedido comercial en un solo lugar."
+        >
+            <x-slot name="icon">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-9 w-9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                    <circle cx="9" cy="19" r="1.75" />
+                    <circle cx="17" cy="19" r="1.75" />
+                    <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8H18a1 1 0 0 0 .97-.76L20.6 8H7" />
+                </svg>
+            </x-slot>
             <x-slot name="action">
                 <a href="{{ route('catalog.index') }}" class="btn btn-primary">Ir al catálogo</a>
             </x-slot>
-        </x-ui.empty-state>
+        </x-ui.empty-state-panel>
     @else
         <form id="cart-update-form" action="{{ route('cart.update') }}" method="POST" data-loading-form data-cart-form class="grid min-w-0 gap-4 lg:grid-cols-[1.8fr_1fr]">
             @csrf

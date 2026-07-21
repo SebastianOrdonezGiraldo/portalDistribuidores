@@ -4,21 +4,28 @@ namespace App\Modules\Orders\Services\Cart;
 
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
+use App\Modules\Orders\Models\Cart;
+use App\Modules\Orders\Models\CartItem;
 use App\Modules\Orders\Support\OrderLineVat;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 
 /**
- * Session-backed cart facade used by catalog, checkout and order creation.
+ * Cart facade used by catalog, checkout and order creation.
  *
- * Raw cart rows intentionally store only identifiers and quantities. The public
- * item read model resolves active products, active variants, current prices,
- * VAT labels and stock limits each time the cache is invalidated.
+ * Distributor carts are persisted by account and referenced from the current
+ * session so they remain available across devices and logins. Guest/admin carts
+ * retain the legacy session storage. Raw rows intentionally store identifiers
+ * and quantities; prices and availability are resolved from current catalog data.
  */
 class CartService
 {
     private const SESSION_KEY = 'orders.cart.items';
+
+    private const CART_REFERENCE_SESSION_KEY = 'orders.cart.id';
 
     private ?Collection $resolvedItems = null;
 
@@ -32,6 +39,12 @@ class CartService
      */
     public function add(Product $product, int $qty = 1, string $unitLabel = 'unidad', ?ProductVariant $variant = null): void
     {
+        if ($this->usesPersistentCart()) {
+            $this->addToPersistentCart($product, $qty, $unitLabel, $variant);
+
+            return;
+        }
+
         $items = $this->rawItems();
         $lineKey = $this->buildLineKey($product->id, $variant?->id);
 
@@ -71,7 +84,43 @@ class CartService
      */
     public function update(array $quantities): void
     {
-        $items = $this->rawItems();
+        if ($this->usesPersistentCart()) {
+            $cart = $this->persistentCart(create: true);
+
+            if (! $cart) {
+                return;
+            }
+
+            DB::transaction(function () use ($cart, $quantities): void {
+                $lockedCart = Cart::query()->lockForUpdate()->find($cart->id);
+
+                if (! $lockedCart) {
+                    return;
+                }
+
+                $items = $this->applyQuantities($this->rawItemsForCart($lockedCart), $quantities);
+                $this->replacePersistentItems($lockedCart, $items);
+                $this->markCartMutated($lockedCart);
+            });
+
+            $this->resolvedItems = null;
+
+            return;
+        }
+
+        $items = $this->applyQuantities($this->rawItems(), $quantities);
+
+        Session::put(self::SESSION_KEY, $items);
+        $this->resolvedItems = null;
+    }
+
+    /**
+     * @param  array<string, array{product_id:int, variant_id:int|null, qty:int, unit_label:string}>  $items
+     * @param  array<int|string, mixed>  $quantities
+     * @return array<string, array{product_id:int, variant_id:int|null, qty:int, unit_label:string}>
+     */
+    private function applyQuantities(array $items, array $quantities): array
+    {
         $requestedLineKeys = collect($quantities)
             ->keys()
             ->map(fn ($lineKey) => (string) $lineKey)
@@ -139,12 +188,35 @@ class CartService
             $items[$key]['qty'] = $value;
         }
 
-        Session::put(self::SESSION_KEY, $items);
-        $this->resolvedItems = null;
+        return $items;
     }
 
     public function remove(string $lineKey): void
     {
+        if ($this->usesPersistentCart()) {
+            $cart = $this->persistentCart();
+
+            if ($cart) {
+                DB::transaction(function () use ($cart, $lineKey): void {
+                    $lockedCart = Cart::query()->lockForUpdate()->find($cart->id);
+
+                    if (! $lockedCart) {
+                        return;
+                    }
+
+                    $deleted = $lockedCart->items()->where('line_key', $lineKey)->delete();
+
+                    if ($deleted > 0) {
+                        $this->markCartMutated($lockedCart);
+                    }
+                });
+            }
+
+            $this->resolvedItems = null;
+
+            return;
+        }
+
         $items = $this->rawItems();
         unset($items[$lineKey]);
         Session::put(self::SESSION_KEY, $items);
@@ -153,6 +225,12 @@ class CartService
 
     public function clear(): void
     {
+        if ($this->usesPersistentCart()) {
+            $cart = $this->persistentCart();
+            $cart?->delete();
+            Session::forget(self::CART_REFERENCE_SESSION_KEY);
+        }
+
         Session::forget(self::SESSION_KEY);
         $this->resolvedItems = null;
     }
@@ -310,7 +388,142 @@ class CartService
      */
     private function rawItems(): array
     {
+        if ($this->usesPersistentCart()) {
+            $cart = $this->persistentCart();
+
+            return $cart ? $this->rawItemsForCart($cart) : [];
+        }
+
         return Session::get(self::SESSION_KEY, []);
+    }
+
+    /**
+     * @return array<string, array{product_id:int, variant_id:int|null, qty:int, unit_label:string}>
+     */
+    private function rawItemsForCart(Cart $cart): array
+    {
+        return $cart->items()
+            ->get(['line_key', 'product_id', 'product_variant_id', 'qty', 'unit_label'])
+            ->mapWithKeys(fn (CartItem $item): array => [
+                $item->line_key => [
+                    'product_id' => (int) $item->product_id,
+                    'variant_id' => $item->product_variant_id !== null ? (int) $item->product_variant_id : null,
+                    'qty' => (int) $item->qty,
+                    'unit_label' => $item->unit_label,
+                ],
+            ])
+            ->all();
+    }
+
+    private function usesPersistentCart(): bool
+    {
+        return Auth::user()?->isDistributor() === true;
+    }
+
+    private function persistentCart(bool $create = false): ?Cart
+    {
+        $user = Auth::user();
+
+        if (! $user?->isDistributor()) {
+            return null;
+        }
+
+        $reference = (int) Session::get(self::CART_REFERENCE_SESSION_KEY, 0);
+        $cart = $reference > 0
+            ? Cart::query()->whereKey($reference)->where('user_id', $user->id)->first()
+            : null;
+
+        $cart ??= Cart::query()->where('user_id', $user->id)->first();
+
+        if ($cart?->hasExpired()) {
+            $cart->delete();
+            Session::forget(self::CART_REFERENCE_SESSION_KEY);
+            $cart = null;
+        }
+
+        if (! $cart && $create) {
+            $cart = Cart::query()->firstOrCreate(['user_id' => $user->id]);
+        }
+
+        if ($cart) {
+            Session::put(self::CART_REFERENCE_SESSION_KEY, $cart->id);
+        }
+
+        return $cart;
+    }
+
+    private function addToPersistentCart(Product $product, int $qty, string $unitLabel, ?ProductVariant $variant): void
+    {
+        $cart = $this->persistentCart(create: true);
+
+        if (! $cart) {
+            return;
+        }
+
+        DB::transaction(function () use ($cart, $product, $qty, $unitLabel, $variant): void {
+            $lockedCart = Cart::query()->lockForUpdate()->findOrFail($cart->id);
+            $lineKey = $this->buildLineKey($product->id, $variant?->id);
+            $item = $lockedCart->items()->where('line_key', $lineKey)->first();
+            $requestedQty = max(1, (int) ($item?->qty ?? 0) + $qty);
+            $availableQty = $this->resolveStockLimit($product, $variant);
+
+            if ($availableQty !== null && $requestedQty > $availableQty) {
+                throw new DomainException($this->stockExceededMessage($availableQty));
+            }
+
+            $lockedCart->items()->updateOrCreate(
+                ['line_key' => $lineKey],
+                [
+                    'product_id' => $product->id,
+                    'product_variant_id' => $variant?->id,
+                    'qty' => $requestedQty,
+                    'unit_label' => $unitLabel,
+                ],
+            );
+            $this->markCartMutated($lockedCart);
+        });
+
+        Session::forget(self::SESSION_KEY);
+        $this->resolvedItems = null;
+    }
+
+    /**
+     * @param  array<string, array{product_id:int, variant_id:int|null, qty:int, unit_label:string}>  $items
+     */
+    private function replacePersistentItems(Cart $cart, array $items): void
+    {
+        $lineKeys = array_keys($items);
+
+        if ($lineKeys === []) {
+            $cart->items()->delete();
+        } else {
+            $cart->items()->whereNotIn('line_key', $lineKeys)->delete();
+        }
+
+        foreach ($items as $lineKey => $item) {
+            $cart->items()->updateOrCreate(
+                ['line_key' => $lineKey],
+                [
+                    'product_id' => $item['product_id'],
+                    'product_variant_id' => $item['variant_id'],
+                    'qty' => $item['qty'],
+                    'unit_label' => $item['unit_label'],
+                ],
+            );
+        }
+    }
+
+    private function markCartMutated(Cart $cart): void
+    {
+        $timestamp = now();
+
+        DB::table('carts')->where('id', $cart->id)->update([
+            'reminder_sent_at' => null,
+            'updated_at' => $timestamp,
+        ]);
+
+        $cart->reminder_sent_at = null;
+        $cart->updated_at = $timestamp;
     }
 
     private function buildLineKey(int $productId, ?int $variantId): string
