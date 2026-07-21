@@ -449,11 +449,7 @@
     }
 
     .admin-dashboard-global-search input {
-        @apply h-10 w-full rounded-xl border border-slate-200 bg-slate-50/80 py-2 pl-10 pr-14 text-sm text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-brand-primary focus:bg-white focus:ring-2 focus:ring-brand-primary/15;
-    }
-
-    .admin-dashboard-search-hint {
-        @apply pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[0.65rem] font-semibold text-slate-400 shadow-sm lg:block;
+        @apply h-10 w-full rounded-xl border border-slate-200 bg-slate-50/80 py-2 pl-10 pr-4 text-sm text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-brand-primary focus:bg-white focus:ring-2 focus:ring-brand-primary/15;
     }
 
     .admin-dashboard-icon-button {
@@ -579,7 +575,7 @@
     }
 
     .admin-metric-card__heading {
-        @apply relative z-10 flex items-center gap-3;
+        @apply relative z-10 flex items-center gap-3.5;
     }
 
     .admin-metric-card__icon {
@@ -599,11 +595,11 @@
     }
 
     .admin-metric-card__label {
-        @apply min-w-0 text-[0.92rem] font-semibold leading-snug text-slate-600;
+        @apply min-w-0 text-[1rem] font-semibold leading-snug tracking-[-0.015em] text-slate-700;
     }
 
     .admin-metric-card__value {
-        @apply relative z-10 mt-4 text-[2.35rem] font-bold leading-none tracking-[-0.04em] text-slate-950 sm:text-[2.55rem];
+        @apply relative z-10 mt-4 text-[1.95rem] font-semibold leading-none tracking-[-0.03em] text-slate-950 sm:text-[2.1rem];
     }
 
     .admin-metric-card__caption {

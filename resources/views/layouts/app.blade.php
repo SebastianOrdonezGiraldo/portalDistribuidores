@@ -270,7 +270,6 @@ View contract:
                             <label class="sr-only" for="admin-dashboard-search">Buscar pedido</label>
                             <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                             <input id="admin-dashboard-search" type="search" name="q" value="{{ request('q') }}" placeholder="Buscar CTC, cliente o contacto..." autocomplete="off">
-                            <span class="admin-dashboard-search-hint" aria-hidden="true">⌘ K</span>
                         </form>
                     @elseif($isDistributor && !isset($catalogToolbar))
                         <form method="GET" action="{{ route('catalog.index') }}" class="global-header-catalog-search" data-global-catalog-search>
