@@ -45,8 +45,9 @@
             Aplicar
         </x-ui.button>
         @if($activeFiltersCount > 0)
-            <a href="{{ route('empresa.orders.index') }}" class="btn btn-ghost !px-3" aria-label="Limpiar filtros" title="Limpiar filtros">
+            <a href="{{ route('empresa.orders.index') }}" class="btn btn-ghost min-h-11 flex-1 justify-center whitespace-nowrap px-4" aria-label="Limpiar todos los filtros">
                 <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
+                Limpiar
             </a>
         @endif
     </div>
