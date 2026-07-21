@@ -5,6 +5,7 @@ namespace App\Modules\Orders\Models;
 use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Shared\Enums\OrderStatus;
+use App\Modules\Shared\Enums\ShippingCarrier;
 use Carbon\Carbon;
 use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -18,6 +19,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property float $total_amount
  * @property string|null $pdf_path
  * @property string|null $oc_number
+ * @property string|null $tracking_number
+ * @property ShippingCarrier|null $shipping_carrier
  * @property Carbon $created_at
  * @property float|null $revenue
  * @property int|null $orders
@@ -51,6 +54,8 @@ class Order extends Model
         'notes',
         'approval_note',
         'status',
+        'tracking_number',
+        'shipping_carrier',
         'total_amount',
         'pdf_path',
     ];
@@ -59,6 +64,7 @@ class Order extends Model
     {
         return [
             'status' => OrderStatus::class,
+            'shipping_carrier' => ShippingCarrier::class,
             'total_amount' => 'decimal:2',
         ];
     }

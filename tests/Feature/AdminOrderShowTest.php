@@ -265,6 +265,36 @@ class AdminOrderShowTest extends TestCase
         ]);
     }
 
+    public function test_admin_dispatch_requires_guide_and_detects_carrier_server_side(): void
+    {
+        $order = $this->createOrderWithItem();
+        $order->update(['status' => OrderStatus::Sold]);
+        $admin = User::query()->findOrFail($order->user_id);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.orders.status', $order), [
+                'status' => OrderStatus::Dispatched->value,
+                'note' => 'Salida confirmada de bodega.',
+            ])
+            ->assertSessionHasErrors('tracking_number');
+
+        $this->actingAs($admin)
+            ->patch(route('admin.orders.status', $order), [
+                'status' => OrderStatus::Dispatched->value,
+                'note' => 'Salida confirmada de bodega.',
+                'tracking_number' => '700184205491',
+                'shipping_carrier' => 'servientrega',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => OrderStatus::Dispatched->value,
+            'tracking_number' => '700184205491',
+            'shipping_carrier' => 'interrapidisimo',
+        ]);
+    }
+
     public function test_admin_transition_to_sold_requires_note(): void
     {
         $order = $this->createOrderWithItem();

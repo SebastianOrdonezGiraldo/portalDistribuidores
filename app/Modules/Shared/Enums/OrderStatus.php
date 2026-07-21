@@ -83,7 +83,8 @@ enum OrderStatus: string
             self::PendingApproval => [self::Submitted, self::Rejected, self::Cancelled],
             self::Submitted => [self::Sold, self::Cancelled],
             self::Sold => [self::Dispatched, self::Cancelled],
-            self::Dispatched => [self::Delivered, self::Cancelled],
+            self::Dispatched => [self::Sent, self::Delivered, self::Cancelled],
+            self::Sent => [self::Delivered, self::Cancelled],
             self::Rejected => [self::PendingApproval, self::Cancelled],
             default => [],
         };
@@ -103,6 +104,7 @@ enum OrderStatus: string
             self::Submitted,
             self::Sold,
             self::Dispatched,
+            self::Sent,
             self::Delivered,
         ];
     }

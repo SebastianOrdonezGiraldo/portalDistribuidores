@@ -248,7 +248,8 @@ class OrderAdminController extends Controller
             OrderStatus::PendingApproval => OrderStatus::Submitted->value,
             OrderStatus::Submitted => OrderStatus::Sold->value,
             OrderStatus::Sold => OrderStatus::Dispatched->value,
-            OrderStatus::Dispatched => OrderStatus::Delivered->value,
+            OrderStatus::Dispatched => OrderStatus::Sent->value,
+            OrderStatus::Sent => OrderStatus::Delivered->value,
             OrderStatus::Rejected => OrderStatus::PendingApproval->value,
             default => null,
         };
@@ -272,6 +273,7 @@ class OrderAdminController extends Controller
             OrderStatus::Submitted => 'Registrar pedido',
             OrderStatus::Sold => 'Marcar como vendido',
             OrderStatus::Dispatched => 'Marcar como despachado',
+            OrderStatus::Sent => 'Marcar como enviado',
             OrderStatus::Delivered => 'Marcar como entregado',
             OrderStatus::PendingApproval => 'Reingresar a revisión',
             default => 'Actualizar estado',
@@ -404,6 +406,7 @@ class OrderAdminController extends Controller
      *
      * @bodyParam status string required Estado destino. Example: sold
      * @bodyParam note string Nota de transicion. Example: Validado con compras
+     * @bodyParam tracking_number string Número de guía requerido al despachar. Example: 2258298191
      *
      * @response 302 {"redirect":"back"}
      * @response 403 {"message":"No autorizado"}
@@ -416,10 +419,26 @@ class OrderAdminController extends Controller
     ): RedirectResponse {
         $this->authorize('update', $order);
 
-        $payload = $request->validate([
-            'status' => ['required', 'string', Rule::in(array_map(fn (OrderStatus $status) => $status->value, OrderStatus::cases()))],
-            'note' => ['nullable', 'string', 'max:500'],
-        ]);
+        $payload = $request->validate(
+            [
+                'status' => ['required', 'string', Rule::in(array_map(fn (OrderStatus $status) => $status->value, OrderStatus::cases()))],
+                'note' => ['nullable', 'string', 'max:500'],
+                'tracking_number' => [
+                    Rule::requiredIf(fn (): bool => $request->input('status') === OrderStatus::Dispatched->value),
+                    'nullable',
+                    'string',
+                    'max:80',
+                    'regex:/^\d+$/',
+                ],
+            ],
+            [
+                'tracking_number.required' => 'El número de guía es obligatorio para marcar el pedido como despachado.',
+                'tracking_number.regex' => 'El número de guía debe contener únicamente números.',
+            ],
+            [
+                'tracking_number' => 'número de guía',
+            ],
+        );
 
         $targetStatus = OrderStatus::from($payload['status']);
 
@@ -431,7 +450,8 @@ class OrderAdminController extends Controller
                 $order,
                 $targetStatus,
                 $actor,
-                $payload['note'] ?? null
+                $payload['note'] ?? null,
+                $payload['tracking_number'] ?? null,
             );
         } catch (DomainException $exception) {
             return back()

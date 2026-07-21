@@ -20,6 +20,10 @@ View contract:
         $selectedStatus = old('status', $recommendedAction['value'] ?? '');
         $selectedStatusOption = $nextStatuses->firstWhere('value', $selectedStatus);
         $selectedRequiresNote = is_array($selectedStatusOption) ? (bool) ($selectedStatusOption['requires_note'] ?? false) : false;
+        $selectedTrackingNumber = old('tracking_number', $order->tracking_number ?? '');
+        $shippingCarrierPrefixes = \App\Modules\Shared\Enums\ShippingCarrier::prefixLabels();
+        $selectedIsDispatched = $selectedStatus === \App\Modules\Shared\Enums\OrderStatus::Dispatched->value;
+        $selectedCarrierLabel = \App\Modules\Shared\Enums\ShippingCarrier::detect($selectedTrackingNumber)?->label() ?? 'Por identificar';
         $primaryCtaLabel = is_array($recommendedAction) ? ($recommendedAction['cta'] ?? 'Actualizar estado') : 'Actualizar estado';
     @endphp
 
@@ -212,7 +216,13 @@ View contract:
             <p class="mt-1 text-xs text-slate-500">Ejecuta la siguiente transición de estado y deja nota cuando aplique.</p>
 
             @if($hasTransitions)
-                <form id="{{ $statusFormId }}" action="{{ route('admin.orders.status', $order) }}" method="POST" class="mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3" data-status-form>
+                <form
+                    id="{{ $statusFormId }}"
+                    action="{{ route('admin.orders.status', $order) }}"
+                    method="POST"
+                    class="mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3"
+                    data-status-form
+                >
                     @csrf
                     @method('PATCH')
                     <div>
@@ -239,6 +249,41 @@ View contract:
                         <p id="order-status-next-help" class="mt-1 text-xs text-slate-500">Te sugerimos: {{ is_array($recommendedAction) ? $recommendedAction['label'] : 'elige una transición permitida' }}.</p>
                         <x-input-error id="order-status-next-error" :messages="$errors->get('status')" />
                     </div>
+
+                    <div
+                        class="{{ $selectedIsDispatched ? '' : 'hidden' }} grid gap-3 rounded-xl border border-sky-200 bg-sky-50/70 p-3 sm:grid-cols-2"
+                        data-shipping-fields
+                    >
+                        <div>
+                            <label class="form-label" for="order-tracking-number">Número de guía</label>
+                            <x-ui.input
+                                id="order-tracking-number"
+                                name="tracking_number"
+                                type="text"
+                                inputmode="numeric"
+                                autocomplete="off"
+                                maxlength="80"
+                                pattern="[0-9]+"
+                                placeholder="Ejemplo: 2258298191"
+                                value="{{ $selectedTrackingNumber }}"
+                                data-tracking-number
+                                aria-invalid="{{ $errors->has('tracking_number') ? 'true' : 'false' }}"
+                                aria-describedby="order-tracking-number-help{{ $errors->has('tracking_number') ? ' order-tracking-number-error' : '' }}"
+                            />
+                            <p id="order-tracking-number-help" class="mt-1 text-xs text-slate-500">Ingresa únicamente los números de la guía.</p>
+                            <x-input-error id="order-tracking-number-error" :messages="$errors->get('tracking_number')" />
+                        </div>
+
+                        <div>
+                            <span class="form-label">Transportadora</span>
+                            <div class="flex min-h-11 items-center gap-2 rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm" aria-live="polite">
+                                <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-sky-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h11v10H3zM14 9h4l3 3v4h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+                                <strong class="text-slate-900" data-carrier-output>{{ $selectedCarrierLabel }}</strong>
+                            </div>
+                            <p class="mt-1 text-xs text-slate-500">Se detecta automáticamente según el inicio de la guía.</p>
+                        </div>
+                    </div>
+                    <script type="application/json" data-carrier-prefixes>@json($shippingCarrierPrefixes)</script>
 
                     <div>
                         <label class="form-label" for="order-status-note">Nota de trazabilidad</label>
@@ -277,6 +322,10 @@ View contract:
             @endif
         </x-ui.card>
         </div>
+
+        @if($order->tracking_number)
+            <x-orders.shipping-info :order="$order" />
+        @endif
 
         <x-ui.card>
             <h2 class="card-title">Historial de estados</h2>

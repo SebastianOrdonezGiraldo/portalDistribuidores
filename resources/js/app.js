@@ -1577,6 +1577,47 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    document.querySelectorAll('form[data-status-form]').forEach((statusForm) => {
+        const statusSelect = statusForm.querySelector('[data-status-select]');
+        const shippingFields = statusForm.querySelector('[data-shipping-fields]');
+        const trackingInput = statusForm.querySelector('[data-tracking-number]');
+        const carrierOutput = statusForm.querySelector('[data-carrier-output]');
+        const carrierData = statusForm.querySelector('[data-carrier-prefixes]');
+
+        if (!statusSelect || !shippingFields || !trackingInput || !carrierOutput) {
+            return;
+        }
+
+        let carrierPrefixes = {};
+
+        try {
+            carrierPrefixes = JSON.parse(carrierData?.textContent || '{}');
+        } catch {
+            carrierPrefixes = {};
+        }
+
+        const renderCarrier = () => {
+            const prefix = trackingInput.value.trim().charAt(0);
+            carrierOutput.textContent = carrierPrefixes[prefix] || 'Por identificar';
+        };
+
+        const syncShippingFields = () => {
+            const isDispatched = statusSelect.value === 'dispatched';
+
+            shippingFields.classList.toggle('hidden', !isDispatched);
+            trackingInput.required = isDispatched;
+            trackingInput.disabled = !isDispatched;
+
+            if (isDispatched) {
+                renderCarrier();
+            }
+        };
+
+        statusSelect.addEventListener('change', syncShippingFields);
+        trackingInput.addEventListener('input', renderCarrier);
+        syncShippingFields();
+    });
+
     const productForm = document.querySelector('form[data-product-form]');
 
     if (productForm) {

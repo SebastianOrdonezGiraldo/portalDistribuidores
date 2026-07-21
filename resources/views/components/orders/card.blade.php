@@ -48,6 +48,7 @@
 
             <div class="lg:border-l lg:border-slate-200 lg:pl-6">
                 <h4 class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Resumen y acciones</h4>
+                <x-orders.shipping-info :order="$order" class="mt-4" />
                 <dl class="mt-4 space-y-3 text-sm">
                     <div class="flex justify-between gap-4"><dt class="text-slate-500">Generado por</dt><dd class="text-right font-medium text-slate-800">{{ $order->user?->name ?? '—' }}</dd></div>
                     <div class="flex justify-between gap-4"><dt class="text-slate-500">Última actualización</dt><dd class="text-right font-medium text-slate-800">{{ $order->updated_at?->diffForHumans() }}</dd></div>
