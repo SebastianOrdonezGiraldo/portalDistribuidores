@@ -22,6 +22,7 @@ use App\Modules\Orders\Policies\OrderPolicy;
 use App\Modules\Orders\Services\Cart\CartService;
 use App\Modules\Shared\Contracts\InventorySyncInterface;
 use App\Modules\Shared\Contracts\SearchEngineInterface;
+use App\Modules\Shared\Enums\OrderStatus;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -115,6 +116,9 @@ class AppServiceProvider extends ServiceProvider
 
         View::composer('layouts.app', function ($view): void {
             $count = app(CartService::class)->sessionCount();
+            $pendingApprovalCount = auth()->user()?->isAdmin() && request()->routeIs('admin.dashboard')
+                ? Order::query()->where('status', OrderStatus::PendingApproval)->count()
+                : 0;
 
             // In testing environment, skip caching to avoid stale data between tests
             if (app()->environment('testing')) {
@@ -151,7 +155,7 @@ class AppServiceProvider extends ServiceProvider
                 'cartCount' => $count,
                 'footerTopCategories' => $footerTopCategories,
                 'headerQuickCategories' => $headerQuickCategories,
-                'pendingApprovalCount' => 0,
+                'pendingApprovalCount' => $pendingApprovalCount,
             ]);
         });
 

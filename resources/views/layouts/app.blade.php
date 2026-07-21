@@ -16,7 +16,7 @@
     @stack('head')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body>
+<body @class(['admin-dashboard-body' => auth()->check() && auth()->user()?->isAdmin() && request()->routeIs('admin.dashboard')])>
 {{--
 View contract:
 - Source: App\View\Components\AppLayout plus App\Providers\AppServiceProvider view composers.
@@ -29,6 +29,7 @@ View contract:
     $isAuthenticated = auth()->check();
     $isAdmin = $user?->isAdmin();
     $isDistributor = $user?->isDistributor();
+    $isAdminDashboard = $isAdmin && request()->routeIs('admin.dashboard');
 @endphp
 
 <div class="app-shell relative min-h-dvh">
@@ -40,10 +41,16 @@ View contract:
         <aside id="app-sidebar" data-sidebar class="fixed inset-y-0 left-0 z-50 flex w-60 max-w-[calc(100vw-2rem)] -translate-x-full pointer-events-none flex-col border-r border-slate-200 bg-white shadow-panel transition-transform duration-200 ease-out lg:translate-x-0 lg:pointer-events-auto">
         <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
             <a href="{{ route('dashboard') }}" class="flex min-w-0 items-center gap-3 focus-ring rounded-lg">
-                <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-9 w-auto">
+                @if($isAdmin)
+                    <span class="admin-sidebar-brand-mark" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 7V5a3 3 0 0 1 3-3h4a3 3 0 0 1 3 3v2"/><rect x="3" y="7" width="18" height="14" rx="3"/><path d="M9 14h6M12 11v6"/></svg>
+                    </span>
+                @else
+                    <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-9 w-auto">
+                @endif
                 <div class="min-w-0">
                     <p class="truncate text-sm font-semibold leading-tight text-slate-900">Portal Distribuidores</p>
-                    <p class="truncate text-xs text-slate-500">Import Corporal Medical SAS</p>
+                    <p class="truncate text-xs text-slate-500">Import Corporal Medical</p>
                 </div>
             </a>
 
@@ -54,12 +61,15 @@ View contract:
 
         <div class="flex-1 overflow-y-auto px-4 py-4">
             @if($isAdmin)
-                <p class="sidebar-section-label">Operación</p>
-                <div class="mt-2 space-y-0.5">
+                <div class="space-y-0.5">
                     <x-ui.sidebar-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 10 9-7 9 7"/><path d="M5 9v11h14V9"/><path d="M9 20v-6h6v6"/></svg>
                         Inicio
                     </x-ui.sidebar-link>
+                </div>
+
+                <p class="sidebar-section-label mt-5">Operación</p>
+                <div class="mt-2 space-y-0.5">
                     <x-ui.sidebar-link :href="route('admin.orders.index')" :active="request()->routeIs('admin.orders.*')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
                         Pedidos
@@ -74,15 +84,7 @@ View contract:
                     </x-ui.sidebar-link>
                 </div>
 
-                <p class="sidebar-section-label mt-5">Publicidad</p>
-                <div class="mt-2 space-y-0.5">
-                    <x-ui.sidebar-link :href="route('admin.catalog-banners.index')" :active="request()->routeIs('admin.catalog-banners.*')">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.4"/><path d="m5 17 4.5-4.5 3.2 3.2 2.3-2.3L19 17"/></svg>
-                        Banners
-                    </x-ui.sidebar-link>
-                </div>
-
-                <p class="sidebar-section-label mt-5">Gestión</p>
+                <p class="sidebar-section-label mt-5">Gestión comercial</p>
                 <div class="mt-2 space-y-0.5">
                     <x-ui.sidebar-link :href="route('admin.distributors.index')" :active="request()->routeIs('admin.distributors.*')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -91,6 +93,22 @@ View contract:
                     <x-ui.sidebar-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                         Usuarios
+                    </x-ui.sidebar-link>
+                </div>
+
+                <p class="sidebar-section-label mt-5">Marketing</p>
+                <div class="mt-2 space-y-0.5">
+                    <x-ui.sidebar-link :href="route('admin.catalog-banners.index')" :active="request()->routeIs('admin.catalog-banners.*')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.4"/><path d="m5 17 4.5-4.5 3.2 3.2 2.3-2.3L19 17"/></svg>
+                        Banners
+                    </x-ui.sidebar-link>
+                </div>
+
+                <p class="sidebar-section-label mt-5">Configuración</p>
+                <div class="mt-2 space-y-0.5">
+                    <x-ui.sidebar-link :href="route('profile.edit')" :active="request()->routeIs('profile.*')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.6v-.09A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.2 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H2.4V9.6h.09A1.7 1.7 0 0 0 4.2 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 8.6 4.2a1.7 1.7 0 0 0 1-.6A1.7 1.7 0 0 0 10 2.5v-.1h4v.09a1.7 1.7 0 0 0 1 1.71 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 8.6a1.7 1.7 0 0 0 .6 1 1.7 1.7 0 0 0 1.1.4h.1v4h-.09a1.7 1.7 0 0 0-1.71 1Z"/></svg>
+                        Ajustes
                     </x-ui.sidebar-link>
                 </div>
             @endif
@@ -138,13 +156,15 @@ View contract:
                 </div>
             @endif
 
-            <p class="sidebar-section-label mt-5">Cuenta</p>
-            <div class="mt-2 space-y-0.5">
-                <x-ui.sidebar-link :href="route('profile.edit')" :active="request()->routeIs('profile.*')">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    Mi Perfil
-                </x-ui.sidebar-link>
-            </div>
+            @if(!$isAdmin)
+                <p class="sidebar-section-label mt-5">Cuenta</p>
+                <div class="mt-2 space-y-0.5">
+                    <x-ui.sidebar-link :href="route('profile.edit')" :active="request()->routeIs('profile.*')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        Mi Perfil
+                    </x-ui.sidebar-link>
+                </div>
+            @endif
         </div>
 
         <div class="border-t border-slate-200 px-4 py-4">
@@ -154,7 +174,7 @@ View contract:
                 </span>
                 <div class="min-w-0">
                     <p class="truncate text-sm font-semibold text-slate-900">{{ $user->name }}</p>
-                    <p class="truncate text-xs text-slate-500">{{ $isDistributor ? ($user->distributor?->name ?? 'Distribuidor') : 'Administrador' }}</p>
+                    <p class="truncate text-xs text-slate-500">{{ $isDistributor ? ($user->distributor?->name ?? 'Distribuidor') : 'Administrador global' }}</p>
                 </div>
             </div>
             <form action="{{ route('logout') }}" method="POST">
@@ -171,7 +191,7 @@ View contract:
     <div class="flex min-h-dvh min-w-0 flex-col {{ $isAuthenticated ? 'lg:pl-60' : '' }}">
         <header class="sticky top-0 z-30 border-b border-slate-200/95 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
             <div class="flex flex-col gap-2 px-3 py-3 sm:px-6 lg:px-8">
-                <div class="relative flex min-w-0 items-center gap-2 sm:gap-3 {{ isset($catalogToolbar) ? 'flex-wrap sm:flex-nowrap' : '' }}">
+                <div class="relative flex min-w-0 items-center gap-2 sm:gap-3 {{ isset($catalogToolbar) || $isAdminDashboard ? 'flex-wrap md:flex-nowrap' : '' }}">
                     @if($isAuthenticated)
                         <button
                             type="button"
@@ -183,10 +203,22 @@ View contract:
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M3 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4A1 1 0 0 1 3 5Zm0 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm1 4a1 1 0 1 0 0 2h12a1 1 0 1 0 0-2H4Z" /></svg>
                         </button>
-                        <a href="{{ route('dashboard') }}" class="flex min-w-0 items-center gap-2 rounded-lg focus-ring">
-                            <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-8 w-auto">
-                            <span class="truncate text-sm font-semibold text-slate-900">Portal Distribuidores</span>
-                        </a>
+                        @if($isAdminDashboard)
+                            <div class="admin-dashboard-workspace" aria-label="Espacio de trabajo actual">
+                                <span class="admin-dashboard-workspace-icon" aria-hidden="true">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 21h16"/><path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2"/></svg>
+                                </span>
+                                <span class="min-w-0">
+                                    <span class="block text-[0.65rem] font-medium text-slate-500">Workspace</span>
+                                    <span class="block truncate text-sm font-semibold text-slate-900">Plataforma Global</span>
+                                </span>
+                            </div>
+                        @else
+                            <a href="{{ route('dashboard') }}" class="flex min-w-0 items-center gap-2 rounded-lg focus-ring">
+                                <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-8 w-auto">
+                                <span class="truncate text-sm font-semibold text-slate-900">Portal Distribuidores</span>
+                            </a>
+                        @endif
                     @else
                         <a href="{{ route('catalog.index') }}" class="flex min-w-0 items-center gap-2 rounded-lg focus-ring">
                             <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-8 w-auto">
@@ -202,6 +234,15 @@ View contract:
                         </div>
                     @endisset
 
+                    @if($isAdminDashboard)
+                        <form method="GET" action="{{ route('admin.orders.index') }}" class="admin-dashboard-global-search">
+                            <label class="sr-only" for="admin-dashboard-search">Buscar pedido</label>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                            <input id="admin-dashboard-search" type="search" name="q" value="{{ request('q') }}" placeholder="Buscar CTC, cliente o contacto..." autocomplete="off">
+                            <span class="admin-dashboard-search-hint" aria-hidden="true">⌘ K</span>
+                        </form>
+                    @endif
+
                     <div
                         class="ml-auto flex shrink-0 items-center gap-2 {{ $isAuthenticated ? '' : 'relative' }}"
                         @if(! $isAuthenticated)
@@ -210,6 +251,25 @@ View contract:
                         @endif
                     >
                         @if($isAuthenticated)
+                            @if($isAdminDashboard)
+                                <div class="relative" x-data="{ createMenuOpen: false }" @keydown.escape.window="createMenuOpen = false">
+                                    <button type="button" class="admin-dashboard-icon-button admin-dashboard-create-button" @click="createMenuOpen = !createMenuOpen" x-bind:aria-expanded="createMenuOpen" aria-haspopup="menu" aria-controls="admin-create-menu" aria-label="Crear registro">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                                    </button>
+                                    <div id="admin-create-menu" x-cloak x-show="createMenuOpen" x-transition @click.outside="createMenuOpen = false" class="admin-dashboard-create-menu" role="menu">
+                                        <p class="px-3 pb-1.5 pt-2 text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-slate-400">Crear nuevo</p>
+                                        <a href="{{ route('admin.products.create') }}" role="menuitem">Producto</a>
+                                        <a href="{{ route('admin.distributors.create') }}" role="menuitem">Distribuidor</a>
+                                        <a href="{{ route('admin.users.create') }}" role="menuitem">Usuario</a>
+                                    </div>
+                                </div>
+                                <a href="{{ route('admin.orders.index', ['status' => 'pending_approval']) }}" class="admin-dashboard-icon-button relative" aria-label="Pedidos en revisión" title="Pedidos en revisión">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
+                                    @if(($pendingApprovalCount ?? 0) > 0)
+                                        <span class="admin-dashboard-notification-count">{{ min(99, $pendingApprovalCount) }}</span>
+                                    @endif
+                                </a>
+                            @endif
                             @isset($catalogToolbar)
                                 <div class="relative" x-data="{ catalogMenuOpen: false }" @keydown.escape.window="catalogMenuOpen = false">
                                     <a href="{{ route('cart.index') }}" class="btn btn-secondary relative !min-h-10 !min-w-10 !px-2.5 lg:hidden" aria-label="Ver carrito">
@@ -233,7 +293,7 @@ View contract:
                             <div class="{{ isset($catalogToolbar) ? 'hidden lg:block' : '' }} relative" x-data="{ profileMenuOpen: false }" @keydown.escape.window="profileMenuOpen = false">
                                 <button
                                     type="button"
-                                    class="btn btn-ghost !min-h-10 !px-2"
+                                    class="{{ $isAdminDashboard ? 'admin-dashboard-profile-trigger' : 'btn btn-ghost !min-h-10 !px-2' }}"
                                     @click="profileMenuOpen = !profileMenuOpen"
                                     x-bind:aria-expanded="profileMenuOpen"
                                     aria-haspopup="menu"
@@ -242,6 +302,10 @@ View contract:
                                     <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary/15 text-sm font-semibold text-brand-dark">
                                         {{ strtoupper(substr($user->name, 0, 1)) }}
                                     </span>
+                                    @if($isAdminDashboard)
+                                        <span class="hidden max-w-32 truncate text-sm font-medium text-slate-700 xl:block">{{ $user->name }}</span>
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="hidden h-4 w-4 text-slate-400 xl:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                                    @endif
                                 </button>
                                 <div
                                     id="profile-menu-panel"
@@ -327,26 +391,13 @@ View contract:
                     </div>
                 </div>
 
-                @if(!isset($catalogToolbar) && $isAdmin && request()->routeIs('admin.dashboard'))
-                    <div class="admin-top-toolbar">
-                        <div class="admin-top-toolbar-meta">
-                            <p class="admin-top-toolbar-eyebrow">Vista ejecutiva</p>
-                            <p class="admin-top-toolbar-caption">Resumen comercial y señales de seguimiento</p>
-                        </div>
-                        <form method="GET" action="{{ route('admin.orders.index') }}" class="relative w-full md:max-w-sm lg:max-w-md">
-                            <label class="sr-only" for="top-search-admin-dashboard">Buscar pedido</label>
-                            <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                            <input id="top-search-admin-dashboard" type="text" name="q" value="{{ request('q') }}" placeholder="Buscar pedido puntual" class="form-input !min-h-10 py-2 pl-9 pr-4">
-                        </form>
-                        <a href="{{ route('admin.orders.index') }}" class="btn btn-secondary !min-h-10 !px-3">Ver pedidos</a>
-                    </div>
-                @elseif($isAdmin)
+                @if($isAdmin && !$isAdminDashboard)
                     <form method="GET" action="{{ route('admin.orders.index') }}" class="relative w-full lg:mx-auto lg:max-w-2xl">
                         <label class="sr-only" for="top-search-admin">Buscar pedido</label>
                         <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                         <input id="top-search-admin" type="text" name="q" value="{{ request('q') }}" placeholder="Buscar CTC, cliente o contacto" class="form-input py-2.5 pl-9 pr-4">
                     </form>
-                @elseif(!request()->routeIs('catalog.*', 'products.show'))
+                @elseif(!$isAdmin && !request()->routeIs('catalog.*', 'products.show'))
                     <form method="GET" action="{{ route('catalog.index') }}" class="relative w-full lg:mx-auto lg:max-w-2xl">
                         <label class="sr-only" for="top-search-catalog">Buscar producto</label>
                         <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -356,7 +407,7 @@ View contract:
             </div>
         </header>
 
-        <main class="min-w-0 flex-1 px-3 py-4 sm:px-6 sm:py-5 lg:px-8">
+        <main class="min-w-0 flex-1 px-3 py-4 sm:px-6 sm:py-5 lg:px-8 {{ $isAdminDashboard ? 'admin-dashboard-main' : '' }}">
             @if (isset($breadcrumbs))
                 <x-ui.breadcrumbs :items="$breadcrumbs" />
             @endif
@@ -370,7 +421,7 @@ View contract:
             {{ $slot }}
         </main>
 
-        @if (view()->exists('layouts.partials.footer'))
+        @if (!$isAdminDashboard && view()->exists('layouts.partials.footer'))
             @include('layouts.partials.footer')
         @endif
     </div>
