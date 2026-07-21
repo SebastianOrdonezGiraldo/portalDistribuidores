@@ -27,4 +27,17 @@ class ShippingCarrierTest extends TestCase
             'empty number' => ['', null],
         ];
     }
+
+    public function test_custom_value_overrides_detected_carrier(): void
+    {
+        $this->assertSame(
+            'Carga aérea especial',
+            ShippingCarrier::resolveValue('  Carga aérea especial  ', '2258298191'),
+        );
+    }
+
+    public function test_detected_carrier_is_used_when_custom_value_is_empty(): void
+    {
+        $this->assertSame('servientrega', ShippingCarrier::resolveValue('', '3012241226'));
+    }
 }

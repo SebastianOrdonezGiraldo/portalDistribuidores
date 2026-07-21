@@ -210,7 +210,31 @@ class OrderStatusTransitionServiceTest extends TestCase
 
         $this->assertTrue($updatedOrder->status === OrderStatus::Sent);
         $this->assertSame('957000255300', $updatedOrder->tracking_number);
-        $this->assertSame('envia', $updatedOrder->shipping_carrier->value);
+        $this->assertSame('envia', $updatedOrder->shipping_carrier);
+    }
+
+    public function test_custom_shipping_carrier_overrides_detected_suggestion(): void
+    {
+        $order = Order::factory()->create(['status' => OrderStatus::Sold]);
+
+        $this->inventoryService
+            ->expects($this->never())
+            ->method('decreaseForOrder');
+        $this->inventoryService
+            ->expects($this->never())
+            ->method('increaseForOrder');
+
+        $updatedOrder = $this->service->transition(
+            $order,
+            OrderStatus::Dispatched,
+            null,
+            'Envío especial.',
+            '2258298191',
+            'Carga aérea especial',
+        );
+
+        $this->assertSame('Carga aérea especial', $updatedOrder->shipping_carrier);
+        $this->assertSame('Carga aérea especial', $updatedOrder->shippingCarrierLabel());
     }
 
     public function test_transition_does_not_adjust_inventory_when_neither_status_consumes_inventory(): void

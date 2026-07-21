@@ -34,6 +34,7 @@ class OrderStatusTransitionService
         ?User $actor = null,
         ?string $note = null,
         ?string $trackingNumber = null,
+        ?string $shippingCarrier = null,
     ): Order {
         $fromStatus = $order->status;
 
@@ -57,14 +58,20 @@ class OrderStatusTransitionService
             throw new DomainException('El número de guía es obligatorio para marcar el pedido como despachado.');
         }
 
-        return DB::transaction(function () use ($order, $fromStatus, $toStatus, $actor, $normalizedNote, $normalizedTrackingNumber): Order {
+        $normalizedShippingCarrier = ShippingCarrier::resolveValue($shippingCarrier, $normalizedTrackingNumber);
+
+        if ($toStatus === OrderStatus::Dispatched && $normalizedShippingCarrier === null) {
+            throw new DomainException('La transportadora es obligatoria para marcar el pedido como despachado.');
+        }
+
+        return DB::transaction(function () use ($order, $fromStatus, $toStatus, $actor, $normalizedNote, $normalizedTrackingNumber, $normalizedShippingCarrier): Order {
             $updates = [
                 'status' => $toStatus,
             ];
 
             if ($toStatus === OrderStatus::Dispatched) {
                 $updates['tracking_number'] = $normalizedTrackingNumber;
-                $updates['shipping_carrier'] = ShippingCarrier::detect($normalizedTrackingNumber)?->value;
+                $updates['shipping_carrier'] = $normalizedShippingCarrier;
             }
 
             $order->update($updates);

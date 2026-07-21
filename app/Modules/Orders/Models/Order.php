@@ -20,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $pdf_path
  * @property string|null $oc_number
  * @property string|null $tracking_number
- * @property ShippingCarrier|null $shipping_carrier
+ * @property string|null $shipping_carrier
  * @property Carbon $created_at
  * @property float|null $revenue
  * @property int|null $orders
@@ -64,9 +64,17 @@ class Order extends Model
     {
         return [
             'status' => OrderStatus::class,
-            'shipping_carrier' => ShippingCarrier::class,
             'total_amount' => 'decimal:2',
         ];
+    }
+
+    public function shippingCarrierLabel(): ?string
+    {
+        if (! filled($this->shipping_carrier)) {
+            return null;
+        }
+
+        return ShippingCarrier::tryFrom($this->shipping_carrier)?->label() ?? $this->shipping_carrier;
     }
 
     /** @return BelongsTo<Distributor, $this> */

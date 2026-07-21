@@ -15,6 +15,7 @@ use App\Modules\Orders\Services\OrderPdfGenerator;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Orders\Support\OrderLineVat;
 use App\Modules\Shared\Enums\OrderStatus;
+use App\Modules\Shared\Enums\ShippingCarrier;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
@@ -430,13 +431,21 @@ class OrderAdminController extends Controller
                     'max:80',
                     'regex:/^\d+$/',
                 ],
+                'shipping_carrier' => [
+                    Rule::requiredIf(fn (): bool => $request->input('status') === OrderStatus::Dispatched->value),
+                    'nullable',
+                    'string',
+                    'max:40',
+                ],
             ],
             [
                 'tracking_number.required' => 'El número de guía es obligatorio para marcar el pedido como despachado.',
                 'tracking_number.regex' => 'El número de guía debe contener únicamente números.',
+                'shipping_carrier.required' => 'La transportadora es obligatoria para marcar el pedido como despachado.',
             ],
             [
                 'tracking_number' => 'número de guía',
+                'shipping_carrier' => 'transportadora',
             ],
         );
 
@@ -452,6 +461,7 @@ class OrderAdminController extends Controller
                 $actor,
                 $payload['note'] ?? null,
                 $payload['tracking_number'] ?? null,
+                $payload['shipping_carrier'] ?? null,
             );
         } catch (DomainException $exception) {
             return back()
@@ -460,6 +470,58 @@ class OrderAdminController extends Controller
         }
 
         return back()->with('status', "Pedido {$order->oc_number} actualizado a {$targetStatus->label()}.");
+    }
+
+    /**
+     * Corregir la información logística sin alterar el estado del pedido.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @bodyParam tracking_number string required Número de guía. Example: 2258298191
+     * @bodyParam shipping_carrier string Transportadora o método especial. Example: Carga aérea
+     */
+    public function updateShipping(Request $request, Order $order): RedirectResponse
+    {
+        $this->authorize('update', $order);
+
+        if (! in_array($order->status, [OrderStatus::Dispatched, OrderStatus::Sent, OrderStatus::Delivered], true)) {
+            return back()->withErrors('La información de envío solo puede modificarse desde el estado despachado.');
+        }
+
+        $payload = $request->validate(
+            [
+                'tracking_number' => ['required', 'string', 'max:80', 'regex:/^\d+$/'],
+                'shipping_carrier' => ['nullable', 'string', 'max:40'],
+            ],
+            [
+                'tracking_number.required' => 'El número de guía es obligatorio.',
+                'tracking_number.regex' => 'El número de guía debe contener únicamente números.',
+            ],
+            [
+                'tracking_number' => 'número de guía',
+                'shipping_carrier' => 'transportadora',
+            ],
+        );
+
+        $shippingCarrier = ShippingCarrier::resolveValue(
+            $payload['shipping_carrier'] ?? null,
+            $payload['tracking_number'],
+        );
+
+        if ($shippingCarrier === null) {
+            return back()
+                ->withInput()
+                ->withErrors(['shipping_carrier' => 'Indica la transportadora o un método de envío especial.']);
+        }
+
+        $order->update([
+            'tracking_number' => trim($payload['tracking_number']),
+            'shipping_carrier' => $shippingCarrier,
+        ]);
+
+        return back()->with('status', "Información de envío de {$order->oc_number} actualizada correctamente.");
     }
 
     /**

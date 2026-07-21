@@ -30,6 +30,22 @@ enum ShippingCarrier: string
         };
     }
 
+    public static function resolveValue(?string $shippingCarrier, ?string $trackingNumber): ?string
+    {
+        $detectedCarrier = self::detect($trackingNumber);
+        $trimmed = trim((string) $shippingCarrier);
+
+        if ($trimmed === '') {
+            return $detectedCarrier?->value;
+        }
+
+        if ($detectedCarrier && mb_strtolower($trimmed) === mb_strtolower($detectedCarrier->label())) {
+            return $detectedCarrier->value;
+        }
+
+        return $trimmed;
+    }
+
     /** @return array<int, string> */
     public static function prefixLabels(): array
     {

@@ -265,7 +265,7 @@ class AdminOrderShowTest extends TestCase
         ]);
     }
 
-    public function test_admin_dispatch_requires_guide_and_detects_carrier_server_side(): void
+    public function test_admin_dispatch_requires_guide_and_accepts_custom_carrier(): void
     {
         $order = $this->createOrderWithItem();
         $order->update(['status' => OrderStatus::Sold]);
@@ -283,7 +283,7 @@ class AdminOrderShowTest extends TestCase
                 'status' => OrderStatus::Dispatched->value,
                 'note' => 'Salida confirmada de bodega.',
                 'tracking_number' => '700184205491',
-                'shipping_carrier' => 'servientrega',
+                'shipping_carrier' => 'Carga aérea especial',
             ])
             ->assertRedirect();
 
@@ -291,7 +291,32 @@ class AdminOrderShowTest extends TestCase
             'id' => $order->id,
             'status' => OrderStatus::Dispatched->value,
             'tracking_number' => '700184205491',
-            'shipping_carrier' => 'interrapidisimo',
+            'shipping_carrier' => 'Carga aérea especial',
+        ]);
+    }
+
+    public function test_admin_can_correct_shipping_details_after_dispatch_without_changing_status(): void
+    {
+        $order = $this->createOrderWithItem();
+        $order->update([
+            'status' => OrderStatus::Sent,
+            'tracking_number' => '2258298191',
+            'shipping_carrier' => 'servientrega',
+        ]);
+        $admin = User::query()->findOrFail($order->user_id);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.orders.shipping', $order), [
+                'tracking_number' => '6123456789',
+                'shipping_carrier' => 'Carga aérea especial',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => OrderStatus::Sent->value,
+            'tracking_number' => '6123456789',
+            'shipping_carrier' => 'Carga aérea especial',
         ]);
     }
 

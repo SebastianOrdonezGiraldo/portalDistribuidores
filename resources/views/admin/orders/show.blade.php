@@ -23,7 +23,13 @@ View contract:
         $selectedTrackingNumber = old('tracking_number', $order->tracking_number ?? '');
         $shippingCarrierPrefixes = \App\Modules\Shared\Enums\ShippingCarrier::prefixLabels();
         $selectedIsDispatched = $selectedStatus === \App\Modules\Shared\Enums\OrderStatus::Dispatched->value;
-        $selectedCarrierLabel = \App\Modules\Shared\Enums\ShippingCarrier::detect($selectedTrackingNumber)?->label() ?? 'Por identificar';
+        $detectedCarrierLabel = \App\Modules\Shared\Enums\ShippingCarrier::detect($selectedTrackingNumber)?->label();
+        $selectedCarrier = old('shipping_carrier', $detectedCarrierLabel ?? '');
+        $shippingCanBeEdited = in_array($order->status, [
+            \App\Modules\Shared\Enums\OrderStatus::Dispatched,
+            \App\Modules\Shared\Enums\OrderStatus::Sent,
+            \App\Modules\Shared\Enums\OrderStatus::Delivered,
+        ], true);
         $primaryCtaLabel = is_array($recommendedAction) ? ($recommendedAction['cta'] ?? 'Actualizar estado') : 'Actualizar estado';
     @endphp
 
@@ -250,40 +256,15 @@ View contract:
                         <x-input-error id="order-status-next-error" :messages="$errors->get('status')" />
                     </div>
 
-                    <div
-                        class="{{ $selectedIsDispatched ? '' : 'hidden' }} grid gap-3 rounded-xl border border-sky-200 bg-sky-50/70 p-3 sm:grid-cols-2"
-                        data-shipping-fields
-                    >
-                        <div>
-                            <label class="form-label" for="order-tracking-number">Número de guía</label>
-                            <x-ui.input
-                                id="order-tracking-number"
-                                name="tracking_number"
-                                type="text"
-                                inputmode="numeric"
-                                autocomplete="off"
-                                maxlength="80"
-                                pattern="[0-9]+"
-                                placeholder="Ejemplo: 2258298191"
-                                value="{{ $selectedTrackingNumber }}"
-                                data-tracking-number
-                                aria-invalid="{{ $errors->has('tracking_number') ? 'true' : 'false' }}"
-                                aria-describedby="order-tracking-number-help{{ $errors->has('tracking_number') ? ' order-tracking-number-error' : '' }}"
-                            />
-                            <p id="order-tracking-number-help" class="mt-1 text-xs text-slate-500">Ingresa únicamente los números de la guía.</p>
-                            <x-input-error id="order-tracking-number-error" :messages="$errors->get('tracking_number')" />
-                        </div>
-
-                        <div>
-                            <span class="form-label">Transportadora</span>
-                            <div class="flex min-h-11 items-center gap-2 rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm" aria-live="polite">
-                                <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-sky-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h11v10H3zM14 9h4l3 3v4h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>
-                                <strong class="text-slate-900" data-carrier-output>{{ $selectedCarrierLabel }}</strong>
-                            </div>
-                            <p class="mt-1 text-xs text-slate-500">Se detecta automáticamente según el inicio de la guía.</p>
-                        </div>
-                    </div>
-                    <script type="application/json" data-carrier-prefixes>@json($shippingCarrierPrefixes)</script>
+                    @if($nextStatuses->contains('value', \App\Modules\Shared\Enums\OrderStatus::Dispatched->value))
+                        <x-orders.shipping-fields
+                            :tracking-number="$selectedTrackingNumber"
+                            :shipping-carrier="$selectedCarrier"
+                            :carrier-prefixes="$shippingCarrierPrefixes"
+                            :visible="$selectedIsDispatched"
+                            :manually-edited="old('shipping_carrier') !== null && old('shipping_carrier') !== $detectedCarrierLabel"
+                        />
+                    @endif
 
                     <div>
                         <label class="form-label" for="order-status-note">Nota de trazabilidad</label>
@@ -323,8 +304,26 @@ View contract:
         </x-ui.card>
         </div>
 
-        @if($order->tracking_number)
-            <x-orders.shipping-info :order="$order" />
+        @if($shippingCanBeEdited)
+            <x-ui.card>
+                <h2 class="card-title">Gestión del envío</h2>
+                <p class="mt-1 text-xs text-slate-500">Corrige la guía o transportadora sin modificar el estado actual del pedido.</p>
+
+                <form action="{{ route('admin.orders.shipping', $order) }}" method="POST" class="mt-4 space-y-3" data-shipping-form>
+                    @csrf
+                    @method('PATCH')
+                    <x-orders.shipping-fields
+                        id-prefix="shipping-update"
+                        :tracking-number="old('tracking_number', $order->tracking_number)"
+                        :shipping-carrier="old('shipping_carrier', $order->shippingCarrierLabel())"
+                        :carrier-prefixes="$shippingCarrierPrefixes"
+                        :manually-edited="true"
+                    />
+                    <x-ui.button type="submit" variant="secondary" class="w-full justify-center">
+                        Guardar información de envío
+                    </x-ui.button>
+                </form>
+            </x-ui.card>
         @endif
 
         <x-ui.card>

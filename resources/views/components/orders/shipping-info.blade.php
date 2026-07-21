@@ -17,7 +17,7 @@
                     </div>
                     <div>
                         <dt class="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-slate-500">Transportadora</dt>
-                        <dd class="mt-1 text-sm font-semibold text-slate-900">{{ $order->shipping_carrier?->label() ?? 'Por identificar' }}</dd>
+                        <dd class="mt-1 text-sm font-semibold text-slate-900">{{ $order->shippingCarrierLabel() ?? 'Por identificar' }}</dd>
                     </div>
                 </dl>
             @else
