@@ -64,7 +64,7 @@ class AdminDashboardTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Bienvenido, '.$admin->name);
-        $response->assertSee('Plataforma Global');
+        $response->assertDontSee('Plataforma Global');
         $response->assertSee('Pedidos del mes');
         $response->assertSee('Salud del sistema');
         $response->assertSee($order->oc_number);
