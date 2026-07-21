@@ -444,20 +444,8 @@
         @apply h-5 w-5;
     }
 
-    .admin-dashboard-workspace {
-        @apply hidden min-w-44 items-center gap-2.5 sm:flex;
-    }
-
-    .admin-dashboard-workspace-icon {
-        @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm;
-    }
-
-    .admin-dashboard-workspace-icon svg {
-        @apply h-5 w-5;
-    }
-
     .admin-dashboard-global-search {
-        @apply relative order-last w-full md:order-none md:mx-auto md:max-w-xl md:flex-1;
+        @apply relative order-last w-full md:order-none md:mx-auto md:max-w-2xl md:flex-1;
     }
 
     .admin-dashboard-global-search input {
@@ -547,85 +535,95 @@
     }
 
     .admin-dashboard-kpis {
-        @apply grid gap-3 sm:grid-cols-2 xl:grid-cols-4;
+        @apply grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4;
     }
 
-    .admin-dashboard-kpi {
-        @apply focus-ring relative min-h-36 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-panel;
+    .admin-metric-card {
+        @apply focus-ring relative flex min-h-36 flex-col overflow-hidden rounded-[1.7rem] border border-slate-200/90 bg-white px-5 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-panel;
+        background-image: linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(248, 250, 252, 0.96) 100%);
         animation: admin-dashboard-rise 420ms both;
     }
 
-    .admin-dashboard-kpi:nth-child(2) { animation-delay: 55ms; }
-    .admin-dashboard-kpi:nth-child(3) { animation-delay: 110ms; }
-    .admin-dashboard-kpi:nth-child(4) { animation-delay: 165ms; }
+    .admin-dashboard-kpis > .admin-metric-card:nth-child(2) { animation-delay: 55ms; }
+    .admin-dashboard-kpis > .admin-metric-card:nth-child(3) { animation-delay: 110ms; }
+    .admin-dashboard-kpis > .admin-metric-card:nth-child(4) { animation-delay: 165ms; }
 
-    .admin-dashboard-kpi::after {
+    .admin-metric-card::before {
         content: '';
         position: absolute;
-        right: -1.2rem;
-        bottom: -1.4rem;
-        width: 5.25rem;
-        height: 5.25rem;
-        border-radius: 9999px;
-        background: radial-gradient(circle, rgba(54, 177, 187, 0.1) 0 1.5px, transparent 1.7px);
-        background-size: 8px 8px;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0) 48%);
         pointer-events: none;
     }
 
-    .admin-dashboard-kpi--amber::after {
+    .admin-metric-card::after {
+        content: '';
+        position: absolute;
+        right: -0.95rem;
+        bottom: -1.15rem;
+        width: 5.8rem;
+        height: 5.8rem;
+        border-radius: 9999px;
+        background: radial-gradient(circle, rgba(56, 189, 248, 0.14) 0 1.5px, transparent 1.8px);
+        background-size: 8px 8px;
+        opacity: 0.9;
+        pointer-events: none;
+    }
+
+    .admin-metric-card--amber::after {
         background-image: radial-gradient(circle, rgba(245, 158, 11, 0.15) 0 1.5px, transparent 1.7px);
     }
 
-    .admin-dashboard-kpi--green::after {
+    .admin-metric-card--green::after {
         background-image: radial-gradient(circle, rgba(16, 185, 129, 0.13) 0 1.5px, transparent 1.7px);
     }
 
-    .admin-dashboard-kpi-heading {
-        @apply flex items-center gap-2.5 text-xs font-semibold text-slate-600;
+    .admin-metric-card__heading {
+        @apply relative z-10 flex items-center gap-3;
     }
 
-    .admin-dashboard-kpi-icon {
-        @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-teal-600 text-white shadow-sm;
+    .admin-metric-card__icon {
+        @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-teal-600 text-white shadow-sm shadow-cyan-900/10;
     }
 
-    .admin-dashboard-kpi--amber .admin-dashboard-kpi-icon {
+    .admin-metric-card--amber .admin-metric-card__icon {
         @apply from-amber-400 to-orange-500;
     }
 
-    .admin-dashboard-kpi--green .admin-dashboard-kpi-icon {
+    .admin-metric-card--green .admin-metric-card__icon {
         @apply from-emerald-400 to-teal-600;
     }
 
-    .admin-dashboard-kpi-icon svg {
+    .admin-metric-card__icon svg {
         @apply h-5 w-5;
     }
 
-    .admin-dashboard-kpi-value {
-        @apply mt-4 text-3xl font-semibold leading-none tracking-tight text-slate-950;
+    .admin-metric-card__label {
+        @apply min-w-0 text-[0.92rem] font-semibold leading-snug text-slate-600;
     }
 
-    .admin-dashboard-kpi-meta {
-        @apply mt-2 flex items-center;
+    .admin-metric-card__value {
+        @apply relative z-10 mt-4 text-[2.35rem] font-bold leading-none tracking-[-0.04em] text-slate-950 sm:text-[2.55rem];
     }
 
-    .admin-dashboard-trend {
-        @apply inline-flex max-w-full rounded-md px-1.5 py-0.5 text-[0.66rem] font-semibold;
+    .admin-metric-card__caption {
+        @apply relative z-10 mt-2 flex flex-wrap items-center gap-1 text-[0.82rem] font-medium leading-relaxed text-slate-500;
     }
 
-    .admin-dashboard-trend--positive {
-        @apply bg-emerald-50 text-emerald-700;
+    .admin-metric-card__trend {
+        @apply font-semibold;
     }
 
-    .admin-dashboard-trend--negative {
-        @apply bg-rose-50 text-rose-700;
+    .admin-metric-card__trend--positive {
+        @apply text-emerald-600;
     }
 
-    .admin-dashboard-trend--neutral {
-        @apply bg-slate-100 text-slate-600;
+    .admin-metric-card__trend--negative {
+        @apply text-rose-600;
     }
 
-    .admin-dashboard-kpi-hint {
-        @apply mt-2 max-w-[85%] text-[0.7rem] leading-relaxed text-slate-500;
+    .admin-metric-card__trend--neutral {
+        @apply text-slate-600;
     }
 
     .admin-dashboard-panel {
@@ -945,7 +943,7 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-        .admin-dashboard-kpi,
+        .admin-metric-card,
         .admin-orders-panel,
         .admin-sync-strip,
         .admin-dashboard-aside > section {
