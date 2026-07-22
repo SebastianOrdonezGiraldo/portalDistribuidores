@@ -7,9 +7,11 @@ use App\Modules\Company\Models\CompanyBranch;
 use App\Modules\Company\Models\CompanyList;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Shared\Enums\DistributorStatus;
+use App\Modules\Shared\Enums\DistributorTier;
 use Database\Factories\DistributorFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
@@ -18,6 +20,9 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property string $name
  * @property DistributorStatus $status
+ * @property DistributorTier $tier
+ * @property Carbon|null $tier_changed_at
+ * @property int|null $tier_changed_by_id
  * @property string|null $contact_email
  * @property string|null $contact_name
  * @property Carbon|null $portal_tour_completed_at
@@ -34,6 +39,7 @@ class Distributor extends Model
     protected $fillable = [
         'name',
         'status',
+        'tier',
         'nit',
         'address',
         'city',
@@ -47,6 +53,8 @@ class Distributor extends Model
     {
         return [
             'status' => DistributorStatus::class,
+            'tier' => DistributorTier::class,
+            'tier_changed_at' => 'datetime',
             'portal_tour_completed_at' => 'datetime',
         ];
     }
@@ -54,6 +62,22 @@ class Distributor extends Model
     public function isActive(): bool
     {
         return $this->status === DistributorStatus::Active;
+    }
+
+    public function isGold(): bool
+    {
+        return $this->tier === DistributorTier::Gold;
+    }
+
+    public function isSilver(): bool
+    {
+        return $this->tier === DistributorTier::Silver;
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function tierChangedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'tier_changed_by_id');
     }
 
     /** @return HasOne<User, $this> */

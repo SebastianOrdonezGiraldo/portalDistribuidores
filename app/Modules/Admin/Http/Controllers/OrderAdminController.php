@@ -11,9 +11,11 @@ use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Orders\Actions\UpdateOrderAction;
 use App\Modules\Orders\Jobs\GenerateOrderPdfJob;
 use App\Modules\Orders\Models\Order;
+use App\Modules\Orders\Pricing\DistributorPriceCalculator;
 use App\Modules\Orders\Services\OrderPdfGenerator;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Orders\Support\OrderLineVat;
+use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Database\QueryException;
@@ -278,7 +280,7 @@ class OrderAdminController extends Controller
         };
     }
 
-    public function edit(Order $order): View|RedirectResponse
+    public function edit(Order $order, DistributorPriceCalculator $priceCalculator): View|RedirectResponse
     {
         $this->authorize('update', $order);
 
@@ -293,8 +295,15 @@ class OrderAdminController extends Controller
         return view('admin.orders.edit', [
             'order' => $order,
             'departments' => config('locations.colombia_departments', []),
-            'catalogOptions' => $this->catalogOptions(),
+            'catalogOptions' => $this->catalogOptions($priceCalculator, $this->resolveOrderTier($order)),
         ]);
+    }
+
+    private function resolveOrderTier(Order $order): DistributorTier
+    {
+        return $order->distributor_tier_snapshot
+            ?? $order->distributor?->tier
+            ?? DistributorTier::Silver;
     }
 
     /**
@@ -350,7 +359,7 @@ class OrderAdminController extends Controller
     /**
      * @return array<int, array{ref:string,label:string,price:float}>
      */
-    private function catalogOptions(): array
+    private function catalogOptions(DistributorPriceCalculator $priceCalculator, DistributorTier $tier): array
     {
         $products = Product::query()
             ->active()
@@ -365,8 +374,12 @@ class OrderAdminController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'sku', 'price', 'is_vat_excluded']);
 
+        $effectivePrice = fn (int|string $basePrice): float => (float) $priceCalculator
+            ->calculateFromDecimal($basePrice, $tier)
+            ->effectivePriceDecimal();
+
         return $products
-            ->flatMap(function (Product $product) {
+            ->flatMap(function (Product $product) use ($effectivePrice) {
                 $baseLabel = trim("{$product->sku} · {$product->name}");
                 $taxLabel = OrderLineVat::label((bool) $product->is_vat_excluded);
 
@@ -374,18 +387,18 @@ class OrderAdminController extends Controller
                     return [[
                         'ref' => 'p:'.$product->id,
                         'label' => "{$baseLabel} · {$taxLabel}",
-                        'price' => (float) $product->price,
+                        'price' => $effectivePrice((string) $product->price),
                     ]];
                 }
 
-                return $product->variants->map(function (ProductVariant $variant) use ($baseLabel, $taxLabel): array {
+                return $product->variants->map(function (ProductVariant $variant) use ($baseLabel, $taxLabel, $effectivePrice): array {
                     $attributeName = $variant->attributeValue?->attribute?->name ?? 'Variante';
                     $attributeValue = $variant->attributeValue?->value ?? ('#'.$variant->id);
 
                     return [
                         'ref' => 'v:'.$variant->id,
                         'label' => "{$baseLabel} · {$attributeName}: {$attributeValue} · {$taxLabel}",
-                        'price' => (float) $variant->price,
+                        'price' => $effectivePrice((string) $variant->price),
                     ];
                 });
             })

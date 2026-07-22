@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Shared\Enums\DistributorStatus;
+use App\Modules\Shared\Enums\DistributorTier;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,6 +19,7 @@ class DistributorFactory extends Factory
         return [
             'name' => fake()->company(),
             'status' => DistributorStatus::Active,
+            'tier' => DistributorTier::Silver,
             'nit' => fake()->numerify('########-#'),
             'address' => fake()->streetAddress(),
             'city' => fake()->city(),
@@ -30,5 +32,15 @@ class DistributorFactory extends Factory
     public function suspended(): static
     {
         return $this->state(fn () => ['status' => DistributorStatus::Suspended]);
+    }
+
+    public function silver(): static
+    {
+        return $this->state(fn () => ['tier' => DistributorTier::Silver]);
+    }
+
+    public function gold(): static
+    {
+        return $this->state(fn () => ['tier' => DistributorTier::Gold]);
     }
 }
