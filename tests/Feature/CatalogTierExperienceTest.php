@@ -69,6 +69,47 @@ class CatalogTierExperienceTest extends TestCase
         $response->assertSee('images/tiers/banner-plata.jpg', false);
     }
 
+    public function test_gold_product_detail_shows_dual_pricing(): void
+    {
+        $user = $this->distributorUser(DistributorTier::Gold);
+        $product = $this->seedCatalogProduct();
+
+        $response = $this->actingAs($user)->get(route('products.show', $product));
+
+        $response->assertOk();
+        $response->assertSee('Precio Oro');
+        $response->assertSee('Ahorras', false);
+        $response->assertSee('product-detail-price__hero--gold', false);
+        $response->assertSee('Mostrando precios Oro');
+    }
+
+    public function test_silver_product_detail_shows_locked_dual_pricing(): void
+    {
+        $user = $this->distributorUser(DistributorTier::Silver);
+        $product = $this->seedCatalogProduct();
+
+        $response = $this->actingAs($user)->get(route('products.show', $product));
+
+        $response->assertOk();
+        $response->assertSee('Tu precio');
+        $response->assertSee('Con Oro');
+        $response->assertSee('Ahorrarías', false);
+        $response->assertSee('product-detail-price__nudge', false);
+        $response->assertDontSee('product-detail-price__hero--gold', false);
+    }
+
+    public function test_guest_product_detail_keeps_single_price(): void
+    {
+        $product = $this->seedCatalogProduct();
+
+        $response = $this->get(route('products.show', $product));
+
+        $response->assertOk();
+        $response->assertDontSee('product-detail-price__nudge', false);
+        $response->assertDontSee('product-detail-price__hero--gold', false);
+        $response->assertSee('$96.000');
+    }
+
     public function test_metrics_service_sums_snapshot_delta_only(): void
     {
         $distributor = Distributor::factory()->gold()->create();

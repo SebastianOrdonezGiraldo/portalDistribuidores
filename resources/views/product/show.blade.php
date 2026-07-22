@@ -6,7 +6,9 @@
 {{--
 View contract:
 - Source: App\Modules\Catalog\Http\Controllers\ProductController::show.
-- Expects: $product plus view data from ProductController::buildViewData(), breadcrumbs, document variables, and related/alternative paginators.
+- Expects: $product plus view data from ProductController::buildViewData(), breadcrumbs, document variables,
+  related/alternative paginators, and optional tier pricing fields ($showTierPricing, $distributorTier, $pricingMode,
+  dual-price strings, $variantPriceMap).
 - Owns: product presentation, add-to-cart form, media gallery, document links, and related product sections.
 - Notes: protected document authorization/downloads stay in Documents module; cart writes stay in CartController.
 --}}
@@ -20,54 +22,85 @@ View contract:
         $mainPhotoSrcset = $mainPhoto?->responsiveSrcsetFromKnownVariants();
         $mainPhotoSizes = '(min-width: 1024px) 50vw, 100vw';
         $thumbSizes = '64px';
+        $showTierPricing = (bool) ($showTierPricing ?? false);
+        $showDualPricing = (bool) ($showDualPricing ?? false);
+        $isLockedDiscount = (bool) ($isLockedDiscount ?? false);
+        $distributorTier = $distributorTier ?? null;
+        $pricingMode = $pricingMode ?? 'single';
+        $variantPriceMap = $variantPriceMap ?? [];
+        $savingsTemplate = $savingsTemplate ?? 'Ahorras :amount';
+        $savingsText = $savingsText ?? '';
+        $formattedGold = $formattedGold ?? $formattedPrice;
+        $formattedSilver = $formattedSilver ?? $formattedPrice;
+        $priceBadge = $priceBadge ?? 'Precio Oro';
+        $standardLabel = $standardLabel ?? 'Precio estándar';
+        $tierPriceLabel = $tierPriceLabel ?? 'Precio Oro';
+        $displaySavings = (float) ($displaySavings ?? 0);
     @endphp
 
-    {{-- ──────────────────────────────────────────────────────────────
-         Header: breadcrumb + acceso rápido al carrito
-    ────────────────────────────────────────────────────────────────── --}}
-    <x-slot name="header">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-            <nav class="flex min-w-0 items-center gap-1.5 text-xs sm:text-sm" aria-label="Ruta del producto">
-                <a
-                    href="{{ route('catalog.index') }}"
-                    class="inline-flex shrink-0 items-center gap-1.5 font-medium text-slate-500 transition hover:text-slate-900 focus-ring rounded"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="m15 18-6-6 6-6"/>
+    {{-- Mismo chrome de header que el catálogo (catalogToolbar), no el buscador global. --}}
+    <x-slot name="catalogToolbar">
+        <form method="GET" action="{{ route('catalog.index') }}" class="catalog-toolbar">
+            <div class="catalog-toolbar-meta">
+                <nav aria-label="Breadcrumb" class="catalog-toolbar-breadcrumb">
+                    <ol class="flex flex-wrap items-center gap-1">
+                        <li>
+                            <a href="{{ auth()->check() ? route('dashboard') : route('catalog.index') }}" class="catalog-toolbar-breadcrumb-link">Inicio</a>
+                        </li>
+                        <li aria-hidden="true">/</li>
+                        <li>
+                            <a href="{{ route('catalog.index') }}" class="catalog-toolbar-breadcrumb-link">Catálogo</a>
+                        </li>
+                        @if($product->category_id)
+                            <li aria-hidden="true">/</li>
+                            <li>
+                                <a
+                                    href="{{ route('catalog.index', ['category_id' => $product->category_id]) }}"
+                                    class="catalog-toolbar-breadcrumb-link"
+                                >{{ $categoryName }}</a>
+                            </li>
+                        @endif
+                        <li aria-hidden="true">/</li>
+                        <li class="catalog-toolbar-breadcrumb-current max-w-[12rem] truncate sm:max-w-xs">{{ $product->name }}</li>
+                    </ol>
+                </nav>
+            </div>
+
+            <div class="catalog-toolbar-controls">
+                <div class="catalog-search-field">
+                    <label class="sr-only" for="product-top-search">Buscar productos</label>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="catalog-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="m21 21-4.35-4.35" />
                     </svg>
-                    Catálogo
-                </a>
-                <svg xmlns="http://www.w3.org/2000/svg" class="hidden h-3.5 w-3.5 shrink-0 text-slate-300 sm:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path d="m9 18 6-6-6-6"/>
-                </svg>
-                @if($product->category_id)
-                    <a
-                        href="{{ route('catalog.index', ['category_id' => $product->category_id]) }}"
-                        class="hidden shrink-0 items-center rounded text-slate-500 transition hover:text-slate-900 focus-ring sm:inline-flex"
+                    <input
+                        id="product-top-search"
+                        type="text"
+                        name="term"
+                        value=""
+                        placeholder="Buscar producto, SKU, marca o categoría"
+                        class="catalog-search-input"
                     >
-                        {{ $categoryName }}
-                    </a>
-                @else
-                    <span class="hidden shrink-0 text-slate-500 sm:inline">{{ $categoryName }}</span>
-                @endif
-                <svg xmlns="http://www.w3.org/2000/svg" class="hidden h-3.5 w-3.5 shrink-0 text-slate-300 sm:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path d="m9 18 6-6-6-6"/>
-                </svg>
-                <span class="hidden min-w-0 truncate font-semibold text-slate-900 sm:inline">{{ $product->name }}</span>
-            </nav>
-        </div>
+                </div>
+            </div>
+        </form>
     </x-slot>
 
-    <div class="space-y-5 pb-32 sm:pb-24 lg:pb-8">
+    <div
+        class="product-detail-page space-y-5 pb-32 sm:pb-24 lg:pb-8"
+        @if($showTierPricing)
+            x-data="{ showGoldPrices: true }"
+        @endif
+    >
 
         {{-- ──────────────────────────────────────────────────────────────
              HERO: imagen (izquierda) + info + compra (derecha)
         ────────────────────────────────────────────────────────────────── --}}
-        <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft sm:rounded-2xl lg:grid lg:grid-cols-2">
+        <section class="product-detail-hero overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft sm:rounded-2xl lg:grid lg:grid-cols-2">
 
             {{-- Imagen principal: 50% en escritorio, miniaturas integradas abajo --}}
             <div class="relative flex flex-col overflow-hidden border-b border-slate-200 bg-slate-50/80 lg:border-b-0 lg:border-r">
-                <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(54,177,187,0.15),transparent_45%),radial-gradient(circle_at_82%_88%,rgba(15,23,42,0.07),transparent_40%)]"></div>
+                <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(54,177,187,0.12),transparent_45%),radial-gradient(circle_at_82%_88%,rgba(15,23,42,0.05),transparent_40%)]"></div>
                 <div class="group/img relative flex min-h-[14rem] flex-1 items-center justify-center px-5 py-6 sm:min-h-[24rem] sm:px-10 sm:py-10">
                     @if($mainPhoto)
                         <img
@@ -150,6 +183,13 @@ View contract:
 
                     {{-- Badges de estado --}}
                     <div class="flex flex-wrap items-center gap-2">
+                        {{-- Solo Oro muestra badge de precio activo; en Plata confundiría con el precio a pagar. --}}
+                        @if($showDualPricing && ! $isLockedDiscount)
+                            <span class="inline-flex items-center rounded-full border border-amber-300/80 bg-amber-50 px-2.5 py-1 text-[0.7rem] font-semibold text-amber-950">
+                                {{ $priceBadge }}
+                            </span>
+                        @endif
+
                         <x-ui.badge :variant="$availability['badge']" class="!normal-case !tracking-normal">
                             {{ $availability['label'] }}
                         </x-ui.badge>
@@ -230,11 +270,11 @@ View contract:
                 </div>
 
                 {{-- Bloque: precio y acción de compra --}}
-                <div class="bg-slate-50/60 p-5 sm:p-7 lg:p-7 xl:p-8">
+                <div class="border-t border-slate-100 bg-white p-5 sm:p-6 lg:p-7">
 
                     {{-- Promo --}}
                     @if($promoLabel)
-                        <div class="mb-4 flex items-center gap-2 rounded-xl border border-brand-primary/25 bg-brand-primary/8 px-3.5 py-2.5">
+                        <div class="mb-4 flex items-center gap-2 rounded-lg border border-brand-primary/20 bg-brand-primary/5 px-3 py-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-brand-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                             </svg>
@@ -242,40 +282,148 @@ View contract:
                         </div>
                     @endif
 
-                    {{-- Precio principal --}}
+                    {{-- Precio: siempre gana el precio que paga el cliente --}}
                     <div class="mb-5">
-                        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Precio</p>
-                        <div class="mt-1 flex flex-wrap items-baseline gap-2">
-                            <span
-                                class="text-3xl font-bold tabular-nums tracking-tight text-slate-950 sm:text-4xl"
-                                data-variant-price-target
-                                data-default-value="{{ $formattedPrice }}"
-                            >{{ $formattedPrice }}</span>
-                            <span class="text-sm text-slate-500">
-                                / {{ $unitLabelLower }} · {{ $vatLabel }}
-                            </span>
-                        </div>
+                        @if($showDualPricing)
+                            @if($isLockedDiscount)
+                                {{-- Plata: tu precio es el héroe; Oro es una pista discreta --}}
+                                <div class="product-detail-price">
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <p class="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-slate-400">Tu precio</p>
+                                        @if($distributorTier)
+                                            <x-tier.badge :tier="$distributorTier" size="sm" :interactive="$distributorTier->hasBenefitsModal()" />
+                                        @endif
+                                    </div>
+
+                                    <div class="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                                        <span
+                                            class="product-detail-price__hero tabular-nums text-slate-950"
+                                            data-variant-price-target
+                                            data-variant-silver-target
+                                            data-default-value="{{ $formattedSilver }}"
+                                        >{{ $formattedSilver }}</span>
+                                        <span class="text-sm text-slate-500">/ {{ $unitLabelLower }} · {{ $vatLabel }}</span>
+                                    </div>
+
+                                    @if($displaySavings > 0)
+                                        <button
+                                            type="button"
+                                            class="product-detail-price__nudge mt-3"
+                                            @click="$dispatch('open-modal', 'tier-upgrade')"
+                                        >
+                                            <span class="product-detail-price__nudge-label">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0 text-amber-700" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                                    <path d="M12 2.5 14.6 8l6 .5-4.6 4 1.4 5.8L12 15.8 6.6 18.3 8 12.5 3.4 8.5l6-.5L12 2.5Z"/>
+                                                </svg>
+                                                Con Oro
+                                            </span>
+                                            <span
+                                                class="tabular-nums font-semibold text-amber-950"
+                                                data-variant-gold-target
+                                                data-default-value="{{ $formattedGold }}"
+                                            >{{ $formattedGold }}</span>
+                                            <span class="text-amber-800/80">·</span>
+                                            <span
+                                                class="font-medium text-amber-900/90"
+                                                data-variant-savings-target
+                                                data-default-value="{{ $savingsText }}"
+                                                data-savings-template="{{ $savingsTemplate }}"
+                                            >{{ $savingsText }}</span>
+                                        </button>
+                                    @endif
+                                </div>
+                            @else
+                                {{-- Oro: precio activo grande; estándar tachado y ahorro compacto --}}
+                                <div class="product-detail-price">
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <p class="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-amber-800/70">{{ $tierPriceLabel }}</p>
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            @if($distributorTier)
+                                                <x-tier.badge :tier="$distributorTier" size="sm" :interactive="$distributorTier->hasBenefitsModal()" />
+                                                <x-tier.price-toggle :tier="$distributorTier" />
+                                            @endif
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        x-show="typeof showGoldPrices === 'undefined' || showGoldPrices"
+                                    >
+                                        <div class="mt-1.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+                                            <span
+                                                class="product-detail-price__hero product-detail-price__hero--gold tabular-nums"
+                                                data-variant-gold-target
+                                                data-default-value="{{ $formattedGold }}"
+                                            >{{ $formattedGold }}</span>
+                                            <span
+                                                class="text-base tabular-nums text-slate-400 line-through"
+                                                data-variant-silver-target
+                                                data-default-value="{{ $formattedSilver }}"
+                                            >{{ $formattedSilver }}</span>
+                                        </div>
+                                        <p class="mt-1 text-sm text-slate-500">/ {{ $unitLabelLower }} · {{ $vatLabel }}</p>
+                                        @if($displaySavings > 0)
+                                            <p class="product-detail-price__save mt-2">
+                                                <span
+                                                    data-variant-savings-target
+                                                    data-default-value="{{ $savingsText }}"
+                                                    data-savings-template="{{ $savingsTemplate }}"
+                                                >{{ $savingsText }}</span>
+                                            </p>
+                                        @endif
+                                    </div>
+
+                                    <div
+                                        class="mt-1.5"
+                                        x-cloak
+                                        x-show="typeof showGoldPrices !== 'undefined' && !showGoldPrices"
+                                    >
+                                        <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                                            <span
+                                                class="product-detail-price__hero tabular-nums text-slate-950"
+                                                data-variant-price-target
+                                                data-default-value="{{ $formattedPrice }}"
+                                            >{{ $formattedPrice }}</span>
+                                            <span class="text-sm text-slate-500">/ {{ $unitLabelLower }} · {{ $vatLabel }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+                        @else
+                            <p class="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-slate-400">Precio</p>
+                            <div class="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                                <span
+                                    class="product-detail-price__hero tabular-nums text-slate-950"
+                                    data-variant-price-target
+                                    data-default-value="{{ $formattedPrice }}"
+                                >{{ $formattedPrice }}</span>
+                                <span class="text-sm text-slate-500">/ {{ $unitLabelLower }} · {{ $vatLabel }}</span>
+                            </div>
+                        @endif
+
                         @if($hasVariants)
-                            <p class="mt-1 text-xs text-slate-400">El precio varía según la variante seleccionada</p>
+                            <p class="mt-1.5 text-xs text-slate-400">El precio varía según la variante seleccionada</p>
                         @endif
                     </div>
 
-                    {{-- Disponibilidad + stock --}}
-                    <div class="mb-5 grid gap-3 sm:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
-                        <div class="rounded-xl border border-slate-200 bg-white px-4 py-3.5">
-                            <p class="mb-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Disponibilidad</p>
-                            <x-ui.badge :variant="$availability['badge']" class="!normal-case !tracking-normal">
-                                {{ $availability['label'] }}
-                            </x-ui.badge>
+                    {{-- Disponibilidad + stock (fila compacta) --}}
+                    <div class="mb-5 flex flex-wrap items-start gap-x-5 gap-y-2 rounded-xl border border-slate-200/80 bg-slate-50/70 px-3.5 py-3">
+                        <div class="min-w-0">
+                            <p class="text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-slate-400">Disponibilidad</p>
+                            <div class="mt-1">
+                                <x-ui.badge :variant="$availability['badge']" class="!normal-case !tracking-normal">
+                                    {{ $availability['label'] }}
+                                </x-ui.badge>
+                            </div>
                         </div>
-                        <div class="rounded-xl border border-slate-200 bg-white px-4 py-3.5">
-                            <p class="mb-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Stock</p>
+                        <div class="hidden h-10 w-px bg-slate-200 sm:block" aria-hidden="true"></div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-slate-400">Stock</p>
                             <p
-                                class="text-sm font-semibold text-slate-900"
+                                class="mt-1 text-sm font-semibold text-slate-900"
                                 data-variant-stock-target
                                 data-default-value="{{ $stockLabel }}"
                             >{{ $stockLabel }}</p>
-                            <p class="mt-1 text-xs {{ $stockIsStale ? 'text-amber-700' : 'text-slate-400' }}">
+                            <p class="mt-0.5 text-xs {{ $stockIsStale ? 'text-amber-700' : 'text-slate-400' }}">
                                 {{ $stockFreshnessLabel }}
                                 @if($stockIsStale)
                                     · Puede requerir actualización
@@ -316,7 +464,10 @@ View contract:
                                     <option value="">— Seleccionar {{ \Illuminate\Support\Str::lower($variantAttributeName) }} —</option>
                                     @foreach($activeVariants as $variant)
                                         @php
-                                            $variantPrice = (float) $variant->price;
+                                            $variantPrices = $variantPriceMap[(int) $variant->id] ?? null;
+                                            $variantEffective = (float) ($variantPrices['effective'] ?? $variant->price);
+                                            $variantGold = (float) ($variantPrices['gold'] ?? $variant->price);
+                                            $variantSilver = (float) ($variantPrices['silver'] ?? $variant->price);
                                             $variantStock = $variant->stock;
                                             $variantValue = $variant->attributeValue?->value ?? 'Valor';
                                             $variantStockLabel = is_null($variantStock)
@@ -325,12 +476,14 @@ View contract:
                                         @endphp
                                         <option
                                             value="{{ $variant->id }}"
-                                            data-price="{{ $variantPrice }}"
+                                            data-price="{{ $variantEffective }}"
+                                            data-price-gold="{{ $variantGold }}"
+                                            data-price-silver="{{ $variantSilver }}"
                                             data-stock="{{ $variantStock ?? '' }}"
                                             data-stock-max="{{ is_null($variantStock) ? '' : max(0, (int) floor((float) $variantStock)) }}"
                                             @selected((string) old('variant_id') === (string) $variant->id)
                                         >
-                                            {{ $variantValue }} — ${{ number_format($variantPrice, 0, ',', '.') }} · {{ $variantStockLabel }}
+                                            {{ $variantValue }} — ${{ number_format($variantEffective, 0, ',', '.') }} · {{ $variantStockLabel }}
                                         </option>
                                     @endforeach
                                 </x-ui.select>
@@ -873,6 +1026,8 @@ View contract:
                 :products="$alternativeProducts"
                 empty-message="No hay alternativas registradas para este producto."
                 list-key="alternatives"
+                :pricing-mode="$pricingMode"
+                :tier="$distributorTier"
             />
         </div>
         </div>
@@ -885,9 +1040,9 @@ View contract:
             :products="$relatedProducts"
             empty-message="No hay productos relacionados disponibles para esta categoría."
             list-key="related"
+            :pricing-mode="$pricingMode"
+            :tier="$distributorTier"
         />
-
-    </div>
 
     @include('catalog._floating-support-cards')
 
@@ -897,12 +1052,48 @@ View contract:
     <div class="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
         <div class="mx-auto flex max-w-xl flex-wrap items-center gap-2 sm:gap-3">
             <div class="w-full min-w-0 sm:flex-1">
-                <p
-                    class="truncate text-base font-bold tabular-nums text-slate-950"
-                    data-variant-mobile-price-target
-                    data-default-value="{{ $formattedPrice }}"
-                >{{ $formattedPrice }}</p>
-                <p class="truncate text-xs text-slate-500">por {{ $unitLabelLower }} · {{ $vatLabel }}</p>
+                @if($showDualPricing && $isLockedDiscount)
+                    <p class="truncate text-[0.65rem] font-semibold uppercase tracking-wide text-slate-400">Tu precio</p>
+                    <p
+                        class="truncate text-base font-bold tabular-nums text-slate-950"
+                        data-variant-mobile-price-target
+                        data-variant-mobile-silver-target
+                        data-default-value="{{ $formattedSilver }}"
+                    >{{ $formattedSilver }}</p>
+                    <p class="truncate text-xs text-amber-800/90">
+                        Oro
+                        <span class="font-semibold tabular-nums" data-variant-mobile-gold-target data-default-value="{{ $formattedGold }}">{{ $formattedGold }}</span>
+                        · {{ $vatLabel }}
+                    </p>
+                @elseif($showDualPricing)
+                    <div x-show="typeof showGoldPrices === 'undefined' || showGoldPrices">
+                        <p class="truncate text-[0.65rem] font-semibold uppercase tracking-wide text-amber-800/80">{{ $tierPriceLabel }}</p>
+                        <p
+                            class="truncate text-base font-bold tabular-nums text-slate-950"
+                            data-variant-mobile-gold-target
+                            data-default-value="{{ $formattedGold }}"
+                        >{{ $formattedGold }}</p>
+                        <p class="truncate text-xs text-slate-500">
+                            <span class="line-through text-slate-400" data-variant-mobile-silver-target data-default-value="{{ $formattedSilver }}">{{ $formattedSilver }}</span>
+                            · {{ $vatLabel }}
+                        </p>
+                    </div>
+                    <div x-cloak x-show="typeof showGoldPrices !== 'undefined' && !showGoldPrices">
+                        <p
+                            class="truncate text-base font-bold tabular-nums text-slate-950"
+                            data-variant-mobile-price-target
+                            data-default-value="{{ $formattedPrice }}"
+                        >{{ $formattedPrice }}</p>
+                        <p class="truncate text-xs text-slate-500">por {{ $unitLabelLower }} · {{ $vatLabel }}</p>
+                    </div>
+                @else
+                    <p
+                        class="truncate text-base font-bold tabular-nums text-slate-950"
+                        data-variant-mobile-price-target
+                        data-default-value="{{ $formattedPrice }}"
+                    >{{ $formattedPrice }}</p>
+                    <p class="truncate text-xs text-slate-500">por {{ $unitLabelLower }} · {{ $vatLabel }}</p>
+                @endif
             </div>
 
             @if($canBuy)
@@ -952,6 +1143,7 @@ View contract:
             @endif
         </div>
     </div>
+    </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -988,16 +1180,26 @@ View contract:
 
             // ── Variantes: precio y stock dinámicos ──────────────────────
             const variantSelect = document.querySelector('[data-variant-select]');
-            const priceTarget = document.querySelector('[data-variant-price-target]');
-            const mobilePriceTarget = document.querySelector('[data-variant-mobile-price-target]');
+            const priceTargets = Array.from(document.querySelectorAll('[data-variant-price-target]'));
+            const mobilePriceTargets = Array.from(document.querySelectorAll('[data-variant-mobile-price-target]'));
+            const goldTargets = Array.from(document.querySelectorAll('[data-variant-gold-target], [data-variant-mobile-gold-target]'));
+            const silverTargets = Array.from(document.querySelectorAll('[data-variant-silver-target], [data-variant-mobile-silver-target]'));
+            const savingsTarget = document.querySelector('[data-variant-savings-target]');
             const stockTarget = document.querySelector('[data-variant-stock-target]');
             const unitLabel = @json($unitLabel);
+            const savingsTemplate = savingsTarget?.dataset.savingsTemplate || 'Ahorras :amount';
 
             const formatMoney = (value) => `$${Number(value).toLocaleString('es-CO', { maximumFractionDigits: 0 })}`;
             const formatStock = (value) => {
                 const parsed = Number(value);
                 if (!Number.isFinite(parsed)) return 'Stock a confirmar';
                 return `${parsed.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${unitLabel}`;
+            };
+
+            const setTargets = (targets, value) => {
+                targets.forEach((el) => {
+                    el.textContent = value;
+                });
             };
 
             const refreshVariantSummary = () => {
@@ -1007,19 +1209,31 @@ View contract:
                 const hasSelection = selected && selected.value;
 
                 if (!hasSelection) {
-                    if (priceTarget) priceTarget.textContent = priceTarget?.dataset.defaultValue || '';
-                    if (mobilePriceTarget) mobilePriceTarget.textContent = mobilePriceTarget?.dataset.defaultValue || '';
+                    priceTargets.forEach((el) => { el.textContent = el.dataset.defaultValue || ''; });
+                    mobilePriceTargets.forEach((el) => { el.textContent = el.dataset.defaultValue || ''; });
+                    goldTargets.forEach((el) => { el.textContent = el.dataset.defaultValue || ''; });
+                    silverTargets.forEach((el) => { el.textContent = el.dataset.defaultValue || ''; });
+                    if (savingsTarget) savingsTarget.textContent = savingsTarget.dataset.defaultValue || '';
                     if (stockTarget) stockTarget.textContent = stockTarget?.dataset.defaultValue || '';
                     return;
                 }
 
                 const price = Number(selected.dataset.price || 0);
+                const gold = Number(selected.dataset.priceGold || price);
+                const silver = Number(selected.dataset.priceSilver || price);
                 const stock = selected.dataset.stock;
                 const stockText = stock === '' || stock === undefined ? 'Stock a confirmar' : formatStock(stock);
                 const formattedPrice = formatMoney(price);
+                const formattedGold = formatMoney(gold);
+                const formattedSilver = formatMoney(silver);
+                const savings = Math.max(0, silver - gold);
+                const savingsText = savingsTemplate.replace(':amount', formatMoney(savings));
 
-                if (priceTarget) priceTarget.textContent = formattedPrice;
-                if (mobilePriceTarget) mobilePriceTarget.textContent = formattedPrice;
+                setTargets(priceTargets, formattedPrice);
+                setTargets(mobilePriceTargets, formattedPrice);
+                setTargets(goldTargets, formattedGold);
+                setTargets(silverTargets, formattedSilver);
+                if (savingsTarget) savingsTarget.textContent = savingsText;
                 if (stockTarget) stockTarget.textContent = stockText;
             };
 

@@ -4,15 +4,18 @@ namespace App\Modules\Catalog\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Catalog\Models\Product;
-use App\Modules\Categories\Queries\CategoryBreadcrumbsQuery;
 use App\Modules\Documents\Services\TechSheetDownloadService;
+use App\Modules\Orders\Pricing\DistributorPriceCalculator;
+use App\Modules\Orders\Pricing\DistributorTierResolver;
 use App\Modules\Orders\Support\OrderLineVat;
+use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\DocumentType;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -41,8 +44,9 @@ class ProductController extends Controller
     public function show(
         Request $request,
         Product $product,
-        CategoryBreadcrumbsQuery $breadcrumbsQuery,
         TechSheetDownloadService $downloadService,
+        DistributorTierResolver $tierResolver,
+        DistributorPriceCalculator $priceCalculator,
     ): View|JsonResponse {
         $queryState = $this->resolveQueryState($request);
 
@@ -52,7 +56,11 @@ class ProductController extends Controller
             abort(404);
         }
 
-        $breadcrumbs = $breadcrumbsQuery->execute($product->category);
+        $user = $request->user();
+        $tier = $tierResolver->resolve($user);
+        $isDistributor = (bool) $user?->isDistributor();
+        $pricingMode = $isDistributor ? $tier->pricingMode() : 'single';
+
         $techSheet = $product->documents->firstWhere('type', DocumentType::TechSheet->value);
         $remainingDownloads = null;
         $techSheetMonthlyLimit = $downloadService->monthlyLimit();
@@ -60,42 +68,72 @@ class ProductController extends Controller
         $relatedProducts = $this->relatedProducts($product, $queryState);
         $alternativeProducts = $this->alternativeProducts($product, $queryState);
 
-        if ($techSheet && $request->user()?->distributor) {
+        if ($techSheet && $user?->distributor) {
             $remainingDownloads = $downloadService->remainingDownloads(
-                $request->user()->distributor,
+                $user->distributor,
                 $techSheet,
                 CarbonImmutable::now(),
             );
         }
 
-        $viewData = $this->buildViewData($product, $commercialSnapshot, $techSheet);
+        $viewData = $this->buildViewData(
+            $product,
+            $commercialSnapshot,
+            $techSheet,
+            $tier,
+            $isDistributor,
+            $priceCalculator,
+        );
 
         if ($request->ajax()) {
             return match ((string) ($queryState['list'] ?? '')) {
-                'related' => response()->json($this->buildProductListPayload($product, $relatedProducts, 'related', $queryState)),
-                'alternatives' => response()->json($this->buildProductListPayload($product, $alternativeProducts, 'alternatives', $queryState)),
+                'related' => response()->json($this->buildProductListPayload(
+                    $product,
+                    $relatedProducts,
+                    'related',
+                    $queryState,
+                    $pricingMode,
+                    $tier,
+                )),
+                'alternatives' => response()->json($this->buildProductListPayload(
+                    $product,
+                    $alternativeProducts,
+                    'alternatives',
+                    $queryState,
+                    $pricingMode,
+                    $tier,
+                )),
                 default => abort(404),
             };
         }
 
         return view('product.show', array_merge($viewData, [
             'product' => $product,
-            'breadcrumbs' => $breadcrumbs,
             'techSheet' => $techSheet,
             'techSheetMonthlyLimit' => $techSheetMonthlyLimit,
             'remainingDownloads' => $remainingDownloads,
             'relatedProducts' => $relatedProducts,
             'alternativeProducts' => $alternativeProducts,
             'canonicalUrl' => route('products.show', $product),
+            'distributorTier' => $tier,
+            'showTierPricing' => $isDistributor,
+            'pricingMode' => $pricingMode,
         ]));
     }
 
     /**
      * Prepares all display variables so that the Blade view contains no business logic.
      */
-    private function buildViewData(Product $product, array $commercial, mixed $techSheet): array
-    {
+    private function buildViewData(
+        Product $product,
+        array $commercial,
+        mixed $techSheet,
+        DistributorTier $tier,
+        bool $isDistributor,
+        DistributorPriceCalculator $priceCalculator,
+    ): array {
         $formatQty = static fn (float|int $value): string => rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
+        $formatMoney = static fn (float $amount): string => '$'.number_format($amount, 0, ',', '.');
 
         $mainPhoto = $product->primaryPhoto ?? $product->photos->first();
         $galleryPhotos = $product->photos->take(10);
@@ -116,13 +154,22 @@ class ProductController extends Controller
         $activeVariants = $product->activeVariantsCollection();
         $hasVariants = $activeVariants->isNotEmpty();
         $variantAttributeName = $product->variantAttribute?->name ?? 'Variante';
-        $minVariantPrice = $hasVariants ? (float) ($activeVariants->min('price') ?? 0) : null;
-        $maxVariantPrice = $hasVariants ? (float) ($activeVariants->max('price') ?? 0) : null;
-        $price = $hasVariants ? (float) ($minVariantPrice ?? 0) : (float) $product->price;
-        $isRangePrice = $hasVariants && $maxVariantPrice !== null && $maxVariantPrice > $price;
-        $formattedPrice = $isRangePrice
-            ? '$'.number_format($price, 0, ',', '.').' – $'.number_format((float) $maxVariantPrice, 0, ',', '.')
-            : '$'.number_format($price, 0, ',', '.');
+
+        $pricing = $this->buildPricingSnapshot(
+            $product,
+            $activeVariants,
+            $hasVariants,
+            $tier,
+            $isDistributor,
+            $priceCalculator,
+            $formatMoney,
+        );
+
+        $minVariantPrice = $pricing['minEffective'];
+        $maxVariantPrice = $pricing['maxEffective'];
+        $price = $pricing['minEffective'];
+        $isRangePrice = $pricing['isRangePrice'];
+        $formattedPrice = $pricing['formattedEffective'];
         $vatLabel = OrderLineVat::label((bool) $product->is_vat_excluded);
 
         $stock = $hasVariants ? null : ($commercial['stock'] ?? null);
@@ -194,8 +241,8 @@ class ProductController extends Controller
             ['id' => 'alternativas',     'label' => 'Alternativas'],
         ];
 
-        return compact(
-            'formatQty', 'mainPhoto', 'galleryPhotos', 'categoryName', 'brand',
+        return array_merge(compact(
+            'formatQty', 'formatMoney', 'mainPhoto', 'galleryPhotos', 'categoryName', 'brand',
             'unitLabel', 'unitLabelLower', 'leadTimeLabel', 'etaLabel',
             'minMultiple', 'stepValue',
             'discountPercent', 'promoLabel', 'activeVariants', 'hasVariants',
@@ -205,7 +252,126 @@ class ProductController extends Controller
             'stockSyncedAt', 'stockIsStale', 'stockFreshnessLabel',
             'manual', 'invima', 'quickGuide', 'calibrationDocument', 'productVideo', 'secondaryDocuments', 'documentTypeLabels',
             'specRows', 'sections',
+        ), $pricing);
+    }
+
+    /**
+     * @param  Collection<int, mixed>  $activeVariants
+     * @param  callable(float): string  $formatMoney
+     * @return array{
+     *   showDualPricing: bool,
+     *   isLockedDiscount: bool,
+     *   priceBadge: string,
+     *   standardLabel: string,
+     *   tierPriceLabel: string,
+     *   savingsText: string,
+     *   savingsTemplate: string,
+     *   displaySavings: float,
+     *   minGold: float,
+     *   maxGold: float,
+     *   minSilver: float,
+     *   maxSilver: float,
+     *   minEffective: float,
+     *   maxEffective: float,
+     *   isRangePrice: bool,
+     *   formattedGold: string,
+     *   formattedSilver: string,
+     *   formattedEffective: string,
+     *   variantPriceMap: array<int, array{gold: float, silver: float, effective: float}>
+     * }
+     */
+    private function buildPricingSnapshot(
+        Product $product,
+        Collection $activeVariants,
+        bool $hasVariants,
+        DistributorTier $tier,
+        bool $isDistributor,
+        DistributorPriceCalculator $priceCalculator,
+        callable $formatMoney,
+    ): array {
+        $basePrices = $hasVariants
+            ? $activeVariants->map(fn ($variant) => (string) $variant->price)->all()
+            : [(string) $product->price];
+
+        $priced = collect($basePrices)->map(
+            fn (string $base) => $priceCalculator->calculateFromDecimal($base, $tier)
         );
+
+        $minGold = (float) $priced->min(fn ($p) => (float) $p->basePriceDecimal());
+        $maxGold = (float) $priced->max(fn ($p) => (float) $p->basePriceDecimal());
+        $minSilver = (float) $priced->min(fn ($p) => (float) $p->silverPriceDecimal());
+        $maxSilver = (float) $priced->max(fn ($p) => (float) $p->silverPriceDecimal());
+
+        if ($isDistributor) {
+            $minEffective = (float) $priced->min(fn ($p) => (float) $p->effectivePriceDecimal());
+            $maxEffective = (float) $priced->max(fn ($p) => (float) $p->effectivePriceDecimal());
+            $mode = $tier->pricingMode();
+        } else {
+            $minEffective = $minGold;
+            $maxEffective = $maxGold;
+            $mode = 'single';
+        }
+
+        $displaySavings = max(0, $minSilver - $minGold);
+        $isRangePrice = $maxEffective > $minEffective || $maxSilver > $minSilver || $maxGold > $minGold;
+        $cardCopy = $tier->productCardCopy();
+        $savingsTemplate = (string) ($cardCopy['savings_template'] ?? 'Ahorras :amount');
+        $priceBadge = (string) ($cardCopy['price_badge'] ?? 'Precio Oro');
+        $standardLabel = (string) ($cardCopy['standard_label'] ?? 'Precio estándar');
+        $tierPriceLabel = (string) ($cardCopy['tier_price_label'] ?? 'Precio Oro');
+        $savingsText = str_replace(':amount', $formatMoney($displaySavings), $savingsTemplate);
+        $showDualPricing = $isDistributor
+            && in_array($mode, ['active-discount', 'locked-discount'], true)
+            && $displaySavings > 0;
+        $isLockedDiscount = $mode === 'locked-discount';
+
+        $formatRange = static function (float $min, float $max) use ($formatMoney, $isRangePrice): string {
+            if ($isRangePrice && $min !== $max) {
+                return $formatMoney($min).' – '.$formatMoney($max);
+            }
+
+            return $formatMoney($min);
+        };
+
+        $variantPriceMap = [];
+        if ($hasVariants) {
+            foreach ($activeVariants as $variant) {
+                $tierPrice = $priceCalculator->calculateFromDecimal((string) $variant->price, $tier);
+                $gold = (float) $tierPrice->basePriceDecimal();
+                $silver = (float) $tierPrice->silverPriceDecimal();
+                $effective = $isDistributor
+                    ? (float) $tierPrice->effectivePriceDecimal()
+                    : $gold;
+
+                $variantPriceMap[(int) $variant->id] = [
+                    'gold' => $gold,
+                    'silver' => $silver,
+                    'effective' => $effective,
+                ];
+            }
+        }
+
+        return [
+            'showDualPricing' => $showDualPricing,
+            'isLockedDiscount' => $isLockedDiscount,
+            'priceBadge' => $priceBadge,
+            'standardLabel' => $standardLabel,
+            'tierPriceLabel' => $tierPriceLabel,
+            'savingsText' => $savingsText,
+            'savingsTemplate' => $savingsTemplate,
+            'displaySavings' => $displaySavings,
+            'minGold' => $minGold,
+            'maxGold' => $maxGold,
+            'minSilver' => $minSilver,
+            'maxSilver' => $maxSilver,
+            'minEffective' => $minEffective,
+            'maxEffective' => $maxEffective,
+            'isRangePrice' => $isRangePrice,
+            'formattedGold' => $formatRange($minGold, $maxGold),
+            'formattedSilver' => $formatRange($minSilver, $maxSilver),
+            'formattedEffective' => $formatRange($minEffective, $maxEffective),
+            'variantPriceMap' => $variantPriceMap,
+        ];
     }
 
     /**
@@ -403,9 +569,16 @@ class ProductController extends Controller
         LengthAwarePaginator $products,
         string $listKey,
         array $queryState,
+        string $pricingMode = 'single',
+        ?DistributorTier $tier = null,
     ): array {
         return [
-            'html' => view('catalog._products-partial', compact('products', 'listKey'))->render(),
+            'html' => view('catalog._products-partial', [
+                'products' => $products,
+                'listKey' => $listKey,
+                'pricingMode' => $pricingMode,
+                'tier' => $tier,
+            ])->render(),
             'controlsHtml' => view('catalog._product-list-controls', compact('products'))->render(),
             'hasMore' => $products->hasMorePages(),
             'currentPage' => $products->currentPage(),
