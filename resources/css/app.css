@@ -2312,7 +2312,7 @@
     }
 
     .tier-badge {
-        @apply inline-flex max-w-full shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold shadow-sm;
+        @apply inline-flex max-w-full shrink-0 items-center gap-1.5 rounded-full border bg-white px-2.5 py-1 text-xs font-semibold shadow-sm;
     }
 
     .tier-badge--sm {
@@ -2323,22 +2323,40 @@
         width: 0.95rem;
         height: 0.95rem;
         flex-shrink: 0;
-        filter: drop-shadow(0 0 0.4px currentColor);
         paint-order: stroke fill;
-        stroke: currentColor;
-        stroke-width: 0.75px;
+        stroke-width: 1px;
     }
 
     .tier-badge--gold {
-        @apply border-amber-300 bg-amber-100 text-amber-950;
+        @apply border-amber-300 text-amber-950;
     }
 
     .tier-badge--silver {
-        @apply border-slate-400 bg-slate-100 text-slate-900;
+        @apply border-slate-300 text-slate-800;
+    }
+
+    .tier-badge--silver .tier-badge__icon {
+        color: #64748b; /* slate-500 */
+        stroke: #334155; /* slate-700 outline for contrast */
+        filter: drop-shadow(0 0 0.45px rgb(15 23 42 / 0.35));
+    }
+
+    .tier-badge--gold .tier-badge__icon {
+        color: #d97706; /* amber-600 — gold accent, not neon yellow */
+        stroke: #92400e; /* amber-800 outline */
+        filter: drop-shadow(0 0 0.45px rgb(120 53 15 / 0.35));
+    }
+
+    .tier-welcome-banner--silver .tier-welcome-banner__emblem-ring {
+        @apply border-slate-300 bg-white/90 text-slate-700;
+    }
+
+    .tier-welcome-banner--gold .tier-welcome-banner__emblem-ring {
+        @apply border-amber-300 bg-white/90 text-amber-800 shadow-[0_10px_28px_rgb(180_83_9_/_0.14)];
     }
 
     .tier-badge--interactive {
-        @apply cursor-pointer transition hover:brightness-95 focus-ring;
+        @apply cursor-pointer transition hover:bg-slate-50 focus-ring;
     }
 
     .tier-metrics-grid {

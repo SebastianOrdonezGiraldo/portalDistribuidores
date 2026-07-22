@@ -4,22 +4,29 @@
 
 {{--
 Component contract:
-- Props: DistributorTier $tier (only renders when upgrade CTA is enabled for that tier).
+- Props: DistributorTier $tier (renders when hasBenefitsModal()).
 - Slots: none.
-- Use for: upgrade pitch + WhatsApp support CTA (reuses commerce.support.whatsapp_number).
+- Use for: upgrade pitch (Plata) or benefits summary (Oro); WhatsApp only when message is set.
 --}}
 @php
     /** @var \App\Modules\Shared\Enums\DistributorTier $tier */
     $upgrade = $tier->upgrade();
-    $title = (string) ($upgrade['modal_title'] ?? '');
+    $isUpgradePitch = $tier->showUpgradeCta();
+    $title = (string) ($upgrade['modal_title'] ?? ($isUpgradePitch ? 'Sube de nivel' : 'Beneficios de tu nivel'));
     $body = (string) ($upgrade['modal_body'] ?? '');
-    $message = (string) ($upgrade['whatsapp_message'] ?? 'Hola, quiero información sobre el Nivel Oro.');
+    $message = filled($upgrade['whatsapp_message'] ?? null)
+        ? (string) $upgrade['whatsapp_message']
+        : null;
     $number = (string) config('commerce.support.whatsapp_number', '573117479607');
-    $whatsappUrl = 'https://wa.me/'.$number.'?text='.rawurlencode($message);
+    $whatsappUrl = $message
+        ? 'https://wa.me/'.$number.'?text='.rawurlencode($message)
+        : null;
     $benefits = $tier->benefits();
+    $dismissLabel = $isUpgradePitch ? 'Ahora no' : 'Entendido';
+    $whatsappLabel = $isUpgradePitch ? 'Contactar por WhatsApp' : 'Hablar con soporte';
 @endphp
 
-@if($tier->showUpgradeCta())
+@if($tier->hasBenefitsModal())
     <x-modal name="tier-upgrade" maxWidth="lg">
         <div class="p-6">
             <div class="flex items-start justify-between gap-3">
@@ -48,17 +55,19 @@ Component contract:
             @endif
 
             <div class="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
-                <button type="button" class="btn btn-secondary justify-center" @click="$dispatch('close-modal', 'tier-upgrade')">
-                    Ahora no
+                <button type="button" class="btn {{ $whatsappUrl ? 'btn-secondary' : 'btn-primary' }} justify-center" @click="$dispatch('close-modal', 'tier-upgrade')">
+                    {{ $dismissLabel }}
                 </button>
-                <a
-                    href="{{ $whatsappUrl }}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="btn btn-primary justify-center"
-                >
-                    Contactar por WhatsApp
-                </a>
+                @if($whatsappUrl)
+                    <a
+                        href="{{ $whatsappUrl }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="btn btn-primary justify-center"
+                    >
+                        {{ $whatsappLabel }}
+                    </a>
+                @endif
             </div>
         </div>
     </x-modal>

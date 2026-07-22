@@ -84,7 +84,7 @@ return [
                     'label' => 'Beneficios de tu nivel',
                     'value_suffix' => 'beneficios incluidos',
                     'hint' => 'Incluidos en tu nivel',
-                    'cta_label' => null,
+                    'cta_label' => 'Ver mis beneficios',
                 ],
             ],
             'product_card' => [
@@ -102,8 +102,8 @@ return [
                 'Soporte dedicado de asesoría',
             ],
             'upgrade' => [
-                'modal_title' => null,
-                'modal_body' => null,
+                'modal_title' => 'Como eres Cliente Oro',
+                'modal_body' => 'Ya tienes activo el Nivel Oro: descuento en todos los productos, atención prioritaria y beneficios exclusivos en cada pedido.',
                 'whatsapp_message' => null,
             ],
         ],

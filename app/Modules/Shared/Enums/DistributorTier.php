@@ -152,4 +152,12 @@ enum DistributorTier: string
     {
         return (bool) ($this->banner()['show_upgrade_cta'] ?? false);
     }
+
+    /**
+     * Whether the shared tier benefits / upgrade modal should be available.
+     */
+    public function hasBenefitsModal(): bool
+    {
+        return filled($this->upgrade()['modal_title'] ?? null) || $this->showUpgradeCta();
+    }
 }

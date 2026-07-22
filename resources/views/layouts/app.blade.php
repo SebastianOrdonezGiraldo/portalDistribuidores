@@ -222,7 +222,7 @@ View contract:
                     <p class="truncate text-xs text-slate-500">{{ $isDistributor ? ($user->distributor?->name ?? 'Distribuidor') : 'Administrador global' }}</p>
                     @if($isDistributor && ($distributorTier ?? null) instanceof \App\Modules\Shared\Enums\DistributorTier)
                         <div class="mt-1">
-                            <x-tier.badge :tier="$distributorTier" size="sm" :interactive="$distributorTier->showUpgradeCta()" />
+                            <x-tier.badge :tier="$distributorTier" size="sm" :interactive="$distributorTier->hasBenefitsModal()" />
                         </div>
                     @endif
                 </div>
@@ -348,7 +348,7 @@ View contract:
                                     <x-tier.badge
                                         :tier="$distributorTier"
                                         size="sm"
-                                        :interactive="$distributorTier->showUpgradeCta()"
+                                        :interactive="$distributorTier->hasBenefitsModal()"
                                         class="hidden sm:inline-flex"
                                     />
                                 @endif

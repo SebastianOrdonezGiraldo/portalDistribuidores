@@ -38,13 +38,16 @@ class CatalogTierExperienceTest extends TestCase
         $response = $this->actingAs($user)->get(route('catalog.index'));
 
         $response->assertOk();
-        $response->assertSee('Tu estatus Oro te da descuento en TODOS los productos');
+        $response->assertSee('Tu Nivel Oro ya está activo en todo el catálogo');
         $response->assertSee('Ahorro acumulado');
         $response->assertSee('Descuento Oro activo');
         $response->assertSee('Beneficios de tu nivel');
+        $response->assertSee('Como eres Cliente Oro');
+        $response->assertSee('Ver mis beneficios');
         $response->assertSee('Mostrando precios Oro');
         $response->assertSee('Nivel Oro');
         $response->assertSee('Precio Oro');
+        $response->assertSee('tier-upgrade', false);
         $response->assertDontSee('promociones activas', false);
     }
 
