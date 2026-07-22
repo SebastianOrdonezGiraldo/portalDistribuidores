@@ -48,15 +48,15 @@ return [
             'accent' => 'gold',
             'pricing_mode' => 'active-discount',
             'price_toggle' => [
-                'interactive' => true,
-                'label_on' => 'Mostrando precios Oro',
-                'label_off' => 'Mostrar precios Oro',
+                'interactive' => false,
+                'label_on' => null,
+                'label_off' => null,
                 'locked_label' => null,
             ],
             'banner' => [
                 'greeting' => '¡Bienvenido, :name!',
                 'headline' => 'Tu Nivel Oro ya está activo en todo el catálogo',
-                'subtext' => 'Precios preferenciales, atención prioritaria y beneficios exclusivos en cada pedido.',
+                'subtext' => 'Mantienes el precio de 2025, atención prioritaria y beneficios exclusivos en cada pedido.',
                 'show_upgrade_cta' => false,
                 'cta_label' => null,
                 'missed_savings_template' => null,
@@ -69,9 +69,9 @@ return [
                     'empty_hint' => 'Tus pedidos de este mes aún no registran ahorro',
                 ],
                 'discount' => [
-                    'label' => 'Descuento Oro activo',
-                    'value_template' => ':percent% en todos los productos',
-                    'hint' => 'Aplicado automáticamente',
+                    'label' => 'Tu precio Oro',
+                    'value_template' => 'Precio 2025',
+                    'hint' => 'Se mantiene en todo el catálogo',
                     'locked' => false,
                 ],
                 'orders' => [
@@ -95,15 +95,15 @@ return [
             ],
             // PLACEHOLDER: reemplazar cuando exista módulo de promociones.
             'benefits' => [
-                'Precios preferenciales en todo el catálogo',
+                'Mantienes el precio de 2025 en todo el catálogo',
                 'Atención prioritaria en pedidos',
                 'Acceso anticipado a lanzamientos',
                 'Condiciones comerciales preferentes',
-                'Soporte dedicado de asesoría',
+                'Tu asesora: Estefanía López',
             ],
             'upgrade' => [
                 'modal_title' => 'Como eres Cliente Oro',
-                'modal_body' => 'Ya tienes activo el Nivel Oro: descuento en todos los productos, atención prioritaria y beneficios exclusivos en cada pedido.',
+                'modal_body' => 'Ya tienes activo el Nivel Oro: mantienes el precio de 2025, atención prioritaria y beneficios exclusivos. Tu asesora es Estefanía López.',
                 'whatsapp_message' => null,
             ],
         ],
@@ -117,12 +117,12 @@ return [
                 'interactive' => false,
                 'label_on' => null,
                 'label_off' => null,
-                'locked_label' => 'Ver precios Oro',
+                'locked_label' => null,
             ],
             'banner' => [
                 'greeting' => 'Hola, :name',
-                'headline' => 'Sube a Nivel Oro y paga menos en cada pedido',
-                'subtext' => 'Descuento en todo el catálogo, atención prioritaria y beneficios exclusivos para tu operación.',
+                'headline' => 'Sube a Nivel Oro y mantén el precio de 2025',
+                'subtext' => 'Accede al precio Oro en todo el catálogo, atención prioritaria y beneficios exclusivos para tu operación.',
                 'show_upgrade_cta' => true,
                 'cta_label' => 'Sube a Nivel Oro',
                 'missed_savings_template' => 'Este mes podrías haber ahorrado :amount con Nivel Oro',
@@ -135,9 +135,9 @@ return [
                     'empty_hint' => 'Haz un pedido este mes para ver cuánto podrías ahorrar',
                 ],
                 'discount' => [
-                    'label' => 'Descuento Oro',
-                    'value_template' => ':percent% disponible',
-                    'hint' => 'Se activa al subir a Oro',
+                    'label' => 'Precio Oro',
+                    'value_template' => 'Precio 2025',
+                    'hint' => 'Disponible al subir a Oro',
                     'locked' => true,
                 ],
                 'orders' => [
@@ -161,15 +161,14 @@ return [
             ],
             // PLACEHOLDER: beneficios del nivel Oro que se desbloquean al subir.
             'benefits' => [
-                'Precios preferenciales en todo el catálogo',
+                'Mantienes el precio de 2025 en todo el catálogo',
                 'Atención prioritaria en pedidos',
                 'Acceso anticipado a lanzamientos',
                 'Condiciones comerciales preferentes',
-                'Soporte dedicado de asesoría',
             ],
             'upgrade' => [
                 'modal_title' => 'Sube a Nivel Oro',
-                'modal_body' => 'El Nivel Oro te da descuento en todos los productos del catálogo, atención prioritaria y beneficios exclusivos de tu nivel. Escríbenos por WhatsApp para conocer los requisitos y activar tu upgrade.',
+                'modal_body' => 'El Nivel Oro te permite mantener el precio de 2025 en todos los productos del catálogo, con atención prioritaria y beneficios exclusivos. Escríbenos por WhatsApp para conocer los requisitos y activar tu upgrade.',
                 'whatsapp_message' => 'Hola, soy Cliente Plata en el portal y quiero conocer cómo subir a Nivel Oro.',
             ],
         ],

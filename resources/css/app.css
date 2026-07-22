@@ -1362,23 +1362,35 @@
     }
 
     .global-header-catalog-search,
-    .global-header-admin-search {
+    .global-header-admin-search,
+    .catalog-desktop-header-search {
         position: relative;
         min-width: 0;
         flex: 1 1 auto;
-        margin-inline: auto;
+        max-width: min(36rem, 100%);
     }
 
-    @media (min-width: 1024px) {
-        .catalog-desktop-header-search,
+    .global-header-catalog-search .catalog-search-input,
+    .global-header-admin-search .catalog-search-input {
+        width: 100%;
+    }
+
+    @media (min-width: 1280px) {
         .global-header-catalog-search,
-        .global-header-admin-search {
-            position: absolute;
-            left: 50%;
-            width: min(52vw, 48rem);
-            max-width: none;
-            margin-inline: 0;
-            transform: translateX(-50%);
+        .global-header-admin-search,
+        .catalog-desktop-header-search {
+            max-width: min(42rem, 100%);
+        }
+    }
+
+    /* En pantallas intermedias el select de categoría ensancha demasiado el header. */
+    @media (min-width: 1024px) and (max-width: 1279px) {
+        .catalog-desktop-header-search .catalog-header-category {
+            display: none;
+        }
+
+        .catalog-desktop-header-search .catalog-header-search .catalog-toolbar-controls {
+            grid-template-columns: minmax(0, 1fr);
         }
     }
 
@@ -1850,11 +1862,11 @@
     .catalog-results-heading > div > p:last-child { margin-top: 0.2rem; font-size: 0.78rem; color: rgb(100 116 139); }
     @media (min-width: 1024px) {
         .catalog-desktop-header-search {
-            width: min(52vw, 48rem);
+            width: auto;
         }
 
         .catalog-desktop-header-search .catalog-header-search .catalog-toolbar-controls {
-            grid-template-columns: minmax(0, 7fr) minmax(11rem, 3fr);
+            grid-template-columns: minmax(0, 7fr) minmax(10rem, 2.5fr);
         }
 
         .catalog-header-search .catalog-toolbar { padding: 0; }

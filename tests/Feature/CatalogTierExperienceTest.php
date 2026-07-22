@@ -40,14 +40,17 @@ class CatalogTierExperienceTest extends TestCase
         $response->assertOk();
         $response->assertSee('Tu Nivel Oro ya está activo en todo el catálogo');
         $response->assertSee('Ahorro acumulado');
-        $response->assertSee('Descuento Oro activo');
+        $response->assertSee('Tu precio Oro');
+        $response->assertSee('Precio 2025');
         $response->assertSee('Beneficios de tu nivel');
         $response->assertSee('Como eres Cliente Oro');
         $response->assertSee('Ver mis beneficios');
-        $response->assertSee('Mostrando precios Oro');
+        $response->assertSee('Estefanía López');
         $response->assertSee('Nivel Oro');
         $response->assertSee('Precio Oro');
         $response->assertSee('tier-upgrade', false);
+        $response->assertDontSee('Ver precios Oro');
+        $response->assertDontSee('Mostrando precios Oro');
         $response->assertDontSee('promociones activas', false);
     }
 
@@ -60,13 +63,14 @@ class CatalogTierExperienceTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Ahorro potencial este mes');
-        $response->assertSee('Descuento Oro');
-        $response->assertSee('Ver precios Oro');
+        $response->assertSee('Precio 2025');
         $response->assertSee('Sube a Nivel Oro');
         $response->assertSee('tier-upgrade', false);
         $response->assertSee('Ahorrarías', false);
         $response->assertSee('Nivel Plata');
         $response->assertSee('images/tiers/banner-plata.jpg', false);
+        $response->assertDontSee('Ver precios Oro');
+        $response->assertDontSee('Estefanía López');
     }
 
     public function test_gold_product_detail_shows_dual_pricing(): void
@@ -80,7 +84,8 @@ class CatalogTierExperienceTest extends TestCase
         $response->assertSee('Precio Oro');
         $response->assertSee('Ahorras', false);
         $response->assertSee('product-detail-price__hero--gold', false);
-        $response->assertSee('Mostrando precios Oro');
+        $response->assertDontSee('Mostrando precios Oro');
+        $response->assertDontSee('Ver precios Oro');
     }
 
     public function test_silver_product_detail_shows_locked_dual_pricing(): void

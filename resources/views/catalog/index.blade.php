@@ -377,8 +377,7 @@ View contract:
     <section
         class="catalog-page"
         x-data="{
-            filtersOpen: false,
-            showGoldPrices: true
+            filtersOpen: false
         }"
         @catalog-filters.window="filtersOpen = true"
     >
@@ -488,11 +487,6 @@ View contract:
                         <h2>{{ filled($search->term) ? 'Resultados de búsqueda' : 'Productos para tu operación' }}</h2>
                         <p>{{ number_format($resultsTotal, 0, ',', '.') }} productos disponibles para consulta y pedido.</p>
                     </div>
-                    @if($showTierExperience && $distributorTier)
-                        <div class="catalog-results-heading__actions">
-                            <x-tier.price-toggle :tier="$distributorTier" />
-                        </div>
-                    @endif
                 </header>
 
                 @if($products->isEmpty())
