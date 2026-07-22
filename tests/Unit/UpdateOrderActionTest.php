@@ -69,11 +69,11 @@ class UpdateOrderActionTest extends TestCase
             'sku_snapshot' => $product->sku,
             'qty' => 1,
             'unit_label' => 'unidades',
-            'price_each' => 106000,
+            'price_each' => 105000,
             'base_unit_price' => 100000,
-            'silver_unit_price' => 106000,
+            'silver_unit_price' => 105000,
             'unit_savings' => 0,
-            'subtotal' => 106000,
+            'subtotal' => 105000,
             'line_savings' => 0,
         ]);
 
@@ -82,14 +82,14 @@ class UpdateOrderActionTest extends TestCase
         ]));
 
         $this->assertSame(DistributorTier::Silver, $updated->distributor_tier_snapshot);
-        $this->assertSame('212000.00', $updated->total_amount);
+        $this->assertSame('210000.00', $updated->total_amount);
         $this->assertDatabaseHas('order_items', [
             'order_id' => $order->id,
-            'price_each' => 106000,
+            'price_each' => 105000,
             'base_unit_price' => 100000,
-            'silver_unit_price' => 106000,
+            'silver_unit_price' => 105000,
             'unit_savings' => 0,
-            'subtotal' => 212000,
+            'subtotal' => 210000,
             'line_savings' => 0,
         ]);
     }
@@ -109,10 +109,10 @@ class UpdateOrderActionTest extends TestCase
             'unit_label' => 'unidades',
             'price_each' => 100000,
             'base_unit_price' => 100000,
-            'silver_unit_price' => 106000,
-            'unit_savings' => 6000,
+            'silver_unit_price' => 105000,
+            'unit_savings' => 5000,
             'subtotal' => 100000,
-            'line_savings' => 6000,
+            'line_savings' => 5000,
         ]);
 
         $updated = $this->action()->execute($order, $this->payload([
@@ -125,10 +125,10 @@ class UpdateOrderActionTest extends TestCase
             'order_id' => $order->id,
             'price_each' => 100000,
             'base_unit_price' => 100000,
-            'silver_unit_price' => 106000,
-            'unit_savings' => 6000,
+            'silver_unit_price' => 105000,
+            'unit_savings' => 5000,
             'subtotal' => 300000,
-            'line_savings' => 18000,
+            'line_savings' => 15000,
         ]);
     }
 
@@ -147,10 +147,10 @@ class UpdateOrderActionTest extends TestCase
             'unit_label' => 'unidades',
             'price_each' => 100000,
             'base_unit_price' => 100000,
-            'silver_unit_price' => 106000,
-            'unit_savings' => 6000,
+            'silver_unit_price' => 105000,
+            'unit_savings' => 5000,
             'subtotal' => 100000,
-            'line_savings' => 6000,
+            'line_savings' => 5000,
         ]);
 
         // The company is later downgraded; the order snapshot must win.
@@ -166,7 +166,7 @@ class UpdateOrderActionTest extends TestCase
             'order_id' => $order->id,
             'price_each' => 100000,
             'base_unit_price' => 100000,
-            'silver_unit_price' => 106000,
+            'silver_unit_price' => 105000,
             'subtotal' => 200000,
         ]);
     }
@@ -184,11 +184,11 @@ class UpdateOrderActionTest extends TestCase
             'sku_snapshot' => $product->sku,
             'qty' => 1,
             'unit_label' => 'unidades',
-            'price_each' => 106000,
+            'price_each' => 105000,
             'base_unit_price' => 100000,
-            'silver_unit_price' => 106000,
+            'silver_unit_price' => 105000,
             'unit_savings' => 0,
-            'subtotal' => 106000,
+            'subtotal' => 105000,
             'line_savings' => 0,
         ]);
 
@@ -199,13 +199,13 @@ class UpdateOrderActionTest extends TestCase
         ]));
 
         $this->assertSame(DistributorTier::Silver, $updated->distributor_tier_snapshot);
-        $this->assertSame('212000.00', $updated->total_amount);
+        $this->assertSame('210000.00', $updated->total_amount);
         $this->assertDatabaseHas('order_items', [
             'order_id' => $order->id,
-            'price_each' => 106000,
+            'price_each' => 105000,
             'base_unit_price' => 100000,
-            'silver_unit_price' => 106000,
-            'subtotal' => 212000,
+            'silver_unit_price' => 105000,
+            'subtotal' => 210000,
         ]);
     }
 
@@ -244,10 +244,10 @@ class UpdateOrderActionTest extends TestCase
             'order_id' => $order->id,
             'price_each' => 100000,
             'base_unit_price' => 100000,
-            'silver_unit_price' => 106000,
-            'unit_savings' => 6000,
+            'silver_unit_price' => 105000,
+            'unit_savings' => 5000,
             'subtotal' => 200000,
-            'line_savings' => 12000,
+            'line_savings' => 10000,
         ]);
     }
 
@@ -264,11 +264,11 @@ class UpdateOrderActionTest extends TestCase
             'sku_snapshot' => $product->sku,
             'qty' => 1,
             'unit_label' => 'unidades',
-            'price_each' => 106000,
+            'price_each' => 105000,
             'base_unit_price' => 100000,
-            'silver_unit_price' => 106000,
+            'silver_unit_price' => 105000,
             'unit_savings' => 0,
-            'subtotal' => 106000,
+            'subtotal' => 105000,
             'line_savings' => 0,
         ]);
 
@@ -301,6 +301,6 @@ class UpdateOrderActionTest extends TestCase
         ]);
 
         // Existing line preserved + new line = consistent total.
-        $this->assertSame('138000.00', $updated->total_amount);
+        $this->assertSame('137000.00', $updated->total_amount);
     }
 }

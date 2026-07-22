@@ -91,7 +91,7 @@ class AdminOrderShowTest extends TestCase
             ->get(route('admin.orders.edit', $silverOrder))
             ->viewData('catalogOptions');
 
-        $this->assertSame(106000.0, $this->hintPriceFor($silverOptions, 'p:'.$product->id));
+        $this->assertSame(105000.0, $this->hintPriceFor($silverOptions, 'p:'.$product->id));
     }
 
     /**
