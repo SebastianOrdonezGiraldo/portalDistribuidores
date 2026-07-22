@@ -6,23 +6,41 @@ View contract:
 - Notes: line validation, stock checks, and cart mutations stay in CartController/CartService.
 --}}
 <x-app-layout>
-    {{-- Local counters are presentation-only summaries for the header and client-side cart updates. --}}
     @php
+        // Presentation-only summaries; the authoritative pricing lives in CartService.
         $itemsCount = $items->count();
         $unitsCount = (int) $items->sum(fn ($item) => (int) $item['qty']);
+        $money = fn ($value) => '$'.number_format((float) $value, 0, ',', '.');
+
+        $tier = $items->isNotEmpty() ? $items->first()['tier'] : \App\Modules\Shared\Enums\DistributorTier::Silver;
+        $isGold = $tier === \App\Modules\Shared\Enums\DistributorTier::Gold;
+        $tierName = $isGold ? 'ORO' : 'Plata';
+        $vatRate = \App\Modules\Orders\Support\OrderLineVat::DEFAULT_RATE;
+
+        $grossTotal = (float) $total;
+        $listTotal = (float) $items->sum(fn ($item) => (float) $item['silver_unit_price'] * (int) $item['qty']);
+        $savingsTotal = (float) $items->sum('line_savings');
+        $netTotal = (float) $items->sum(fn ($item) => $item['is_vat_excluded']
+            ? (float) $item['subtotal']
+            : (float) $item['subtotal'] / (1 + $vatRate));
+        $ivaTotal = max(0, $grossTotal - $netTotal);
+        $savingsPct = $listTotal > 0 ? (int) round($savingsTotal / $listTotal * 100) : 0;
+        $hasSavings = $savingsTotal > 0.5;
+
+        $advisorUrl = 'https://wa.me/573117479607?text='.rawurlencode('Hola, tengo dudas con mi pedido en el portal ICMTHERAPY.');
     @endphp
 
     <x-slot name="header">
-        <x-ui.page-header title="Tu carrito" subtitle="Revisa cantidades y confirma el pedido antes de continuar a checkout.">
+        <x-ui.page-header
+            title="Mi carrito"
+            subtitle="Revisa los productos que agregaste y continúa con tu pedido."
+        >
             <x-slot name="meta">
-                <div class="flex flex-wrap items-center gap-2">
-                    <span class="stat-pill">Productos: <span data-cart-products-count>{{ number_format($itemsCount) }}</span></span>
-                    <span class="stat-pill">Unidades: <span data-cart-units-count>{{ number_format($unitsCount) }}</span></span>
-                    <span class="stat-pill">Total: <span data-cart-total-amount>${{ number_format((float) $total, 0, ',', '.') }}</span></span>
-                </div>
-            </x-slot>
-            <x-slot name="actions">
-                <a href="{{ route('catalog.index') }}" class="btn btn-secondary">Seguir comprando</a>
+                <span data-cart-products-count>{{ number_format($itemsCount) }}</span>
+                {{ \Illuminate\Support\Str::plural('producto', $itemsCount) }}
+                ·
+                <span data-cart-units-count>{{ number_format($unitsCount) }}</span>
+                {{ \Illuminate\Support\Str::plural('unidad', $unitsCount) }}
             </x-slot>
         </x-ui.page-header>
     </x-slot>
@@ -45,51 +63,117 @@ View contract:
             </x-slot>
         </x-ui.empty-state-panel>
     @else
-        <form id="cart-update-form" action="{{ route('cart.update') }}" method="POST" data-loading-form data-cart-form class="grid min-w-0 gap-4 lg:grid-cols-[1.8fr_1fr]">
-            @csrf
-            @method('PATCH')
-
-            <x-ui.card class="min-w-0 p-4 sm:p-5">
-                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
-                    <h2 class="card-title">Productos agregados</h2>
+        <div class="space-y-4">
+            {{-- Franja de garantías comerciales --}}
+            <div class="cart-review-strip">
+                <div class="cart-review-feature">
+                    <span class="cart-review-feature-icon" aria-hidden="true">
+                        @if($isGold)
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m5 16 -1.6 -8 4.6 3.5L12 5l3.9 6.5L20.6 8 19 16z"/><path d="M5 19h14"/></svg>
+                        @else
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.6 8.5 12 3 3.4 8.5v7L12 21l8.6-5.5z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>
+                        @endif
+                    </span>
+                    <p class="cart-review-feature-text">
+                        {{ $isGold ? 'Precios exclusivos por tu nivel ORO' : 'Precios preferenciales para distribuidores' }}
+                    </p>
                 </div>
+                <div class="cart-review-feature">
+                    <span class="cart-review-feature-icon" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 13a8 8 0 0 1 16 0"/><path d="M4 13v3a2 2 0 0 0 2 2h1v-5H6a2 2 0 0 0-2 2z"/><path d="M20 13v3a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2z"/><path d="M17 18a3 3 0 0 1-3 3h-1"/></svg>
+                    </span>
+                    <p class="cart-review-feature-text">Asesoría especializada en tu compra</p>
+                </div>
+                <div class="cart-review-feature">
+                    <span class="cart-review-feature-icon" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="1.8"/><circle cx="17.5" cy="18" r="1.8"/></svg>
+                    </span>
+                    <p class="cart-review-feature-text">Envíos a todo el país con cobertura nacional</p>
+                </div>
+                <div class="cart-review-feature">
+                    <span class="cart-review-feature-icon" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 5 6v5c0 4.5 3 7.5 7 10 4-2.5 7-5.5 7-10V6z"/></svg>
+                    </span>
+                    <p class="cart-review-feature-text">Garantía y respaldo ICMTHERAPY</p>
+                </div>
+            </div>
 
-                <div class="mt-4 space-y-3">
-                    @foreach($items as $item)
-                        @php
-                            $product = $item['product'];
-                            $lineKey = (string) $item['line_key'];
-                            $inputId = 'qty-'.preg_replace('/[^A-Za-z0-9\-_]/', '-', $lineKey);
-                        @endphp
-                        <article
-                            class="rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4"
-                            data-cart-item
-                            data-unit-price="{{ (float) $item['unit_price'] }}"
-                            data-stock-limit="{{ $item['available_qty'] ?? '' }}"
-                        >
-                            <div class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div class="flex min-w-0 items-center gap-3">
+            <form id="cart-update-form" action="{{ route('cart.update') }}" method="POST" data-loading-form data-cart-form class="grid min-w-0 gap-4 lg:grid-cols-[1.85fr_1fr] lg:items-start">
+                @csrf
+                @method('PATCH')
+
+                {{-- Listado de productos --}}
+                <x-ui.card class="min-w-0 p-4 sm:p-5">
+                    <div class="cart-review-head">
+                        <span>Producto</span>
+                        <span>Precio unitario</span>
+                        <span class="text-center">Cantidad</span>
+                        <span class="text-right">Total</span>
+                    </div>
+
+                    <div class="space-y-3 lg:space-y-0">
+                        @foreach($items as $item)
+                            @php
+                                $product = $item['product'];
+                                $lineKey = (string) $item['line_key'];
+                                $inputId = 'qty-'.preg_replace('/[^A-Za-z0-9\-_]/', '-', $lineKey);
+                                $available = $item['available_qty'];
+                                $inStock = $available === null || (int) $available > 0;
+                                $lineSavings = (float) $item['unit_savings'];
+                                $linePct = ($item['silver_unit_price'] > 0 && $lineSavings > 0)
+                                    ? (int) round($lineSavings / $item['silver_unit_price'] * 100)
+                                    : 0;
+                            @endphp
+                            <article
+                                class="cart-review-line"
+                                data-cart-item
+                                data-unit-price="{{ (float) $item['unit_price'] }}"
+                                data-silver-price="{{ (float) $item['silver_unit_price'] }}"
+                                data-vat-excluded="{{ $item['is_vat_excluded'] ? '1' : '0' }}"
+                                data-stock-limit="{{ $available ?? '' }}"
+                            >
+                                {{-- Columna: Producto --}}
+                                <div class="flex min-w-0 items-start gap-3">
                                     <x-ui.product-thumb :product="$product" size="md" />
-
                                     <div class="min-w-0">
-                                        <p class="truncate text-sm font-semibold text-slate-900">{{ $product->name }}</p>
-                                        @if(isset($item['available_qty']) && $item['available_qty'] !== null)
-                                            <p class="text-xs text-slate-500">Stock disponible: {{ number_format((int) $item['available_qty']) }}</p>
+                                        <p class="line-clamp-2 text-sm font-semibold text-slate-900">{{ $product->name }}</p>
+                                        <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                                            <span>SKU: {{ $product->sku }}</span>
+                                            @if($inStock)
+                                                <span class="cart-review-stock cart-review-stock--ok">En stock</span>
+                                            @else
+                                                <span class="cart-review-stock cart-review-stock--out">Agotado</span>
+                                            @endif
+                                        </div>
+                                        @if($product->brand)
+                                            <p class="text-xs text-slate-400">Marca: {{ $product->brand }}</p>
                                         @endif
-                                        <p class="text-xs text-slate-500">SKU: {{ $product->sku }}</p>
                                         @if($item['variant_label'])
-                                            <p class="text-xs text-slate-500">{{ $item['variant_label'] }}</p>
+                                            <p class="text-xs text-slate-400">{{ $item['variant_label'] }}</p>
                                         @endif
-                                        <p class="mt-1 text-sm font-semibold text-slate-900">
-                                            ${{ number_format((float) $item['unit_price'], 0, ',', '.') }}
-                                            <span class="font-normal text-slate-500">/ {{ $item['unit_label'] }} · {{ $item['vat_label'] }}</span>
-                                        </p>
                                     </div>
                                 </div>
 
-                                <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
-                                    <div class="inline-flex w-full max-w-[11rem] items-center rounded-xl border border-slate-300 bg-white p-1 sm:w-auto sm:max-w-none">
-                                        <button type="button" data-cart-step="-1" data-cart-target="{{ $inputId }}" class="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-700 transition hover:bg-slate-100 focus-ring" aria-label="Disminuir cantidad">-</button>
+                                {{-- Columna: Precio unitario --}}
+                                <div class="min-w-0">
+                                    <span class="cart-review-cell-label lg:hidden">Precio unitario</span>
+                                    <p class="text-sm font-semibold text-slate-900">{{ $money($item['unit_price']) }}</p>
+                                    <p class="text-[0.7rem] text-slate-400">{{ $item['vat_label'] }}</p>
+                                    @if($linePct > 0)
+                                        <span class="cart-review-oro-chip mt-1.5">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="currentColor"><path d="m5 16 -1.6 -8 4.6 3.5L12 5l3.9 6.5L20.6 8 19 16z"/></svg>
+                                            {{ $linePct }}% dto. Cliente ORO
+                                        </span>
+                                    @endif
+                                </div>
+
+                                {{-- Columna: Cantidad --}}
+                                <div class="flex flex-col items-start gap-2 lg:items-center">
+                                    <span class="cart-review-cell-label lg:hidden">Cantidad</span>
+                                    <div class="cart-review-stepper">
+                                        <button type="button" data-cart-step="-1" data-cart-target="{{ $inputId }}" class="cart-review-step" aria-label="Disminuir cantidad">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14"/></svg>
+                                        </button>
                                         <input
                                             id="{{ $inputId }}"
                                             type="number"
@@ -97,57 +181,132 @@ View contract:
                                             min="0"
                                             step="1"
                                             value="{{ (int) $item['qty'] }}"
-                                            @if(isset($item['available_qty']) && $item['available_qty'] !== null) max="{{ (int) $item['available_qty'] }}" @endif
-                                            class="no-number-spinner w-14 border-0 bg-transparent text-center text-sm font-semibold text-slate-900 focus:ring-0"
+                                            @if($available !== null) max="{{ (int) $available }}" @endif
+                                            class="no-number-spinner w-12 border-0 bg-transparent text-center text-sm font-bold text-slate-900 focus:ring-0"
                                             data-cart-qty
+                                            aria-label="Cantidad para {{ $product->name }}"
                                         >
-                                        <button type="button" data-cart-step="1" data-cart-target="{{ $inputId }}" class="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-700 transition hover:bg-slate-100 focus-ring" aria-label="Aumentar cantidad">+</button>
+                                        <button type="button" data-cart-step="1" data-cart-target="{{ $inputId }}" class="cart-review-step cart-review-step--inc" aria-label="Aumentar cantidad">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+                                        </button>
                                     </div>
-
-                                    <button type="button" data-cart-remove="{{ $inputId }}" class="btn btn-ghost w-full justify-center !px-3 text-xs text-red-700 hover:bg-red-50 sm:w-auto">
-                                        Quitar
+                                    <button type="button" data-cart-remove="{{ $inputId }}" class="cart-review-remove">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V5h6v2M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12"/></svg>
+                                        Eliminar
                                     </button>
                                 </div>
-                            </div>
 
-                            <div class="mt-2 text-right">
-                                <span class="text-xs text-slate-500">Subtotal</span>
-                                <p class="text-sm font-semibold text-slate-900" data-cart-subtotal-amount>${{ number_format((float) $item['subtotal'], 0, ',', '.') }}</p>
-                            </div>
-                        </article>
-                    @endforeach
-                </div>
-            </x-ui.card>
-
-            <aside class="min-w-0 max-w-full space-y-4 lg:sticky lg:top-24 lg:h-fit">
-                <x-ui.card class="min-w-0 p-5">
-                    <h2 class="card-title">Resumen comercial</h2>
-
-                    <div class="mt-4 space-y-2 text-sm">
-                        <div class="flex items-center justify-between gap-3">
-                            <span class="min-w-0 text-slate-500">Productos distintos</span>
-                            <span class="shrink-0 text-right font-medium text-slate-900" data-cart-products-count>{{ number_format($itemsCount) }}</span>
-                        </div>
-                        <div class="flex items-center justify-between gap-3">
-                            <span class="min-w-0 text-slate-500">Unidades totales</span>
-                            <span class="shrink-0 text-right font-medium text-slate-900" data-cart-units-count>{{ number_format($unitsCount) }}</span>
-                        </div>
+                                {{-- Columna: Total --}}
+                                <div class="lg:text-right">
+                                    <span class="cart-review-cell-label lg:hidden">Total</span>
+                                    <p class="text-base font-bold text-slate-950" data-cart-subtotal-amount>{{ $money($item['subtotal']) }}</p>
+                                    <p class="text-[0.7rem] text-slate-400">{{ $item['vat_label'] }}</p>
+                                </div>
+                            </article>
+                        @endforeach
                     </div>
 
-                    <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total estimado</p>
-                        <p class="mt-1 break-words text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl" data-cart-total-amount>${{ number_format((float) $total, 0, ',', '.') }}</p>
+                    <div class="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
+                        <button type="button" data-cart-clear class="cart-review-remove">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V5h6v2M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12"/></svg>
+                            Vaciar carrito
+                        </button>
+                        <a href="{{ route('catalog.index') }}" class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-dark transition hover:gap-2.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+                            Seguir comprando
+                        </a>
                     </div>
-
-                    <div class="mt-4 space-y-2">
-                        <a href="{{ route('catalog.index') }}" class="btn btn-ghost w-full justify-center">Seguir comprando</a>
-                        <x-ui.button type="submit" variant="secondary" class="w-full justify-center" data-loading-label="Actualizando...">Actualizar carrito</x-ui.button>
-                        <x-ui.button type="submit" variant="primary" class="w-full justify-center" data-loading-label="Procesando..." data-checkout-submit>Continuar al checkout</x-ui.button>
-                    </div>
-                    <input type="hidden" name="redirect_checkout" value="0" data-redirect-checkout-input>
                 </x-ui.card>
-            </aside>
-        </form>
+
+                {{-- Resumen del pedido --}}
+                <aside class="min-w-0 max-w-full space-y-4 lg:sticky lg:top-24 lg:h-fit">
+                    <x-ui.card class="min-w-0 p-5">
+                        <h2 class="text-base font-bold text-slate-900">Resumen del pedido</h2>
+
+                        <dl class="mt-4 space-y-2.5 text-sm">
+                            @if($hasSavings)
+                                <div class="flex items-center justify-between gap-3">
+                                    <dt class="text-slate-500">Subtotal (precio Plata)</dt>
+                                    <dd class="font-medium text-slate-700" data-sum-list>{{ $money($listTotal) }}</dd>
+                                </div>
+                                <div class="flex items-center justify-between gap-3">
+                                    <dt class="font-medium text-amber-600">Descuento Cliente ORO (<span data-sum-savings-pct>{{ $savingsPct }}</span>%)</dt>
+                                    <dd class="font-semibold text-amber-600">− <span data-sum-savings>{{ $money($savingsTotal) }}</span></dd>
+                                </div>
+                                <div class="!mt-3 border-t border-dashed border-slate-200 pt-3"></div>
+                            @endif
+                            <div class="flex items-center justify-between gap-3">
+                                <dt class="text-slate-500">Base gravable</dt>
+                                <dd class="font-medium text-slate-700" data-sum-net>{{ $money($netTotal) }}</dd>
+                            </div>
+                            <div class="flex items-center justify-between gap-3">
+                                <dt class="text-slate-500">IVA (13%)</dt>
+                                <dd class="font-medium text-slate-700" data-sum-iva>{{ $money($ivaTotal) }}</dd>
+                            </div>
+                        </dl>
+
+                        <div class="cart-review-total {{ $isGold ? 'cart-review-total--gold' : 'cart-review-total--silver' }} mt-4">
+                            <svg class="cart-review-crown" xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m5 16 -1.6 -8 4.6 3.5L12 5l3.9 6.5L20.6 8 19 16z"/></svg>
+                            <p class="relative text-xs font-semibold uppercase tracking-wide text-slate-500">Total del pedido</p>
+                            <p class="relative mt-1 break-words text-3xl font-bold tracking-tight text-slate-950" data-sum-total>{{ $money($grossTotal) }} <span class="text-base font-semibold text-slate-400">COP</span></p>
+                            <p class="relative text-xs text-slate-500">IVA incluido</p>
+                        </div>
+
+                        <ul class="mt-4 space-y-2">
+                            @foreach([
+                                $isGold ? 'Precios exclusivos por tu nivel ORO' : 'Precios preferenciales para distribuidores',
+                                'Envíos a todo el país',
+                                'Asesoría especializada',
+                                'Garantía y respaldo ICMTHERAPY',
+                            ] as $benefit)
+                                <li class="cart-review-benefit">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-none text-brand-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+                                    {{ $benefit }}
+                                </li>
+                            @endforeach
+                        </ul>
+
+                        <div class="mt-5 space-y-2">
+                            <x-ui.button type="submit" variant="primary" class="w-full justify-center" data-loading-label="Procesando..." data-checkout-submit>
+                                Continuar con mi pedido
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                            </x-ui.button>
+                            <button type="submit" class="w-full text-center text-xs font-semibold text-slate-500 transition hover:text-brand-dark" data-loading-label="Actualizando..." data-cart-update>
+                                Actualizar cantidades
+                            </button>
+                        </div>
+                        <input type="hidden" name="redirect_checkout" value="0" data-redirect-checkout-input>
+                    </x-ui.card>
+
+                    <div class="cart-review-secure">
+                        <span class="inline-flex h-10 w-10 flex-none items-center justify-center rounded-full bg-emerald-50 text-emerald-600" aria-hidden="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 5 6v5c0 4.5 3 7.5 7 10 4-2.5 7-5.5 7-10V6z"/><path d="m9 12 2 2 4-4"/></svg>
+                        </span>
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-slate-900">Compra segura</p>
+                            <p class="text-xs text-slate-500">Tu información y transacciones están protegidas con los más altos estándares de seguridad.</p>
+                        </div>
+                    </div>
+                </aside>
+            </form>
+
+            {{-- Banner de asesoría --}}
+            <div class="cart-review-advisor">
+                <div class="flex items-center gap-3">
+                    <span class="inline-flex h-11 w-11 flex-none items-center justify-center rounded-full bg-white text-brand-dark shadow-sm" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 13a8 8 0 0 1 16 0"/><path d="M4 13v3a2 2 0 0 0 2 2h1v-5H6a2 2 0 0 0-2 2z"/><path d="M20 13v3a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2z"/><path d="M17 18a3 3 0 0 1-3 3h-1"/></svg>
+                    </span>
+                    <div>
+                        <p class="text-sm font-semibold text-slate-900">¿Dudas con tu pedido?</p>
+                        <p class="text-xs text-slate-500">Nuestro equipo comercial está listo para ayudarte.</p>
+                    </div>
+                </div>
+                <a href="{{ $advisorUrl }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-emerald-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.6-.6-2.8-1.2-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.8s.7-2 .9-2.2c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 1.9c.1.2.1.4 0 .5l-.4.6c-.2.2-.3.4-.1.7.2.3.8 1.3 1.7 2 .9.7 1.5.9 1.8 1 .2.1.4.1.6-.1l.7-.9c.2-.2.4-.2.6-.1l1.8.9c.2.1.4.2.5.3.1.2.1.9-.1 1.6z"/></svg>
+                    Contactar asesor
+                </a>
+            </div>
+        </div>
     @endif
 
     <script>
@@ -158,37 +317,33 @@ View contract:
                 return;
             }
 
+            const VAT_RATE = {{ $vatRate }};
+
             const parseQty = (value) => {
                 const parsed = Number(value);
-                if (!Number.isFinite(parsed)) {
-                    return 0;
-                }
-
-                return Math.max(0, Math.round(parsed));
+                return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : 0;
             };
 
             const parseStockLimit = (value) => {
                 if (value === '' || value === null || value === undefined) {
                     return null;
                 }
-
                 const parsed = Number(value);
-                if (!Number.isFinite(parsed)) {
-                    return null;
-                }
-
-                return Math.max(0, Math.floor(parsed));
+                return Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : null;
             };
 
-            const numberFormatter = new Intl.NumberFormat('es-CO', {
-                maximumFractionDigits: 0,
-            });
-
+            const numberFormatter = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 });
             const formatNumber = (value) => numberFormatter.format(Math.max(0, Math.round(value)));
             const formatMoney = (value) => `$${formatNumber(value)}`;
 
+            const setText = (selector, text) => {
+                document.querySelectorAll(selector).forEach((el) => { el.textContent = text; });
+            };
+
             const refreshCartSummary = () => {
                 let total = 0;
+                let listTotal = 0;
+                let netTotal = 0;
                 let units = 0;
                 let products = 0;
 
@@ -198,17 +353,23 @@ View contract:
                         return;
                     }
 
-                    const qty = parseQty(qtyInput.value);
                     const stockLimit = parseStockLimit(item.dataset.stockLimit);
-                    const normalizedQty = stockLimit === null ? qty : Math.min(qty, stockLimit);
-                    qtyInput.value = String(normalizedQty);
+                    let qty = parseQty(qtyInput.value);
+                    if (stockLimit !== null) {
+                        qty = Math.min(qty, stockLimit);
+                    }
+                    qtyInput.value = String(qty);
 
                     const unitPrice = Number(item.dataset.unitPrice || 0);
-                    const subtotal = normalizedQty * unitPrice;
+                    const silverPrice = Number(item.dataset.silverPrice || 0);
+                    const vatExcluded = item.dataset.vatExcluded === '1';
+                    const subtotal = qty * unitPrice;
 
                     total += subtotal;
-                    units += normalizedQty;
-                    if (normalizedQty > 0) {
+                    listTotal += qty * silverPrice;
+                    netTotal += vatExcluded ? subtotal : subtotal / (1 + VAT_RATE);
+                    units += qty;
+                    if (qty > 0) {
                         products += 1;
                     }
 
@@ -218,34 +379,34 @@ View contract:
                     }
                 });
 
-                document.querySelectorAll('[data-cart-total-amount]').forEach((element) => {
-                    element.textContent = formatMoney(total);
-                });
+                const savings = Math.max(0, listTotal - total);
+                const iva = Math.max(0, total - netTotal);
+                const savingsPct = listTotal > 0 ? Math.round((savings / listTotal) * 100) : 0;
 
-                document.querySelectorAll('[data-cart-units-count]').forEach((element) => {
-                    element.textContent = formatNumber(units);
-                });
-
-                document.querySelectorAll('[data-cart-products-count]').forEach((element) => {
-                    element.textContent = formatNumber(products);
-                });
+                setText('[data-sum-total]', `${formatMoney(total)} COP`);
+                setText('[data-sum-list]', formatMoney(listTotal));
+                setText('[data-sum-savings]', formatMoney(savings));
+                setText('[data-sum-savings-pct]', String(savingsPct));
+                setText('[data-sum-net]', formatMoney(netTotal));
+                setText('[data-sum-iva]', formatMoney(iva));
+                setText('[data-cart-units-count]', formatNumber(units));
+                setText('[data-cart-products-count]', formatNumber(products));
             };
 
             document.querySelectorAll('[data-cart-step]').forEach((button) => {
                 button.addEventListener('click', () => {
-                    const targetId = button.dataset.cartTarget;
-                    const input = targetId ? document.getElementById(targetId) : null;
-
+                    const input = document.getElementById(button.dataset.cartTarget || '');
                     if (!input) {
                         return;
                     }
-
                     const direction = Number(button.dataset.cartStep || 0);
-                    const current = parseQty(input.value);
                     const item = input.closest('[data-cart-item]');
                     const stockLimit = parseStockLimit(item?.dataset.stockLimit);
-                    const nextValue = Math.max(0, current + direction);
-                    input.value = String(stockLimit === null ? nextValue : Math.min(nextValue, stockLimit));
+                    let next = Math.max(0, parseQty(input.value) + direction);
+                    if (stockLimit !== null) {
+                        next = Math.min(next, stockLimit);
+                    }
+                    input.value = String(next);
                     refreshCartSummary();
                 });
             });
@@ -255,35 +416,34 @@ View contract:
                 input.addEventListener('change', refreshCartSummary);
             });
 
-            const checkoutSubmitButton = cartForm.querySelector('[data-checkout-submit]');
-            const updateCartButton = cartForm.querySelector('[data-loading-label="Actualizando..."]');
             const redirectCheckoutInput = cartForm.querySelector('[data-redirect-checkout-input]');
-
-            checkoutSubmitButton?.addEventListener('click', () => {
+            const setRedirect = (value) => {
                 if (redirectCheckoutInput) {
-                    redirectCheckoutInput.value = '1';
+                    redirectCheckoutInput.value = value;
                 }
-            });
+            };
 
-            updateCartButton?.addEventListener('click', () => {
-                if (redirectCheckoutInput) {
-                    redirectCheckoutInput.value = '0';
-                }
-            });
+            cartForm.querySelector('[data-checkout-submit]')?.addEventListener('click', () => setRedirect('1'));
+            cartForm.querySelector('[data-cart-update]')?.addEventListener('click', () => setRedirect('0'));
 
             document.querySelectorAll('[data-cart-remove]').forEach((button) => {
                 button.addEventListener('click', () => {
-                    const targetId = button.dataset.cartRemove;
-                    const input = targetId ? document.getElementById(targetId) : null;
-
+                    const input = document.getElementById(button.dataset.cartRemove || '');
                     if (!input) {
                         return;
                     }
-
                     input.value = '0';
                     refreshCartSummary();
+                    setRedirect('0');
                     cartForm.requestSubmit();
                 });
+            });
+
+            cartForm.querySelector('[data-cart-clear]')?.addEventListener('click', () => {
+                cartForm.querySelectorAll('[data-cart-qty]').forEach((input) => { input.value = '0'; });
+                refreshCartSummary();
+                setRedirect('0');
+                cartForm.requestSubmit();
             });
 
             refreshCartSummary();
