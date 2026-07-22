@@ -11,7 +11,7 @@
     @endphp
 
     <x-slot name="header">
-        <x-ui.page-header title="Distribuidores" subtitle="Gestion comercial de cuentas, usuarios vinculados y actividad operativa.">
+        <x-ui.page-header title="Empresas distribuidoras" subtitle="Gestión comercial de empresas, cuentas vinculadas y actividad operativa.">
             <x-slot name="meta">
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="stat-pill">Resultados: {{ number_format($metrics['total_distributors']) }}</span>
@@ -22,13 +22,13 @@
                 </div>
             </x-slot>
             <x-slot name="actions">
-                <a href="{{ route('admin.distributors.create') }}" class="btn btn-primary w-full justify-center sm:w-auto">Nuevo distribuidor</a>
+                <a href="{{ route('admin.distributors.create') }}" class="btn btn-primary w-full justify-center sm:w-auto">Nueva empresa distribuidora</a>
             </x-slot>
         </x-ui.page-header>
     </x-slot>
 
     <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <x-ui.kpi-card label="Distribuidores Filtrados" :value="number_format($metrics['total_distributors'])" hint="Resultado actual del listado" />
+        <x-ui.kpi-card label="Empresas filtradas" :value="number_format($metrics['total_distributors'])" hint="Resultado actual del listado" />
         <x-ui.kpi-card label="Activos" :value="number_format($metrics['active_distributors'])" hint="Con acceso habilitado" accent="success" />
         <x-ui.kpi-card label="Inactivos" :value="number_format($metrics['inactive_distributors'])" hint="Sin operacion comercial" accent="neutral" />
         <x-ui.kpi-card label="ICM Plata" :value="number_format($metrics['silver_distributors'])" hint="Nivel comercial Plata" accent="neutral" />
@@ -152,19 +152,19 @@
 
     <section class="mt-4">
         @if($distributors->isEmpty())
-            <x-ui.empty-state title="No se encontraron distribuidores" description="Ajusta filtros o crea un nuevo distribuidor para continuar.">
+            <x-ui.empty-state title="No se encontraron empresas distribuidoras" description="Ajusta filtros o crea una nueva empresa para continuar.">
                 <x-slot name="action">
-                    <a href="{{ route('admin.distributors.create') }}" class="btn btn-primary">Crear distribuidor</a>
+                    <a href="{{ route('admin.distributors.create') }}" class="btn btn-primary">Nueva empresa distribuidora</a>
                 </x-slot>
             </x-ui.empty-state>
         @else
             <x-ui.table>
                 <thead>
                     <tr>
-                        <th>Distribuidor</th>
+                        <th>Empresa</th>
                         <th>Estado</th>
                         <th>Nivel</th>
-                        <th>Usuarios</th>
+                        <th>Cuenta de acceso</th>
                         <th>Pedidos</th>
                         <th>Creacion</th>
                         <th>Actualizacion</th>
@@ -179,13 +179,26 @@
                     @endphp
                     <tbody x-data="{ expanded: false }" class="align-top">
                         <tr>
-                            <td data-label="Distribuidor" data-full="true">
+                            <td data-label="Empresa" data-full="true">
                                 <p class="font-medium text-slate-900">{{ $distributor->name }}</p>
                                 <p class="text-xs text-slate-500">ID #{{ $distributor->id }}</p>
                             </td>
                             <td data-label="Estado"><x-ui.status-badge :status="$statusValue" /></td>
                             <td data-label="Nivel"><x-ui.tier-badge :tier="$distributor->tier" size="sm" /></td>
-                            <td data-label="Usuarios" class="font-medium text-slate-900">{{ (int) $distributor->user_count ? 'Sí' : 'No' }}</td>
+                            <td data-label="Cuenta de acceso">
+                                @if($distributor->user)
+                                    <div class="space-y-1">
+                                        <p class="text-sm font-medium text-slate-900">{{ $distributor->user->name }}</p>
+                                        <p class="text-xs text-slate-500">{{ $distributor->user->email }}</p>
+                                        <a href="{{ route('admin.users.edit', $distributor->user) }}" class="inline-flex text-xs font-medium text-brand-primary hover:underline">Editar cuenta</a>
+                                    </div>
+                                @else
+                                    <div class="space-y-1">
+                                        <p class="text-sm text-slate-500">Sin cuenta</p>
+                                        <a href="{{ route('admin.users.create', ['role' => 'distributor', 'distributor_id' => $distributor->id]) }}" class="inline-flex text-xs font-medium text-brand-primary hover:underline">Crear cuenta</a>
+                                    </div>
+                                @endif
+                            </td>
                             <td data-label="Pedidos" class="font-medium text-slate-900">{{ number_format((int) $distributor->orders_count) }}</td>
                             <td data-label="Creacion">
                                 <p>{{ $distributor->created_at?->format('d/m/Y H:i') }}</p>

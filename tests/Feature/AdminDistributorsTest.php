@@ -276,6 +276,79 @@ class AdminDistributorsTest extends TestCase
             ->assertRedirect('/admin/distributors');
     }
 
+    public function test_admin_distributors_index_shows_companies_title(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->get('/admin/distributors')
+            ->assertOk()
+            ->assertSee('Empresas distribuidoras')
+            ->assertSee('Nueva empresa distribuidora');
+    }
+
+    public function test_admin_distributor_edit_shows_linked_account_card_when_user_exists(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $distributor = Distributor::create([
+            'name' => 'Empresa Con Cuenta',
+            'status' => 'active',
+        ]);
+
+        $account = User::factory()->create([
+            'name' => 'Cuenta Vinculada',
+            'email' => 'cuenta.vinculada@example.com',
+            'distributor_id' => $distributor->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/admin/distributors/'.$distributor->id.'/edit')
+            ->assertOk()
+            ->assertSee('Cuenta de acceso vinculada')
+            ->assertSee('Cuenta Vinculada')
+            ->assertSee('cuenta.vinculada@example.com')
+            ->assertSee(route('admin.users.edit', $account), false);
+    }
+
+    public function test_admin_distributor_edit_shows_create_account_link_when_no_user(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $distributor = Distributor::create([
+            'name' => 'Empresa Sin Cuenta',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/admin/distributors/'.$distributor->id.'/edit')
+            ->assertOk()
+            ->assertSee('Esta empresa todavía no tiene una cuenta de acceso vinculada.')
+            ->assertSee('Crear cuenta de acceso')
+            ->assertSee('admin/users/create?role=distributor', false)
+            ->assertSee('distributor_id='.$distributor->id, false);
+    }
+
+    public function test_admin_distributors_index_shows_compact_linked_account(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $distributor = Distributor::create([
+            'name' => 'Empresa Index Cuenta',
+            'status' => 'active',
+        ]);
+
+        $account = User::factory()->create([
+            'name' => 'Usuario Index',
+            'email' => 'usuario.index@example.com',
+            'distributor_id' => $distributor->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/admin/distributors?q=Empresa+Index+Cuenta')
+            ->assertOk()
+            ->assertSee('Usuario Index')
+            ->assertSee('usuario.index@example.com')
+            ->assertSee(route('admin.users.edit', $account), false);
+    }
+
     private function createOrder(
         User $admin,
         Distributor $distributor,

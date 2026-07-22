@@ -1,18 +1,18 @@
 <x-app-layout>
     @php
         $isEdit = $user->exists;
-        $selectedRole = old('role', $user->role?->value ?? 'distributor');
-        $selectedDistributorId = old('distributor_id', $user->distributor_id);
+        $selectedRole = old('role', $preselectedRole ?? $user->role?->value ?? 'distributor');
+        $selectedDistributorId = old('distributor_id', $preselectedDistributorId ?? $user->distributor_id);
     @endphp
 
     <x-slot name="header">
-        <x-ui.page-header :title="$isEdit ? 'Editar usuario' : 'Nuevo usuario'" subtitle="Gestiona accesos administrativos y cuentas de distribuidores.">
+        <x-ui.page-header :title="$isEdit ? 'Editar cuenta de acceso' : 'Nueva cuenta de acceso'" subtitle="Gestiona credenciales, roles y la vinculación con empresas distribuidoras.">
             <x-slot name="meta">
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="stat-pill">Modo: {{ $isEdit ? 'Edición' : 'Creación' }}</span>
                     @if($isEdit)
                         <span class="stat-pill">Pedidos: {{ number_format((int) ($user->orders_count ?? 0)) }}</span>
-                        <span class="stat-pill">Verificado: {{ $user->email_verified_at ? 'Sí' : 'No' }}</span>
+                        <x-admin.verification-badge :verified-at="$user->email_verified_at" />
                     @endif
                 </div>
             </x-slot>
@@ -26,6 +26,7 @@
           action="{{ $isEdit ? route('admin.users.update', $user) : route('admin.users.store') }}"
           data-loading-form
           data-unsaved-guard
+          x-data="{ role: @js($selectedRole) }"
           class="grid gap-4 xl:grid-cols-[1.8fr_1fr]">
         @csrf
         @if($isEdit)
@@ -51,23 +52,24 @@
             </x-ui.card>
 
             <x-ui.card class="p-5">
-                <h2 class="card-title">Rol y alcance</h2>
+                <h2 class="card-title">Rol y vinculación</h2>
                 <div class="mt-4 grid gap-4 sm:grid-cols-2">
                     <div>
                         <label class="form-label" for="user-role">Rol *</label>
-                        <x-ui.select id="user-role" name="role" required>
+                        <x-ui.select id="user-role" name="role" required x-model="role">
                             @foreach($roles as $role)
                                 <option value="{{ $role->value }}" @selected($selectedRole === $role->value)>{{ $role->value === 'admin' ? 'Administrador' : 'Distribuidor' }}</option>
                             @endforeach
                         </x-ui.select>
-                        <p class="form-help">Si seleccionas Administrador, el distribuidor se ignora automáticamente.</p>
+                        <p class="form-help" x-show="role === 'admin'" x-cloak>Las cuentas administrativas no se vinculan con empresas distribuidoras.</p>
+                        <p class="form-help" x-show="role === 'distributor'" x-cloak>La cuenta debe estar vinculada a una empresa distribuidora.</p>
                         <x-input-error :messages="$errors->get('role')" />
                     </div>
 
-                    <div>
-                        <label class="form-label" for="user-distributor">Distribuidor</label>
+                    <div x-show="role === 'distributor'" x-cloak>
+                        <label class="form-label" for="user-distributor">Empresa distribuidora</label>
                         <x-ui.select id="user-distributor" name="distributor_id">
-                            <option value="">Ninguno</option>
+                            <option value="">Ninguna</option>
                             @foreach($distributors as $distributor)
                                 <option value="{{ $distributor->id }}" @selected((string) $selectedDistributorId === (string) $distributor->id)>{{ $distributor->name }}</option>
                             @endforeach
@@ -127,40 +129,6 @@
                         </div>
                     </div>
                 </x-ui.card>
-
-                <x-ui.card class="p-5">
-                    @php
-                        $currentDistributorStatus = old('distributor_status', $user->distributor->status?->value);
-                        $statusOptions = [
-                            'pending_review' => 'Pendiente de revisión',
-                            'active'         => 'Activo',
-                            'rejected'       => 'Rechazado',
-                            'suspended'      => 'Suspendido',
-                        ];
-                        $statusVariants = [
-                            'pending_review' => 'warning',
-                            'active'         => 'success',
-                            'rejected'       => 'danger',
-                            'suspended'      => 'neutral',
-                        ];
-                    @endphp
-                    <div class="flex items-center justify-between">
-                        <h2 class="card-title">Estado de la cuenta</h2>
-                        <x-ui.badge :variant="$statusVariants[$currentDistributorStatus] ?? 'neutral'">
-                            {{ $statusOptions[$currentDistributorStatus] ?? $currentDistributorStatus }}
-                        </x-ui.badge>
-                    </div>
-                    <div class="mt-4">
-                        <label class="form-label" for="distributor-status">Cambiar estado *</label>
-                        <x-ui.select id="distributor-status" name="distributor_status">
-                            @foreach($statusOptions as $value => $label)
-                                <option value="{{ $value }}" @selected($currentDistributorStatus === $value)>{{ $label }}</option>
-                            @endforeach
-                        </x-ui.select>
-                        <p class="form-help">Activar la cuenta permite al distribuidor acceder al portal. Rechazar o suspender bloquea el acceso.</p>
-                        <x-input-error :messages="$errors->get('distributor_status')" />
-                    </div>
-                </x-ui.card>
             @endif
 
             <x-ui.card class="p-5">
@@ -193,33 +161,18 @@
                     </div>
                     <div class="flex items-center justify-between">
                         <span class="text-slate-500">Rol</span>
-                        <x-ui.badge :variant="$selectedRole === 'admin' ? 'brand' : 'info'">{{ $selectedRole === 'admin' ? 'Administrador' : 'Distribuidor' }}</x-ui.badge>
+                        <span x-show="role === 'admin'" x-cloak><x-admin.role-badge role="admin" /></span>
+                        <span x-show="role === 'distributor'" x-cloak><x-admin.role-badge role="distributor" /></span>
                     </div>
                     <div class="flex items-center justify-between">
-                        <span class="text-slate-500">Distribuidor</span>
-                        <span class="font-medium text-slate-900">{{ $selectedDistributorId ? 'Vinculado' : 'Sin vínculo' }}</span>
+                        <span class="text-slate-500">Empresa</span>
+                        <span class="font-medium text-slate-900" x-text="role === 'admin' ? 'Sin empresa' : ({{ json_encode((bool) $selectedDistributorId) }} ? 'Vinculada' : 'Sin vínculo')"></span>
                     </div>
                     @if($isEdit)
                         <div class="flex items-center justify-between">
                             <span class="text-slate-500">Pedidos</span>
                             <span class="font-medium text-slate-900">{{ number_format((int) ($user->orders_count ?? 0)) }}</span>
                         </div>
-                        @if($user->distributor)
-                            @php
-                                $sideStatusVariants = [
-                                    'pending_review' => 'warning',
-                                    'active'         => 'success',
-                                    'rejected'       => 'danger',
-                                    'suspended'      => 'neutral',
-                                ];
-                            @endphp
-                            <div class="flex items-center justify-between">
-                                <span class="text-slate-500">Estado cuenta</span>
-                                <x-ui.badge :variant="$sideStatusVariants[$user->distributor->status?->value] ?? 'neutral'">
-                                    {{ $user->distributor->status?->label() ?? '—' }}
-                                </x-ui.badge>
-                            </div>
-                        @endif
                     @endif
                 </div>
             </x-ui.card>
@@ -228,8 +181,8 @@
                 <h2 class="card-title">Recomendaciones</h2>
                 <ul class="mt-3 space-y-2 text-sm text-slate-600">
                     <li>Usa cuentas admin solo para personal interno.</li>
-                    <li>Asigna distribuidor correcto antes de habilitar usuarios comerciales.</li>
-                    <li>No compartas usuarios entre empresas distintas.</li>
+                    <li>Vincula la empresa correcta antes de habilitar cuentas comerciales.</li>
+                    <li>El estado operativo de la empresa se gestiona desde Empresas distribuidoras.</li>
                 </ul>
             </x-ui.card>
         </aside>
