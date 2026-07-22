@@ -128,6 +128,18 @@ DUMP_FILE="$DUMP_DIR/${PROD_DB_NAME}-${REFRESH_TIMESTAMP}.dump"
 STAGING_BACKUP_FILE="$DUMP_DIR/${STAGING_DB_NAME}-before-refresh-${REFRESH_TIMESTAMP}.dump"
 STAGING_DOWN=false
 STAGING_QUEUE_STOPPED=false
+MAINTENANCE_WAS_ACTIVE_BEFORE=false
+
+staging_maintenance_mode_active() {
+    local framework_dir
+    for framework_dir in \
+        "$STAGING_APP_DIR/shared/storage/framework" \
+        "$STAGING_APP_DIR/storage/framework" \
+        "$STAGING_APP_DIR/current/storage/framework"; do
+        [[ -f "$framework_dir/maintenance.php" || -f "$framework_dir/down" ]] && return 0
+    done
+    return 1
+}
 
 cleanup() {
     local exit_code=$?
@@ -158,7 +170,7 @@ cleanup() {
         STAGING_QUEUE_STOPPED=false
     fi
 
-    if [[ "$STAGING_DOWN" == "true" ]]; then
+    if [[ "$STAGING_DOWN" == "true" && "$MAINTENANCE_WAS_ACTIVE_BEFORE" == "false" ]]; then
         log_warn "Levantando staging tras la operacion..."
         run_in_staging_app "$(shell_escape "$PHP_BIN") artisan up" || true
     fi
@@ -166,6 +178,10 @@ cleanup() {
     exit 0
 }
 trap cleanup EXIT
+
+if staging_maintenance_mode_active; then
+    MAINTENANCE_WAS_ACTIVE_BEFORE=true
+fi
 
 log_step "Poniendo staging en mantenimiento..."
 run_in_staging_app "$(shell_escape "$PHP_BIN") artisan down --render=\"errors::503\" --retry=60"
@@ -270,9 +286,13 @@ else
     log_warn "No se encontro el servicio laravel-queue-staging. Reinicialo manualmente si aplica."
 fi
 
-run_in_staging_app "$(shell_escape "$PHP_BIN") artisan up"
-STAGING_DOWN=false
-log_ok "Staging nuevamente en linea"
+if [[ "$MAINTENANCE_WAS_ACTIVE_BEFORE" == "false" ]]; then
+    run_in_staging_app "$(shell_escape "$PHP_BIN") artisan up"
+    STAGING_DOWN=false
+    log_ok "Staging nuevamente en linea"
+else
+    log_ok "Staging permanece en mantenimiento (estado previo preservado)"
+fi
 
 echo -e "\n${GREEN}============================================"
 echo "  Refresco de staging completado"
