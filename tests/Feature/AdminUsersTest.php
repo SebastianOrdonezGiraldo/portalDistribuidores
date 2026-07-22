@@ -215,7 +215,36 @@ class AdminUsersTest extends TestCase
             ->assertOk()
             ->assertSee('Cuentas de acceso')
             ->assertSee('Nueva cuenta de acceso')
+            ->assertSee('Cuentas filtradas')
+            ->assertSee('Correo verificado')
             ->assertDontSee('>Usuarios<', false);
+    }
+
+    public function test_admin_users_index_shows_expanded_account_details(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $distributor = Distributor::create([
+            'name' => 'Empresa Detalle Usuario',
+            'status' => 'active',
+        ]);
+
+        $user = User::factory()->unverified()->create([
+            'name' => 'Usuario Detalle',
+            'email' => 'detalle.usuario@example.com',
+            'distributor_id' => $distributor->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/admin/users?q=detalle.usuario@example.com')
+            ->assertOk()
+            ->assertSee('Correo electrónico')
+            ->assertSee('detalle.usuario@example.com')
+            ->assertSee('Empresa Detalle Usuario')
+            ->assertSee('Ver empresa')
+            ->assertSee('Rol y permisos')
+            ->assertSee('Acceso al portal distribuidor')
+            ->assertSee('Reenviar verificación')
+            ->assertSee('Editar cuenta');
     }
 
     public function test_admin_users_create_and_edit_show_access_account_titles(): void

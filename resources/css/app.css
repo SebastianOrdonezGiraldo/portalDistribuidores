@@ -2271,4 +2271,60 @@
     .distributor-account-link {
         @apply text-xs font-semibold text-brand-dark hover:underline;
     }
+
+    .user-index-table tbody tr.is-expanded > td {
+        @apply bg-brand-primary/[0.03];
+    }
+
+    .user-row-toggle {
+        @apply inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-brand-primary/30 hover:bg-brand-primary/5 hover:text-brand-dark;
+    }
+
+    .user-expanded-panel {
+        @apply border-t border-brand-primary/15 bg-gradient-to-b from-brand-primary/[0.06] to-white px-4 py-5 sm:px-5;
+    }
+
+    .user-detail-cell {
+        @apply flex items-start gap-3 rounded-xl border border-slate-200/80 bg-white/90 p-3 shadow-sm;
+    }
+
+    .user-detail-icon {
+        @apply inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl;
+    }
+
+    .user-detail-icon--brand {
+        @apply bg-brand-primary/10 text-brand-dark;
+    }
+
+    .user-detail-icon--success {
+        @apply bg-emerald-50 text-emerald-700;
+    }
+
+    .user-detail-icon--info {
+        @apply bg-sky-50 text-sky-700;
+    }
+
+    .user-detail-icon--warning {
+        @apply bg-amber-50 text-amber-700;
+    }
+
+    .user-detail-icon--neutral {
+        @apply bg-slate-100 text-slate-600;
+    }
+
+    .user-detail-label {
+        @apply text-[0.68rem] font-bold uppercase tracking-[0.08em] text-slate-500;
+    }
+
+    .user-detail-value {
+        @apply mt-1 text-sm font-semibold text-slate-900;
+    }
+
+    .user-detail-meta {
+        @apply mt-0.5 text-xs text-slate-500;
+    }
+
+    .user-detail-link {
+        @apply mt-1 inline-flex items-center gap-1 text-xs font-semibold text-brand-dark hover:underline;
+    }
 }
