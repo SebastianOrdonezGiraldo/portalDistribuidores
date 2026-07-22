@@ -334,6 +334,7 @@ class ProductController extends Controller
         };
 
         $variantPriceMap = [];
+
         if ($hasVariants) {
             foreach ($activeVariants as $variant) {
                 $tierPrice = $priceCalculator->calculateFromDecimal((string) $variant->price, $tier);

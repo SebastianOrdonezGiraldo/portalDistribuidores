@@ -129,7 +129,7 @@ enum DistributorTier: string
         /** @var list<string> $benefits */
         $benefits = $this->presentation()['benefits'] ?? [];
 
-        return array_values($benefits);
+        return $benefits;
     }
 
     public function benefitsCount(): int

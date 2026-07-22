@@ -155,7 +155,7 @@ class CatalogTierExperienceTest extends TestCase
 
         $this->assertSame(1_200_000, $metrics->savingsCents);
         $this->assertSame(2, $metrics->ordersCount);
-        $this->assertSame(DistributorTier::Gold->benefitsCount(), $metrics->benefitsCount());
+        $this->assertSame(DistributorTier::Gold->benefitsCount(), $metrics->benefitsCount);
     }
 
     private function distributorUser(DistributorTier $tier): User

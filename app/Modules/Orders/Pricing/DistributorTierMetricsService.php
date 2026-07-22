@@ -64,10 +64,14 @@ final class DistributorTierMetricsService
      */
     private function sumSavingsCents(int $distributorId, Carbon $from, Carbon $to): int
     {
+        $orderIds = $this->completedOrdersQuery($distributorId, $from, $to)->pluck('id');
+
+        if ($orderIds->isEmpty()) {
+            return 0;
+        }
+
         $rows = OrderItem::query()
-            ->whereHas('order', function (Builder $query) use ($distributorId, $from, $to): void {
-                $this->constrainCompletedOrders($query, $distributorId, $from, $to);
-            })
+            ->whereIn('order_id', $orderIds)
             ->whereNotNull('base_unit_price')
             ->whereNotNull('silver_unit_price')
             ->get(['qty', 'base_unit_price', 'silver_unit_price', 'line_savings']);
@@ -100,17 +104,6 @@ final class DistributorTierMetricsService
     private function completedOrdersQuery(int $distributorId, Carbon $from, Carbon $to): Builder
     {
         return Order::query()
-            ->where(function (Builder $query) use ($distributorId, $from, $to): void {
-                $this->constrainCompletedOrders($query, $distributorId, $from, $to);
-            });
-    }
-
-    /**
-     * @param  Builder<Order>  $query
-     */
-    private function constrainCompletedOrders(Builder $query, int $distributorId, Carbon $from, Carbon $to): void
-    {
-        $query
             ->where('distributor_id', $distributorId)
             ->whereBetween('created_at', [$from, $to])
             ->whereIn('status', array_map(
