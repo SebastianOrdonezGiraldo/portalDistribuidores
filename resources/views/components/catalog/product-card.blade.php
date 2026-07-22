@@ -1,28 +1,32 @@
 @props([
     'product',
     'isLcpCandidate' => false,
+    'pricingMode' => null,
+    'tier' => null,
 ])
 
 {{--
 Component contract:
-- Props: product with category, primaryPhoto/photos, active variants, price, stock, sku, and is_vat_excluded; isLcpCandidate toggles eager image loading.
+- Props: product with category, photos, variants, price, stock, sku, is_vat_excluded;
+  isLcpCandidate; optional pricingMode (active-discount|locked-discount|single);
+  optional DistributorTier tier (resolved from auth when omitted).
 - Slots: none.
-- Use for: catalog grids and product-list partials where product relations are eager loaded by the caller.
+- Use for: catalog grids and product-list partials where product relations are eager loaded.
+- Notes: dual pricing uses DistributorPriceCalculator; no hardcoded second price.
 --}}
 @php
+    use App\Modules\Orders\Pricing\DistributorPriceCalculator;
+    use App\Modules\Orders\Pricing\DistributorTierResolver;
+    use App\Modules\Shared\Enums\DistributorTier;
+
     $activeVariants = $product->activeVariantsCollection();
     $hasVariants = $activeVariants->isNotEmpty();
-    $minPrice = $hasVariants ? (float) ($activeVariants->min('price') ?? 0) : (float) $product->price;
-    $maxPrice = $hasVariants ? (float) ($activeVariants->max('price') ?? 0) : $minPrice;
-    $isRangePrice = $maxPrice > $minPrice;
     $detailUrl = route('products.show', $product);
     $coverPhoto = $product->primaryPhoto
         ?? ($product->relationLoaded('photos') ? $product->photos->first() : null);
     $coverPhotoUrl = $coverPhoto
         ? \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($coverPhoto->path)
         : null;
-    // En listado de catalogo evitamos I/O de storage por tarjeta durante SSR.
-    // Solo usamos dimensiones persistidas; si no existen, aplicamos fallback seguro.
     $coverPhotoWidth = (int) ($coverPhoto?->photo_width ?? 0);
     $coverPhotoHeight = (int) ($coverPhoto?->photo_height ?? 0);
     $coverPhotoDimensions = ($coverPhotoWidth > 0 && $coverPhotoHeight > 0)
@@ -33,19 +37,78 @@ Component contract:
     $isLcpImage = (bool) $isLcpCandidate;
     $hasStock = is_numeric($product->stock ?? null) && (float) $product->stock > 0;
     $stockLabel = $hasStock ? 'En stock' : 'Agotado';
-    $stockLabelClasses = $hasStock
-        ? 'text-emerald-700'
-        : 'text-red-700';
+    $stockLabelClasses = $hasStock ? 'text-emerald-700' : 'text-red-700';
     $vatLabel = \App\Modules\Orders\Support\OrderLineVat::label((bool) $product->is_vat_excluded);
+
+    $resolvedTier = $tier instanceof DistributorTier
+        ? $tier
+        : app(DistributorTierResolver::class)->resolve(auth()->user());
+
+    $isDistributorViewer = auth()->user()?->isDistributor() ?? false;
+    $mode = $pricingMode
+        ?? ($isDistributorViewer ? $resolvedTier->pricingMode() : 'single');
+
+    $calculator = app(DistributorPriceCalculator::class);
+    $basePrices = $hasVariants
+        ? $activeVariants->map(fn ($variant) => (string) $variant->price)->all()
+        : [(string) $product->price];
+
+    $priced = collect($basePrices)->map(
+        fn (string $base) => $calculator->calculateFromDecimal($base, $resolvedTier)
+    );
+
+    $minGold = (float) $priced->min(fn ($p) => (float) $p->basePriceDecimal());
+    $maxGold = (float) $priced->max(fn ($p) => (float) $p->basePriceDecimal());
+    $minSilver = (float) $priced->min(fn ($p) => (float) $p->silverPriceDecimal());
+    $maxSilver = (float) $priced->max(fn ($p) => (float) $p->silverPriceDecimal());
+
+    if ($isDistributorViewer) {
+        $minEffective = (float) $priced->min(fn ($p) => (float) $p->effectivePriceDecimal());
+        $maxEffective = (float) $priced->max(fn ($p) => (float) $p->effectivePriceDecimal());
+    } else {
+        // Invitados/admins: precio base de catálogo (comportamiento histórico).
+        $minEffective = $minGold;
+        $maxEffective = $maxGold;
+        $mode = 'single';
+    }
+
+    // Unit savings vs gold for display: silver - gold on the representative (min) pair.
+    $displaySavings = max(0, $minSilver - $minGold);
+    $isRangePrice = $maxEffective > $minEffective || $maxSilver > $minSilver || $maxGold > $minGold;
+
+    $cardCopy = $resolvedTier->productCardCopy();
+    $savingsTemplate = (string) ($cardCopy['savings_template'] ?? 'Ahorras :amount');
+    $priceBadge = (string) ($cardCopy['price_badge'] ?? 'Precio Oro');
+    $standardLabel = (string) ($cardCopy['standard_label'] ?? 'Precio estándar');
+    $tierPriceLabel = (string) ($cardCopy['tier_price_label'] ?? 'Precio Oro');
+    $formatMoney = static fn (float $amount): string => '$'.number_format($amount, 0, ',', '.');
+    $savingsText = str_replace(':amount', $formatMoney($displaySavings), $savingsTemplate);
+    $showDual = in_array($mode, ['active-discount', 'locked-discount'], true) && $displaySavings > 0;
+    $isLocked = $mode === 'locked-discount';
+    $categoryName = $product->category?->name;
+    $metaLine = collect([$categoryName, $product->brand])->filter()->implode(' · ');
 @endphp
 
-<article class="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-panel">
-    <div class="relative flex aspect-square items-center justify-center overflow-hidden bg-slate-100 p-2 sm:p-3">
-        <div class="absolute left-2.5 top-2.5 z-10">
-            <x-ui.badge variant="neutral" class="!rounded-full !px-2 !py-0.5 !text-xs !font-medium !normal-case !tracking-normal">
-                {{ $product->category?->name ?? 'Sin categoría' }}
-            </x-ui.badge>
-        </div>
+<article @class([
+    'group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border bg-white shadow-soft transition hover:-translate-y-0.5 hover:shadow-panel',
+    'border-amber-200/90 hover:border-amber-300' => $showDual,
+    'border-slate-200 hover:border-slate-300' => ! $showDual,
+])>
+    <div class="relative isolate flex aspect-square items-center justify-center overflow-hidden bg-slate-100 p-2 sm:p-3">
+        @if($showDual)
+            <div class="pointer-events-none absolute left-2 top-2 z-10 max-w-[calc(100%-1rem)]">
+                <span @class([
+                    'inline-flex max-w-full items-center truncate rounded-full border px-2 py-0.5 text-[0.65rem] font-semibold shadow-sm',
+                    'border-amber-300 bg-amber-100 text-amber-950' => ! $isLocked,
+                    'border-amber-300/80 bg-amber-50 text-amber-900' => $isLocked,
+                ])>
+                    @if($isLocked)
+                        <svg xmlns="http://www.w3.org/2000/svg" class="mr-1 h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+                    @endif
+                    {{ $priceBadge }}
+                </span>
+            </div>
+        @endif
 
         @if($coverPhoto)
             <img
@@ -77,8 +140,8 @@ Component contract:
         @endif
     </div>
 
-    <div class="flex flex-1 flex-col p-2 sm:p-3">
-        {{-- Stretched link: el ::after cubre toda la tarjeta (article es relative) --}}
+    <div class="relative z-[1] flex flex-1 flex-col bg-white p-2 sm:p-3">
+        {{-- Title in normal flow (no absolute category badge over text). --}}
         <h3 class="min-h-[2.5rem] overflow-hidden text-sm font-semibold leading-tight text-slate-900 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
             <a
                 href="{{ $detailUrl }}"
@@ -88,36 +151,83 @@ Component contract:
             >{{ $product->name }}</a>
         </h3>
 
+        @if(filled($metaLine))
+            <p class="mt-1 truncate text-xs text-slate-500">{{ $metaLine }}</p>
+        @endif
+
         <dl class="mt-1.5 space-y-1 text-xs text-slate-600">
             <div class="flex gap-1.5">
                 <dt class="shrink-0 font-medium text-slate-500">SKU</dt>
                 <dd class="min-w-0 truncate font-medium text-slate-800">{{ $product->sku }}</dd>
             </div>
-            @if($product->brand)
-                <div class="flex gap-1.5">
-                    <dt class="shrink-0 font-medium text-slate-500">Marca</dt>
-                    <dd class="min-w-0 truncate text-slate-700">{{ $product->brand }}</dd>
-                </div>
-            @endif
         </dl>
 
-        <div class="relative z-10 mt-2 flex items-end justify-between gap-1.5 sm:mt-2.5 sm:gap-2">
+        <div class="relative z-10 mt-2 flex flex-1 flex-col justify-end gap-2 sm:mt-2.5">
             <div class="min-w-0">
-                <p class="text-xs font-semibold sm:text-sm {{ $stockLabelClasses }}">{{ $stockLabel }}</p>
-                @if($isRangePrice)
-                    <p class="text-sm font-semibold tabular-nums tracking-tight text-slate-950 sm:text-base lg:text-lg">
-                        ${{ number_format($minPrice, 0, ',', '.') }} – ${{ number_format($maxPrice, 0, ',', '.') }}
-                    </p>
-                    <p class="text-xs text-slate-500">Precio según variante</p>
+                <p class="text-xs font-semibold sm:text-sm {{ $stockLabelClasses }}">
+                    <span class="mr-1 inline-block h-1.5 w-1.5 rounded-full {{ $hasStock ? 'bg-emerald-500' : 'bg-red-500' }}" aria-hidden="true"></span>
+                    {{ $stockLabel }}
+                </p>
+
+                @if($showDual)
+                    <div class="mt-1.5 space-y-1">
+                        <div class="flex flex-wrap items-end justify-between gap-2">
+                            <div class="min-w-0">
+                                <p class="text-[0.65rem] uppercase tracking-wide text-slate-400">{{ $standardLabel }}</p>
+                                <p @class([
+                                    'text-xs tabular-nums sm:text-sm',
+                                    'text-slate-400 line-through' => ! $isLocked,
+                                    'font-semibold text-slate-950' => $isLocked,
+                                ])>
+                                    @if($isRangePrice && $minSilver !== $maxSilver)
+                                        {{ $formatMoney($minSilver) }} – {{ $formatMoney($maxSilver) }}
+                                    @else
+                                        {{ $formatMoney($minSilver) }}
+                                    @endif
+                                </p>
+                            </div>
+                            <div class="min-w-0 text-right">
+                                <p class="text-[0.65rem] font-semibold uppercase tracking-wide text-amber-800/80">{{ $tierPriceLabel }}</p>
+                                <p @class([
+                                    'rounded-md border px-1.5 py-0.5 text-sm font-semibold tabular-nums tracking-tight sm:text-base',
+                                    'border-amber-200 bg-amber-50 text-amber-950' => ! $isLocked,
+                                    'border-amber-200/70 bg-amber-50/80 text-amber-900' => $isLocked,
+                                ])>
+                                    @if($isRangePrice && $minGold !== $maxGold)
+                                        {{ $formatMoney($minGold) }} – {{ $formatMoney($maxGold) }}
+                                    @else
+                                        {{ $formatMoney($minGold) }}
+                                    @endif
+                                </p>
+                            </div>
+                        </div>
+                        @if($displaySavings > 0)
+                            <p @class([
+                                'rounded-md border px-2 py-1 text-center text-[0.7rem] font-semibold',
+                                'border-emerald-200 bg-emerald-50 text-emerald-800' => ! $isLocked,
+                                'border-amber-200 bg-amber-50 text-amber-900' => $isLocked,
+                            ])>
+                                {{ $savingsText }}
+                            </p>
+                        @endif
+                    </div>
                 @else
                     <p class="text-sm font-semibold tabular-nums tracking-tight text-slate-950 sm:text-base lg:text-lg">
-                        ${{ number_format($minPrice, 0, ',', '.') }}
+                        @if($isRangePrice && $minEffective !== $maxEffective)
+                            {{ $formatMoney($minEffective) }} – {{ $formatMoney($maxEffective) }}
+                        @else
+                            {{ $formatMoney($minEffective) }}
+                        @endif
                     </p>
+                    @if($isRangePrice)
+                        <p class="text-xs text-slate-500">Precio según variante</p>
+                    @endif
                 @endif
-                <p class="text-xs text-slate-500">{{ $vatLabel }}</p>
+
+                <p class="mt-0.5 text-xs text-slate-500">{{ $vatLabel }}</p>
             </div>
 
-            <div class="relative z-10 flex items-center gap-2">
+            <div class="relative z-10 flex items-center justify-end gap-2">
                 @if($hasVariants)
                     <a href="{{ $detailUrl }}" class="relative z-10 inline-flex h-10 items-center justify-center rounded-lg border border-brand-primary bg-brand-primary px-3 text-xs font-semibold text-white transition hover:bg-brand-hover focus-ring">
                         Elegir
@@ -134,7 +244,6 @@ Component contract:
                         <input type="hidden" name="qty" value="1" class="cart-qty-value">
 
                         <div class="flex items-center gap-1">
-                            {{-- Control de cantidad: solo visible en PC al hacer hover --}}
                             <div class="cart-qty-control flex items-center rounded-lg border border-slate-200 bg-white shadow-sm">
                                 <button
                                     type="button"
@@ -149,10 +258,9 @@ Component contract:
                                 >+</button>
                             </div>
 
-                            {{-- Botón carrito --}}
                             <button
                                 type="submit"
-                                class="inline-flex h-10 w-10 min-h-[2.5rem] min-w-[2.5rem] items-center justify-center rounded-lg border border-brand-primary bg-brand-primary text-white transition hover:bg-brand-hover focus-ring"
+                                class="inline-flex h-10 min-h-[2.5rem] items-center justify-center gap-1.5 rounded-lg border border-brand-primary bg-brand-primary px-3 text-xs font-semibold text-white transition hover:bg-brand-hover focus-ring sm:w-10 sm:px-0"
                                 aria-label="Agregar {{ $product->name }} al carrito"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -160,6 +268,7 @@ Component contract:
                                     <circle cx="17.5" cy="20.5" r="1.25"></circle>
                                     <path d="M3 3h2l2.3 10.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 7H7.2"></path>
                                 </svg>
+                                <span class="sm:hidden">Agregar</span>
                             </button>
                         </div>
                     </form>

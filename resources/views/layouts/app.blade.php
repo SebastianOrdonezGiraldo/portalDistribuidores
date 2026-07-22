@@ -183,7 +183,7 @@ View contract:
                     @endcan
                 </div>
 
-                <p class="sidebar-section-label mt-5">Comercial</p>
+                <p class="sidebar-section-label mt-5">Distribuidor</p>
                 <div class="mt-2 space-y-0.5">
                     <x-ui.sidebar-link :href="route('catalog.index')" :active="request()->routeIs('catalog.*', 'products.show')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -220,6 +220,11 @@ View contract:
                 <div class="min-w-0" data-sidebar-user-copy>
                     <p class="truncate text-sm font-semibold text-slate-900">{{ $user->name }}</p>
                     <p class="truncate text-xs text-slate-500">{{ $isDistributor ? ($user->distributor?->name ?? 'Distribuidor') : 'Administrador global' }}</p>
+                    @if($isDistributor && ($distributorTier ?? null) instanceof \App\Modules\Shared\Enums\DistributorTier)
+                        <div class="mt-1">
+                            <x-tier.badge :tier="$distributorTier" size="sm" :interactive="$distributorTier->hasBenefitsModal()" />
+                        </div>
+                    @endif
                 </div>
             </div>
             <form action="{{ route('logout') }}" method="POST">
@@ -236,12 +241,12 @@ View contract:
     <div data-app-content class="flex min-h-dvh min-w-0 flex-col transition-[padding] duration-200 {{ $isAuthenticated ? 'lg:pl-60' : '' }}">
         <header class="sticky top-0 z-30 border-b border-slate-200/95 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
             <div class="flex flex-col gap-2 px-3 py-3 sm:px-6 lg:px-8">
-                <div class="relative flex min-w-0 items-center gap-2 sm:gap-3 {{ isset($catalogToolbar) || $isAdminDashboard ? 'flex-wrap md:flex-nowrap' : '' }}">
+                <div class="relative flex min-w-0 items-center gap-2 sm:gap-3">
                     @if($isAuthenticated)
                         <button
                             type="button"
                             data-sidebar-toggle
-                            class="btn btn-secondary !min-h-10 !px-2.5 lg:hidden {{ isset($catalogToolbar) ? 'hidden' : '' }}"
+                            class="btn btn-secondary !min-h-10 shrink-0 !px-2.5 lg:hidden {{ isset($catalogToolbar) ? 'hidden' : '' }}"
                             aria-label="Abrir menú"
                             aria-controls="app-sidebar"
                             aria-expanded="false"
@@ -249,20 +254,20 @@ View contract:
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M3 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4A1 1 0 0 1 3 5Zm0 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm1 4a1 1 0 1 0 0 2h12a1 1 0 1 0 0-2H4Z" /></svg>
                         </button>
                         @if($isAdmin && ! $isAdminDashboard)
-                            <a href="{{ route('dashboard') }}" class="flex min-w-0 items-center gap-2 rounded-lg focus-ring">
+                            <a href="{{ route('dashboard') }}" class="flex min-w-0 shrink items-center gap-2 rounded-lg focus-ring">
                                 <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-8 w-auto">
                                 <span class="truncate text-sm font-semibold text-slate-900">Portal Distribuidores</span>
                             </a>
                         @endif
                     @else
-                        <a href="{{ route('catalog.index') }}" class="flex min-w-0 items-center gap-2 rounded-lg focus-ring">
+                        <a href="{{ route('catalog.index') }}" class="flex min-w-0 shrink items-center gap-2 rounded-lg focus-ring">
                             <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-8 w-auto">
                             <span class="hidden text-sm font-semibold text-slate-900 sm:inline">Portal Distribuidores</span>
                         </a>
                     @endif
 
                     @isset($catalogToolbar)
-                        <div class="catalog-desktop-header-search hidden lg:block" data-portal-tour-target="search-desktop">
+                        <div class="catalog-desktop-header-search hidden min-w-0 lg:block" data-portal-tour-target="search-desktop">
                             <div class="catalog-header-search">
                                 {{ $catalogToolbar }}
                             </div>
@@ -312,7 +317,7 @@ View contract:
                     @endif
 
                     <div
-                        class="ml-auto flex shrink-0 items-center gap-2 {{ $isAuthenticated ? '' : 'relative' }}"
+                        class="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2 {{ $isAuthenticated ? '' : 'relative' }}"
                         @if(! $isAuthenticated)
                             x-data="{ guestMenuOpen: false }"
                             @keydown.escape.window="guestMenuOpen = false"
@@ -339,6 +344,14 @@ View contract:
                                 </a>
                             @endif
                             @if($isDistributor)
+                                @if(($distributorTier ?? null) instanceof \App\Modules\Shared\Enums\DistributorTier)
+                                    <x-tier.badge
+                                        :tier="$distributorTier"
+                                        size="sm"
+                                        :interactive="$distributorTier->hasBenefitsModal()"
+                                        class="hidden sm:inline-flex"
+                                    />
+                                @endif
                                 @if(request()->routeIs('catalog.index'))
                                     <button type="button" class="portal-tour-help" data-portal-tour-restart aria-label="Ver tutorial del portal" title="Ver tutorial">?</button>
                                 @else
@@ -542,6 +555,10 @@ View contract:
         </div>
     </div>
 @endguest
+
+@if($isDistributor && ($distributorTier ?? null) instanceof \App\Modules\Shared\Enums\DistributorTier)
+    <x-tier.upgrade-modal :tier="$distributorTier" />
+@endif
 
 @if(!$isAdmin && !request()->routeIs('catalog.*', 'products.show') && view()->exists('layouts.partials.whatsapp-float'))
     @include('layouts.partials.whatsapp-float')
