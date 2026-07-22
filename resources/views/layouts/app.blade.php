@@ -129,11 +129,15 @@ View contract:
                 <div class="mt-2 space-y-0.5">
                     <x-ui.sidebar-link :href="route('admin.distributors.index')" :active="request()->routeIs('admin.distributors.*')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                        Distribuidores
+                        Empresas distribuidoras
                     </x-ui.sidebar-link>
+                </div>
+
+                <p class="sidebar-section-label mt-5">Acceso y seguridad</p>
+                <div class="mt-2 space-y-0.5">
                     <x-ui.sidebar-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                        Usuarios
+                        Cuentas de acceso
                     </x-ui.sidebar-link>
                 </div>
 
@@ -141,7 +145,7 @@ View contract:
                 <div class="mt-2 space-y-0.5">
                     <x-ui.sidebar-link :href="route('admin.catalog-banners.index')" :active="request()->routeIs('admin.catalog-banners.*')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.4"/><path d="m5 17 4.5-4.5 3.2 3.2 2.3-2.3L19 17"/></svg>
-                        Banners
+                        Banners de login
                     </x-ui.sidebar-link>
                 </div>
 
@@ -149,7 +153,7 @@ View contract:
                 <div class="mt-2 space-y-0.5">
                     <x-ui.sidebar-link :href="route('profile.edit')" :active="request()->routeIs('profile.*')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.6v-.09A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.2 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H2.4V9.6h.09A1.7 1.7 0 0 0 4.2 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 8.6 4.2a1.7 1.7 0 0 0 1-.6A1.7 1.7 0 0 0 10 2.5v-.1h4v.09a1.7 1.7 0 0 0 1 1.71 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 8.6a1.7 1.7 0 0 0 .6 1 1.7 1.7 0 0 0 1.1.4h.1v4h-.09a1.7 1.7 0 0 0-1.71 1Z"/></svg>
-                        Ajustes
+                        Mi perfil
                     </x-ui.sidebar-link>
                 </div>
             @endif
@@ -374,7 +378,7 @@ View contract:
                             <div class="{{ isset($catalogToolbar) ? 'hidden lg:block' : '' }} relative" x-data="{ profileMenuOpen: false }" @keydown.escape.window="profileMenuOpen = false">
                                 <button
                                     type="button"
-                                    class="{{ $isAdminDashboard ? 'admin-dashboard-profile-trigger' : 'btn btn-ghost !min-h-10 !px-2' }}"
+                                    class="{{ ($isAdminDashboard || $isDistributor) ? 'admin-dashboard-profile-trigger' : 'btn btn-ghost !min-h-10 !px-2' }}"
                                     @click="profileMenuOpen = !profileMenuOpen"
                                     x-bind:aria-expanded="profileMenuOpen"
                                     aria-haspopup="menu"
@@ -383,9 +387,9 @@ View contract:
                                     <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary/15 text-sm font-semibold text-brand-dark">
                                         {{ strtoupper(substr($user->name, 0, 1)) }}
                                     </span>
-                                    @if($isAdminDashboard)
+                                    @if($isAdminDashboard || $isDistributor)
                                         <span class="hidden max-w-32 truncate text-sm font-medium text-slate-700 xl:block">{{ $user->name }}</span>
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="hidden h-4 w-4 text-slate-400 xl:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="hidden h-4 w-4 shrink-0 text-slate-400 xl:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                                     @endif
                                 </button>
                                 <div

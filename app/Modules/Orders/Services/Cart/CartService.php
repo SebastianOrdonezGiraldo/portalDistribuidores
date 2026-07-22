@@ -6,7 +6,10 @@ use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Orders\Models\Cart;
 use App\Modules\Orders\Models\CartItem;
+use App\Modules\Orders\Pricing\DistributorPriceCalculator;
+use App\Modules\Orders\Pricing\DistributorTierResolver;
 use App\Modules\Orders\Support\OrderLineVat;
+use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -28,6 +31,11 @@ class CartService
     private const CART_REFERENCE_SESSION_KEY = 'orders.cart.id';
 
     private ?Collection $resolvedItems = null;
+
+    public function __construct(
+        private readonly DistributorPriceCalculator $priceCalculator,
+        private readonly DistributorTierResolver $tierResolver,
+    ) {}
 
     /**
      * Add a product or variant line, merging with the existing session line.
@@ -249,10 +257,15 @@ class CartService
      *   variant_label: string|null,
      *   qty: int,
      *   unit_label: string,
+     *   tier: DistributorTier,
+     *   base_unit_price: float,
+     *   silver_unit_price: float,
      *   unit_price: float,
+     *   unit_savings: float,
      *   vat_label: string,
      *   is_vat_excluded: bool,
      *   subtotal: float,
+     *   line_savings: float,
      *   available_qty: int|null
      * }>
      */
@@ -303,8 +316,11 @@ class CartService
 
         $variants = $products->flatMap->variants->keyBy('id');
 
+        // Resolve the commercial tier once per items() execution to avoid N+1.
+        $tier = $this->tierResolver->resolve(Auth::user());
+
         $this->resolvedItems = collect($raw)
-            ->map(function (array $item, string $lineKey) use ($products, $variants) {
+            ->map(function (array $item, string $lineKey) use ($products, $variants, $tier) {
                 $product = $products->get((int) $item['product_id']);
 
                 if (! $product) {
@@ -313,7 +329,7 @@ class CartService
 
                 $variantId = isset($item['variant_id']) ? (int) $item['variant_id'] : null;
                 $variant = null;
-                $unitPrice = (float) $product->price;
+                $basePrice = $product->price;
 
                 if ($variantId !== null) {
                     $variant = $variants->get($variantId);
@@ -322,10 +338,16 @@ class CartService
                         return null;
                     }
 
-                    $unitPrice = (float) $variant->price;
+                    $basePrice = $variant->price;
                 } elseif ($product->hasConfigurableVariants()) {
                     return null;
                 }
+
+                $tierPrice = $this->priceCalculator->calculateFromDecimal($basePrice, $tier);
+                $baseUnitPrice = (float) $tierPrice->basePriceDecimal();
+                $silverUnitPrice = (float) $tierPrice->silverPriceDecimal();
+                $unitPrice = (float) $tierPrice->effectivePriceDecimal();
+                $unitSavings = (float) $tierPrice->unitSavingsDecimal();
 
                 $qty = (int) $item['qty'];
                 $attributeName = $variant?->attributeValue?->attribute?->name;
@@ -343,10 +365,15 @@ class CartService
                     'variant_label' => $variantLabel,
                     'qty' => $qty,
                     'unit_label' => $item['unit_label'] ?? 'unidades',
+                    'tier' => $tier,
+                    'base_unit_price' => $baseUnitPrice,
+                    'silver_unit_price' => $silverUnitPrice,
                     'unit_price' => $unitPrice,
+                    'unit_savings' => $unitSavings,
                     'vat_label' => OrderLineVat::label($isVatExcluded),
                     'is_vat_excluded' => $isVatExcluded,
                     'subtotal' => $qty * $unitPrice,
+                    'line_savings' => $qty * $unitSavings,
                     'available_qty' => $availableQty,
                 ];
             })

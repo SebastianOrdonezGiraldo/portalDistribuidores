@@ -41,6 +41,7 @@ class DistributorPolicyTest extends TestCase
         $this->assertFalse($this->policy->view($distributorUser, $distributor));
         $this->assertFalse($this->policy->create($distributorUser));
         $this->assertFalse($this->policy->update($distributorUser, $distributor));
+        $this->assertFalse($this->policy->updateTier($distributorUser, $distributor));
         $this->assertFalse($this->policy->delete($distributorUser, $distributor));
     }
 }

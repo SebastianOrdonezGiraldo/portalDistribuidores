@@ -7,6 +7,7 @@ use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\OrderItem;
+use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\OrderStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -59,6 +60,52 @@ class AdminOrderShowTest extends TestCase
             ->assertOk()
             ->assertViewIs('admin.orders.edit')
             ->assertSee('Editar Pedido '.$order->oc_number);
+    }
+
+    public function test_admin_edit_price_hints_respect_order_tier(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $product = Product::factory()->create(['price' => 100000, 'is_active' => true]);
+
+        $goldDistributor = Distributor::factory()->gold()->create();
+        $goldOrder = Order::factory()->forDistributor($goldDistributor)->create([
+            'status' => OrderStatus::Submitted,
+            'user_id' => $admin->id,
+            'distributor_tier_snapshot' => DistributorTier::Gold,
+        ]);
+
+        $goldOptions = $this->actingAs($admin)
+            ->get(route('admin.orders.edit', $goldOrder))
+            ->viewData('catalogOptions');
+
+        $this->assertSame(100000.0, $this->hintPriceFor($goldOptions, 'p:'.$product->id));
+
+        $silverDistributor = Distributor::factory()->silver()->create();
+        $silverOrder = Order::factory()->forDistributor($silverDistributor)->create([
+            'status' => OrderStatus::Submitted,
+            'user_id' => $admin->id,
+            'distributor_tier_snapshot' => DistributorTier::Silver,
+        ]);
+
+        $silverOptions = $this->actingAs($admin)
+            ->get(route('admin.orders.edit', $silverOrder))
+            ->viewData('catalogOptions');
+
+        $this->assertSame(106000.0, $this->hintPriceFor($silverOptions, 'p:'.$product->id));
+    }
+
+    /**
+     * @param  iterable<int, array{ref:string,label:string,price:float}>  $options
+     */
+    private function hintPriceFor(iterable $options, string $ref): float
+    {
+        foreach ($options as $option) {
+            if ($option['ref'] === $ref) {
+                return (float) $option['price'];
+            }
+        }
+
+        $this->fail("No se encontró la opción de catálogo {$ref}.");
     }
 
     public function test_admin_cannot_open_edit_form_for_non_editable_status(): void
@@ -167,10 +214,12 @@ class AdminOrderShowTest extends TestCase
             ->assertRedirect(route('admin.orders.show', $order))
             ->assertSessionHas('status');
 
+        // El distribuidor es Plata por defecto: el ítem nuevo se valoriza al
+        // precio Plata (45000 -> 48000) mediante el motor central.
         $this->assertDatabaseHas('orders', [
             'id' => $order->id,
             'status' => OrderStatus::Submitted->value,
-            'total_amount' => 135000,
+            'total_amount' => 144000,
         ]);
 
         $this->assertDatabaseMissing('order_items', [
@@ -183,8 +232,10 @@ class AdminOrderShowTest extends TestCase
             'product_id' => $productB->id,
             'qty' => 3,
             'unit_label' => 'paquete',
-            'price_each' => 45000,
-            'subtotal' => 135000,
+            'price_each' => 48000,
+            'base_unit_price' => 45000,
+            'silver_unit_price' => 48000,
+            'subtotal' => 144000,
         ]);
 
         // El ítem anterior se devuelve a stock y el nuevo se descuenta.
@@ -262,61 +313,6 @@ class AdminOrderShowTest extends TestCase
             'to_status' => OrderStatus::Sold->value,
             'changed_by_user_id' => $admin->id,
             'note' => 'Venta confirmada por telefono.',
-        ]);
-    }
-
-    public function test_admin_dispatch_requires_guide_and_accepts_custom_carrier(): void
-    {
-        $order = $this->createOrderWithItem();
-        $order->update(['status' => OrderStatus::Sold]);
-        $admin = User::query()->findOrFail($order->user_id);
-
-        $this->actingAs($admin)
-            ->patch(route('admin.orders.status', $order), [
-                'status' => OrderStatus::Dispatched->value,
-                'note' => 'Salida confirmada de bodega.',
-            ])
-            ->assertSessionHasErrors('tracking_number');
-
-        $this->actingAs($admin)
-            ->patch(route('admin.orders.status', $order), [
-                'status' => OrderStatus::Dispatched->value,
-                'note' => 'Salida confirmada de bodega.',
-                'tracking_number' => '700184205491',
-                'shipping_carrier' => 'Carga aérea especial',
-            ])
-            ->assertRedirect();
-
-        $this->assertDatabaseHas('orders', [
-            'id' => $order->id,
-            'status' => OrderStatus::Dispatched->value,
-            'tracking_number' => '700184205491',
-            'shipping_carrier' => 'Carga aérea especial',
-        ]);
-    }
-
-    public function test_admin_can_correct_shipping_details_after_dispatch_without_changing_status(): void
-    {
-        $order = $this->createOrderWithItem();
-        $order->update([
-            'status' => OrderStatus::Sent,
-            'tracking_number' => '2258298191',
-            'shipping_carrier' => 'servientrega',
-        ]);
-        $admin = User::query()->findOrFail($order->user_id);
-
-        $this->actingAs($admin)
-            ->patch(route('admin.orders.shipping', $order), [
-                'tracking_number' => '6123456789',
-                'shipping_carrier' => 'Carga aérea especial',
-            ])
-            ->assertRedirect();
-
-        $this->assertDatabaseHas('orders', [
-            'id' => $order->id,
-            'status' => OrderStatus::Sent->value,
-            'tracking_number' => '6123456789',
-            'shipping_carrier' => 'Carga aérea especial',
         ]);
     }
 

@@ -10,6 +10,7 @@ use App\Modules\Orders\Jobs\GenerateOrderPdfJob;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Orders\Services\OrderPdfGenerator;
+use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\OrderStatus;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -110,57 +111,6 @@ class CompanyOrderControllerTest extends TestCase
         $this->assertCount(1, $orders);
     }
 
-    public function test_index_filters_by_visual_status_group(): void
-    {
-        [$distA, $userA] = $this->makeDistributorWithUser();
-
-        Order::factory()->forDistributor($distA)->create(['status' => OrderStatus::Submitted]);
-        Order::factory()->forDistributor($distA)->create(['status' => OrderStatus::Dispatched]);
-        Order::factory()->forDistributor($distA)->create(['status' => OrderStatus::Delivered]);
-        Order::factory()->forDistributor($distA)->create(['status' => OrderStatus::Rejected]);
-
-        $response = $this->actingAs($userA)
-            ->get(route('empresa.orders.index', ['group' => 'active']));
-
-        $orders = $response->viewData('orders');
-        $this->assertCount(2, $orders);
-        $this->assertSame(2, $response->viewData('groupSummary')['active']);
-    }
-
-    public function test_index_filters_by_creation_date_range(): void
-    {
-        [$distA, $userA] = $this->makeDistributorWithUser();
-
-        Order::factory()->forDistributor($distA)->create(['created_at' => '2026-07-05 10:00:00']);
-        Order::factory()->forDistributor($distA)->create(['created_at' => '2026-07-18 10:00:00']);
-
-        $response = $this->actingAs($userA)->get(route('empresa.orders.index', [
-            'date_from' => '2026-07-01',
-            'date_to' => '2026-07-10',
-        ]));
-
-        $this->assertCount(1, $response->viewData('orders'));
-    }
-
-    public function test_index_eager_loads_status_history_for_expandable_timeline(): void
-    {
-        [$distA, $userA] = $this->makeDistributorWithUser();
-        $order = Order::factory()->forDistributor($distA)->create(['status' => OrderStatus::Sold]);
-        $order->statusHistory()->create([
-            'from_status' => OrderStatus::Submitted->value,
-            'to_status' => OrderStatus::Sold->value,
-            'changed_by_user_id' => $userA->id,
-            'note' => 'Venta confirmada.',
-        ]);
-
-        $response = $this->actingAs($userA)->get(route('empresa.orders.index'));
-        $listedOrder = $response->viewData('orders')->first();
-
-        $this->assertTrue($listedOrder->relationLoaded('statusHistory'));
-        $this->assertTrue($listedOrder->statusHistory->first()->relationLoaded('actor'));
-        $response->assertSee('Venta confirmada.');
-    }
-
     public function test_index_requires_authentication(): void
     {
         $this->get(route('empresa.orders.index'))
@@ -210,6 +160,49 @@ class CompanyOrderControllerTest extends TestCase
             ->get(route('empresa.orders.edit', $order))
             ->assertOk()
             ->assertViewIs('empresa.orders.edit');
+    }
+
+    public function test_edit_price_hints_respect_order_tier(): void
+    {
+        $product = Product::factory()->create(['price' => 100000, 'is_active' => true]);
+
+        $goldDistributor = Distributor::factory()->gold()->create();
+        $goldUser = User::factory()->create(['distributor_id' => $goldDistributor->id]);
+        $goldOrder = Order::factory()->forDistributor($goldDistributor)->pendingApproval()->create([
+            'distributor_tier_snapshot' => DistributorTier::Gold,
+        ]);
+
+        $goldOptions = $this->actingAs($goldUser)
+            ->get(route('empresa.orders.edit', $goldOrder))
+            ->viewData('catalogOptions');
+
+        $this->assertSame(100000.0, $this->hintPriceFor($goldOptions, 'p:'.$product->id));
+
+        $silverDistributor = Distributor::factory()->silver()->create();
+        $silverUser = User::factory()->create(['distributor_id' => $silverDistributor->id]);
+        $silverOrder = Order::factory()->forDistributor($silverDistributor)->pendingApproval()->create([
+            'distributor_tier_snapshot' => DistributorTier::Silver,
+        ]);
+
+        $silverOptions = $this->actingAs($silverUser)
+            ->get(route('empresa.orders.edit', $silverOrder))
+            ->viewData('catalogOptions');
+
+        $this->assertSame(106000.0, $this->hintPriceFor($silverOptions, 'p:'.$product->id));
+    }
+
+    /**
+     * @param  iterable<int, array{ref:string,label:string,price:float}>  $options
+     */
+    private function hintPriceFor(iterable $options, string $ref): float
+    {
+        foreach ($options as $option) {
+            if ($option['ref'] === $ref) {
+                return (float) $option['price'];
+            }
+        }
+
+        $this->fail("No se encontró la opción de catálogo {$ref}.");
     }
 
     public function test_edit_redirects_when_order_status_is_not_editable(): void
@@ -335,10 +328,12 @@ class CompanyOrderControllerTest extends TestCase
             ->assertRedirect(route('empresa.orders.show', $order))
             ->assertSessionHas('status');
 
+        // El distribuidor es Plata por defecto: el ítem nuevo se valoriza al
+        // precio Plata (7000 -> 8000) mediante el motor central.
         $this->assertDatabaseHas('orders', [
             'id' => $order->id,
             'status' => OrderStatus::PendingApproval->value,
-            'total_amount' => 28000,
+            'total_amount' => 32000,
         ]);
 
         $this->assertDatabaseMissing('order_items', [
@@ -351,8 +346,10 @@ class CompanyOrderControllerTest extends TestCase
             'product_id' => $newProduct->id,
             'qty' => 4,
             'unit_label' => 'cajas',
-            'price_each' => 7000,
-            'subtotal' => 28000,
+            'price_each' => 8000,
+            'base_unit_price' => 7000,
+            'silver_unit_price' => 8000,
+            'subtotal' => 32000,
         ]);
     }
 

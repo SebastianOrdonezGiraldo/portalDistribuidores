@@ -85,6 +85,11 @@ NGINX_BACKUP=""
 NGINX_LINK_EXISTED=false
 NGINX_PREVIOUS_LINK_TARGET=""
 NGINX_CONFIG_CHANGED=false
+MAINTENANCE_WAS_ACTIVE=false
+
+maintenance_mode_active() {
+    [[ -f "$SHARED_DIR/storage/framework/maintenance.php" || -f "$SHARED_DIR/storage/framework/down" ]]
+}
 
 [[ -n "$APP_HOME" ]] || fail "Application user $APP_USER does not exist."
 [[ -n "$PHP_BIN" ]] || fail "PHP was not found."
@@ -337,6 +342,10 @@ if [[ ! -e "$SHARED_DIR/storage" ]]; then
 fi
 chown -R "$APP_USER:$APP_USER" "$SHARED_DIR/storage"
 
+if maintenance_mode_active; then
+    MAINTENANCE_WAS_ACTIVE=true
+fi
+
 (
     cd "$ARTIFACT_DIR"
     sha256sum --check "$(basename "$CHECKSUM_FILE")"
@@ -495,8 +504,13 @@ SWITCHED=true
 restart_runtime
 
 # A previous operational intervention may leave the shared Laravel maintenance
-# marker active. A successful release must be live before its health checks run.
-run_as_app "$RELEASE_DIR" "$PHP_BIN" artisan up
+# marker active. Only clear it when maintenance was not intentionally enabled
+# before this deploy; /up health checks remain available during maintenance.
+if [[ "$MAINTENANCE_WAS_ACTIVE" == true ]]; then
+    echo "Preserving maintenance mode (was active before deploy)." >&2
+else
+    run_as_app "$RELEASE_DIR" "$PHP_BIN" artisan up
+fi
 run_as_app "$RELEASE_DIR" "$PHP_BIN" artisan queue:restart || true
 run_as_app "$RELEASE_DIR" "$PHP_BIN" artisan schedule:list | grep -Fq 'contapyme-stock-sync' || fail "ContaPyme schedule is missing."
 

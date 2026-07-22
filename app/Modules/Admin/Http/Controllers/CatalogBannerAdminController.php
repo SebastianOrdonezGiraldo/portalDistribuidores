@@ -9,7 +9,6 @@ use App\Modules\Catalog\Models\CatalogBanner;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class CatalogBannerAdminController extends Controller
@@ -21,8 +20,11 @@ class CatalogBannerAdminController extends Controller
     public function index(): View
     {
         return view('admin.catalog-banners.index', [
-            'bannersByPlacement' => CatalogBanner::query()->orderBy('placement')->orderBy('sort_order')->orderBy('id')->get()->groupBy(fn (CatalogBanner $banner) => (string) $banner->getRawOriginal('placement')),
-            'placements' => CatalogBannerPlacement::cases(),
+            'banners' => CatalogBanner::query()
+                ->where('placement', CatalogBannerPlacement::Auth)
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get(),
             'maxFileSizeKb' => self::MAX_FILE_SIZE_KB,
             'maxBanners' => self::MAX_BANNERS,
             'recommendedDimensions' => '1600 × 480 px',
@@ -33,14 +35,13 @@ class CatalogBannerAdminController extends Controller
     {
         $request->validate([
             'title' => ['required', 'string', 'max:120'],
-            'placement' => ['required', Rule::enum(CatalogBannerPlacement::class)],
             'image' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp,avif', 'max:'.self::MAX_FILE_SIZE_KB],
         ]);
 
-        $placement = CatalogBannerPlacement::from((string) $request->input('placement'));
+        $placement = CatalogBannerPlacement::Auth;
 
         if (CatalogBanner::query()->where('placement', $placement)->count() >= self::MAX_BANNERS) {
-            return back()->withErrors(['image' => 'Puedes cargar máximo '.self::MAX_BANNERS.' banners por ubicación.']);
+            return back()->withErrors(['image' => 'Puedes cargar máximo '.self::MAX_BANNERS.' banners de login.']);
         }
 
         $uploadBannerAction->execute(
@@ -50,7 +51,7 @@ class CatalogBannerAdminController extends Controller
             (int) (CatalogBanner::query()->where('placement', $placement)->max('sort_order') ?? -1) + 1,
         );
 
-        return back()->with('status', 'Banner agregado al carrusel.');
+        return back()->with('status', 'Banner de login agregado al carrusel.');
     }
 
     public function destroy(CatalogBanner $catalogBanner): RedirectResponse
@@ -62,6 +63,6 @@ class CatalogBannerAdminController extends Controller
             Storage::disk('public')->delete($path);
         }
 
-        return back()->with('status', 'Banner eliminado.');
+        return back()->with('status', 'Banner de login eliminado.');
     }
 }

@@ -114,10 +114,10 @@ class AdminDistributorsTest extends TestCase
         $response->assertSee('CTC-RECENT-005');
         $response->assertSee('CTC-RECENT-004');
         $response->assertDontSee('CTC-OTHER-001');
-        $response->assertSee('Ver detalle');
-        $response->assertSee('Descargar PDF');
+        $response->assertSee('Contexto comercial');
+        $response->assertSee('Actividad reciente');
+        $response->assertSee('Último pedido');
         $response->assertSee('Monto acumulado');
-        $response->assertSee('Ultimo pedido');
 
         $response->assertViewHas('distributors', function ($distributors) use ($target, $latestOrder) {
             $distributor = $distributors->getCollection()->firstWhere('id', $target->id);
@@ -145,7 +145,7 @@ class AdminDistributorsTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Sin pedidos recientes');
-        $response->assertSee('Este distribuidor todavia no registra pedidos en el portal.');
+        $response->assertSee('Esta empresa todavía no registra pedidos en el portal.');
     }
 
     public function test_admin_cannot_delete_distributor_with_users(): void
@@ -274,6 +274,79 @@ class AdminDistributorsTest extends TestCase
                 'after_save' => 'index',
             ])
             ->assertRedirect('/admin/distributors');
+    }
+
+    public function test_admin_distributors_index_shows_companies_title(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->get('/admin/distributors')
+            ->assertOk()
+            ->assertSee('Empresas distribuidoras')
+            ->assertSee('Nueva empresa distribuidora');
+    }
+
+    public function test_admin_distributor_edit_shows_linked_account_card_when_user_exists(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $distributor = Distributor::create([
+            'name' => 'Empresa Con Cuenta',
+            'status' => 'active',
+        ]);
+
+        $account = User::factory()->create([
+            'name' => 'Cuenta Vinculada',
+            'email' => 'cuenta.vinculada@example.com',
+            'distributor_id' => $distributor->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/admin/distributors/'.$distributor->id.'/edit')
+            ->assertOk()
+            ->assertSee('Cuenta de acceso vinculada')
+            ->assertSee('Cuenta Vinculada')
+            ->assertSee('cuenta.vinculada@example.com')
+            ->assertSee(route('admin.users.edit', $account), false);
+    }
+
+    public function test_admin_distributor_edit_shows_create_account_link_when_no_user(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $distributor = Distributor::create([
+            'name' => 'Empresa Sin Cuenta',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/admin/distributors/'.$distributor->id.'/edit')
+            ->assertOk()
+            ->assertSee('Esta empresa todavía no tiene una cuenta de acceso vinculada.')
+            ->assertSee('Crear cuenta de acceso')
+            ->assertSee('admin/users/create?role=distributor', false)
+            ->assertSee('distributor_id='.$distributor->id, false);
+    }
+
+    public function test_admin_distributors_index_shows_compact_linked_account(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $distributor = Distributor::create([
+            'name' => 'Empresa Index Cuenta',
+            'status' => 'active',
+        ]);
+
+        $account = User::factory()->create([
+            'name' => 'Usuario Index',
+            'email' => 'usuario.index@example.com',
+            'distributor_id' => $distributor->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/admin/distributors?q=Empresa+Index+Cuenta')
+            ->assertOk()
+            ->assertSee('Usuario Index')
+            ->assertSee('usuario.index@example.com')
+            ->assertSee(route('admin.users.edit', $account), false);
     }
 
     private function createOrder(

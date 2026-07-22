@@ -3,7 +3,6 @@
 namespace App\Modules\Admin\Http\Requests;
 
 use App\Models\User;
-use App\Modules\Shared\Enums\DistributorStatus;
 use App\Modules\Shared\Enums\UserRole;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -26,7 +25,6 @@ class UpdateUserRequest extends FormRequest
             'password' => ['nullable', 'string', 'min:8', 'max:255'],
             'role' => ['required', Rule::enum(UserRole::class)],
             'distributor_id' => ['nullable', 'integer', 'exists:distributors,id', 'required_if:role,'.UserRole::Distributor->value, Rule::unique('users', 'distributor_id')->ignore($user?->id)],
-            'distributor_status' => ['nullable', Rule::enum(DistributorStatus::class)],
         ];
     }
 
@@ -52,10 +50,6 @@ class UpdateUserRequest extends FormRequest
             'distributor_id' => [
                 'description' => 'ID del distribuidor asociado cuando el rol es distribuidor.',
                 'example' => 7,
-            ],
-            'distributor_status' => [
-                'description' => 'Estado del distribuidor asociado.',
-                'example' => DistributorStatus::Active->value,
             ],
         ];
     }

@@ -31,6 +31,8 @@ class AccessUsersSeeder extends Seeder
             'ACCESS_USERS_DISTRIBUTOR_PASSWORD',
         );
 
+        // El nivel comercial (tier) queda como Plata por el default de la BD;
+        // se asigna manualmente por un administrador cuando corresponda.
         $demoDistributor = Distributor::firstOrCreate(
             ['name' => 'Distribuidor Demo'],
             ['status' => 'active'],

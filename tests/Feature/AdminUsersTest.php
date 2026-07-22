@@ -203,15 +203,103 @@ class AdminUsersTest extends TestCase
         $response->assertSee('3001234567');
         $response->assertSee('contacto@empresaverificar.com');
         $response->assertSee('Carlos Pérez');
-        $response->assertSee('Pendiente de revisión');
+        $response->assertDontSee('name="distributor_status"', false);
     }
 
-    public function test_admin_can_update_distributor_status_from_user_edit(): void
+    public function test_admin_users_index_shows_access_accounts_title(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->get('/admin/users')
+            ->assertOk()
+            ->assertSee('Cuentas de acceso')
+            ->assertSee('Nueva cuenta de acceso')
+            ->assertSee('Cuentas filtradas')
+            ->assertSee('Correo verificado')
+            ->assertDontSee('>Usuarios<', false);
+    }
+
+    public function test_admin_users_index_shows_expanded_account_details(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $distributor = Distributor::create([
+            'name' => 'Empresa Detalle Usuario',
+            'status' => 'active',
+        ]);
+
+        $user = User::factory()->unverified()->create([
+            'name' => 'Usuario Detalle',
+            'email' => 'detalle.usuario@example.com',
+            'distributor_id' => $distributor->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/admin/users?q=detalle.usuario@example.com')
+            ->assertOk()
+            ->assertSee('Correo electrónico')
+            ->assertSee('detalle.usuario@example.com')
+            ->assertSee('Empresa Detalle Usuario')
+            ->assertSee('Ver empresa')
+            ->assertSee('Rol y permisos')
+            ->assertSee('Acceso al portal distribuidor')
+            ->assertSee('Reenviar verificación')
+            ->assertSee('Editar cuenta');
+    }
+
+    public function test_admin_users_create_and_edit_show_access_account_titles(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->create();
+
+        $this->actingAs($admin)
+            ->get('/admin/users/create')
+            ->assertOk()
+            ->assertSee('Nueva cuenta de acceso');
+
+        $this->actingAs($admin)
+            ->get('/admin/users/'.$user->id.'/edit')
+            ->assertOk()
+            ->assertSee('Editar cuenta de acceso');
+    }
+
+    public function test_admin_users_create_prefills_role_and_distributor_from_query_string(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $distributor = Distributor::create([
+            'name' => 'Empresa Prefill',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/admin/users/create?role=distributor&distributor_id='.$distributor->id)
+            ->assertOk()
+            ->assertSee('value="distributor"', false)
+            ->assertSee('value="'.$distributor->id.'" selected', false);
+
+        $this->actingAs($admin)
+            ->get('/admin/users/create?role=admin&distributor_id='.$distributor->id)
+            ->assertOk()
+            ->assertSee('value="admin"', false)
+            ->assertDontSee('value="'.$distributor->id.'" selected', false);
+    }
+
+    public function test_admin_users_create_ignores_invalid_query_string_values(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->get('/admin/users/create?role=invalid&distributor_id=999999')
+            ->assertOk()
+            ->assertSee('value="distributor"', false);
+    }
+
+    public function test_sending_distributor_status_on_user_update_does_not_change_distributor_status(): void
     {
         $admin = User::factory()->admin()->create();
 
         $distributor = Distributor::create([
-            'name' => 'Distribuidor Activar',
+            'name' => 'Distribuidor No Mutar',
             'status' => 'pending_review',
         ]);
 
@@ -236,40 +324,7 @@ class AdminUsersTest extends TestCase
 
         $this->assertDatabaseHas('distributors', [
             'id' => $distributor->id,
-            'status' => DistributorStatus::Active->value,
-        ]);
-    }
-
-    public function test_admin_cannot_set_invalid_distributor_status(): void
-    {
-        $admin = User::factory()->admin()->create();
-
-        $distributor = Distributor::create([
-            'name' => 'Distribuidor Estado Inválido',
-            'status' => 'pending_review',
-        ]);
-
-        $user = User::factory()->create([
-            'role' => UserRole::Distributor,
-            'distributor_id' => $distributor->id,
-        ]);
-
-        $this->actingAs($admin)
-            ->withSession(['_token' => 'test-token'])
-            ->put('/admin/users/'.$user->id, [
-                '_token' => 'test-token',
-                'name' => $user->name,
-                'email' => $user->email,
-                'password' => '',
-                'role' => 'distributor',
-                'distributor_id' => $distributor->id,
-                'distributor_status' => 'estado_invalido',
-            ])
-            ->assertSessionHasErrors('distributor_status');
-
-        $this->assertDatabaseHas('distributors', [
-            'id' => $distributor->id,
-            'status' => 'pending_review',
+            'status' => DistributorStatus::PendingReview->value,
         ]);
     }
 

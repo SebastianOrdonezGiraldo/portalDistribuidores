@@ -3,12 +3,16 @@
 namespace App\Modules\Admin\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Modules\Admin\Http\Requests\StoreDistributorRequest;
 use App\Modules\Admin\Http\Requests\UpdateDistributorRequest;
+use App\Modules\Admin\Http\Requests\UpdateDistributorTierRequest;
 use App\Modules\AuthAccess\Mail\DistributorAccountActivatedMail;
 use App\Modules\AuthAccess\Models\Distributor;
+use App\Modules\AuthAccess\Services\DistributorTierService;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Shared\Enums\DistributorStatus;
+use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\OrderStatus;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\RedirectResponse;
@@ -51,12 +55,14 @@ class DistributorAdminController extends Controller
         $statusGroupOptions = ['non_active'];
         $sortOptions = ['newest', 'oldest', 'name_asc', 'name_desc', 'users_desc', 'orders_desc'];
         $perPageOptions = [15, 30, 60];
+        $tierOptions = $this->tierLabels();
 
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:120'],
             'status' => ['nullable', 'string', Rule::in(array_keys($statusOptions))],
             'status_group' => ['nullable', 'string', Rule::in($statusGroupOptions)],
             'relation' => ['nullable', 'string', Rule::in($relationOptions)],
+            'tier' => ['nullable', 'string', Rule::enum(DistributorTier::class)],
             'sort' => ['nullable', 'string', Rule::in($sortOptions)],
             'per_page' => ['nullable', 'integer', Rule::in($perPageOptions)],
         ]);
@@ -66,6 +72,7 @@ class DistributorAdminController extends Controller
             'status' => null,
             'status_group' => null,
             'relation' => null,
+            'tier' => null,
             'sort' => 'newest',
             'per_page' => 15,
         ], $filters);
@@ -81,10 +88,12 @@ class DistributorAdminController extends Controller
             ->when($filters['relation'] === 'with_users', fn ($query) => $query->has('user'))
             ->when($filters['relation'] === 'without_users', fn ($query) => $query->doesntHave('user'))
             ->when($filters['relation'] === 'with_orders', fn ($query) => $query->has('orders'))
-            ->when($filters['relation'] === 'without_orders', fn ($query) => $query->doesntHave('orders'));
+            ->when($filters['relation'] === 'without_orders', fn ($query) => $query->doesntHave('orders'))
+            ->when(! empty($filters['tier']), fn ($query) => $query->where('tier', $filters['tier']));
 
         $distributors = (clone $filteredQuery)
             ->withCount(['user', 'orders'])
+            ->with('user:id,distributor_id,name,email,role,email_verified_at,created_at')
             ->withSum('orders as orders_total_amount', 'total_amount')
             ->withMax('orders as latest_order_at', 'created_at')
             ->when($filters['sort'] === 'newest', fn ($query) => $query->latest())
@@ -106,6 +115,8 @@ class DistributorAdminController extends Controller
             'inactive_distributors' => (clone $filteredQuery)->where('status', '!=', DistributorStatus::Active->value)->count(),
             'with_users' => (clone $filteredQuery)->has('user')->count(),
             'with_orders' => (clone $filteredQuery)->has('orders')->count(),
+            'silver_distributors' => (clone $filteredQuery)->where('tier', DistributorTier::Silver->value)->count(),
+            'gold_distributors' => (clone $filteredQuery)->where('tier', DistributorTier::Gold->value)->count(),
         ];
 
         $activeFiltersCount = collect([
@@ -113,6 +124,7 @@ class DistributorAdminController extends Controller
             $filters['status'],
             $filters['status_group'],
             $filters['relation'],
+            $filters['tier'],
             $filters['sort'] !== 'newest' ? $filters['sort'] : null,
         ])->filter(fn ($value) => filled($value))->count();
 
@@ -121,6 +133,7 @@ class DistributorAdminController extends Controller
             'filters' => $filters,
             'statusOptions' => $statusOptions,
             'relationOptions' => $relationOptions,
+            'tierOptions' => $tierOptions,
             'sortOptions' => $sortOptions,
             'perPageOptions' => $perPageOptions,
             'metrics' => $metrics,
@@ -191,6 +204,7 @@ class DistributorAdminController extends Controller
         return view('admin.distributors.form', [
             'distributor' => new Distributor,
             'statusOptions' => $this->statusLabels(),
+            'tierOptions' => $this->tierLabels(),
         ]);
     }
 
@@ -221,8 +235,9 @@ class DistributorAdminController extends Controller
         $this->authorize('update', $distributor);
 
         return view('admin.distributors.form', [
-            'distributor' => $distributor->loadCount(['user', 'orders']),
+            'distributor' => $distributor->loadCount(['user', 'orders'])->load(['tierChangedBy', 'user']),
             'statusOptions' => $this->statusLabels(),
+            'tierOptions' => $this->tierLabels(),
         ]);
     }
 
@@ -330,6 +345,44 @@ class DistributorAdminController extends Controller
         return back()->with('status', $message);
     }
 
+    /**
+     * Cambiar nivel comercial (tier) de distribuidor.
+     *
+     * Asignación manual por un administrador. No existe asignación automática.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam distributor integer required ID de distribuidor. Example: 7
+     *
+     * @bodyParam tier string required Nuevo nivel comercial. Example: oro
+     *
+     * @response 302 {"redirect":"back"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Nivel invalido"}
+     */
+    public function updateTier(
+        UpdateDistributorTierRequest $request,
+        Distributor $distributor,
+        DistributorTierService $tierService,
+    ): RedirectResponse {
+        $this->authorize('updateTier', $distributor);
+
+        /** @var User $admin */
+        $admin = $request->user();
+        $tier = DistributorTier::from($request->validated('tier'));
+        $previousTier = $distributor->tier;
+
+        $tierService->changeTier($distributor, $tier, $admin);
+
+        if ($previousTier === $tier) {
+            return back()->with('status', "El distribuidor ya estaba en nivel {$tier->label()}.");
+        }
+
+        return back()->with('status', "Nivel comercial actualizado a {$tier->label()}.");
+    }
+
     private function statusValues(): array
     {
         return array_keys($this->statusLabels());
@@ -342,6 +395,16 @@ class DistributorAdminController extends Controller
     {
         return collect(DistributorStatus::cases())
             ->mapWithKeys(fn (DistributorStatus $status) => [$status->value => $status->label()])
+            ->all();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function tierLabels(): array
+    {
+        return collect(DistributorTier::cases())
+            ->mapWithKeys(fn (DistributorTier $tier) => [$tier->value => $tier->label()])
             ->all();
     }
 

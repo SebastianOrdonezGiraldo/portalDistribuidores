@@ -11,11 +11,12 @@ use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Orders\Actions\UpdateOrderAction;
 use App\Modules\Orders\Jobs\GenerateOrderPdfJob;
 use App\Modules\Orders\Models\Order;
+use App\Modules\Orders\Pricing\DistributorPriceCalculator;
 use App\Modules\Orders\Services\OrderPdfGenerator;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Orders\Support\OrderLineVat;
+use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\OrderStatus;
-use App\Modules\Shared\Enums\ShippingCarrier;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
@@ -249,8 +250,7 @@ class OrderAdminController extends Controller
             OrderStatus::PendingApproval => OrderStatus::Submitted->value,
             OrderStatus::Submitted => OrderStatus::Sold->value,
             OrderStatus::Sold => OrderStatus::Dispatched->value,
-            OrderStatus::Dispatched => OrderStatus::Sent->value,
-            OrderStatus::Sent => OrderStatus::Delivered->value,
+            OrderStatus::Dispatched => OrderStatus::Delivered->value,
             OrderStatus::Rejected => OrderStatus::PendingApproval->value,
             default => null,
         };
@@ -274,14 +274,13 @@ class OrderAdminController extends Controller
             OrderStatus::Submitted => 'Registrar pedido',
             OrderStatus::Sold => 'Marcar como vendido',
             OrderStatus::Dispatched => 'Marcar como despachado',
-            OrderStatus::Sent => 'Marcar como enviado',
             OrderStatus::Delivered => 'Marcar como entregado',
             OrderStatus::PendingApproval => 'Reingresar a revisión',
             default => 'Actualizar estado',
         };
     }
 
-    public function edit(Order $order): View|RedirectResponse
+    public function edit(Order $order, DistributorPriceCalculator $priceCalculator): View|RedirectResponse
     {
         $this->authorize('update', $order);
 
@@ -296,8 +295,15 @@ class OrderAdminController extends Controller
         return view('admin.orders.edit', [
             'order' => $order,
             'departments' => config('locations.colombia_departments', []),
-            'catalogOptions' => $this->catalogOptions(),
+            'catalogOptions' => $this->catalogOptions($priceCalculator, $this->resolveOrderTier($order)),
         ]);
+    }
+
+    private function resolveOrderTier(Order $order): DistributorTier
+    {
+        return $order->distributor_tier_snapshot
+            ?? $order->distributor?->tier
+            ?? DistributorTier::Silver;
     }
 
     /**
@@ -353,7 +359,7 @@ class OrderAdminController extends Controller
     /**
      * @return array<int, array{ref:string,label:string,price:float}>
      */
-    private function catalogOptions(): array
+    private function catalogOptions(DistributorPriceCalculator $priceCalculator, DistributorTier $tier): array
     {
         $products = Product::query()
             ->active()
@@ -368,8 +374,12 @@ class OrderAdminController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'sku', 'price', 'is_vat_excluded']);
 
+        $effectivePrice = fn (int|string $basePrice): float => (float) $priceCalculator
+            ->calculateFromDecimal($basePrice, $tier)
+            ->effectivePriceDecimal();
+
         return $products
-            ->flatMap(function (Product $product) {
+            ->flatMap(function (Product $product) use ($effectivePrice) {
                 $baseLabel = trim("{$product->sku} · {$product->name}");
                 $taxLabel = OrderLineVat::label((bool) $product->is_vat_excluded);
 
@@ -377,18 +387,18 @@ class OrderAdminController extends Controller
                     return [[
                         'ref' => 'p:'.$product->id,
                         'label' => "{$baseLabel} · {$taxLabel}",
-                        'price' => (float) $product->price,
+                        'price' => $effectivePrice((string) $product->price),
                     ]];
                 }
 
-                return $product->variants->map(function (ProductVariant $variant) use ($baseLabel, $taxLabel): array {
+                return $product->variants->map(function (ProductVariant $variant) use ($baseLabel, $taxLabel, $effectivePrice): array {
                     $attributeName = $variant->attributeValue?->attribute?->name ?? 'Variante';
                     $attributeValue = $variant->attributeValue?->value ?? ('#'.$variant->id);
 
                     return [
                         'ref' => 'v:'.$variant->id,
                         'label' => "{$baseLabel} · {$attributeName}: {$attributeValue} · {$taxLabel}",
-                        'price' => (float) $variant->price,
+                        'price' => $effectivePrice((string) $variant->price),
                     ];
                 });
             })
@@ -407,7 +417,6 @@ class OrderAdminController extends Controller
      *
      * @bodyParam status string required Estado destino. Example: sold
      * @bodyParam note string Nota de transicion. Example: Validado con compras
-     * @bodyParam tracking_number string Número de guía requerido al despachar. Example: 2258298191
      *
      * @response 302 {"redirect":"back"}
      * @response 403 {"message":"No autorizado"}
@@ -420,34 +429,10 @@ class OrderAdminController extends Controller
     ): RedirectResponse {
         $this->authorize('update', $order);
 
-        $payload = $request->validate(
-            [
-                'status' => ['required', 'string', Rule::in(array_map(fn (OrderStatus $status) => $status->value, OrderStatus::cases()))],
-                'note' => ['nullable', 'string', 'max:500'],
-                'tracking_number' => [
-                    Rule::requiredIf(fn (): bool => $request->input('status') === OrderStatus::Dispatched->value),
-                    'nullable',
-                    'string',
-                    'max:80',
-                    'regex:/^\d+$/',
-                ],
-                'shipping_carrier' => [
-                    Rule::requiredIf(fn (): bool => $request->input('status') === OrderStatus::Dispatched->value),
-                    'nullable',
-                    'string',
-                    'max:40',
-                ],
-            ],
-            [
-                'tracking_number.required' => 'El número de guía es obligatorio para marcar el pedido como despachado.',
-                'tracking_number.regex' => 'El número de guía debe contener únicamente números.',
-                'shipping_carrier.required' => 'La transportadora es obligatoria para marcar el pedido como despachado.',
-            ],
-            [
-                'tracking_number' => 'número de guía',
-                'shipping_carrier' => 'transportadora',
-            ],
-        );
+        $payload = $request->validate([
+            'status' => ['required', 'string', Rule::in(array_map(fn (OrderStatus $status) => $status->value, OrderStatus::cases()))],
+            'note' => ['nullable', 'string', 'max:500'],
+        ]);
 
         $targetStatus = OrderStatus::from($payload['status']);
 
@@ -459,9 +444,7 @@ class OrderAdminController extends Controller
                 $order,
                 $targetStatus,
                 $actor,
-                $payload['note'] ?? null,
-                $payload['tracking_number'] ?? null,
-                $payload['shipping_carrier'] ?? null,
+                $payload['note'] ?? null
             );
         } catch (DomainException $exception) {
             return back()
@@ -470,58 +453,6 @@ class OrderAdminController extends Controller
         }
 
         return back()->with('status', "Pedido {$order->oc_number} actualizado a {$targetStatus->label()}.");
-    }
-
-    /**
-     * Corregir la información logística sin alterar el estado del pedido.
-     *
-     * @group Admin
-     *
-     * @authenticated
-     *
-     * @bodyParam tracking_number string required Número de guía. Example: 2258298191
-     * @bodyParam shipping_carrier string Transportadora o método especial. Example: Carga aérea
-     */
-    public function updateShipping(Request $request, Order $order): RedirectResponse
-    {
-        $this->authorize('update', $order);
-
-        if (! in_array($order->status, [OrderStatus::Dispatched, OrderStatus::Sent, OrderStatus::Delivered], true)) {
-            return back()->withErrors('La información de envío solo puede modificarse desde el estado despachado.');
-        }
-
-        $payload = $request->validate(
-            [
-                'tracking_number' => ['required', 'string', 'max:80', 'regex:/^\d+$/'],
-                'shipping_carrier' => ['nullable', 'string', 'max:40'],
-            ],
-            [
-                'tracking_number.required' => 'El número de guía es obligatorio.',
-                'tracking_number.regex' => 'El número de guía debe contener únicamente números.',
-            ],
-            [
-                'tracking_number' => 'número de guía',
-                'shipping_carrier' => 'transportadora',
-            ],
-        );
-
-        $shippingCarrier = ShippingCarrier::resolveValue(
-            $payload['shipping_carrier'] ?? null,
-            $payload['tracking_number'],
-        );
-
-        if ($shippingCarrier === null) {
-            return back()
-                ->withInput()
-                ->withErrors(['shipping_carrier' => 'Indica la transportadora o un método de envío especial.']);
-        }
-
-        $order->update([
-            'tracking_number' => trim($payload['tracking_number']),
-            'shipping_carrier' => $shippingCarrier,
-        ]);
-
-        return back()->with('status', "Información de envío de {$order->oc_number} actualizada correctamente.");
     }
 
     /**

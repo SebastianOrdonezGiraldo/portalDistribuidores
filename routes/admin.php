@@ -43,6 +43,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::resource('products', ProductAdminController::class)->except('show');
 
         Route::patch('distributors/{distributor}/status', [DistributorAdminController::class, 'setStatus'])->name('distributors.status');
+        Route::patch('distributors/{distributor}/tier', [DistributorAdminController::class, 'updateTier'])->name('distributors.tier.update');
         Route::resource('distributors', DistributorAdminController::class)->except('show');
         Route::resource('users', UserAdminController::class)->except('show');
 
@@ -51,7 +52,6 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::put('orders/{order}', [OrderAdminController::class, 'update'])->name('orders.update');
         Route::get('orders/{order}', [OrderAdminController::class, 'show'])->name('orders.show');
         Route::patch('orders/{order}/status', [OrderAdminController::class, 'updateStatus'])->name('orders.status');
-        Route::patch('orders/{order}/shipping', [OrderAdminController::class, 'updateShipping'])->name('orders.shipping');
         Route::get('orders/{order}/pdf', [OrderAdminController::class, 'downloadPdf'])->name('orders.pdf');
         Route::delete('orders/{order}', [OrderAdminController::class, 'destroy'])->name('orders.destroy');
     });
