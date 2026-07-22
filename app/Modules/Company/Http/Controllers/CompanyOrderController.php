@@ -35,10 +35,7 @@ class CompanyOrderController extends Controller
      * @authenticated
      *
      * @queryParam q string Busqueda por OC, empresa o contacto. Example: OC-2026
-     * @queryParam status string Estado exacto del pedido. Example: submitted
-     * @queryParam group string Agrupacion visual: all, active, delivered o negative. Example: active
-     * @queryParam date_from date Fecha inicial de creacion. Example: 2026-07-01
-     * @queryParam date_to date Fecha final de creacion. Example: 2026-07-31
+     * @queryParam status string Estado del pedido. Example: submitted
      *
      * @response 200 {"content":"Vista HTML de pedidos"}
      * @response 403 {"message":"No autorizado"}
