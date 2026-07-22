@@ -139,14 +139,17 @@ class ProductVariantsFlowTest extends TestCase
         $order = Order::query()->firstOrFail();
         $response->assertRedirect(route('orders.submitted', ['order' => $order]));
 
+        // Pedido de invitado: usa precio Plata. Variante 15.000 -> 16.000.
         $this->assertDatabaseHas('order_items', [
             'product_id' => $product->id,
             'product_variant_id' => $variant->id,
             'variant_attribute_snapshot' => 'Color',
             'variant_value_snapshot' => 'Rojo',
-            'price_each' => 15000.00,
+            'price_each' => 16000.00,
+            'base_unit_price' => 15000.00,
+            'silver_unit_price' => 16000.00,
             'qty' => 2.00,
-            'subtotal' => 30000.00,
+            'subtotal' => 32000.00,
             'is_vat_excluded_snapshot' => true,
         ]);
 

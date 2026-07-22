@@ -32,6 +32,12 @@ class DistributorPolicy
         return false;
     }
 
+    public function updateTier(User $user, Distributor $distributor): bool
+    {
+        // Solo administradores (concedidos vía before()) pueden cambiar el nivel.
+        return false;
+    }
+
     public function delete(User $user, Distributor $distributor): bool
     {
         return false;

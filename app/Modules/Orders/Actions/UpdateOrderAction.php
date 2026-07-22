@@ -7,8 +7,11 @@ use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\OrderItem;
+use App\Modules\Orders\Pricing\DistributorPriceCalculator;
+use App\Modules\Orders\Pricing\TierPrice;
 use App\Modules\Orders\Services\OrderInventoryService;
 use App\Modules\Orders\Support\OrderLineVat;
+use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Support\Collection;
@@ -18,6 +21,7 @@ class UpdateOrderAction
 {
     public function __construct(
         private readonly OrderInventoryService $orderInventoryService,
+        private readonly DistributorPriceCalculator $priceCalculator,
     ) {}
 
     /**
@@ -29,14 +33,22 @@ class UpdateOrderAction
         ?User $actor = null,
         bool $allowSubmittedEdit = false,
     ): Order {
+        // Resolve the tier from the order snapshot; only fall back to the
+        // distributor (Plata by default) for historical orders without snapshot.
+        $tier = $this->resolveOrderTier($order);
+
         $preparedItems = $this->prepareItems(
             $order,
+            $tier,
             $payload['items'] ?? [],
             $payload['new_items'] ?? [],
         );
-        $total = (float) collect($preparedItems)->sum('subtotal');
 
-        return DB::transaction(function () use ($order, $payload, $preparedItems, $total, $actor, $allowSubmittedEdit): Order {
+        $totalCents = collect($preparedItems)
+            ->sum(fn (array $item): int => $this->priceCalculator->decimalToCents((string) $item['subtotal']));
+        $total = TierPrice::centsToDecimal($totalCents);
+
+        return DB::transaction(function () use ($order, $payload, $preparedItems, $total, $tier, $actor, $allowSubmittedEdit): Order {
             /** @var Order $lockedOrder */
             $lockedOrder = Order::query()
                 ->whereKey($order->id)
@@ -74,6 +86,8 @@ class UpdateOrderAction
                 'city' => $payload['city'],
                 'department' => $payload['department'],
                 'notes' => $payload['notes'] ?? null,
+                // Persist the resolved tier so historical orders keep it fixed.
+                'distributor_tier_snapshot' => $tier,
                 'total_amount' => $total,
                 // Invalida el archivo actual para forzar regeneración con datos nuevos.
                 'pdf_path' => null,
@@ -102,9 +116,23 @@ class UpdateOrderAction
     }
 
     /**
+     * Resolve the tier that must be used to price this edit.
+     *
+     * A stored snapshot always wins so a later company tier change never alters
+     * an existing order. Historical orders without snapshot resolve their
+     * distributor tier once (Plata as fallback) and the caller persists it.
+     */
+    private function resolveOrderTier(Order $order): DistributorTier
+    {
+        return $order->distributor_tier_snapshot
+            ?? $order->distributor?->tier
+            ?? DistributorTier::Silver;
+    }
+
+    /**
      * @return array<int, array<string, mixed>>
      */
-    private function prepareItems(Order $order, mixed $rawItems, mixed $rawNewItems = []): array
+    private function prepareItems(Order $order, DistributorTier $tier, mixed $rawItems, mixed $rawNewItems = []): array
     {
         if (! is_array($rawItems) || $rawItems === []) {
             throw new DomainException('Debes enviar los ítems de la cotización.');
@@ -112,7 +140,9 @@ class UpdateOrderAction
 
         /** @var Collection<int, OrderItem> $existingItems */
         $existingItems = $order->items()->get()->keyBy('id');
-        $prepared = [];
+
+        /** @var array<int, array{existing: OrderItem, qty: int, unit_label: string}> $keptRows */
+        $keptRows = [];
         $seen = [];
 
         foreach ($rawItems as $row) {
@@ -141,12 +171,20 @@ class UpdateOrderAction
                 continue;
             }
 
-            if ($unitLabel === '') {
-                $unitLabel = 'unidades';
-            }
+            $keptRows[] = [
+                'existing' => $existing,
+                'qty' => $qty,
+                'unit_label' => $unitLabel === '' ? 'unidades' : $unitLabel,
+            ];
+        }
 
-            $priceEach = (float) $existing->price_each;
-            $prepared[] = [
+        $prepared = [];
+
+        foreach ($keptRows as $keptRow) {
+            $existing = $keptRow['existing'];
+            $qty = $keptRow['qty'];
+
+            $prepared[] = array_merge([
                 'product_id' => $existing->product_id,
                 'product_variant_id' => $existing->product_variant_id,
                 'product_name_snapshot' => $existing->product_name_snapshot,
@@ -154,15 +192,13 @@ class UpdateOrderAction
                 'variant_attribute_snapshot' => $existing->variant_attribute_snapshot,
                 'variant_value_snapshot' => $existing->variant_value_snapshot,
                 'qty' => $qty,
-                'unit_label' => $unitLabel,
-                'price_each' => $priceEach,
-                'subtotal' => round($qty * $priceEach, 2),
+                'unit_label' => $keptRow['unit_label'],
                 'is_vat_excluded_snapshot' => (bool) ($existing->is_vat_excluded_snapshot ?? false),
                 'vat_rate_snapshot' => (float) ($existing->vat_rate_snapshot ?? OrderLineVat::DEFAULT_RATE),
-            ];
+            ], $this->keptLineFields($existing, $tier, $qty));
         }
 
-        $prepared = [...$prepared, ...$this->prepareNewItems($rawNewItems)];
+        $prepared = [...$prepared, ...$this->prepareNewItems($rawNewItems, $tier)];
 
         if ($prepared === []) {
             throw new DomainException('La cotización debe conservar al menos un ítem con cantidad mayor a cero.');
@@ -174,7 +210,7 @@ class UpdateOrderAction
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function prepareNewItems(mixed $rawNewItems): array
+    private function prepareNewItems(mixed $rawNewItems, DistributorTier $tier): array
     {
         if (! is_array($rawNewItems) || $rawNewItems === []) {
             return [];
@@ -255,8 +291,6 @@ class UpdateOrderAction
                     throw new DomainException("El producto {$product->sku} requiere seleccionar una variante.");
                 }
 
-                $priceEach = (float) $product->price;
-
                 $prepared[] = array_merge([
                     'product_id' => $product->id,
                     'product_variant_id' => null,
@@ -266,9 +300,7 @@ class UpdateOrderAction
                     'variant_value_snapshot' => null,
                     'qty' => $row['qty'],
                     'unit_label' => $row['unit_label'],
-                    'price_each' => $priceEach,
-                    'subtotal' => round($row['qty'] * $priceEach, 2),
-                ], OrderLineVat::snapshotAttributes($product));
+                ], $this->priceFields((string) $product->price, $tier, $row['qty']), OrderLineVat::snapshotAttributes($product));
 
                 continue;
             }
@@ -287,8 +319,6 @@ class UpdateOrderAction
                 throw new DomainException('No fue posible resolver el producto de la variante seleccionada.');
             }
 
-            $priceEach = (float) $variant->price;
-
             $prepared[] = array_merge([
                 'product_id' => $product->id,
                 'product_variant_id' => $variant->id,
@@ -298,12 +328,66 @@ class UpdateOrderAction
                 'variant_value_snapshot' => $variant->attributeValue?->value,
                 'qty' => $row['qty'],
                 'unit_label' => $row['unit_label'],
-                'price_each' => $priceEach,
-                'subtotal' => round($row['qty'] * $priceEach, 2),
-            ], OrderLineVat::snapshotAttributes($product));
+            ], $this->priceFields((string) $variant->price, $tier, $row['qty']), OrderLineVat::snapshotAttributes($product));
         }
 
         return $prepared;
+    }
+
+    /**
+     * Build the tier pricing fields for a NEW line from a base price + quantity.
+     *
+     * @return array<string, string>
+     */
+    private function priceFields(int|string $baseAmount, DistributorTier $tier, int $qty): array
+    {
+        $price = $this->priceCalculator->calculateFromDecimal($baseAmount, $tier);
+
+        return [
+            'price_each' => $price->effectivePriceDecimal(),
+            'base_unit_price' => $price->basePriceDecimal(),
+            'silver_unit_price' => $price->silverPriceDecimal(),
+            'unit_savings' => $price->unitSavingsDecimal(),
+            'subtotal' => TierPrice::centsToDecimal($price->effectivePriceCents * $qty),
+            'line_savings' => TierPrice::centsToDecimal($price->unitSavingsCents * $qty),
+        ];
+    }
+
+    /**
+     * Build the tier pricing fields for an existing (kept) line.
+     *
+     * The effective price is always preserved so editing quantities never
+     * reprices an already-placed line. Snapshot columns are reused when present
+     * (feature-priced lines) or backfilled for legacy lines: a Gold line's
+     * effective is its base, a Silver line's effective is its own silver price.
+     *
+     * @return array<string, string>
+     */
+    private function keptLineFields(OrderItem $existing, DistributorTier $tier, int $qty): array
+    {
+        $effectiveCents = $this->priceCalculator->decimalToCents((string) $existing->price_each);
+
+        if ($existing->base_unit_price !== null && $existing->silver_unit_price !== null) {
+            $baseCents = $this->priceCalculator->decimalToCents((string) $existing->base_unit_price);
+            $silverCents = $this->priceCalculator->decimalToCents((string) $existing->silver_unit_price);
+        } elseif ($tier === DistributorTier::Gold) {
+            $baseCents = $effectiveCents;
+            $silverCents = $this->priceCalculator->calculate($baseCents, DistributorTier::Silver)->silverPriceCents;
+        } else {
+            $baseCents = $effectiveCents;
+            $silverCents = $effectiveCents;
+        }
+
+        $unitSavingsCents = $silverCents - $effectiveCents;
+
+        return [
+            'price_each' => TierPrice::centsToDecimal($effectiveCents),
+            'base_unit_price' => TierPrice::centsToDecimal($baseCents),
+            'silver_unit_price' => TierPrice::centsToDecimal($silverCents),
+            'unit_savings' => TierPrice::centsToDecimal($unitSavingsCents),
+            'subtotal' => TierPrice::centsToDecimal($effectiveCents * $qty),
+            'line_savings' => TierPrice::centsToDecimal($unitSavingsCents * $qty),
+        ];
     }
 
     /**

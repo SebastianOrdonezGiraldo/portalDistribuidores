@@ -4,6 +4,7 @@ namespace App\Modules\Orders\Models;
 
 use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
+use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Enums\ShippingCarrier;
 use Carbon\Carbon;
@@ -16,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * @property int $id
  * @property OrderStatus $status
+ * @property DistributorTier|null $distributor_tier_snapshot
  * @property float $total_amount
  * @property string|null $pdf_path
  * @property string|null $oc_number
@@ -54,6 +56,7 @@ class Order extends Model
         'notes',
         'approval_note',
         'status',
+        'distributor_tier_snapshot',
         'tracking_number',
         'shipping_carrier',
         'total_amount',
@@ -64,6 +67,7 @@ class Order extends Model
     {
         return [
             'status' => OrderStatus::class,
+            'distributor_tier_snapshot' => DistributorTier::class,
             'total_amount' => 'decimal:2',
         ];
     }

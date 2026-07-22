@@ -64,7 +64,8 @@ class CheckoutControllerTest extends TestCase
             ->assertViewHas('branches')
             ->assertViewHas('departments');
 
-        $this->assertEquals(45000.0, $response->viewData('total'));
+        // Distribuidor Plata (por defecto): 15.000 -> precio Plata 16.000; x3 = 48.000.
+        $this->assertEquals(48000.0, $response->viewData('total'));
     }
 
     public function test_checkout_passes_branches_ordered_by_default_then_name(): void
@@ -152,7 +153,8 @@ class CheckoutControllerTest extends TestCase
         $items = $response->viewData('items');
         $this->assertCount(1, $items);
         $this->assertEquals(5, $items->first()['qty']);
-        $this->assertEquals(50000.0, $response->viewData('total'));
+        // Invitado usa precio Plata: 10.000 -> 11.000; x5 = 55.000.
+        $this->assertEquals(55000.0, $response->viewData('total'));
     }
 
     public function test_checkout_reflects_quantity_when_redirected_via_redirect_checkout_flag(): void
@@ -174,7 +176,8 @@ class CheckoutControllerTest extends TestCase
 
         $items = $response->viewData('items');
         $this->assertEquals(7, $items->first()['qty']);
-        $this->assertEquals(70000.0, $response->viewData('total'));
+        // Invitado usa precio Plata: 10.000 -> 11.000; x7 = 77.000.
+        $this->assertEquals(77000.0, $response->viewData('total'));
     }
 
     public function test_checkout_total_matches_updated_cart_quantities(): void
@@ -199,8 +202,9 @@ class CheckoutControllerTest extends TestCase
         $response = $this->get(route('checkout.show'));
         $response->assertOk();
 
-        // 3 × 5000 + 2 × 8000 = 31000
-        $this->assertEquals(31000.0, $response->viewData('total'));
+        // Invitado usa precio Plata: 5.000 -> 6.000 y 8.000 -> 9.000.
+        // 3 × 6.000 + 2 × 9.000 = 36.000.
+        $this->assertEquals(36000.0, $response->viewData('total'));
 
         $items = collect($response->viewData('items'));
         $itemA = $items->first(fn ($item) => $item['product']->id === $productA->id);
@@ -222,6 +226,7 @@ class CheckoutControllerTest extends TestCase
 
         $items = $response->viewData('items');
         $this->assertEquals(3, $items->first()['qty']);
-        $this->assertEquals(30000.0, $response->viewData('total'));
+        // Invitado usa precio Plata: 10.000 -> 11.000; x3 = 33.000.
+        $this->assertEquals(33000.0, $response->viewData('total'));
     }
 }

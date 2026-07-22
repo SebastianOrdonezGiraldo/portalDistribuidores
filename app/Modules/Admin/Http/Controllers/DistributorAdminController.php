@@ -3,12 +3,16 @@
 namespace App\Modules\Admin\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Modules\Admin\Http\Requests\StoreDistributorRequest;
 use App\Modules\Admin\Http\Requests\UpdateDistributorRequest;
+use App\Modules\Admin\Http\Requests\UpdateDistributorTierRequest;
 use App\Modules\AuthAccess\Mail\DistributorAccountActivatedMail;
 use App\Modules\AuthAccess\Models\Distributor;
+use App\Modules\AuthAccess\Services\DistributorTierService;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Shared\Enums\DistributorStatus;
+use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\OrderStatus;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\RedirectResponse;
@@ -328,6 +332,44 @@ class DistributorAdminController extends Controller
         };
 
         return back()->with('status', $message);
+    }
+
+    /**
+     * Cambiar nivel comercial (tier) de distribuidor.
+     *
+     * Asignación manual por un administrador. No existe asignación automática.
+     *
+     * @group Admin
+     *
+     * @authenticated
+     *
+     * @urlParam distributor integer required ID de distribuidor. Example: 7
+     *
+     * @bodyParam tier string required Nuevo nivel comercial. Example: oro
+     *
+     * @response 302 {"redirect":"back"}
+     * @response 403 {"message":"No autorizado"}
+     * @response 422 {"message":"Nivel invalido"}
+     */
+    public function updateTier(
+        UpdateDistributorTierRequest $request,
+        Distributor $distributor,
+        DistributorTierService $tierService,
+    ): RedirectResponse {
+        $this->authorize('updateTier', $distributor);
+
+        /** @var User $admin */
+        $admin = $request->user();
+        $tier = DistributorTier::from($request->validated('tier'));
+        $previousTier = $distributor->tier;
+
+        $tierService->changeTier($distributor, $tier, $admin);
+
+        if ($previousTier === $tier) {
+            return back()->with('status', "El distribuidor ya estaba en nivel {$tier->label()}.");
+        }
+
+        return back()->with('status', "Nivel comercial actualizado a {$tier->label()}.");
     }
 
     private function statusValues(): array

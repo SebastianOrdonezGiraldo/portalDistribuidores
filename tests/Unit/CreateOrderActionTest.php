@@ -12,8 +12,11 @@ use App\Modules\Orders\Actions\CreateOrderAction;
 use App\Modules\Orders\DTOs\CreateOrderData;
 use App\Modules\Orders\Events\OrderPlaced;
 use App\Modules\Orders\Models\Order;
+use App\Modules\Orders\Pricing\DistributorPriceCalculator;
+use App\Modules\Orders\Pricing\DistributorTierResolver;
 use App\Modules\Orders\Services\OrderInventoryService;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
+use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -55,7 +58,7 @@ class CreateOrderActionTest extends TestCase
             ->method('decreaseForOrder')
             ->with($this->callback(fn (Order $order) => $order->status === OrderStatus::Submitted));
 
-        $action = new CreateOrderAction($statusService, $inventoryService);
+        $action = $this->makeAction($statusService, $inventoryService);
 
         $order = $action->execute($user, $this->makeOrderData([
             ['product_id' => $product->id, 'variant_id' => null, 'qty' => 2, 'unit_label' => 'cajas'],
@@ -100,7 +103,7 @@ class CreateOrderActionTest extends TestCase
         $inventoryService = $this->createMock(OrderInventoryService::class);
         $inventoryService->expects($this->once())->method('decreaseForOrder');
 
-        $action = new CreateOrderAction($statusService, $inventoryService);
+        $action = $this->makeAction($statusService, $inventoryService);
 
         $order = $action->execute($user, $this->makeOrderData([
             ['product_id' => $product->id, 'variant_id' => null, 'qty' => 2, 'unit_label' => 'unidades'],
@@ -137,7 +140,7 @@ class CreateOrderActionTest extends TestCase
         $inventoryService = $this->createMock(OrderInventoryService::class);
         $inventoryService->expects($this->never())->method('decreaseForOrder');
 
-        $action = new CreateOrderAction($statusService, $inventoryService);
+        $action = $this->makeAction($statusService, $inventoryService);
 
         $order = $action->execute($user, $this->makeOrderData([
             ['product_id' => $product->id, 'variant_id' => null, 'qty' => 1, 'unit_label' => 'unidades'],
@@ -174,7 +177,7 @@ class CreateOrderActionTest extends TestCase
         $inventoryService = $this->createMock(OrderInventoryService::class);
         $inventoryService->expects($this->once())->method('decreaseForOrder');
 
-        $action = new CreateOrderAction($statusService, $inventoryService);
+        $action = $this->makeAction($statusService, $inventoryService);
 
         $order = $action->execute($user, $this->makeOrderData([
             ['product_id' => $product->id, 'variant_id' => $variant->id, 'qty' => 3, 'unit_label' => 'unidades'],
@@ -224,7 +227,7 @@ class CreateOrderActionTest extends TestCase
         $inventoryService = $this->createMock(OrderInventoryService::class);
         $inventoryService->expects($this->once())->method('decreaseForOrder');
 
-        $action = new CreateOrderAction($statusService, $inventoryService);
+        $action = $this->makeAction($statusService, $inventoryService);
 
         $order = $action->execute($user, $this->makeOrderData([
             ['product_id' => $simpleProduct->id, 'variant_id' => null, 'qty' => 0, 'unit_label' => 'packs'],
@@ -263,7 +266,7 @@ class CreateOrderActionTest extends TestCase
         $inventoryService = $this->createMock(OrderInventoryService::class);
         $inventoryService->expects($this->never())->method('decreaseForOrder');
 
-        $action = new CreateOrderAction($statusService, $inventoryService);
+        $action = $this->makeAction($statusService, $inventoryService);
 
         $this->expectException(DomainException::class);
         $this->expectExceptionMessage('El carrito no puede generar una orden vacía.');
@@ -291,7 +294,7 @@ class CreateOrderActionTest extends TestCase
             ->method('decreaseForOrder')
             ->willThrowException(new DomainException('stock error'));
 
-        $action = new CreateOrderAction($statusService, $inventoryService);
+        $action = $this->makeAction($statusService, $inventoryService);
 
         try {
             $action->execute($user, $this->makeOrderData([
@@ -307,9 +310,116 @@ class CreateOrderActionTest extends TestCase
         Event::assertNotDispatched(OrderPlaced::class);
     }
 
+    public function test_gold_order_stores_base_price_as_effective_and_gold_snapshot(): void
+    {
+        Event::fake([OrderPlaced::class]);
+
+        $user = $this->makeDistributorUser();
+        $product = Product::factory()->create(['price' => 100000, 'stock' => 10, 'is_active' => true]);
+
+        $statusService = $this->createMock(OrderStatusTransitionService::class);
+        $statusService->expects($this->once())->method('recordInitialStatus');
+        $inventoryService = $this->createMock(OrderInventoryService::class);
+        $inventoryService->expects($this->once())->method('decreaseForOrder');
+
+        $order = $this->makeAction($statusService, $inventoryService)->execute($user, $this->makeOrderData([
+            ['product_id' => $product->id, 'variant_id' => null, 'qty' => 1, 'unit_label' => 'unidades'],
+        ]));
+
+        $this->assertSame(DistributorTier::Gold, $order->distributor_tier_snapshot);
+        $this->assertDatabaseHas('order_items', [
+            'order_id' => $order->id,
+            'price_each' => 100000,
+            'base_unit_price' => 100000,
+            'silver_unit_price' => 106000,
+            'unit_savings' => 6000,
+            'subtotal' => 100000,
+            'line_savings' => 6000,
+        ]);
+    }
+
+    public function test_silver_order_stores_silver_price_as_effective_and_silver_snapshot(): void
+    {
+        Event::fake([OrderPlaced::class]);
+
+        $distributor = Distributor::factory()->silver()->create();
+        $user = User::factory()->create(['distributor_id' => $distributor->id]);
+        $product = Product::factory()->create(['price' => 100000, 'stock' => 10, 'is_active' => true]);
+
+        $statusService = $this->createMock(OrderStatusTransitionService::class);
+        $statusService->expects($this->once())->method('recordInitialStatus');
+        $inventoryService = $this->createMock(OrderInventoryService::class);
+        $inventoryService->expects($this->once())->method('decreaseForOrder');
+
+        $order = $this->makeAction($statusService, $inventoryService)->execute($user, $this->makeOrderData([
+            ['product_id' => $product->id, 'variant_id' => null, 'qty' => 2, 'unit_label' => 'unidades'],
+        ]));
+
+        $this->assertSame(DistributorTier::Silver, $order->distributor_tier_snapshot);
+        $this->assertSame('212000.00', $order->total_amount);
+        $this->assertDatabaseHas('order_items', [
+            'order_id' => $order->id,
+            'price_each' => 106000,
+            'base_unit_price' => 100000,
+            'silver_unit_price' => 106000,
+            'unit_savings' => 0,
+            'subtotal' => 212000,
+            'line_savings' => 0,
+        ]);
+    }
+
+    public function test_changing_tier_or_price_after_order_does_not_change_the_order(): void
+    {
+        Event::fake([OrderPlaced::class]);
+
+        $distributor = Distributor::factory()->gold()->create();
+        $user = User::factory()->create(['distributor_id' => $distributor->id]);
+        $product = Product::factory()->create(['price' => 100000, 'stock' => 10, 'is_active' => true]);
+
+        $statusService = $this->createMock(OrderStatusTransitionService::class);
+        $statusService->expects($this->once())->method('recordInitialStatus');
+        $inventoryService = $this->createMock(OrderInventoryService::class);
+        $inventoryService->expects($this->once())->method('decreaseForOrder');
+
+        $order = $this->makeAction($statusService, $inventoryService)->execute($user, $this->makeOrderData([
+            ['product_id' => $product->id, 'variant_id' => null, 'qty' => 1, 'unit_label' => 'unidades'],
+        ]));
+
+        $item = $order->items()->firstOrFail();
+
+        // Mutate the world after the order is confirmed.
+        $distributor->update(['tier' => DistributorTier::Silver]);
+        $product->update(['price' => 500000]);
+
+        $item->refresh();
+        $order->refresh();
+
+        $this->assertSame(DistributorTier::Gold, $order->distributor_tier_snapshot);
+        $this->assertSame('100000.00', $item->price_each);
+        $this->assertSame('100000.00', $item->base_unit_price);
+        $this->assertSame('106000.00', $item->silver_unit_price);
+        $this->assertSame('100000.00', $order->total_amount);
+    }
+
+    private function makeAction(
+        OrderStatusTransitionService $statusService,
+        OrderInventoryService $inventoryService,
+    ): CreateOrderAction {
+        return new CreateOrderAction(
+            $statusService,
+            $inventoryService,
+            new DistributorPriceCalculator(goldDiscountPercent: 5, silverRoundingMultiple: 1000),
+            new DistributorTierResolver,
+        );
+    }
+
+    /**
+     * Gold distributor so effective price equals the stored base price, keeping
+     * the historical price assertions in these tests valid.
+     */
     private function makeDistributorUser(): User
     {
-        $distributor = Distributor::factory()->create();
+        $distributor = Distributor::factory()->gold()->create();
 
         return User::factory()->create([
             'distributor_id' => $distributor->id,

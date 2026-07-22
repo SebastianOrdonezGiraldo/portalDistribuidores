@@ -43,6 +43,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::resource('products', ProductAdminController::class)->except('show');
 
         Route::patch('distributors/{distributor}/status', [DistributorAdminController::class, 'setStatus'])->name('distributors.status');
+        Route::patch('distributors/{distributor}/tier', [DistributorAdminController::class, 'updateTier'])->name('distributors.tier.update');
         Route::resource('distributors', DistributorAdminController::class)->except('show');
         Route::resource('users', UserAdminController::class)->except('show');
 
