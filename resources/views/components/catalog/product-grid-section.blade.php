@@ -5,11 +5,14 @@
     'products',
     'emptyMessage' => 'No hay productos disponibles.',
     'listKey' => null,
+    'pricingMode' => null,
+    'tier' => null,
 ])
 
 {{--
 Component contract:
-- Props: id, optional title/subtitle, products paginator, emptyMessage, and optional listKey.
+- Props: id, optional title/subtitle, products paginator, emptyMessage, optional listKey,
+  optional pricingMode and tier for dual-price product cards.
 - Slots: none.
 - Use for: product lists that support AJAX pagination/load-more through data-product-list attributes.
 --}}
@@ -48,8 +51,13 @@ Component contract:
             data-has-more="{{ $products->hasMorePages() ? 'true' : 'false' }}"
             data-base-query="{{ http_build_query($baseQuery) }}"
         >
-            <div data-product-grid class="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-                @include('catalog._products-partial', ['products' => $products, 'listKey' => $listKey])
+            <div data-product-grid class="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4">
+                @include('catalog._products-partial', [
+                    'products' => $products,
+                    'listKey' => $listKey,
+                    'pricingMode' => $pricingMode,
+                    'tier' => $tier,
+                ])
             </div>
 
             <div data-product-list-controls class="mt-6 space-y-4">

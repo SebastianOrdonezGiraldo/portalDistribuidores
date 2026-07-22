@@ -6,10 +6,19 @@
 {{--
 View contract:
 - Source: App\Modules\Catalog\Http\Controllers\CatalogController::__invoke.
-- Expects: $products paginator, $categories tree, $search ProductSearchQuery, $canonicalUrl, $robotsContent.
+- Expects: $products paginator, $categories tree, $search ProductSearchQuery, $canonicalUrl, $robotsContent,
+  optional $distributorTier, $showTierExperience, $tierMetrics for authenticated distributors.
 - Owns: filter chips, category links, sort controls, and catalog layout.
 - Notes: search, ranking, validation, and AJAX payloads stay in CatalogController/SearchEngineInterface.
 --}}
+@php
+    $showTierExperience = (bool) ($showTierExperience ?? false);
+    $distributorTier = $distributorTier ?? null;
+    $tierMetrics = $tierMetrics ?? null;
+    $tierPricingMode = $showTierExperience && $distributorTier
+        ? $distributorTier->pricingMode()
+        : 'single';
+@endphp
 <x-app-layout>
     {{-- Presentation state derived from the search query and category tree; no catalog query logic belongs here. --}}
     @php
@@ -365,7 +374,26 @@ View contract:
         </form>
     </x-slot>
 
-    <section class="catalog-page" x-data="{ filtersOpen: false }" @catalog-filters.window="filtersOpen = true">
+    <section
+        class="catalog-page"
+        x-data="{
+            filtersOpen: false
+        }"
+        @catalog-filters.window="filtersOpen = true"
+    >
+        @if($showTierExperience && $distributorTier && $tierMetrics)
+            <div class="catalog-tier-stack">
+                <x-tier.welcome-banner
+                    :tier="$distributorTier"
+                    :user-name="auth()->user()?->name"
+                    :missed-savings-amount="$distributorTier->showUpgradeCta() && $tierMetrics->savingsCents > 0
+                        ? '$'.number_format((float) $tierMetrics->savingsDecimal(), 0, ',', '.')
+                        : null"
+                />
+                <x-tier.metrics-grid :tier="$distributorTier" :metrics="$tierMetrics" />
+            </div>
+        @endif
+
         <div class="catalog-trust-strip" aria-label="Beneficios del portal">
             <div><span class="catalog-trust-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h12v11H3z"/><path d="M15 10h3l3 3v4h-6z"/><circle cx="7" cy="19" r="1.6"/><circle cx="18" cy="19" r="1.6"/><path d="M3 10h12"/></svg></span><span><strong>Compra mayorista</strong><small>Precios para distribuidores</small></span></div>
             <div><span class="catalog-trust-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4z"/><path d="M8 12h8M12 8l4 4-4 4"/></svg></span><span><strong>Envíos nacionales</strong><small>Entrega a todo el país</small></span></div>
@@ -486,6 +514,8 @@ View contract:
                         id="catalog-results"
                         :products="$products"
                         list-key="catalog"
+                        :pricing-mode="$tierPricingMode"
+                        :tier="$distributorTier"
                     />
                 @endif
 

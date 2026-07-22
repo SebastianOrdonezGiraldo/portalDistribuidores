@@ -30,9 +30,9 @@ class CartServiceTierTest extends TestCase
 
         $this->assertSame(DistributorTier::Silver, $line['tier']);
         $this->assertSame(100000.0, $line['base_unit_price']);
-        $this->assertSame(106000.0, $line['silver_unit_price']);
-        $this->assertSame(106000.0, $line['unit_price']);
-        $this->assertSame(106000.0, $line['subtotal']);
+        $this->assertSame(105000.0, $line['silver_unit_price']);
+        $this->assertSame(105000.0, $line['unit_price']);
+        $this->assertSame(105000.0, $line['subtotal']);
     }
 
     public function test_gold_distributor_cart_uses_base_price(): void
@@ -49,10 +49,10 @@ class CartServiceTierTest extends TestCase
 
         $this->assertSame(DistributorTier::Gold, $line['tier']);
         $this->assertSame(100000.0, $line['unit_price']);
-        $this->assertSame(106000.0, $line['silver_unit_price']);
-        $this->assertSame(6000.0, $line['unit_savings']);
+        $this->assertSame(105000.0, $line['silver_unit_price']);
+        $this->assertSame(5000.0, $line['unit_savings']);
         $this->assertSame(200000.0, $line['subtotal']);
-        $this->assertSame(12000.0, $line['line_savings']);
+        $this->assertSame(10000.0, $line['line_savings']);
     }
 
     public function test_silver_distributor_cart_uses_silver_price(): void
@@ -65,7 +65,7 @@ class CartServiceTierTest extends TestCase
         $cart = app(CartService::class);
         $cart->add($product, 1);
 
-        $this->assertSame(106000.0, $cart->items()->firstOrFail()['unit_price']);
+        $this->assertSame(105000.0, $cart->items()->firstOrFail()['unit_price']);
     }
 
     public function test_variant_uses_its_own_price(): void
@@ -103,7 +103,7 @@ class CartServiceTierTest extends TestCase
         $this->actingAs($user);
         app(CartService::class)->add($product, 1);
 
-        $this->assertSame(106000.0, app(CartService::class)->items()->firstOrFail()['unit_price']);
+        $this->assertSame(105000.0, app(CartService::class)->items()->firstOrFail()['unit_price']);
 
         app(DistributorTierService::class)->changeTier($distributor, DistributorTier::Gold, User::factory()->admin()->create());
 

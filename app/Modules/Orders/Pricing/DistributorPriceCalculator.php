@@ -9,7 +9,7 @@ use InvalidArgumentException;
  * Single source of truth for tier pricing.
  *
  * The silver price derives from the base (Gold) price using the rule
- * "Precio Plata = techo(Precio Oro / (1 - descuento))" rounded up to the next
+ * "Precio Plata = techo(Precio Oro * (1 + incremento))" rounded up to the next
  * configured multiple. Every operation is performed on integer cents so no
  * floating point rounding can leak into monetary values.
  */
@@ -17,14 +17,14 @@ final class DistributorPriceCalculator
 {
     private const PERCENTAGE_BASE = 10_000;
 
-    private readonly int $goldDiscountPercent;
+    private readonly int $silverMarkupPercent;
 
     private readonly int $silverRoundingMultiple;
 
-    public function __construct(?int $goldDiscountPercent = null, ?int $silverRoundingMultiple = null)
+    public function __construct(?int $silverMarkupPercent = null, ?int $silverRoundingMultiple = null)
     {
-        $this->goldDiscountPercent = $goldDiscountPercent
-            ?? (int) config('commerce.tiers.gold_discount_percent', 5);
+        $this->silverMarkupPercent = $silverMarkupPercent
+            ?? (int) config('commerce.tiers.silver_markup_percent', 5);
         $this->silverRoundingMultiple = $silverRoundingMultiple
             ?? (int) config('commerce.tiers.silver_rounding_multiple', 1000);
 
@@ -92,13 +92,12 @@ final class DistributorPriceCalculator
 
     private function silverCents(int $baseCents): int
     {
-        $discountBasisPoints = $this->goldDiscountPercent * 100;
-        $denominator = self::PERCENTAGE_BASE - $discountBasisPoints;
+        $markupBasisPoints = self::PERCENTAGE_BASE + ($this->silverMarkupPercent * 100);
 
-        // techo(base / (1 - descuento)) usando solo enteros.
+        // techo(base * (1 + incremento)) usando solo enteros.
         $unroundedSilverCents = intdiv(
-            ($baseCents * self::PERCENTAGE_BASE) + $denominator - 1,
-            $denominator,
+            ($baseCents * $markupBasisPoints) + self::PERCENTAGE_BASE - 1,
+            self::PERCENTAGE_BASE,
         );
 
         $roundingMultipleCents = $this->silverRoundingMultiple * 100;
@@ -112,9 +111,9 @@ final class DistributorPriceCalculator
 
     private function validateConfig(): void
     {
-        if ($this->goldDiscountPercent < 0 || $this->goldDiscountPercent >= 100) {
+        if ($this->silverMarkupPercent < 0) {
             throw new InvalidArgumentException(
-                'commerce.tiers.gold_discount_percent debe estar entre 0 y 99.',
+                'commerce.tiers.silver_markup_percent no puede ser negativo.',
             );
         }
 

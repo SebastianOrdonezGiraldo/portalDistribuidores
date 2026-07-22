@@ -19,6 +19,7 @@ use App\Modules\Documents\Policies\ProductDocumentPolicy;
 use App\Modules\Inventory\Services\ContaPymeInventoryService;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Policies\OrderPolicy;
+use App\Modules\Orders\Pricing\DistributorTierResolver;
 use App\Modules\Orders\Services\Cart\CartService;
 use App\Modules\Shared\Contracts\InventorySyncInterface;
 use App\Modules\Shared\Contracts\SearchEngineInterface;
@@ -156,6 +157,7 @@ class AppServiceProvider extends ServiceProvider
                 'footerTopCategories' => $footerTopCategories,
                 'headerQuickCategories' => $headerQuickCategories,
                 'pendingApprovalCount' => $pendingApprovalCount,
+                'distributorTier' => app(DistributorTierResolver::class)->resolve(auth()->user()),
             ]);
         });
 
