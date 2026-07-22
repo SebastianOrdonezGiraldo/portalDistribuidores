@@ -6,32 +6,57 @@ View contract:
 - Notes: empty-cart redirects and role permissions are enforced before rendering.
 --}}
 <x-app-layout>
-    {{-- Defaults merge authenticated distributor data with current user data for form prefill only. --}}
     @php
         $defaultContactName = $distributor?->contact_name ?: auth()->user()?->name;
         $defaultContactEmail = $distributor?->contact_email ?: auth()->user()?->email;
+        $money = fn ($value) => '$'.number_format((float) $value, 0, ',', '.');
+
+        $tier = $items->isNotEmpty() ? $items->first()['tier'] : \App\Modules\Shared\Enums\DistributorTier::Silver;
+        $isGold = $tier === \App\Modules\Shared\Enums\DistributorTier::Gold;
+        $vatRate = \App\Modules\Orders\Support\OrderLineVat::DEFAULT_RATE;
+
+        $grossTotal = (float) $total;
+        $listTotal = (float) $items->sum(fn ($item) => (float) $item['silver_unit_price'] * (int) $item['qty']);
+        $savingsTotal = (float) $items->sum('line_savings');
+        $netTotal = (float) $items->sum(fn ($item) => $item['is_vat_excluded']
+            ? (float) $item['subtotal']
+            : (float) $item['subtotal'] / (1 + $vatRate));
+        $ivaTotal = max(0, $grossTotal - $netTotal);
+        $savingsPct = $listTotal > 0 ? (int) round($savingsTotal / $listTotal * 100) : 0;
+        $hasSavings = $savingsTotal > 0.5;
+
+        $visibleItems = 3;
+        $hiddenCount = max(0, $items->count() - $visibleItems);
     @endphp
 
     <x-slot name="header">
-        <x-ui.page-header title="Confirmar Pedido" subtitle="Verifica datos de contacto, dirección y observaciones antes de enviar la CTC.">
-            <x-slot name="actions">
-                <a href="{{ route('cart.index') }}" class="btn btn-secondary">Volver al carrito</a>
-            </x-slot>
-        </x-ui.page-header>
+        <div class="checkout-header">
+            <a href="{{ route('cart.index') }}" class="checkout-back focus-ring" aria-label="Volver al carrito">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+            </a>
+            <div>
+                <h1 class="text-balance text-2xl font-semibold tracking-tight text-slate-900">Confirmar pedido</h1>
+                <p class="mt-1 max-w-2xl text-sm text-slate-600">Verifica la información de entrega y los detalles de tu pedido antes de finalizar.</p>
+            </div>
+        </div>
     </x-slot>
 
-    <form action="{{ route('orders.store') }}" method="POST" data-loading-form class="grid gap-4 lg:grid-cols-[1.7fr_1fr]">
+    <form action="{{ route('orders.store') }}" method="POST" data-loading-form class="grid min-w-0 gap-4 lg:grid-cols-[1.85fr_1fr] lg:items-start">
         @csrf
 
-        <x-ui.card class="p-5">
-            <h2 class="card-title">Datos comerciales</h2>
+        {{-- Datos de entrega y contacto --}}
+        <x-ui.card class="min-w-0 p-5 sm:p-6">
+            <div class="checkout-section-title">
+                <span class="checkout-section-icon" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="1.8"/><circle cx="17.5" cy="18" r="1.8"/></svg>
+                </span>
+                <h2 class="text-base font-bold text-slate-900">Datos de entrega y contacto</h2>
+            </div>
 
-            {{-- Selector de sucursal (solo si la empresa tiene sucursales registradas) --}}
             @if(isset($branches) && $branches->isNotEmpty())
-                <div class="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3">
-                    <label class="form-label mb-1" for="branch_select">Dirección de entrega (sucursal)</label>
-                    <select id="branch_select" class="form-input"
-                        onchange="applyBranch(this)">
+                <div class="mt-5">
+                    <label class="form-label" for="branch_select">Sucursal de entrega</label>
+                    <x-ui.select id="branch_select" onchange="applyBranch(this)">
                         <option value="">— Ingresar dirección manualmente —</option>
                         @foreach($branches as $branch)
                             <option
@@ -44,12 +69,12 @@ View contract:
                                 @if($branch->city) — {{ $branch->city }} @endif
                             </option>
                         @endforeach
-                    </select>
-                    <p class="mt-1 text-xs text-blue-600">Selecciona una sucursal para prellenar la dirección automáticamente.</p>
+                    </x-ui.select>
+                    <p class="form-help">Selecciona una sucursal para prellenar la dirección automáticamente.</p>
                 </div>
             @endif
 
-            <div class="mt-4 grid gap-4 sm:grid-cols-2">
+            <div class="mt-5 grid gap-4 sm:grid-cols-2">
                 <div>
                     <label class="form-label" for="company_name">Razón social *</label>
                     <x-ui.input id="company_name" name="company_name" :value="old('company_name', $distributor?->name)" required />
@@ -86,16 +111,12 @@ View contract:
                 </div>
                 <div>
                     <label class="form-label" for="company_address">Dirección *</label>
-                    <x-ui.input id="company_address" name="company_address"
-                        :value="old('company_address', $distributor?->address)"
-                        required />
+                    <x-ui.input id="company_address" name="company_address" :value="old('company_address', $distributor?->address)" required />
                     <x-input-error :messages="$errors->get('company_address')" />
                 </div>
                 <div>
                     <label class="form-label" for="city">Ciudad *</label>
-                    <x-ui.input id="city" name="city"
-                        :value="old('city', $distributor?->city)"
-                        required />
+                    <x-ui.input id="city" name="city" :value="old('city', $distributor?->city)" required />
                     <x-input-error :messages="$errors->get('city')" />
                 </div>
                 <div>
@@ -108,63 +129,182 @@ View contract:
                     </x-ui.select>
                     <x-input-error :messages="$errors->get('department')" />
                 </div>
-                <div class="sm:col-span-2">
-                    <label class="form-label" for="notes">Observaciones operativas</label>
-                    <x-ui.textarea id="notes" name="notes" rows="4">{{ old('notes') }}</x-ui.textarea>
-                    <p class="form-help">Incluye referencias de entrega, horarios o datos de recepción.</p>
-                    <x-input-error :messages="$errors->get('notes')" />
-                </div>
             </div>
-        </x-ui.card>
 
-        <x-ui.card class="p-5">
-            <h2 class="card-title">Resumen del pedido</h2>
-            <div class="mt-4 space-y-2">
-                @foreach($items as $item)
-                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-                        <p class="font-medium text-slate-900">{{ $item['product']->name }}</p>
-                        @if($item['variant_label'])
-                            <p class="text-xs text-slate-500">{{ $item['variant_label'] }}</p>
-                        @endif
-                        <p class="text-xs text-slate-500">{{ (int) $item['qty'] }} {{ $item['unit_label'] }} x ${{ number_format((float) $item['unit_price'], 0, ',', '.') }} · {{ $item['vat_label'] }}</p>
-                        <p class="mt-1 font-semibold text-slate-900">Subtotal: ${{ number_format((float) $item['subtotal'], 0, ',', '.') }}</p>
+            <div class="checkout-info-banner mt-5">
+                <div class="min-w-0 flex-1">
+                    <div class="flex items-start gap-2">
+                        <span class="inline-flex h-8 w-8 flex-none items-center justify-center rounded-full bg-sky-100 text-sky-700" aria-hidden="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+                        </span>
+                        <div>
+                            <p class="text-sm font-semibold text-slate-900">Información importante para la entrega</p>
+                            <p class="mt-1 text-xs leading-relaxed text-slate-600">Verifica que los datos de entrega sean correctos. Cualquier error puede generar retrasos en el despacho de tu pedido.</p>
+                        </div>
                     </div>
-                @endforeach
-            </div>
-
-            <div class="mt-4 border-t border-slate-200 pt-4">
-                <div class="flex items-center justify-between">
-                    <span class="text-sm text-slate-600">Total estimado</span>
-                    <span class="text-2xl font-semibold text-slate-900">${{ number_format((float) $total, 0, ',', '.') }}</span>
                 </div>
-                <p class="mt-1 text-xs text-slate-500">La disponibilidad final se confirma con el equipo comercial.</p>
+                <div class="checkout-info-illustration hidden sm:block" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-28 text-brand-primary/30" viewBox="0 0 120 80" fill="none">
+                        <rect x="8" y="28" width="52" height="32" rx="4" stroke="currentColor" stroke-width="2"/>
+                        <path d="M60 36h20l12 12v12H60V36z" stroke="currentColor" stroke-width="2"/>
+                        <circle cx="24" cy="64" r="6" stroke="currentColor" stroke-width="2"/>
+                        <circle cx="76" cy="64" r="6" stroke="currentColor" stroke-width="2"/>
+                        <path d="M4 52h8M108 20l-8 8M96 12l8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </div>
             </div>
 
-            <div class="mt-4 flex flex-col gap-2">
-                <x-ui.button type="submit" variant="primary" class="w-full justify-center" data-loading-label="Enviando pedido...">Confirmar pedido</x-ui.button>
-                <a href="{{ route('cart.index') }}" class="btn btn-secondary w-full justify-center">Editar carrito</a>
+            <div class="mt-5">
+                <label class="form-label" for="notes">Observaciones operativas (opcional)</label>
+                <x-ui.textarea id="notes" name="notes" rows="4" placeholder="Indica referencias de entrega, horarios o instrucciones especiales para el despacho.">{{ old('notes') }}</x-ui.textarea>
+                <p class="form-help">Incluye referencias de entrega, horarios o datos de recepción.</p>
+                <x-input-error :messages="$errors->get('notes')" />
             </div>
         </x-ui.card>
+
+        {{-- Resumen del pedido --}}
+        <aside class="min-w-0 max-w-full lg:sticky lg:top-24 lg:h-fit">
+            <x-ui.card class="min-w-0 p-5">
+                <div class="flex items-start justify-between gap-3">
+                    <h2 class="text-base font-bold text-slate-900">Resumen del pedido</h2>
+                    @if($isGold)
+                        <span class="checkout-tier-badge">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="m5 16 -1.6 -8 4.6 3.5L12 5l3.9 6.5L20.6 8 19 16z"/></svg>
+                            Cliente ORO
+                        </span>
+                    @else
+                        <span class="checkout-tier-badge checkout-tier-badge--silver">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.6 8.5 12 3 3.4 8.5v7L12 21l8.6-5.5z"/></svg>
+                            Cliente Plata
+                        </span>
+                    @endif
+                </div>
+
+                <div class="mt-4 space-y-3">
+                    @foreach($items as $index => $item)
+                        @php $product = $item['product']; @endphp
+                        <div class="checkout-summary-item {{ $index >= $visibleItems ? 'hidden' : '' }}" @if($index >= $visibleItems) data-checkout-hidden-item @endif>
+                            <x-ui.product-thumb :product="$product" size="sm" />
+                            <div class="min-w-0 flex-1">
+                                <p class="line-clamp-2 text-sm font-semibold text-slate-900">{{ $product->name }}</p>
+                                <p class="text-xs text-slate-500">SKU: {{ $product->sku }}</p>
+                                @if($item['variant_label'])
+                                    <p class="text-xs text-slate-400">{{ $item['variant_label'] }}</p>
+                                @endif
+                                <p class="mt-0.5 text-xs text-slate-500">{{ (int) $item['qty'] }} {{ $item['unit_label'] }}</p>
+                            </div>
+                            <div class="shrink-0 text-right">
+                                <p class="text-sm font-bold text-slate-900">{{ $money($item['subtotal']) }}</p>
+                                <p class="text-[0.65rem] text-slate-400">{{ $item['vat_label'] }}</p>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                @if($hiddenCount > 0)
+                    <button type="button" class="checkout-more-toggle mt-3" data-checkout-toggle aria-expanded="false">
+                        <span data-checkout-toggle-label>Ver {{ $hiddenCount }} {{ \Illuminate\Support\Str::plural('producto', $hiddenCount) }} más</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform" data-checkout-toggle-icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                    </button>
+                @endif
+
+                <dl class="mt-5 space-y-2.5 border-t border-slate-200 pt-4 text-sm">
+                    @if($hasSavings)
+                        <div class="flex items-center justify-between gap-3">
+                            <dt class="text-slate-500">Subtotal (precio Plata)</dt>
+                            <dd class="font-medium text-slate-700">{{ $money($listTotal) }}</dd>
+                        </div>
+                        <div class="flex items-center justify-between gap-3">
+                            <dt class="font-medium text-amber-600">Descuento Cliente ORO ({{ $savingsPct }}%)</dt>
+                            <dd class="font-semibold text-amber-600">− {{ $money($savingsTotal) }}</dd>
+                        </div>
+                        <div class="!mt-3 border-t border-dashed border-slate-200 pt-3"></div>
+                    @endif
+                    <div class="flex items-center justify-between gap-3">
+                        <dt class="text-slate-500">Base gravable</dt>
+                        <dd class="font-medium text-slate-700">{{ $money($netTotal) }}</dd>
+                    </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <dt class="text-slate-500">IVA (13%)</dt>
+                        <dd class="font-medium text-slate-700">{{ $money($ivaTotal) }}</dd>
+                    </div>
+                </dl>
+
+                <div class="cart-review-total {{ $isGold ? 'cart-review-total--gold' : 'cart-review-total--silver' }} mt-4">
+                    <svg class="cart-review-crown" xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m5 16 -1.6 -8 4.6 3.5L12 5l3.9 6.5L20.6 8 19 16z"/></svg>
+                    <p class="relative text-xs font-semibold uppercase tracking-wide text-slate-500">Total estimado</p>
+                    <p class="relative mt-1 break-words text-3xl font-bold tracking-tight text-slate-950">{{ $money($grossTotal) }} <span class="text-base font-semibold text-slate-400">COP</span></p>
+                    <p class="relative text-xs text-slate-500">IVA incluido · La disponibilidad final se confirma con el equipo comercial.</p>
+                </div>
+
+                <div class="checkout-trust-row mt-4">
+                    <div class="checkout-trust-item">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-brand-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 13a8 8 0 0 1 16 0"/><path d="M4 13v3a2 2 0 0 0 2 2h1v-5H6a2 2 0 0 0-2 2z"/><path d="M20 13v3a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2z"/></svg>
+                        <span>Atención comercial personalizada</span>
+                    </div>
+                    <div class="checkout-trust-item">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-brand-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        <span>Validación final por tu asesor</span>
+                    </div>
+                    <div class="checkout-trust-item">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-brand-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 5 6v5c0 4.5 3 7.5 7 10 4-2.5 7-5.5 7-10V6z"/></svg>
+                        <span>Compra segura y garantizada</span>
+                    </div>
+                </div>
+
+                <div class="mt-5 space-y-2">
+                    <x-ui.button type="submit" variant="primary" class="w-full justify-center" data-loading-label="Enviando pedido...">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+                        Confirmar pedido
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                    </x-ui.button>
+                    <a href="{{ route('cart.index') }}" class="btn btn-secondary w-full justify-center">Volver al carrito</a>
+                </div>
+            </x-ui.card>
+        </aside>
     </form>
 
-    @push('scripts')
-        <script>
-            function applyBranch(select) {
-                const opt = select.options[select.selectedIndex];
-                if (!opt || !opt.value) return;
-                const addr = opt.dataset.address || '';
-                const city = opt.dataset.city || '';
-                if (addr) document.getElementById('company_address').value = addr;
-                if (city) document.getElementById('city').value = city;
+    <script>
+        function applyBranch(select) {
+            const opt = select.options[select.selectedIndex];
+            if (!opt || !opt.value) {
+                return;
+            }
+            const addr = opt.dataset.address || '';
+            const city = opt.dataset.city || '';
+            if (addr) {
+                document.getElementById('company_address').value = addr;
+            }
+            if (city) {
+                document.getElementById('city').value = city;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const branchSelect = document.getElementById('branch_select');
+            if (branchSelect && branchSelect.value) {
+                applyBranch(branchSelect);
             }
 
-            // Aplicar la sucursal predeterminada al cargar si no hay old() values
-            document.addEventListener('DOMContentLoaded', function () {
-                const sel = document.getElementById('branch_select');
-                if (sel && sel.value) {
-                    applyBranch(sel);
-                }
-            });
-        </script>
-    @endpush
+            const toggle = document.querySelector('[data-checkout-toggle]');
+            if (toggle) {
+                toggle.addEventListener('click', () => {
+                    const hidden = document.querySelectorAll('[data-checkout-hidden-item]');
+                    const expanded = toggle.getAttribute('aria-expanded') === 'true';
+                    hidden.forEach((el) => el.classList.toggle('hidden', expanded));
+                    toggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+                    const icon = toggle.querySelector('[data-checkout-toggle-icon]');
+                    if (icon) {
+                        icon.classList.toggle('rotate-180', !expanded);
+                    }
+                    const label = toggle.querySelector('[data-checkout-toggle-label]');
+                    if (label) {
+                        label.textContent = expanded
+                            ? `Ver ${hidden.length} ${hidden.length === 1 ? 'producto más' : 'productos más'}`
+                            : 'Ver menos productos';
+                    }
+                });
+            }
+        });
+    </script>
 </x-app-layout>
