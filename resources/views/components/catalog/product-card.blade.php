@@ -94,16 +94,16 @@ Component contract:
     'border-amber-200/90 hover:border-amber-300' => $showDual,
     'border-slate-200 hover:border-slate-300' => ! $showDual,
 ])>
-    <div class="relative flex aspect-square items-center justify-center overflow-hidden bg-slate-100 p-2 sm:p-3">
+    <div class="relative isolate flex aspect-square items-center justify-center overflow-hidden bg-slate-100 p-2 sm:p-3">
         @if($showDual)
-            <div class="absolute left-2.5 top-2.5 z-10 flex flex-wrap gap-1">
+            <div class="pointer-events-none absolute left-2 top-2 z-10 max-w-[calc(100%-1rem)]">
                 <span @class([
-                    'inline-flex items-center rounded-full border px-2 py-0.5 text-[0.7rem] font-semibold shadow-sm',
+                    'inline-flex max-w-full items-center truncate rounded-full border px-2 py-0.5 text-[0.65rem] font-semibold shadow-sm',
                     'border-amber-300 bg-amber-100 text-amber-950' => ! $isLocked,
                     'border-amber-300/80 bg-amber-50 text-amber-900' => $isLocked,
                 ])>
                     @if($isLocked)
-                        <svg xmlns="http://www.w3.org/2000/svg" class="mr-1 h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="mr-1 h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
                     @endif
                     {{ $priceBadge }}
                 </span>
@@ -140,7 +140,7 @@ Component contract:
         @endif
     </div>
 
-    <div class="flex flex-1 flex-col p-2 sm:p-3">
+    <div class="relative z-[1] flex flex-1 flex-col bg-white p-2 sm:p-3">
         {{-- Title in normal flow (no absolute category badge over text). --}}
         <h3 class="min-h-[2.5rem] overflow-hidden text-sm font-semibold leading-tight text-slate-900 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
             <a
@@ -170,11 +170,7 @@ Component contract:
                 </p>
 
                 @if($showDual)
-                    {{-- Dual pricing: reacts to Alpine showGoldPrices when present. --}}
-                    <div
-                        class="mt-1.5 space-y-1"
-                        x-show="typeof showGoldPrices === 'undefined' || showGoldPrices"
-                    >
+                    <div class="mt-1.5 space-y-1">
                         <div class="flex flex-wrap items-end justify-between gap-2">
                             <div class="min-w-0">
                                 <p class="text-[0.65rem] uppercase tracking-wide text-slate-400">{{ $standardLabel }}</p>
@@ -214,20 +210,6 @@ Component contract:
                                 {{ $savingsText }}
                             </p>
                         @endif
-                    </div>
-
-                    <div
-                        class="mt-1.5"
-                        x-cloak
-                        x-show="typeof showGoldPrices !== 'undefined' && !showGoldPrices"
-                    >
-                        <p class="text-sm font-semibold tabular-nums tracking-tight text-slate-950 sm:text-base lg:text-lg">
-                            @if($isRangePrice && $minEffective !== $maxEffective)
-                                {{ $formatMoney($minEffective) }} – {{ $formatMoney($maxEffective) }}
-                            @else
-                                {{ $formatMoney($minEffective) }}
-                            @endif
-                        </p>
                     </div>
                 @else
                     <p class="text-sm font-semibold tabular-nums tracking-tight text-slate-950 sm:text-base lg:text-lg">

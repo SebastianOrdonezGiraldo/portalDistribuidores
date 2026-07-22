@@ -86,12 +86,7 @@ View contract:
         </form>
     </x-slot>
 
-    <div
-        class="product-detail-page space-y-5 pb-32 sm:pb-24 lg:pb-8"
-        @if($showTierPricing)
-            x-data="{ showGoldPrices: true }"
-        @endif
-    >
+    <div class="product-detail-page space-y-5 pb-32 sm:pb-24 lg:pb-8">
 
         {{-- ──────────────────────────────────────────────────────────────
              HERO: imagen (izquierda) + info + compra (derecha)
@@ -337,18 +332,13 @@ View contract:
                                 <div class="product-detail-price">
                                     <div class="flex flex-wrap items-center justify-between gap-2">
                                         <p class="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-amber-800/70">{{ $tierPriceLabel }}</p>
-                                        <div class="flex flex-wrap items-center gap-2">
-                                            @if($distributorTier)
-                                                <x-tier.badge :tier="$distributorTier" size="sm" :interactive="$distributorTier->hasBenefitsModal()" />
-                                                <x-tier.price-toggle :tier="$distributorTier" />
-                                            @endif
-                                        </div>
+                                        @if($distributorTier)
+                                            <x-tier.badge :tier="$distributorTier" size="sm" :interactive="$distributorTier->hasBenefitsModal()" />
+                                        @endif
                                     </div>
 
-                                    <div
-                                        x-show="typeof showGoldPrices === 'undefined' || showGoldPrices"
-                                    >
-                                        <div class="mt-1.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+                                    <div class="mt-1.5">
+                                        <div class="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
                                             <span
                                                 class="product-detail-price__hero product-detail-price__hero--gold tabular-nums"
                                                 data-variant-gold-target
@@ -370,21 +360,6 @@ View contract:
                                                 >{{ $savingsText }}</span>
                                             </p>
                                         @endif
-                                    </div>
-
-                                    <div
-                                        class="mt-1.5"
-                                        x-cloak
-                                        x-show="typeof showGoldPrices !== 'undefined' && !showGoldPrices"
-                                    >
-                                        <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                                            <span
-                                                class="product-detail-price__hero tabular-nums text-slate-950"
-                                                data-variant-price-target
-                                                data-default-value="{{ $formattedPrice }}"
-                                            >{{ $formattedPrice }}</span>
-                                            <span class="text-sm text-slate-500">/ {{ $unitLabelLower }} · {{ $vatLabel }}</span>
-                                        </div>
                                     </div>
                                 </div>
                             @endif
@@ -1066,7 +1041,7 @@ View contract:
                         · {{ $vatLabel }}
                     </p>
                 @elseif($showDualPricing)
-                    <div x-show="typeof showGoldPrices === 'undefined' || showGoldPrices">
+                    <div>
                         <p class="truncate text-[0.65rem] font-semibold uppercase tracking-wide text-amber-800/80">{{ $tierPriceLabel }}</p>
                         <p
                             class="truncate text-base font-bold tabular-nums text-slate-950"
@@ -1077,14 +1052,6 @@ View contract:
                             <span class="line-through text-slate-400" data-variant-mobile-silver-target data-default-value="{{ $formattedSilver }}">{{ $formattedSilver }}</span>
                             · {{ $vatLabel }}
                         </p>
-                    </div>
-                    <div x-cloak x-show="typeof showGoldPrices !== 'undefined' && !showGoldPrices">
-                        <p
-                            class="truncate text-base font-bold tabular-nums text-slate-950"
-                            data-variant-mobile-price-target
-                            data-default-value="{{ $formattedPrice }}"
-                        >{{ $formattedPrice }}</p>
-                        <p class="truncate text-xs text-slate-500">por {{ $unitLabelLower }} · {{ $vatLabel }}</p>
                     </div>
                 @else
                     <p
