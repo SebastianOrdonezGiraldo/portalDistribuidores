@@ -7,7 +7,7 @@
 
             return number_format($number, $isInteger ? 0 : 2, ',', '.');
         };
-        $baseQuickFilters = request()->except(['page', 'status', 'status_group', 'relation']);
+        $baseQuickFilters = request()->except(['page', 'status', 'status_group', 'relation', 'tier']);
     @endphp
 
     <x-slot name="header">
@@ -27,12 +27,14 @@
         </x-ui.page-header>
     </x-slot>
 
-    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <x-ui.kpi-card label="Distribuidores Filtrados" :value="number_format($metrics['total_distributors'])" hint="Resultado actual del listado" />
-        <x-ui.kpi-card label="Activos" :value="number_format($metrics['active_distributors'])" hint="Con acceso habilitado" />
-        <x-ui.kpi-card label="Inactivos" :value="number_format($metrics['inactive_distributors'])" hint="Sin operacion comercial" />
-        <x-ui.kpi-card label="Con Usuarios" :value="number_format($metrics['with_users'])" hint="Cuentas vinculadas en portal" />
-        <x-ui.kpi-card label="Con Pedidos" :value="number_format($metrics['with_orders'])" hint="Historial de compras registrado" />
+        <x-ui.kpi-card label="Activos" :value="number_format($metrics['active_distributors'])" hint="Con acceso habilitado" accent="success" />
+        <x-ui.kpi-card label="Inactivos" :value="number_format($metrics['inactive_distributors'])" hint="Sin operacion comercial" accent="neutral" />
+        <x-ui.kpi-card label="ICM Plata" :value="number_format($metrics['silver_distributors'])" hint="Nivel comercial Plata" accent="neutral" />
+        <x-ui.kpi-card label="ICM Oro" :value="number_format($metrics['gold_distributors'])" hint="Nivel comercial Oro" accent="warning" />
+        <x-ui.kpi-card label="Con Usuarios" :value="number_format($metrics['with_users'])" hint="Cuentas vinculadas en portal" accent="info" />
+        <x-ui.kpi-card label="Con Pedidos" :value="number_format($metrics['with_orders'])" hint="Historial de compras registrado" accent="info" />
     </section>
 
     <x-ui.card class="mt-4 p-4">
@@ -57,10 +59,18 @@
                class="btn {{ $filters['relation'] === 'with_orders' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
                 Con pedidos
             </a>
+            <a href="{{ route('admin.distributors.index', array_merge($baseQuickFilters, ['tier' => 'plata'])) }}"
+               class="btn {{ $filters['tier'] === 'plata' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
+                ICM Plata <span class="ml-1 text-xs opacity-80">{{ number_format($metrics['silver_distributors']) }}</span>
+            </a>
+            <a href="{{ route('admin.distributors.index', array_merge($baseQuickFilters, ['tier' => 'oro'])) }}"
+               class="btn {{ $filters['tier'] === 'oro' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
+                ICM Oro <span class="ml-1 text-xs opacity-80">{{ number_format($metrics['gold_distributors']) }}</span>
+            </a>
         </div>
     </x-ui.card>
 
-    <x-ui.filter-bar method="GET" action="{{ route('admin.distributors.index') }}" class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+    <x-ui.filter-bar method="GET" action="{{ route('admin.distributors.index') }}" class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
         <div class="xl:col-span-2">
             <label class="form-label" for="distributors-q">Buscar</label>
             <x-ui.input id="distributors-q" name="q" :value="$filters['q']" placeholder="Nombre del distribuidor" />
@@ -72,6 +82,16 @@
                 <option value="">Todos</option>
                 @foreach($statusOptions as $statusKey => $statusLabel)
                     <option value="{{ $statusKey }}" @selected($filters['status'] === $statusKey)>{{ $statusLabel }}</option>
+                @endforeach
+            </x-ui.select>
+        </div>
+
+        <div>
+            <label class="form-label" for="distributors-tier">Nivel</label>
+            <x-ui.select id="distributors-tier" name="tier">
+                <option value="">Todos</option>
+                @foreach($tierOptions as $tierKey => $tierLabel)
+                    <option value="{{ $tierKey }}" @selected($filters['tier'] === $tierKey)>{{ $tierLabel }}</option>
                 @endforeach
             </x-ui.select>
         </div>
@@ -118,7 +138,7 @@
             </x-ui.select>
         </div>
 
-        <div class="xl:col-span-6 flex flex-col gap-3 border-t border-slate-200 pt-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="xl:col-span-7 flex flex-col gap-3 border-t border-slate-200 pt-3 sm:flex-row sm:items-center sm:justify-between">
             <div class="w-full text-xs text-slate-500">
                 Mostrando <strong class="text-slate-700">{{ $distributors->firstItem() ?? 0 }}-{{ $distributors->lastItem() ?? 0 }}</strong>
                 de <strong class="text-slate-700">{{ number_format($distributors->total()) }}</strong> distribuidores
@@ -143,6 +163,7 @@
                     <tr>
                         <th>Distribuidor</th>
                         <th>Estado</th>
+                        <th>Nivel</th>
                         <th>Usuarios</th>
                         <th>Pedidos</th>
                         <th>Creacion</th>
@@ -163,6 +184,7 @@
                                 <p class="text-xs text-slate-500">ID #{{ $distributor->id }}</p>
                             </td>
                             <td data-label="Estado"><x-ui.status-badge :status="$statusValue" /></td>
+                            <td data-label="Nivel"><x-ui.tier-badge :tier="$distributor->tier" size="sm" /></td>
                             <td data-label="Usuarios" class="font-medium text-slate-900">{{ (int) $distributor->user_count ? 'Sí' : 'No' }}</td>
                             <td data-label="Pedidos" class="font-medium text-slate-900">{{ number_format((int) $distributor->orders_count) }}</td>
                             <td data-label="Creacion">
@@ -177,6 +199,7 @@
                                     </button>
                                     <x-ui.action-menu>
                                         <a href="{{ route('admin.distributors.edit', $distributor) }}" class="block rounded-lg px-3 py-2 hover:bg-slate-50">Editar</a>
+                                        <x-admin.distributors.tier-change-form :distributor="$distributor" variant="menu" />
                                         <form action="{{ route('admin.distributors.status', $distributor) }}" method="POST" data-confirm="{{ $statusValue === 'active' ? 'Suspender '.$distributor->name.'?' : 'Activar '.$distributor->name.'?' }}">
                                             @csrf
                                             @method('PATCH')
@@ -195,7 +218,7 @@
                             </td>
                         </tr>
                         <tr x-show="expanded" x-cloak>
-                            <td colspan="7" class="bg-slate-50/70 px-0 py-0">
+                            <td colspan="8" class="bg-slate-50/70 px-0 py-0">
                                 <div class="border-t border-slate-200 bg-slate-50 px-4 py-5 sm:px-5">
                                     <div class="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
                                         <div class="space-y-4">
