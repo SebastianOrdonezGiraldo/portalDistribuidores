@@ -6,7 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Middleware\AddServerTiming;
 use App\Modules\Catalog\Http\Requests\ProductSearchRequest;
 use App\Modules\Categories\Queries\CategoryTreeQuery;
+use App\Modules\Orders\Pricing\DistributorTierMetricsService;
+use App\Modules\Orders\Pricing\DistributorTierResolver;
 use App\Modules\Shared\Contracts\SearchEngineInterface;
+use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\ValueObjects\ProductSearchQuery;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
@@ -38,10 +41,20 @@ class CatalogController extends Controller
         ProductSearchRequest $request,
         SearchEngineInterface $searchEngine,
         CategoryTreeQuery $categoryTreeQuery,
+        DistributorTierResolver $tierResolver,
+        DistributorTierMetricsService $tierMetricsService,
     ): View|JsonResponse {
         $controllerStartedAt = microtime(true);
         $searchQuery = ProductSearchQuery::fromArray($request->validated());
         $products = $searchEngine->search($searchQuery);
+
+        $user = $request->user();
+        $tier = $tierResolver->resolve($user);
+        $isDistributor = (bool) $user?->isDistributor();
+        $distributor = $user?->distributor;
+        $tierMetrics = ($isDistributor && $distributor)
+            ? $tierMetricsService->forDistributor($distributor)
+            : null;
 
         if ($request->ajax()) {
             AddServerTiming::addMetric(
@@ -51,7 +64,7 @@ class CatalogController extends Controller
                 'Catalog controller total'
             );
 
-            return response()->json($this->buildProductListPayload($products, $searchQuery));
+            return response()->json($this->buildProductListPayload($products, $searchQuery, $tier, $isDistributor));
         }
 
         $treeStartedAt = microtime(true);
@@ -76,15 +89,28 @@ class CatalogController extends Controller
             'search' => $searchQuery,
             'canonicalUrl' => $this->canonicalUrl($searchQuery),
             'robotsContent' => $this->robotsContent($searchQuery),
+            'distributorTier' => $tier,
+            'showTierExperience' => $isDistributor,
+            'tierMetrics' => $tierMetrics,
         ]);
     }
 
-    private function buildProductListPayload(LengthAwarePaginator $products, ProductSearchQuery $searchQuery): array
-    {
+    private function buildProductListPayload(
+        LengthAwarePaginator $products,
+        ProductSearchQuery $searchQuery,
+        DistributorTier $tier,
+        bool $isDistributor,
+    ): array {
         $listKey = 'catalog';
+        $pricingMode = $isDistributor ? $tier->pricingMode() : 'single';
 
         return [
-            'html' => view('catalog._products-partial', compact('products', 'listKey'))->render(),
+            'html' => view('catalog._products-partial', [
+                'products' => $products,
+                'listKey' => $listKey,
+                'pricingMode' => $pricingMode,
+                'tier' => $tier,
+            ])->render(),
             'controlsHtml' => view('catalog._product-list-controls', compact('products'))->render(),
             'hasMore' => $products->hasMorePages(),
             'currentPage' => $products->currentPage(),

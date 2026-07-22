@@ -179,7 +179,7 @@ View contract:
                     @endcan
                 </div>
 
-                <p class="sidebar-section-label mt-5">Comercial</p>
+                <p class="sidebar-section-label mt-5">Distribuidor</p>
                 <div class="mt-2 space-y-0.5">
                     <x-ui.sidebar-link :href="route('catalog.index')" :active="request()->routeIs('catalog.*', 'products.show')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -216,6 +216,11 @@ View contract:
                 <div class="min-w-0" data-sidebar-user-copy>
                     <p class="truncate text-sm font-semibold text-slate-900">{{ $user->name }}</p>
                     <p class="truncate text-xs text-slate-500">{{ $isDistributor ? ($user->distributor?->name ?? 'Distribuidor') : 'Administrador global' }}</p>
+                    @if($isDistributor && ($distributorTier ?? null) instanceof \App\Modules\Shared\Enums\DistributorTier)
+                        <div class="mt-1">
+                            <x-tier.badge :tier="$distributorTier" size="sm" :interactive="$distributorTier->showUpgradeCta()" />
+                        </div>
+                    @endif
                 </div>
             </div>
             <form action="{{ route('logout') }}" method="POST">
@@ -335,6 +340,14 @@ View contract:
                                 </a>
                             @endif
                             @if($isDistributor)
+                                @if(($distributorTier ?? null) instanceof \App\Modules\Shared\Enums\DistributorTier)
+                                    <x-tier.badge
+                                        :tier="$distributorTier"
+                                        size="sm"
+                                        :interactive="$distributorTier->showUpgradeCta()"
+                                        class="hidden sm:inline-flex"
+                                    />
+                                @endif
                                 @if(request()->routeIs('catalog.index'))
                                     <button type="button" class="portal-tour-help" data-portal-tour-restart aria-label="Ver tutorial del portal" title="Ver tutorial">?</button>
                                 @else
@@ -538,6 +551,10 @@ View contract:
         </div>
     </div>
 @endguest
+
+@if($isDistributor && ($distributorTier ?? null) instanceof \App\Modules\Shared\Enums\DistributorTier)
+    <x-tier.upgrade-modal :tier="$distributorTier" />
+@endif
 
 @if(!$isAdmin && !request()->routeIs('catalog.*', 'products.show') && view()->exists('layouts.partials.whatsapp-float'))
     @include('layouts.partials.whatsapp-float')
