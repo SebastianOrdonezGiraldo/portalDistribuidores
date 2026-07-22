@@ -20,16 +20,16 @@ enum OrderStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::Draft => 'Borrador',
+            self::Draft => 'En revisión',
             self::PendingApproval => 'En revisión',
             self::Submitted => 'Registrado',
             self::Sold => 'Vendido',
             self::Dispatched => 'Despachado',
             self::Delivered => 'Entregado',
             self::Cancelled => 'Cancelado',
-            self::Sending => 'En proceso (legado)',
-            self::Sent => 'Completado (legado)',
-            self::Failed => 'Fallido (legado)',
+            self::Sending => 'Procesando',
+            self::Sent => 'Enviado',
+            self::Failed => 'Error',
             self::Rejected => 'Rechazado',
         };
     }
@@ -37,17 +37,10 @@ enum OrderStatus: string
     public function badgeClass(): string
     {
         return match ($this) {
-            self::Draft => 'bg-amber-400',
-            self::PendingApproval => 'bg-violet-400',
-            self::Submitted => 'bg-emerald-400',
-            self::Sold => 'bg-cyan-500',
-            self::Dispatched => 'bg-sky-500',
-            self::Delivered => 'bg-blue-500',
-            self::Cancelled => 'bg-slate-500',
-            self::Sending => 'bg-sky-400',
-            self::Sent => 'bg-blue-400',
-            self::Failed => 'bg-rose-400',
-            self::Rejected => 'bg-red-500',
+            self::Draft, self::PendingApproval => 'bg-amber-500',
+            self::Submitted, self::Sold, self::Dispatched, self::Sending, self::Sent => 'bg-sky-600',
+            self::Delivered => 'bg-emerald-600',
+            self::Cancelled, self::Failed, self::Rejected => 'bg-red-600',
         };
     }
 
@@ -90,7 +83,8 @@ enum OrderStatus: string
             self::PendingApproval => [self::Submitted, self::Rejected, self::Cancelled],
             self::Submitted => [self::Sold, self::Cancelled],
             self::Sold => [self::Dispatched, self::Cancelled],
-            self::Dispatched => [self::Delivered, self::Cancelled],
+            self::Dispatched => [self::Sent, self::Delivered, self::Cancelled],
+            self::Sent => [self::Delivered, self::Cancelled],
             self::Rejected => [self::PendingApproval, self::Cancelled],
             default => [],
         };
@@ -110,6 +104,7 @@ enum OrderStatus: string
             self::Submitted,
             self::Sold,
             self::Dispatched,
+            self::Sent,
             self::Delivered,
         ];
     }

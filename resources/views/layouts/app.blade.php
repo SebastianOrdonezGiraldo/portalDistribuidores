@@ -141,7 +141,7 @@ View contract:
                 <div class="mt-2 space-y-0.5">
                     <x-ui.sidebar-link :href="route('admin.catalog-banners.index')" :active="request()->routeIs('admin.catalog-banners.*')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.4"/><path d="m5 17 4.5-4.5 3.2 3.2 2.3-2.3L19 17"/></svg>
-                        Banners
+                        Banners de login
                     </x-ui.sidebar-link>
                 </div>
 
@@ -374,7 +374,7 @@ View contract:
                             <div class="{{ isset($catalogToolbar) ? 'hidden lg:block' : '' }} relative" x-data="{ profileMenuOpen: false }" @keydown.escape.window="profileMenuOpen = false">
                                 <button
                                     type="button"
-                                    class="{{ $isAdminDashboard ? 'admin-dashboard-profile-trigger' : 'btn btn-ghost !min-h-10 !px-2' }}"
+                                    class="{{ ($isAdminDashboard || $isDistributor) ? 'admin-dashboard-profile-trigger' : 'btn btn-ghost !min-h-10 !px-2' }}"
                                     @click="profileMenuOpen = !profileMenuOpen"
                                     x-bind:aria-expanded="profileMenuOpen"
                                     aria-haspopup="menu"
@@ -383,9 +383,9 @@ View contract:
                                     <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary/15 text-sm font-semibold text-brand-dark">
                                         {{ strtoupper(substr($user->name, 0, 1)) }}
                                     </span>
-                                    @if($isAdminDashboard)
+                                    @if($isAdminDashboard || $isDistributor)
                                         <span class="hidden max-w-32 truncate text-sm font-medium text-slate-700 xl:block">{{ $user->name }}</span>
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="hidden h-4 w-4 text-slate-400 xl:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="hidden h-4 w-4 shrink-0 text-slate-400 xl:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                                     @endif
                                 </button>
                                 <div

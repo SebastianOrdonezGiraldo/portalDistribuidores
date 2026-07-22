@@ -111,6 +111,57 @@ class CompanyOrderControllerTest extends TestCase
         $this->assertCount(1, $orders);
     }
 
+    public function test_index_filters_by_visual_status_group(): void
+    {
+        [$distA, $userA] = $this->makeDistributorWithUser();
+
+        Order::factory()->forDistributor($distA)->create(['status' => OrderStatus::Submitted]);
+        Order::factory()->forDistributor($distA)->create(['status' => OrderStatus::Dispatched]);
+        Order::factory()->forDistributor($distA)->create(['status' => OrderStatus::Delivered]);
+        Order::factory()->forDistributor($distA)->create(['status' => OrderStatus::Rejected]);
+
+        $response = $this->actingAs($userA)
+            ->get(route('empresa.orders.index', ['group' => 'active']));
+
+        $orders = $response->viewData('orders');
+        $this->assertCount(2, $orders);
+        $this->assertSame(2, $response->viewData('groupSummary')['active']);
+    }
+
+    public function test_index_filters_by_creation_date_range(): void
+    {
+        [$distA, $userA] = $this->makeDistributorWithUser();
+
+        Order::factory()->forDistributor($distA)->create(['created_at' => '2026-07-05 10:00:00']);
+        Order::factory()->forDistributor($distA)->create(['created_at' => '2026-07-18 10:00:00']);
+
+        $response = $this->actingAs($userA)->get(route('empresa.orders.index', [
+            'date_from' => '2026-07-01',
+            'date_to' => '2026-07-10',
+        ]));
+
+        $this->assertCount(1, $response->viewData('orders'));
+    }
+
+    public function test_index_eager_loads_status_history_for_expandable_timeline(): void
+    {
+        [$distA, $userA] = $this->makeDistributorWithUser();
+        $order = Order::factory()->forDistributor($distA)->create(['status' => OrderStatus::Sold]);
+        $order->statusHistory()->create([
+            'from_status' => OrderStatus::Submitted->value,
+            'to_status' => OrderStatus::Sold->value,
+            'changed_by_user_id' => $userA->id,
+            'note' => 'Venta confirmada.',
+        ]);
+
+        $response = $this->actingAs($userA)->get(route('empresa.orders.index'));
+        $listedOrder = $response->viewData('orders')->first();
+
+        $this->assertTrue($listedOrder->relationLoaded('statusHistory'));
+        $this->assertTrue($listedOrder->statusHistory->first()->relationLoaded('actor'));
+        $response->assertSee('Venta confirmada.');
+    }
+
     public function test_index_requires_authentication(): void
     {
         $this->get(route('empresa.orders.index'))

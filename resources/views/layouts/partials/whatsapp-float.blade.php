@@ -1,19 +1,20 @@
 @php
     $whatsappUrl = 'https://wa.me/573117479607?text=Hola%20vengo%20desde%20la%20plataforma';
     $isProductDetail = request()->routeIs('products.show');
-    $bottomPositionClasses = $isProductDetail ? 'bottom-24 sm:bottom-6' : 'bottom-5 sm:bottom-6';
+    $bottomPositionClasses = $isProductDetail ? 'bottom-[42dvh] sm:bottom-6' : 'bottom-5 sm:bottom-6';
 @endphp
 
 <a
     href="{{ $whatsappUrl }}"
     target="_blank"
     rel="noopener noreferrer"
+    class="catalog-support-bubble catalog-support-bubble--whatsapp fixed right-4 {{ $bottomPositionClasses }} z-[110]"
+    aria-label="Hablar por WhatsApp"
     title="Hablar por WhatsApp"
-    class="group fixed right-4 {{ $bottomPositionClasses }} z-[110] inline-flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-emerald-600 focus-ring sm:h-auto sm:w-auto sm:gap-2 sm:px-4 sm:py-3"
 >
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.34 1.78.65 2.63a2 2 0 0 1-.45 2.11L8.03 9.74a16 16 0 0 0 6.23 6.23l1.28-1.28a2 2 0 0 1 2.11-.45c.85.31 1.73.53 2.63.65A2 2 0 0 1 22 16.92z" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <path d="M20.5 11.7a8.5 8.5 0 0 1-12.56 7.5L3.5 20.5l1.3-4.2A8.5 8.5 0 1 1 20.5 11.7Z"/>
+        <path d="M8.1 7.8c.2-.5.5-.5.8-.5h.5c.2 0 .4.1.5.4l.7 1.7c.1.2.1.4 0 .6l-.5.7c-.1.2-.1.3 0 .5.6 1.1 1.5 2 2.6 2.6.2.1.3.1.5 0l.7-.5c.2-.1.4-.1.6 0l1.7.7c.3.1.4.3.4.5v.5c0 .3 0 .6-.5.8-.5.2-1.6.5-3-.1-1-.4-2.2-1.1-3.4-2.3-1-1-1.8-2.1-2.2-3.1-.6-1.4-.3-2.5-.1-3Z"/>
     </svg>
-    <span class="hidden sm:inline text-sm font-semibold">WhatsApp</span>
     <span class="sr-only">Hablar por WhatsApp</span>
 </a>

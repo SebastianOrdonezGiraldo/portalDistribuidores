@@ -520,6 +520,38 @@
         @apply h-4 w-4 text-slate-500;
     }
 
+    .admin-exec-hero {
+        @apply flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft sm:flex-row sm:items-end sm:justify-between sm:p-6;
+    }
+
+    .admin-exec-hero-eyebrow {
+        @apply text-xs font-bold uppercase tracking-[0.16em] text-brand-primary;
+    }
+
+    .admin-exec-hero-title {
+        @apply mt-1 text-2xl font-bold tracking-tight text-slate-950;
+    }
+
+    .admin-exec-hero-subtitle {
+        @apply mt-1 max-w-2xl text-sm text-slate-600;
+    }
+
+    .admin-exec-hero-meta {
+        @apply mt-3 flex flex-wrap gap-2;
+    }
+
+    .admin-exec-hero-actions {
+        @apply flex shrink-0 flex-wrap gap-2;
+    }
+
+    .admin-section-eyebrow {
+        @apply text-xs font-bold uppercase tracking-[0.14em] text-slate-500;
+    }
+
+    .admin-section-title {
+        @apply mt-1 text-lg font-bold text-slate-950;
+    }
+
     .admin-dashboard-grid {
         @apply grid min-w-0 gap-4;
     }
@@ -1558,46 +1590,6 @@
         @apply space-y-4;
     }
 
-    .catalog-banner-carousel {
-        position: relative;
-        height: clamp(11rem, 22vw, 20rem);
-        overflow: hidden;
-        border: 1px solid rgb(186 230 236 / 0.9);
-        border-radius: 1.35rem;
-        background: rgb(241 245 249);
-        box-shadow: 0 0.6rem 1.5rem rgb(15 23 42 / 0.06);
-    }
-
-    .catalog-banner-slide {
-        position: absolute;
-        inset: 0;
-        margin: 0;
-    }
-
-    .catalog-banner-control {
-        position: absolute;
-        top: 50%;
-        display: inline-flex;
-        width: 2.5rem;
-        height: 2.5rem;
-        align-items: center;
-        justify-content: center;
-        border-radius: 9999px;
-        background: rgb(255 255 255 / 0.88);
-        color: rgb(15 23 42);
-        box-shadow: 0 0.35rem 1rem rgb(15 23 42 / 0.16);
-        transform: translateY(-50%);
-        transition: background 150ms ease, transform 150ms ease;
-    }
-
-    .catalog-banner-control:hover { background: white; transform: translateY(-50%) scale(1.06); }
-    .catalog-banner-control svg { width: 1.2rem; height: 1.2rem; }
-    .catalog-banner-control--previous { left: 1rem; }
-    .catalog-banner-control--next { right: 1rem; }
-    .catalog-banner-dots { position: absolute; bottom: 0.8rem; left: 50%; display: flex; gap: 0.45rem; transform: translateX(-50%); }
-    .catalog-banner-dot { width: 0.48rem; height: 0.48rem; border-radius: 9999px; background: rgb(255 255 255 / 0.62); box-shadow: 0 0.1rem 0.35rem rgb(15 23 42 / 0.28); transition: width 150ms ease, background 150ms ease; }
-    .catalog-banner-dot.is-active { width: 1.25rem; background: white; }
-
     .auth-banner-carousel {
         position: relative;
         height: clamp(9rem, 15vw, 13rem);
@@ -1881,10 +1873,6 @@
     }
 
     @media (max-width: 639px) {
-        .catalog-banner-carousel { height: 12rem; border-radius: 1rem; }
-        .catalog-banner-control { width: 2.1rem; height: 2.1rem; }
-        .catalog-banner-control--previous { left: 0.65rem; }
-        .catalog-banner-control--next { right: 0.65rem; }
         .catalog-hero { min-height: 17.5rem; }
         .catalog-hero-copy { align-self: start; padding: 1.4rem; }
         .catalog-hero-art { top: auto; width: 70%; height: 45%; }

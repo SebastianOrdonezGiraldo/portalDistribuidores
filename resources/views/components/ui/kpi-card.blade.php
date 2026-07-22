@@ -1,4 +1,4 @@
-@props(['label', 'value', 'trend' => null, 'hint' => null, 'href' => null, 'accent' => null])
+@props(['label', 'value', 'trend' => null, 'hint' => null, 'href' => null, 'accent' => null, 'compact' => false])
 
 {{--
 Component contract:
@@ -27,8 +27,11 @@ Component contract:
         }
     }
 
-    $cardBase = 'card overflow-hidden p-5 transition hover:-translate-y-0.5 hover:shadow-soft';
+    $cardBase = 'card overflow-hidden transition hover:-translate-y-0.5 hover:shadow-soft '.($compact ? 'p-4' : 'p-5');
     $linkExtra = $href ? 'block cursor-pointer hover:border-slate-300' : '';
+    $iconSizeClass = $compact ? 'h-9 w-9' : 'h-10 w-10';
+    $labelSpacingClass = $compact ? 'mt-3' : 'mt-4';
+    $valueSizeClass = $compact ? 'text-2xl' : 'text-3xl';
 @endphp
 
 @php
@@ -45,7 +48,7 @@ Component contract:
 @if($href)
     <a href="{{ $href }}" class="{{ $cardBase }} {{ $linkExtra }} group/kpi">
         <div class="flex items-start justify-between gap-2">
-            <div class="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl {{ $iconBgClass }}">
+            <div class="inline-flex {{ $iconSizeClass }} flex-shrink-0 items-center justify-center rounded-xl {{ $iconBgClass }}">
                 @isset($icon)
                     {{ $icon }}
                 @else
@@ -61,8 +64,8 @@ Component contract:
                 </span>
             </div>
         </div>
-        <p class="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $label }}</p>
-        <p class="mt-1 text-3xl font-semibold tabular-nums text-slate-900">{{ $value }}</p>
+        <p class="{{ $labelSpacingClass }} text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $label }}</p>
+        <p class="mt-1 {{ $valueSizeClass }} font-semibold tabular-nums text-slate-900">{{ $value }}</p>
         @if($hint && !$trend)
             <p class="mt-1 text-xs text-slate-500">{{ $hint }}</p>
         @endif
@@ -70,7 +73,7 @@ Component contract:
 @else
     <div class="{{ $cardBase }}">
         <div class="flex items-start justify-between gap-2">
-            <div class="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl {{ $iconBgClass }}">
+            <div class="inline-flex {{ $iconSizeClass }} flex-shrink-0 items-center justify-center rounded-xl {{ $iconBgClass }}">
                 @isset($icon)
                     {{ $icon }}
                 @else
@@ -81,8 +84,8 @@ Component contract:
                 <span class="{{ $trendClass }}">{{ $trend }}</span>
             @endif
         </div>
-        <p class="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $label }}</p>
-        <p class="mt-1 text-3xl font-semibold tabular-nums text-slate-900">{{ $value }}</p>
+        <p class="{{ $labelSpacingClass }} text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $label }}</p>
+        <p class="mt-1 {{ $valueSizeClass }} font-semibold tabular-nums text-slate-900">{{ $value }}</p>
         @if($hint && !$trend)
             <p class="mt-1 text-xs text-slate-500">{{ $hint }}</p>
         @endif

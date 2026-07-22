@@ -117,16 +117,16 @@ class OrderStatusTest extends TestCase
     public static function statusLabelProvider(): array
     {
         return [
-            'draft' => [OrderStatus::Draft, 'Borrador'],
+            'draft' => [OrderStatus::Draft, 'En revisión'],
             'pending_approval' => [OrderStatus::PendingApproval, 'En revisión'],
             'submitted' => [OrderStatus::Submitted, 'Registrado'],
             'sold' => [OrderStatus::Sold, 'Vendido'],
             'dispatched' => [OrderStatus::Dispatched, 'Despachado'],
             'delivered' => [OrderStatus::Delivered, 'Entregado'],
             'cancelled' => [OrderStatus::Cancelled, 'Cancelado'],
-            'sending' => [OrderStatus::Sending, 'En proceso (legado)'],
-            'sent' => [OrderStatus::Sent, 'Completado (legado)'],
-            'failed' => [OrderStatus::Failed, 'Fallido (legado)'],
+            'sending' => [OrderStatus::Sending, 'Procesando'],
+            'sent' => [OrderStatus::Sent, 'Enviado'],
+            'failed' => [OrderStatus::Failed, 'Error'],
             'rejected' => [OrderStatus::Rejected, 'Rechazado'],
         ];
     }
@@ -134,17 +134,17 @@ class OrderStatusTest extends TestCase
     public static function statusBadgeClassProvider(): array
     {
         return [
-            'draft' => [OrderStatus::Draft, 'bg-amber-400'],
-            'pending_approval' => [OrderStatus::PendingApproval, 'bg-violet-400'],
-            'submitted' => [OrderStatus::Submitted, 'bg-emerald-400'],
-            'sold' => [OrderStatus::Sold, 'bg-cyan-500'],
-            'dispatched' => [OrderStatus::Dispatched, 'bg-sky-500'],
-            'delivered' => [OrderStatus::Delivered, 'bg-blue-500'],
-            'cancelled' => [OrderStatus::Cancelled, 'bg-slate-500'],
-            'sending' => [OrderStatus::Sending, 'bg-sky-400'],
-            'sent' => [OrderStatus::Sent, 'bg-blue-400'],
-            'failed' => [OrderStatus::Failed, 'bg-rose-400'],
-            'rejected' => [OrderStatus::Rejected, 'bg-red-500'],
+            'draft' => [OrderStatus::Draft, 'bg-amber-500'],
+            'pending_approval' => [OrderStatus::PendingApproval, 'bg-amber-500'],
+            'submitted' => [OrderStatus::Submitted, 'bg-sky-600'],
+            'sold' => [OrderStatus::Sold, 'bg-sky-600'],
+            'dispatched' => [OrderStatus::Dispatched, 'bg-sky-600'],
+            'delivered' => [OrderStatus::Delivered, 'bg-emerald-600'],
+            'cancelled' => [OrderStatus::Cancelled, 'bg-red-600'],
+            'sending' => [OrderStatus::Sending, 'bg-sky-600'],
+            'sent' => [OrderStatus::Sent, 'bg-sky-600'],
+            'failed' => [OrderStatus::Failed, 'bg-red-600'],
+            'rejected' => [OrderStatus::Rejected, 'bg-red-600'],
         ];
     }
 
@@ -203,11 +203,11 @@ class OrderStatusTest extends TestCase
             'pending_approval' => [OrderStatus::PendingApproval, [OrderStatus::Submitted, OrderStatus::Rejected, OrderStatus::Cancelled]],
             'submitted' => [OrderStatus::Submitted, [OrderStatus::Sold, OrderStatus::Cancelled]],
             'sold' => [OrderStatus::Sold, [OrderStatus::Dispatched, OrderStatus::Cancelled]],
-            'dispatched' => [OrderStatus::Dispatched, [OrderStatus::Delivered, OrderStatus::Cancelled]],
+            'dispatched' => [OrderStatus::Dispatched, [OrderStatus::Sent, OrderStatus::Delivered, OrderStatus::Cancelled]],
             'delivered' => [OrderStatus::Delivered, []],
             'cancelled' => [OrderStatus::Cancelled, []],
             'sending' => [OrderStatus::Sending, []],
-            'sent' => [OrderStatus::Sent, []],
+            'sent' => [OrderStatus::Sent, [OrderStatus::Delivered, OrderStatus::Cancelled]],
             'failed' => [OrderStatus::Failed, []],
             'rejected' => [OrderStatus::Rejected, [OrderStatus::PendingApproval, OrderStatus::Cancelled]],
         ];
@@ -224,7 +224,10 @@ class OrderStatusTest extends TestCase
             'sold to dispatched' => [OrderStatus::Sold, OrderStatus::Dispatched],
             'sold to cancelled' => [OrderStatus::Sold, OrderStatus::Cancelled],
             'dispatched to delivered' => [OrderStatus::Dispatched, OrderStatus::Delivered],
+            'dispatched to sent' => [OrderStatus::Dispatched, OrderStatus::Sent],
             'dispatched to cancelled' => [OrderStatus::Dispatched, OrderStatus::Cancelled],
+            'sent to delivered' => [OrderStatus::Sent, OrderStatus::Delivered],
+            'sent to cancelled' => [OrderStatus::Sent, OrderStatus::Cancelled],
             'rejected to pending approval' => [OrderStatus::Rejected, OrderStatus::PendingApproval],
             'rejected to cancelled' => [OrderStatus::Rejected, OrderStatus::Cancelled],
         ];
