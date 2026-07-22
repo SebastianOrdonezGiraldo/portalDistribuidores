@@ -93,6 +93,7 @@ class DistributorAdminController extends Controller
 
         $distributors = (clone $filteredQuery)
             ->withCount(['user', 'orders'])
+            ->with('user:id,distributor_id,name,email,role,email_verified_at,created_at')
             ->withSum('orders as orders_total_amount', 'total_amount')
             ->withMax('orders as latest_order_at', 'created_at')
             ->when($filters['sort'] === 'newest', fn ($query) => $query->latest())
@@ -234,7 +235,7 @@ class DistributorAdminController extends Controller
         $this->authorize('update', $distributor);
 
         return view('admin.distributors.form', [
-            'distributor' => $distributor->loadCount(['user', 'orders'])->load('tierChangedBy'),
+            'distributor' => $distributor->loadCount(['user', 'orders'])->load(['tierChangedBy', 'user']),
             'statusOptions' => $this->statusLabels(),
             'tierOptions' => $this->tierLabels(),
         ]);

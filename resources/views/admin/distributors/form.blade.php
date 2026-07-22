@@ -5,12 +5,12 @@
     @endphp
 
     <x-slot name="header">
-        <x-ui.page-header :title="$isEdit ? 'Editar distribuidor' : 'Nuevo distribuidor'" subtitle="Configura el estado operativo del cliente y su perfil base en el portal.">
+        <x-ui.page-header :title="$isEdit ? 'Editar empresa distribuidora' : 'Nueva empresa distribuidora'" subtitle="Configura el estado operativo, nivel comercial y perfil base de la empresa en el portal.">
             <x-slot name="meta">
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="stat-pill">Modo: {{ $isEdit ? 'Edición' : 'Creación' }}</span>
                     @if($isEdit)
-                        <span class="stat-pill">Usuario: {{ number_format((int) ($distributor->user_count ?? 0)) }}</span>
+                        <span class="stat-pill">Cuenta: {{ $distributor->user ? 'Vinculada' : 'Sin cuenta' }}</span>
                         <span class="stat-pill">Pedidos: {{ number_format((int) ($distributor->orders_count ?? 0)) }}</span>
                         <x-ui.tier-badge :tier="$distributor->tier" size="sm" />
                     @endif
@@ -77,6 +77,8 @@
                     <x-admin.distributors.tier-change-form :distributor="$distributor" variant="card" selectable />
                     <x-input-error :messages="$errors->get('tier')" class="mt-2" />
                 </x-admin.distributors.tier-card>
+
+                <x-admin.distributors.linked-account-card :distributor="$distributor" />
             @endif
         </div>
 
@@ -98,8 +100,8 @@
                     </div>
                     @if($isEdit)
                         <div class="flex items-center justify-between">
-                            <span class="text-slate-500">Usuario vinculado</span>
-                            <span class="font-medium text-slate-900">{{ ($distributor->user_count ?? 0) ? 'Sí' : 'No' }}</span>
+                            <span class="text-slate-500">Cuenta vinculada</span>
+                            <span class="font-medium text-slate-900">{{ $distributor->user ? 'Sí' : 'No' }}</span>
                         </div>
                         <div class="flex items-center justify-between">
                             <span class="text-slate-500">Pedidos registrados</span>
