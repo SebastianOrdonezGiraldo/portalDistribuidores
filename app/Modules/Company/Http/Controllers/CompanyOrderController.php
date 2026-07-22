@@ -35,10 +35,7 @@ class CompanyOrderController extends Controller
      * @authenticated
      *
      * @queryParam q string Busqueda por OC, empresa o contacto. Example: OC-2026
-     * @queryParam status string Estado exacto del pedido. Example: submitted
-     * @queryParam group string Agrupacion visual: all, active, delivered o negative. Example: active
-     * @queryParam date_from date Fecha inicial de creacion. Example: 2026-07-01
-     * @queryParam date_to date Fecha final de creacion. Example: 2026-07-31
+     * @queryParam status string Estado del pedido. Example: submitted
      *
      * @response 200 {"content":"Vista HTML de pedidos"}
      * @response 403 {"message":"No autorizado"}
@@ -52,43 +49,17 @@ class CompanyOrderController extends Controller
         $user = auth()->user();
 
         $statusOptions = array_map(fn (OrderStatus $s) => $s->value, OrderStatus::cases());
-        $statusGroups = [
-            'all' => OrderStatus::cases(),
-            'active' => [
-                OrderStatus::Draft,
-                OrderStatus::PendingApproval,
-                OrderStatus::Submitted,
-                OrderStatus::Sending,
-                OrderStatus::Sold,
-                OrderStatus::Sent,
-                OrderStatus::Dispatched,
-            ],
-            'delivered' => [OrderStatus::Delivered],
-            'negative' => [OrderStatus::Cancelled, OrderStatus::Rejected, OrderStatus::Failed],
-        ];
 
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:120'],
             'status' => ['nullable', 'string', Rule::in($statusOptions)],
-            'group' => ['nullable', 'string', Rule::in(array_keys($statusGroups))],
-            'date_from' => ['nullable', 'date_format:Y-m-d'],
-            'date_to' => [
-                'nullable',
-                'date_format:Y-m-d',
-                Rule::when($request->filled('date_from'), ['after_or_equal:date_from']),
-            ],
         ]);
 
-        $filters = array_merge([
-            'q' => null,
-            'status' => null,
-            'group' => 'all',
-            'date_from' => null,
-            'date_to' => null,
-        ], $filters);
+        $filters = array_merge(['q' => null, 'status' => null], $filters);
 
-        $scopeQuery = Order::query()
+        $baseQuery = Order::query()
             ->where('distributor_id', $user->distributor_id)
+            ->with('user')
             ->when(! empty($filters['q']), function ($query) use ($filters) {
                 $term = trim((string) $filters['q']);
                 $query->where(function ($sub) use ($term) {
@@ -97,41 +68,20 @@ class CompanyOrderController extends Controller
                         ->orWhere('contact_name', 'like', "%{$term}%");
                 });
             })
-            ->when(! empty($filters['date_from']), fn ($query) => $query->whereDate('created_at', '>=', $filters['date_from']))
-            ->when(! empty($filters['date_to']), fn ($query) => $query->whereDate('created_at', '<=', $filters['date_to']));
-
-        $baseQuery = (clone $scopeQuery)
-            ->when(
-                ! empty($filters['status']),
-                fn ($query) => $query->where('status', $filters['status']),
-                function ($query) use ($filters, $statusGroups): void {
-                    if ($filters['group'] !== 'all') {
-                        $query->whereIn('status', array_map(
-                            fn (OrderStatus $status) => $status->value,
-                            $statusGroups[$filters['group']],
-                        ));
-                    }
-                },
-            );
+            ->when(! empty($filters['status']), fn ($q) => $q->where('status', $filters['status']));
 
         $orders = (clone $baseQuery)
-            ->with(['user', 'statusHistory.actor'])
             ->latest()
             ->paginate(20)
             ->withQueryString();
 
-        $statusCounts = (clone $scopeQuery)
+        $statusCounts = (clone $baseQuery)
             ->selectRaw('status, COUNT(*) as total')
             ->groupBy('status')
             ->pluck('total', 'status');
 
         $statusSummary = collect(OrderStatus::cases())
             ->mapWithKeys(fn (OrderStatus $s) => [$s->value => (int) ($statusCounts[$s->value] ?? 0)]);
-
-        $groupSummary = collect($statusGroups)
-            ->map(fn (array $statuses) => collect($statuses)->sum(
-                fn (OrderStatus $status) => (int) ($statusSummary[$status->value] ?? 0),
-            ));
 
         $metrics = [
             'total' => (clone $baseQuery)->count(),
@@ -143,7 +93,6 @@ class CompanyOrderController extends Controller
             'filters' => $filters,
             'statusOptions' => $statusOptions,
             'statusSummary' => $statusSummary,
-            'groupSummary' => $groupSummary,
             'metrics' => $metrics,
         ]);
     }
