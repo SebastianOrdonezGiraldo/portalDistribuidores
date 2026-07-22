@@ -112,7 +112,22 @@ class CatalogTierExperienceTest extends TestCase
         $response->assertOk();
         $response->assertDontSee('product-detail-price__nudge', false);
         $response->assertDontSee('product-detail-price__hero--gold', false);
-        $response->assertSee('$96.000');
+        // Base DB = Oro 2025 ($96.000); guests see Plata 2026 ($102.000).
+        $response->assertSee('$102.000');
+        $response->assertDontSee('$96.000');
+    }
+
+    public function test_guest_catalog_shows_silver_list_price(): void
+    {
+        $this->seedCatalogProduct();
+
+        $response = $this->get(route('catalog.index'));
+
+        $response->assertOk();
+        $response->assertSee('$102.000');
+        $response->assertDontSee('$96.000');
+        $response->assertDontSee('Precio Oro');
+        $response->assertDontSee('Ahorras', false);
     }
 
     public function test_metrics_service_sums_snapshot_delta_only(): void

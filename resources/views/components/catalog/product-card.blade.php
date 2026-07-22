@@ -66,9 +66,9 @@ Component contract:
         $minEffective = (float) $priced->min(fn ($p) => (float) $p->effectivePriceDecimal());
         $maxEffective = (float) $priced->max(fn ($p) => (float) $p->effectivePriceDecimal());
     } else {
-        // Invitados/admins: precio base de catálogo (comportamiento histórico).
-        $minEffective = $minGold;
-        $maxEffective = $maxGold;
+        // Invitados/admins: precio lista 2026 (Plata), sin descuento Oro.
+        $minEffective = $minSilver;
+        $maxEffective = $maxSilver;
         $mode = 'single';
     }
 
@@ -260,15 +260,16 @@ Component contract:
 
                             <button
                                 type="submit"
-                                class="inline-flex h-10 min-h-[2.5rem] items-center justify-center gap-1.5 rounded-lg border border-brand-primary bg-brand-primary px-3 text-xs font-semibold text-white transition hover:bg-brand-hover focus-ring sm:w-10 sm:px-0"
+                                data-cart-compact="true"
+                                class="cart-add-btn inline-flex h-10 min-h-[2.5rem] shrink-0 items-center justify-center gap-1.5 rounded-lg border border-brand-primary bg-brand-primary px-3 text-xs font-semibold text-white transition hover:bg-brand-hover focus-ring sm:w-10 sm:px-0"
                                 aria-label="Agregar {{ $product->name }} al carrito"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                     <circle cx="10" cy="20.5" r="1.25"></circle>
                                     <circle cx="17.5" cy="20.5" r="1.25"></circle>
                                     <path d="M3 3h2l2.3 10.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 7H7.2"></path>
                                 </svg>
-                                <span class="sm:hidden">Agregar</span>
+                                <span class="sm:hidden" data-cart-btn-label>Agregar</span>
                             </button>
                         </div>
                     </form>

@@ -1236,40 +1236,64 @@ document.addEventListener('DOMContentLoaded', () => {
 
         form.dataset.ajaxCart = 'true';
 
-        const isIconButton = submitButton.textContent.trim() === '';
+        // Compact card CTAs hide the label with sm:hidden; textContent still sees it.
+        const isCompactButton = submitButton.dataset.cartCompact === 'true'
+            || submitButton.classList.contains('sm:w-10');
+        const isIconButton = !isCompactButton && submitButton.textContent.trim() === '';
         const originalHtml = submitButton.innerHTML;
         const loadingLabel = submitButton.dataset.loadingLabel || 'Agregando...';
 
+        const setFeedbackLayout = (withLabel) => {
+            form.classList.add('is-cart-feedback');
+            if (withLabel) {
+                submitButton.classList.add('cart-add-btn', 'cart-add-btn--feedback');
+            } else {
+                submitButton.classList.remove('cart-add-btn--feedback');
+            }
+        };
+
+        const clearFeedbackLayout = () => {
+            form.classList.remove('is-cart-feedback');
+            submitButton.classList.remove('cart-add-btn--feedback');
+        };
+
         const setLoading = () => {
             submitButton.disabled = true;
-            submitButton.style.transition = 'background-color 150ms ease, border-color 150ms ease';
+            submitButton.style.transition = 'background-color 150ms ease, border-color 150ms ease, width 150ms ease, padding 150ms ease';
             if (isIconButton) {
+                setFeedbackLayout(false);
                 submitButton.innerHTML = makeSpinnerSvg();
             } else {
-                submitButton.innerHTML = `${makeSpinnerSvg('shrink-0')} ${loadingLabel}`;
+                setFeedbackLayout(true);
+                submitButton.innerHTML = `${makeSpinnerSvg('shrink-0')} <span>${loadingLabel}</span>`;
             }
         };
 
         const setSuccess = () => {
             if (isIconButton) {
+                setFeedbackLayout(false);
                 submitButton.innerHTML = makeCheckSvg();
             } else {
-                submitButton.innerHTML = `${makeCheckSvg()} Agregado`;
+                setFeedbackLayout(true);
+                submitButton.innerHTML = `${makeCheckSvg()} <span>Agregado</span>`;
             }
             submitButton.classList.add('!bg-emerald-500', '!border-emerald-500');
         };
 
         const setError = () => {
             if (isIconButton) {
+                setFeedbackLayout(false);
                 submitButton.innerHTML = makeCrossSvg();
             } else {
-                submitButton.innerHTML = `${makeCrossSvg()} Ups`;
+                setFeedbackLayout(true);
+                submitButton.innerHTML = `${makeCrossSvg()} <span>Ups</span>`;
             }
             submitButton.classList.add('!bg-red-500', '!border-red-500');
             shakeCartButton(submitButton);
         };
 
         const resetButton = () => {
+            clearFeedbackLayout();
             submitButton.innerHTML = originalHtml;
             submitButton.classList.remove(
                 '!bg-emerald-500', '!border-emerald-500',
