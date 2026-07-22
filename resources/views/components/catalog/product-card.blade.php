@@ -89,14 +89,18 @@ Component contract:
     $metaLine = collect([$categoryName, $product->brand])->filter()->implode(' · ');
 @endphp
 
-<article class="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-panel">
+<article @class([
+    'group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border bg-white shadow-soft transition hover:-translate-y-0.5 hover:shadow-panel',
+    'border-amber-200/90 hover:border-amber-300' => $showDual,
+    'border-slate-200 hover:border-slate-300' => ! $showDual,
+])>
     <div class="relative flex aspect-square items-center justify-center overflow-hidden bg-slate-100 p-2 sm:p-3">
         @if($showDual)
             <div class="absolute left-2.5 top-2.5 z-10 flex flex-wrap gap-1">
                 <span @class([
-                    'inline-flex items-center rounded-full px-2 py-0.5 text-[0.65rem] font-semibold',
-                    'bg-amber-100 text-amber-900' => ! $isLocked,
-                    'bg-slate-200 text-slate-700' => $isLocked,
+                    'inline-flex items-center rounded-full border px-2 py-0.5 text-[0.7rem] font-semibold shadow-sm',
+                    'border-amber-300 bg-amber-100 text-amber-950' => ! $isLocked,
+                    'border-amber-300/80 bg-amber-50 text-amber-900' => $isLocked,
                 ])>
                     @if($isLocked)
                         <svg xmlns="http://www.w3.org/2000/svg" class="mr-1 h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
@@ -187,11 +191,11 @@ Component contract:
                                 </p>
                             </div>
                             <div class="min-w-0 text-right">
-                                <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">{{ $tierPriceLabel }}</p>
+                                <p class="text-[0.65rem] font-semibold uppercase tracking-wide text-amber-800/80">{{ $tierPriceLabel }}</p>
                                 <p @class([
-                                    'rounded-md px-1.5 py-0.5 text-sm font-semibold tabular-nums tracking-tight sm:text-base',
-                                    'bg-amber-50 text-amber-950' => ! $isLocked,
-                                    'bg-slate-100 text-slate-500' => $isLocked,
+                                    'rounded-md border px-1.5 py-0.5 text-sm font-semibold tabular-nums tracking-tight sm:text-base',
+                                    'border-amber-200 bg-amber-50 text-amber-950' => ! $isLocked,
+                                    'border-amber-200/70 bg-amber-50/80 text-amber-900' => $isLocked,
                                 ])>
                                     @if($isRangePrice && $minGold !== $maxGold)
                                         {{ $formatMoney($minGold) }} – {{ $formatMoney($maxGold) }}
@@ -203,9 +207,9 @@ Component contract:
                         </div>
                         @if($displaySavings > 0)
                             <p @class([
-                                'rounded-md px-2 py-1 text-center text-[0.7rem] font-semibold',
-                                'bg-emerald-50 text-emerald-800' => ! $isLocked,
-                                'bg-slate-100 text-slate-600' => $isLocked,
+                                'rounded-md border px-2 py-1 text-center text-[0.7rem] font-semibold',
+                                'border-emerald-200 bg-emerald-50 text-emerald-800' => ! $isLocked,
+                                'border-amber-200 bg-amber-50 text-amber-900' => $isLocked,
                             ])>
                                 {{ $savingsText }}
                             </p>

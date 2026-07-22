@@ -56,14 +56,14 @@ class CatalogTierExperienceTest extends TestCase
         $response = $this->actingAs($user)->get(route('catalog.index'));
 
         $response->assertOk();
-        $response->assertSee('Eres Cliente Plata');
-        $response->assertSee('Ahorro que pudiste haber tenido');
-        $response->assertSee('Descuento Oro disponible');
+        $response->assertSee('Ahorro potencial este mes');
+        $response->assertSee('Descuento Oro');
         $response->assertSee('Ver precios Oro');
         $response->assertSee('Sube a Nivel Oro');
         $response->assertSee('tier-upgrade', false);
         $response->assertSee('Ahorrarías', false);
         $response->assertSee('Nivel Plata');
+        $response->assertSee('images/tiers/banner-plata.jpg', false);
     }
 
     public function test_metrics_service_sums_snapshot_delta_only(): void

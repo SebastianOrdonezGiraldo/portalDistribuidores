@@ -44,9 +44,12 @@ Component contract:
         (string) ($discountCfg['value_template'] ?? ':percent%')
     );
 
+    $ordersSuffix = $metrics->ordersCount === 1
+        ? ($ordersCfg['value_suffix_one'] ?? 'pedido este mes')
+        : ($ordersCfg['value_suffix'] ?? 'pedidos este mes');
     $ordersValue = $metrics->ordersCount > 0
-        ? number_format($metrics->ordersCount).' '.($ordersCfg['value_suffix'] ?? 'pedidos')
-        : ($ordersCfg['empty_hint'] ?? 'Sin pedidos');
+        ? number_format($metrics->ordersCount).' '.$ordersSuffix
+        : ($ordersCfg['empty_hint'] ?? 'Aún no tienes pedidos este mes');
 
     $benefitsValue = number_format($metrics->benefitsCount).' '.($benefitsCfg['value_suffix'] ?? 'beneficios');
     $benefitsCta = $benefitsCfg['cta_label'] ?? null;
@@ -107,7 +110,7 @@ Component contract:
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 12v8H4v-8"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H8.5a2.5 2.5 0 1 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h3.5a2.5 2.5 0 1 0 0-5C13 2 12 7 12 7z"/></svg>
                 </div>
             </div>
-            <p class="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $benefitsCfg['label'] ?? 'Beneficios de tu nivel' }}</p>
+            <p class="mt-3 text-xs font-semibold uppercase tracking-wide text-amber-800/80">{{ $benefitsCfg['label'] ?? 'Con Nivel Oro obtienes' }}</p>
             <p class="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{{ $benefitsValue }}</p>
             <p class="mt-1 text-xs font-semibold text-brand-dark">{{ $benefitsCta }} →</p>
         </button>
