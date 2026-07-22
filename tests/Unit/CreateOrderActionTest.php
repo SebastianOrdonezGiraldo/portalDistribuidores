@@ -331,10 +331,10 @@ class CreateOrderActionTest extends TestCase
             'order_id' => $order->id,
             'price_each' => 100000,
             'base_unit_price' => 100000,
-            'silver_unit_price' => 106000,
-            'unit_savings' => 6000,
+            'silver_unit_price' => 105000,
+            'unit_savings' => 5000,
             'subtotal' => 100000,
-            'line_savings' => 6000,
+            'line_savings' => 5000,
         ]);
     }
 
@@ -356,14 +356,14 @@ class CreateOrderActionTest extends TestCase
         ]));
 
         $this->assertSame(DistributorTier::Silver, $order->distributor_tier_snapshot);
-        $this->assertSame('212000.00', $order->total_amount);
+        $this->assertSame('210000.00', $order->total_amount);
         $this->assertDatabaseHas('order_items', [
             'order_id' => $order->id,
-            'price_each' => 106000,
+            'price_each' => 105000,
             'base_unit_price' => 100000,
-            'silver_unit_price' => 106000,
+            'silver_unit_price' => 105000,
             'unit_savings' => 0,
-            'subtotal' => 212000,
+            'subtotal' => 210000,
             'line_savings' => 0,
         ]);
     }
@@ -397,7 +397,7 @@ class CreateOrderActionTest extends TestCase
         $this->assertSame(DistributorTier::Gold, $order->distributor_tier_snapshot);
         $this->assertSame('100000.00', $item->price_each);
         $this->assertSame('100000.00', $item->base_unit_price);
-        $this->assertSame('106000.00', $item->silver_unit_price);
+        $this->assertSame('105000.00', $item->silver_unit_price);
         $this->assertSame('100000.00', $order->total_amount);
     }
 
@@ -408,7 +408,7 @@ class CreateOrderActionTest extends TestCase
         return new CreateOrderAction(
             $statusService,
             $inventoryService,
-            new DistributorPriceCalculator(goldDiscountPercent: 5, silverRoundingMultiple: 1000),
+            new DistributorPriceCalculator(silverMarkupPercent: 5, silverRoundingMultiple: 1000),
             new DistributorTierResolver,
         );
     }

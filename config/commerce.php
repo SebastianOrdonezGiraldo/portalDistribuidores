@@ -14,8 +14,8 @@ return [
     |
     */
     'tiers' => [
-        // Oro tiene un descuento del 5% respecto al precio Plata.
-        'gold_discount_percent' => 5,
+        // El precio Plata es el precio base (Oro) incrementado en este porcentaje.
+        'silver_markup_percent' => 5,
 
         // El precio Plata se redondea hacia arriba al siguiente múltiplo de este
         // valor (en pesos). Un múltiplo exacto no se incrementa.

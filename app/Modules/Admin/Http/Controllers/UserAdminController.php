@@ -81,6 +81,7 @@ class UserAdminController extends Controller
             ->when($filters['distributor_link'] === 'unlinked', fn ($query) => $query->whereNull('distributor_id'));
 
         $users = (clone $filteredQuery)
+            ->withCount('orders')
             ->when($filters['sort'] === 'newest', fn ($query) => $query->latest())
             ->when($filters['sort'] === 'oldest', fn ($query) => $query->oldest())
             ->when($filters['sort'] === 'name_asc', fn ($query) => $query->orderBy('name'))
@@ -95,6 +96,7 @@ class UserAdminController extends Controller
             'admin_users' => (clone $filteredQuery)->where('role', UserRole::Admin->value)->count(),
             'distributor_users' => (clone $filteredQuery)->where('role', UserRole::Distributor->value)->count(),
             'linked_distributor' => (clone $filteredQuery)->whereNotNull('distributor_id')->count(),
+            'unlinked_accounts' => (clone $filteredQuery)->whereNull('distributor_id')->count(),
             'verified_users' => (clone $filteredQuery)->whereNotNull('email_verified_at')->count(),
         ];
 
