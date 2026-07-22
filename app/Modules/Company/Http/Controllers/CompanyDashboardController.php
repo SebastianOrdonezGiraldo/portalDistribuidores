@@ -121,9 +121,8 @@ class CompanyDashboardController extends Controller
         })->values();
 
         $recentOrders = (clone $baseQuery)
-            ->with('user')
             ->latest()
-            ->take(8)
+            ->take(5)
             ->get();
 
         $latestOrderWithPdf = (clone $baseQuery)

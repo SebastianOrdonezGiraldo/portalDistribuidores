@@ -141,7 +141,7 @@ View contract:
                 <div class="mt-2 space-y-0.5">
                     <x-ui.sidebar-link :href="route('admin.catalog-banners.index')" :active="request()->routeIs('admin.catalog-banners.*')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.4"/><path d="m5 17 4.5-4.5 3.2 3.2 2.3-2.3L19 17"/></svg>
-                        Banners
+                        Banners de login
                     </x-ui.sidebar-link>
                 </div>
 

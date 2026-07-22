@@ -1558,46 +1558,6 @@
         @apply space-y-4;
     }
 
-    .catalog-banner-carousel {
-        position: relative;
-        height: clamp(11rem, 22vw, 20rem);
-        overflow: hidden;
-        border: 1px solid rgb(186 230 236 / 0.9);
-        border-radius: 1.35rem;
-        background: rgb(241 245 249);
-        box-shadow: 0 0.6rem 1.5rem rgb(15 23 42 / 0.06);
-    }
-
-    .catalog-banner-slide {
-        position: absolute;
-        inset: 0;
-        margin: 0;
-    }
-
-    .catalog-banner-control {
-        position: absolute;
-        top: 50%;
-        display: inline-flex;
-        width: 2.5rem;
-        height: 2.5rem;
-        align-items: center;
-        justify-content: center;
-        border-radius: 9999px;
-        background: rgb(255 255 255 / 0.88);
-        color: rgb(15 23 42);
-        box-shadow: 0 0.35rem 1rem rgb(15 23 42 / 0.16);
-        transform: translateY(-50%);
-        transition: background 150ms ease, transform 150ms ease;
-    }
-
-    .catalog-banner-control:hover { background: white; transform: translateY(-50%) scale(1.06); }
-    .catalog-banner-control svg { width: 1.2rem; height: 1.2rem; }
-    .catalog-banner-control--previous { left: 1rem; }
-    .catalog-banner-control--next { right: 1rem; }
-    .catalog-banner-dots { position: absolute; bottom: 0.8rem; left: 50%; display: flex; gap: 0.45rem; transform: translateX(-50%); }
-    .catalog-banner-dot { width: 0.48rem; height: 0.48rem; border-radius: 9999px; background: rgb(255 255 255 / 0.62); box-shadow: 0 0.1rem 0.35rem rgb(15 23 42 / 0.28); transition: width 150ms ease, background 150ms ease; }
-    .catalog-banner-dot.is-active { width: 1.25rem; background: white; }
-
     .auth-banner-carousel {
         position: relative;
         height: clamp(9rem, 15vw, 13rem);
@@ -1881,10 +1841,6 @@
     }
 
     @media (max-width: 639px) {
-        .catalog-banner-carousel { height: 12rem; border-radius: 1rem; }
-        .catalog-banner-control { width: 2.1rem; height: 2.1rem; }
-        .catalog-banner-control--previous { left: 0.65rem; }
-        .catalog-banner-control--next { right: 0.65rem; }
         .catalog-hero { min-height: 17.5rem; }
         .catalog-hero-copy { align-self: start; padding: 1.4rem; }
         .catalog-hero-art { top: auto; width: 70%; height: 45%; }

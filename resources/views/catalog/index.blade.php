@@ -366,55 +366,6 @@ View contract:
     </x-slot>
 
     <section class="catalog-page" x-data="{ filtersOpen: false }" @catalog-filters.window="filtersOpen = true">
-        @if($banners->isNotEmpty())
-            @php
-                $bannerCount = $banners->count();
-            @endphp
-            <section
-                class="catalog-banner-carousel"
-                aria-label="Banners destacados del catálogo"
-                @if($bannerCount > 1)
-                    x-data="{ active: 0, total: {{ $bannerCount }}, next() { this.active = (this.active + 1) % this.total }, previous() { this.active = (this.active - 1 + this.total) % this.total } }"
-                    x-init="setInterval(() => next(), 5500)"
-                @endif
-            >
-                @foreach($banners as $banner)
-                    <figure
-                        class="catalog-banner-slide"
-                        @if($bannerCount > 1)
-                            x-show="active === {{ $loop->index }}"
-                            x-transition:enter="transition ease-out duration-500"
-                            x-transition:enter-start="opacity-0"
-                            x-transition:enter-end="opacity-100"
-                        @endif
-                    >
-                        <img
-                            src="{{ \App\Modules\Shared\Support\PublicMediaUrl::fromPublicDisk($banner->path) }}"
-                            alt="{{ $banner->title }}"
-                            title="{{ $banner->title }}"
-                            class="h-full w-full object-cover"
-                            loading="{{ $loop->first ? 'eager' : 'lazy' }}"
-                            fetchpriority="{{ $loop->first ? 'high' : 'auto' }}"
-                        >
-                    </figure>
-                @endforeach
-
-                @if($bannerCount > 1)
-                    <button type="button" class="catalog-banner-control catalog-banner-control--previous" @click="previous()" aria-label="Banner anterior">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
-                    </button>
-                    <button type="button" class="catalog-banner-control catalog-banner-control--next" @click="next()" aria-label="Banner siguiente">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
-                    </button>
-                    <div class="catalog-banner-dots" role="tablist" aria-label="Seleccionar banner">
-                        @foreach($banners as $banner)
-                            <button type="button" class="catalog-banner-dot" @click="active = {{ $loop->index }}" x-bind:class="active === {{ $loop->index }} ? 'is-active' : ''" aria-label="Ver banner {{ $loop->iteration }}"></button>
-                        @endforeach
-                    </div>
-                @endif
-            </section>
-        @endif
-
         <div class="catalog-trust-strip" aria-label="Beneficios del portal">
             <div><span class="catalog-trust-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h12v11H3z"/><path d="M15 10h3l3 3v4h-6z"/><circle cx="7" cy="19" r="1.6"/><circle cx="18" cy="19" r="1.6"/><path d="M3 10h12"/></svg></span><span><strong>Compra mayorista</strong><small>Precios para distribuidores</small></span></div>
             <div><span class="catalog-trust-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4z"/><path d="M8 12h8M12 8l4 4-4 4"/></svg></span><span><strong>Envíos nacionales</strong><small>Entrega a todo el país</small></span></div>
