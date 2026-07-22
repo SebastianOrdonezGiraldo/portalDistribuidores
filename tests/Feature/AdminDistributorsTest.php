@@ -114,10 +114,10 @@ class AdminDistributorsTest extends TestCase
         $response->assertSee('CTC-RECENT-005');
         $response->assertSee('CTC-RECENT-004');
         $response->assertDontSee('CTC-OTHER-001');
-        $response->assertSee('Ver detalle');
-        $response->assertSee('Descargar PDF');
+        $response->assertSee('Contexto comercial');
+        $response->assertSee('Actividad reciente');
+        $response->assertSee('Último pedido');
         $response->assertSee('Monto acumulado');
-        $response->assertSee('Ultimo pedido');
 
         $response->assertViewHas('distributors', function ($distributors) use ($target, $latestOrder) {
             $distributor = $distributors->getCollection()->firstWhere('id', $target->id);
@@ -145,7 +145,7 @@ class AdminDistributorsTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Sin pedidos recientes');
-        $response->assertSee('Este distribuidor todavia no registra pedidos en el portal.');
+        $response->assertSee('Esta empresa todavía no registra pedidos en el portal.');
     }
 
     public function test_admin_cannot_delete_distributor_with_users(): void
