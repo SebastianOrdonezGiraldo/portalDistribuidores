@@ -119,14 +119,34 @@ class UserAdminController extends Controller
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
         $this->authorize('create', User::class);
+
+        $preselectedRole = in_array(
+            $request->query('role'),
+            array_column(UserRole::cases(), 'value'),
+            true
+        )
+            ? $request->query('role')
+            : null;
+
+        $preselectedDistributorId = null;
+
+        if ($preselectedRole === UserRole::Distributor->value) {
+            $preselectedDistributorId = Distributor::query()
+                ->whereKey($request->integer('distributor_id'))
+                ->exists()
+                    ? $request->integer('distributor_id')
+                    : null;
+        }
 
         return view('admin.users.form', [
             'user' => new User,
             'distributors' => Distributor::query()->where('status', 'active')->orderBy('name')->get(),
             'roles' => UserRole::cases(),
+            'preselectedRole' => $preselectedRole,
+            'preselectedDistributorId' => $preselectedDistributorId,
         ]);
     }
 
@@ -175,6 +195,8 @@ class UserAdminController extends Controller
                 ->orderBy('name')
                 ->get(),
             'roles' => UserRole::cases(),
+            'preselectedRole' => null,
+            'preselectedDistributorId' => null,
         ]);
     }
 
@@ -192,7 +214,6 @@ class UserAdminController extends Controller
      * @bodyParam password string Nueva contrasena opcional. Example: secret123
      * @bodyParam role string required Rol. Example: distributor
      * @bodyParam distributor_id integer ID requerido si rol es distributor. Example: 7
-     * @bodyParam distributor_status string Estado del distribuidor asociado. Example: active
      *
      * @response 302 {"redirect":"admin.users.index|admin.users.edit|admin.users.create"}
      * @response 403 {"message":"No autorizado"}
@@ -215,14 +236,7 @@ class UserAdminController extends Controller
             unset($payload['password']);
         }
 
-        $distributorStatus = $payload['distributor_status'] ?? null;
-        unset($payload['distributor_status']);
-
         $user->update($payload);
-
-        if ($distributorStatus !== null && $user->distributor !== null) {
-            $user->distributor->update(['status' => $distributorStatus]);
-        }
 
         return $this->redirectAfterSave($request, $user, false);
     }

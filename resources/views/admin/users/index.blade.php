@@ -1,26 +1,26 @@
 <x-app-layout>
     <x-slot name="header">
-        <x-ui.page-header title="Usuarios" subtitle="Administración de accesos internos y cuentas de distribuidores.">
+        <x-ui.page-header title="Cuentas de acceso" subtitle="Las cuentas de acceso permiten que administradores y distribuidores ingresen al portal.">
             <x-slot name="meta">
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="stat-pill">Resultados: {{ number_format($metrics['total_users']) }}</span>
                     <span class="stat-pill">Admins: {{ number_format($metrics['admin_users']) }}</span>
                     <span class="stat-pill">Distribuidores: {{ number_format($metrics['distributor_users']) }}</span>
-                    <span class="stat-pill">Con distribuidor: {{ number_format($metrics['linked_distributor']) }}</span>
+                    <span class="stat-pill">Con empresa: {{ number_format($metrics['linked_distributor']) }}</span>
                     <span class="stat-pill">Filtros activos: {{ $activeFiltersCount }}</span>
                 </div>
             </x-slot>
             <x-slot name="actions">
-                <a href="{{ route('admin.users.create') }}" class="btn btn-primary w-full justify-center sm:w-auto">Nuevo usuario</a>
+                <a href="{{ route('admin.users.create') }}" class="btn btn-primary w-full justify-center sm:w-auto">Nueva cuenta de acceso</a>
             </x-slot>
         </x-ui.page-header>
     </x-slot>
 
     <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <x-ui.kpi-card label="Usuarios Filtrados" :value="number_format($metrics['total_users'])" hint="Resultado actual del listado" />
+        <x-ui.kpi-card label="Cuentas filtradas" :value="number_format($metrics['total_users'])" hint="Resultado actual del listado" />
         <x-ui.kpi-card label="Administradores" :value="number_format($metrics['admin_users'])" hint="Acceso total al panel" />
-        <x-ui.kpi-card label="Distribuidores" :value="number_format($metrics['distributor_users'])" hint="Usuarios del canal comercial" />
-        <x-ui.kpi-card label="Con Distribuidor" :value="number_format($metrics['linked_distributor'])" hint="Cuenta vinculada a cliente" />
+        <x-ui.kpi-card label="Distribuidores" :value="number_format($metrics['distributor_users'])" hint="Cuentas del canal comercial" />
+        <x-ui.kpi-card label="Con empresa" :value="number_format($metrics['linked_distributor'])" hint="Vinculadas a una empresa" />
         <x-ui.kpi-card label="Correo verificado" :value="number_format($metrics['verified_users'])" hint="Con verificación completada" />
     </section>
 
@@ -32,7 +32,7 @@
         <div class="flex flex-wrap items-center gap-2">
             <a href="{{ route('admin.users.index', $baseQuickFilters) }}"
                class="btn {{ empty($filters['role']) && empty($filters['distributor_link']) ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
-                Todos <span class="ml-1 text-xs opacity-80">{{ number_format($metrics['total_users']) }}</span>
+                Todas <span class="ml-1 text-xs opacity-80">{{ number_format($metrics['total_users']) }}</span>
             </a>
             <a href="{{ route('admin.users.index', array_merge($baseQuickFilters, ['role' => 'admin'])) }}"
                class="btn {{ $filters['role'] === 'admin' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
@@ -44,11 +44,11 @@
             </a>
             <a href="{{ route('admin.users.index', array_merge($baseQuickFilters, ['distributor_link' => 'linked'])) }}"
                class="btn {{ $filters['distributor_link'] === 'linked' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
-                Con distribuidor
+                Con empresa
             </a>
             <a href="{{ route('admin.users.index', array_merge($baseQuickFilters, ['distributor_link' => 'unlinked'])) }}"
                class="btn {{ $filters['distributor_link'] === 'unlinked' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
-                Sin distribuidor
+                Sin empresa
             </a>
         </div>
     </x-ui.card>
@@ -70,19 +70,19 @@
         </div>
 
         <div>
-            <label class="form-label" for="users-distributor-link">Distribuidor vinculado</label>
+            <label class="form-label" for="users-distributor-link">Empresa vinculada</label>
             <x-ui.select id="users-distributor-link" name="distributor_link">
-                <option value="">Todos</option>
+                <option value="">Todas</option>
                 @foreach($distributorLinkOptions as $option)
-                    <option value="{{ $option }}" @selected($filters['distributor_link'] === $option)>{{ $option === 'linked' ? 'Con distribuidor' : 'Sin distribuidor' }}</option>
+                    <option value="{{ $option }}" @selected($filters['distributor_link'] === $option)>{{ $option === 'linked' ? 'Con empresa' : 'Sin empresa' }}</option>
                 @endforeach
             </x-ui.select>
         </div>
 
         <div>
-            <label class="form-label" for="users-distributor-id">Distribuidor</label>
+            <label class="form-label" for="users-distributor-id">Empresa distribuidora</label>
             <x-ui.select id="users-distributor-id" name="distributor_id">
-                <option value="">Todos</option>
+                <option value="">Todas</option>
                 @foreach($distributors as $distributor)
                     <option value="{{ $distributor->id }}" @selected((string) $filters['distributor_id'] === (string) $distributor->id)>{{ $distributor->name }}</option>
                 @endforeach
@@ -118,7 +118,7 @@
         <div class="xl:col-span-6 flex flex-col gap-3 border-t border-slate-200 pt-3 sm:flex-row sm:items-center sm:justify-between">
             <div class="w-full text-xs text-slate-500">
                 Mostrando <strong class="text-slate-700">{{ $users->firstItem() ?? 0 }}-{{ $users->lastItem() ?? 0 }}</strong>
-                de <strong class="text-slate-700">{{ number_format($users->total()) }}</strong> usuarios
+                de <strong class="text-slate-700">{{ number_format($users->total()) }}</strong> cuentas
             </div>
             <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                 <x-ui.button type="submit" variant="primary" class="w-full justify-center sm:w-auto">Aplicar</x-ui.button>
@@ -129,18 +129,18 @@
 
     <section class="mt-4">
         @if($users->isEmpty())
-            <x-ui.empty-state title="No se encontraron usuarios" description="Ajusta filtros o crea un usuario nuevo para continuar.">
+            <x-ui.empty-state title="No se encontraron cuentas de acceso" description="Ajusta filtros o crea una cuenta nueva para continuar.">
                 <x-slot name="action">
-                    <a href="{{ route('admin.users.create') }}" class="btn btn-primary">Crear usuario</a>
+                    <a href="{{ route('admin.users.create') }}" class="btn btn-primary">Nueva cuenta de acceso</a>
                 </x-slot>
             </x-ui.empty-state>
         @else
             <x-ui.table>
                 <thead>
                     <tr>
-                        <th>Usuario</th>
+                        <th>Cuenta</th>
                         <th>Rol</th>
-                        <th>Distribuidor</th>
+                        <th>Empresa vinculada</th>
                         <th>Verificación</th>
                         <th>Creación</th>
                         <th class="text-right">Acciones</th>
@@ -149,22 +149,22 @@
                 <tbody>
                     @foreach($users as $user)
                         <tr>
-                            <td data-label="Usuario" data-full="true">
+                            <td data-label="Cuenta" data-full="true">
                                 <p class="font-medium text-slate-900">{{ $user->name }}</p>
                                 <p class="text-xs text-slate-500">{{ $user->email }}</p>
                             </td>
                             <td data-label="Rol">
-                                <x-ui.badge :variant="$user->role->value === 'admin' ? 'brand' : 'info'">
-                                    {{ $user->role->value === 'admin' ? 'Administrador' : 'Distribuidor' }}
-                                </x-ui.badge>
+                                <x-admin.role-badge :role="$user->role" />
                             </td>
-                            <td data-label="Distribuidor">{{ $user->distributor?->name ?? '—' }}</td>
-                            <td data-label="Verificación">
-                                @if($user->email_verified_at)
-                                    <x-ui.badge variant="success">Verificado</x-ui.badge>
+                            <td data-label="Empresa vinculada">
+                                @if($user->role->value === 'admin')
+                                    <span class="text-sm text-slate-500">Sin empresa</span>
                                 @else
-                                    <x-ui.badge variant="warning">Pendiente</x-ui.badge>
+                                    {{ $user->distributor?->name ?? '—' }}
                                 @endif
+                            </td>
+                            <td data-label="Verificación">
+                                <x-admin.verification-badge :verified-at="$user->email_verified_at" />
                             </td>
                             <td data-label="Creación">
                                 <p>{{ $user->created_at?->format('d/m/Y H:i') }}</p>
