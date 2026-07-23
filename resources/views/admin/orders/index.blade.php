@@ -13,6 +13,7 @@ View contract:
                     <span class="stat-pill">Pedidos filtrados: {{ number_format($metrics['total_orders']) }}</span>
                     <span class="stat-pill">Monto filtrado: ${{ number_format($metrics['total_amount'], 0, ',', '.') }}</span>
                     <span class="stat-pill">Pendientes PDF: {{ number_format($metrics['pending_pdf']) }}</span>
+                    <span class="stat-pill">Confirmando pago: {{ number_format($metrics['payment_confirming'] ?? 0) }}</span>
                     <span class="stat-pill">Filtros activos: {{ $activeFiltersCount }}</span>
                 </div>
             </x-slot>
@@ -76,6 +77,11 @@ View contract:
                     <span class="ml-1 text-xs opacity-80">{{ number_format($statusSummary[$status] ?? 0) }}</span>
                 </a>
             @endforeach
+            <a href="{{ route('admin.orders.index', array_merge(request()->except(['page']), ['payment_status' => 'confirming'])) }}"
+               class="btn {{ ($filters['payment_status'] ?? null) === 'confirming' ? 'btn-primary' : 'btn-secondary' }} !px-3 !py-1.5 text-xs">
+                Confirmando pago
+                <span class="ml-1 text-xs opacity-80">{{ number_format($metrics['payment_confirming'] ?? 0) }}</span>
+            </a>
         </div>
     </x-ui.card>
 

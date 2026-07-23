@@ -2139,4 +2139,123 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
+
+    // Magic-link QR canvases for payment receipt upload.
+    document.querySelectorAll('canvas[data-qr-url]').forEach(async (canvas) => {
+        const url = canvas.getAttribute('data-qr-url');
+        if (!url) {
+            return;
+        }
+
+        try {
+            const QRCode = (await import('qrcode')).default;
+            await QRCode.toCanvas(canvas, url, {
+                width: 160,
+                margin: 1,
+                color: { dark: '#0f172a', light: '#ffffff' },
+            });
+        } catch (error) {
+            canvas.replaceWith(Object.assign(document.createElement('p'), {
+                className: 'text-xs text-slate-500',
+                textContent: 'No se pudo generar el QR. Usa el enlace de texto.',
+            }));
+        }
+    });
+
+    // Poll payment status while waiting for cross-device receipt upload.
+    document.querySelectorAll('[data-payment-panel]').forEach((panel) => {
+        const statusUrl = panel.getAttribute('data-payment-status-url');
+        let currentStatus = panel.getAttribute('data-payment-status') || '';
+        const expiresAtRaw = panel.getAttribute('data-payment-expires-at');
+        const expiresAt = expiresAtRaw ? Date.parse(expiresAtRaw) : null;
+        const badge = panel.querySelector('[data-payment-status-badge]');
+        const message = panel.querySelector('[data-payment-status-message]');
+        const pollable = ['pending_upload', 'rejected'];
+
+        if (!statusUrl || !pollable.includes(currentStatus)) {
+            return;
+        }
+
+        let failures = 0;
+        let timer = null;
+        const intervalMs = 8000;
+        const maxFailures = 5;
+
+        const stop = () => {
+            if (timer) {
+                window.clearInterval(timer);
+                timer = null;
+            }
+        };
+
+        const shouldStopForTtl = () => {
+            if (!expiresAt || Number.isNaN(expiresAt)) {
+                return false;
+            }
+
+            // Stop a bit after reservation TTL (+2 min margin).
+            return Date.now() > (expiresAt + 120000);
+        };
+
+        const applyStatus = (payload) => {
+            currentStatus = payload.payment_status || currentStatus;
+            panel.setAttribute('data-payment-status', currentStatus);
+
+            if (badge && payload.payment_status_label) {
+                badge.textContent = payload.payment_status_label;
+            }
+
+            if (message && payload.payment_status === 'confirming') {
+                message.textContent = 'Comprobante recibido. Estamos confirmando tu pago.';
+            }
+
+            if (!pollable.includes(currentStatus)) {
+                stop();
+                if (payload.payment_status === 'confirming') {
+                    window.location.reload();
+                }
+            }
+        };
+
+        const tick = async () => {
+            if (document.visibilityState === 'hidden') {
+                return;
+            }
+
+            if (shouldStopForTtl()) {
+                stop();
+                return;
+            }
+
+            try {
+                const response = await fetch(statusUrl, {
+                    headers: { Accept: 'application/json' },
+                    credentials: 'same-origin',
+                });
+
+                if (!response.ok) {
+                    throw new Error('poll failed');
+                }
+
+                const payload = await response.json();
+                failures = 0;
+                applyStatus(payload);
+            } catch (error) {
+                failures += 1;
+                if (failures >= maxFailures) {
+                    stop();
+                    if (message) {
+                        message.textContent = `${message.textContent} (No pudimos actualizar el estado automáticamente; recarga la página.)`;
+                    }
+                }
+            }
+        };
+
+        timer = window.setInterval(tick, intervalMs);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                tick();
+            }
+        });
+    });
 });

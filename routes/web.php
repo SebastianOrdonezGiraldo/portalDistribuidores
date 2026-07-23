@@ -8,6 +8,7 @@ use App\Modules\Documents\Http\Controllers\TechSheetDownloadController;
 use App\Modules\Orders\Http\Controllers\CartController;
 use App\Modules\Orders\Http\Controllers\CheckoutController;
 use App\Modules\Orders\Http\Controllers\OrderController;
+use App\Modules\Orders\Http\Controllers\PaymentReceiptController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/up', HealthController::class)->name('health');
@@ -67,6 +68,25 @@ Route::post('/orders', [OrderController::class, 'store'])
 Route::get('/orders/{order}/submitted', [OrderController::class, 'submitted'])->name('orders.submitted');
 Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
 Route::get('/orders/{order}/pdf', [OrderController::class, 'downloadPdf'])->name('orders.pdf');
+Route::get('/orders/{order}/payment-status', [OrderController::class, 'paymentStatus'])
+    ->middleware(['throttle:api-endpoints'])
+    ->name('orders.payment-status');
+Route::post('/orders/{order}/payment-receipt', [OrderController::class, 'uploadPaymentReceipt'])
+    ->middleware(['throttle:api-endpoints', 'suspicious_automation'])
+    ->name('orders.payment-receipt.upload');
+Route::post('/orders/{order}/payment-upload-link', [OrderController::class, 'regeneratePaymentUploadLink'])
+    ->middleware(['throttle:api-endpoints', 'suspicious_automation'])
+    ->name('orders.payment-upload-link');
+
+Route::get('/pedidos/{order}/comprobante', [PaymentReceiptController::class, 'show'])
+    ->middleware(['throttle:api-endpoints', 'suspicious_automation'])
+    ->name('orders.payment-receipt.show');
+Route::post('/pedidos/{order}/comprobante', [PaymentReceiptController::class, 'store'])
+    ->middleware(['throttle:api-endpoints', 'suspicious_automation'])
+    ->name('orders.payment-receipt.store');
+Route::post('/pedidos/{order}/comprobante/regenerar', [PaymentReceiptController::class, 'regenerate'])
+    ->middleware(['throttle:api-endpoints', 'suspicious_automation'])
+    ->name('orders.payment-receipt.regenerate');
 
 require __DIR__.'/admin.php';
 require __DIR__.'/company.php';

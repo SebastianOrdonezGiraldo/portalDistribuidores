@@ -2,6 +2,8 @@
 
 namespace App\Modules\Orders\DTOs;
 
+use App\Modules\Shared\Enums\PaymentMethod;
+
 final readonly class CreateOrderData
 {
     /**
@@ -19,10 +21,28 @@ final readonly class CreateOrderData
         public ?string $notes,
         public array $items,
         public bool $requiresApproval = false,
+        public string $checkoutIntent = 'quote',
+        public ?PaymentMethod $paymentMethod = null,
     ) {}
 
     public static function fromArray(array $payload): self
     {
+        $intent = (string) ($payload['checkout_intent'] ?? $payload['intent'] ?? 'quote');
+        $intent = in_array($intent, ['quote', 'pay'], true) ? $intent : 'quote';
+
+        $methodValue = $payload['payment_method'] ?? null;
+        $paymentMethod = is_string($methodValue) && $methodValue !== ''
+            ? PaymentMethod::tryFrom($methodValue)
+            : null;
+
+        if ($intent === 'pay' && $paymentMethod === null) {
+            $paymentMethod = null;
+        }
+
+        if ($intent !== 'pay') {
+            $paymentMethod = null;
+        }
+
         return new self(
             contactName: $payload['contact_name'],
             contactEmail: $payload['contact_email'],
@@ -35,6 +55,13 @@ final readonly class CreateOrderData
             notes: $payload['notes'] ?? null,
             items: $payload['items'] ?? [],
             requiresApproval: (bool) ($payload['requires_approval'] ?? false),
+            checkoutIntent: $intent,
+            paymentMethod: $paymentMethod,
         );
+    }
+
+    public function isPayIntent(): bool
+    {
+        return $this->checkoutIntent === 'pay';
     }
 }

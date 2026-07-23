@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Shared\Enums\OrderStatus;
+use App\Modules\Shared\Enums\PaymentStatus;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -30,6 +31,7 @@ class OrderFactory extends Factory
             'department' => fake()->randomElement(config('locations.colombia_departments', ['Antioquia'])),
             'notes' => null,
             'status' => OrderStatus::Submitted,
+            'payment_status' => PaymentStatus::NotApplicable,
             'total_amount' => fake()->numberBetween(5000, 500000),
             'pdf_path' => null,
         ];

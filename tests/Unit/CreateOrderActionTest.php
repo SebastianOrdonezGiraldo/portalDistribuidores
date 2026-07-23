@@ -17,6 +17,7 @@ use App\Modules\Orders\Pricing\DistributorPriceCalculator;
 use App\Modules\Orders\Pricing\DistributorTierResolver;
 use App\Modules\Orders\Services\OrderInventoryService;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
+use App\Modules\Orders\Services\Payment\OrderPaymentService;
 use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Exceptions\DomainException;
@@ -411,6 +412,7 @@ class CreateOrderActionTest extends TestCase
             $inventoryService,
             new DistributorPriceCalculator(new CommercePricingRules(500, 1000)),
             new DistributorTierResolver,
+            app(OrderPaymentService::class),
         );
     }
 
