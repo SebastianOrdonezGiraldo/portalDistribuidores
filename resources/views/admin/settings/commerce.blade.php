@@ -71,6 +71,17 @@ View contract:
                     </div>
                 </div>
 
+                <div class="mt-5 rounded-xl border border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-700">
+                    <p class="font-semibold text-slate-900">Qué cambia y qué no</p>
+                    <ul class="mt-2 list-disc space-y-1 pl-5">
+                        <li>El precio base de cada producto (Oro) en administración no se modifica: sigue siendo el valor guardado en el producto.</li>
+                        <li>Esta regla recalcula únicamente el precio Plata derivado a partir de ese precio Oro.</li>
+                        <li>Los clientes Plata verán el nuevo precio en catálogo, ficha de producto, carrito y checkout.</li>
+                        <li>Los clientes Oro siguen comprando al precio base; solo cambia el precio Plata de referencia que ven tachado.</li>
+                        <li>Si inicias sesión como administrador o invitado en el catálogo, verás el precio base Oro sin el incremento Plata.</li>
+                    </ul>
+                </div>
+
                 <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-950">
                     <p class="font-semibold">Al guardar, los precios visibles y los carritos abiertos se recalcularán con la nueva regla. Los pedidos confirmados conservarán sus precios históricos.</p>
                     <p class="mt-2 text-amber-900/80">Las líneas existentes de pedidos editados conservan su precio. Las líneas nuevas usarán la regla vigente.</p>
