@@ -2250,7 +2250,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const celebrateReceiptReceived = () => {
-            if (celebrating || panel.querySelector('[data-payment-receipt-flash]')) {
+            if (celebrating || document.querySelector('[data-payment-receipt-modal]')) {
                 return Promise.resolve();
             }
 
@@ -2263,51 +2263,92 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Ignore scroll issues on older browsers.
             }
 
-            const flash = document.createElement('div');
-            flash.className = 'payment-receipt-received-flash';
-            flash.setAttribute('data-payment-receipt-flash', '1');
-            flash.setAttribute('role', 'status');
-            flash.setAttribute('aria-live', 'assertive');
-            flash.innerHTML = `
-                <div class="payment-receipt-received-flash__card">
-                    <div class="payment-receipt-received-flash__icon" aria-hidden="true">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
-                            <path d="M20 6 9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+            const colors = ['#10b981', '#14b8a6', '#36B1BB', '#34d399', '#2dd4bf', '#fbbf24'];
+            const confetti = Array.from({ length: 18 }, (_, index) => {
+                const left = 8 + ((index * 37) % 84);
+                const delay = (index % 6) * 0.12;
+                const drift = `${(index % 2 === 0 ? -1 : 1) * (12 + (index % 5) * 8)}px`;
+                const color = colors[index % colors.length];
+                return `<span style="left:${left}%; background:${color}; animation-delay:${delay}s; --drift:${drift}"></span>`;
+            }).join('');
+
+            const modal = document.createElement('div');
+            modal.className = 'payment-receipt-modal';
+            modal.setAttribute('data-payment-receipt-modal', '1');
+            modal.setAttribute('role', 'dialog');
+            modal.setAttribute('aria-modal', 'true');
+            modal.setAttribute('aria-labelledby', 'payment-receipt-modal-title');
+            modal.innerHTML = `
+                <div class="payment-receipt-modal__backdrop" data-payment-receipt-dismiss></div>
+                <div class="payment-receipt-modal__dialog">
+                    <div class="payment-receipt-modal__confetti" aria-hidden="true">${confetti}</div>
+                    <div class="payment-receipt-modal__halo" aria-hidden="true">
+                        <span class="payment-receipt-modal__ring"></span>
+                        <span class="payment-receipt-modal__ring payment-receipt-modal__ring--delayed"></span>
+                        <div class="payment-receipt-modal__icon">
+                            <svg class="payment-receipt-modal__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20 6 9 17l-5-5"/>
+                            </svg>
+                        </div>
                     </div>
-                    <p class="text-base font-semibold text-slate-900">¡Comprobante recibido!</p>
-                    <p class="text-sm text-slate-600">Estamos confirmando tu pago.</p>
+                    <h2 id="payment-receipt-modal-title" class="payment-receipt-modal__title">¡Tu comprobante fue recibido!</h2>
+                    <p class="payment-receipt-modal__body">
+                        Ya lo tenemos. Estamos confirmando el pago y te avisamos cuando quede validado.
+                    </p>
+                    <div class="payment-receipt-modal__badge">
+                        <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                        Confirmando pago
+                    </div>
                 </div>
             `;
-            panel.appendChild(flash);
+            document.body.appendChild(modal);
+
+            const previousOverflow = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
 
             try {
                 if (typeof window.AudioContext !== 'undefined' || typeof window.webkitAudioContext !== 'undefined') {
                     const Ctx = window.AudioContext || window.webkitAudioContext;
                     const ctx = new Ctx();
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = 'sine';
-                    osc.frequency.value = 880;
-                    gain.gain.value = 0.0001;
-                    osc.connect(gain);
-                    gain.connect(ctx.destination);
-                    const now = ctx.currentTime;
-                    gain.gain.exponentialRampToValueAtTime(0.05, now + 0.02);
-                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
-                    osc.start(now);
-                    osc.stop(now + 0.3);
+                    const playTone = (freq, start, dur) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.value = freq;
+                        gain.gain.value = 0.0001;
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        const now = ctx.currentTime + start;
+                        gain.gain.exponentialRampToValueAtTime(0.05, now + 0.02);
+                        gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+                        osc.start(now);
+                        osc.stop(now + dur + 0.02);
+                    };
+                    playTone(740, 0, 0.18);
+                    playTone(988, 0.14, 0.22);
                 }
             } catch (error) {
                 // Sound is optional.
             }
 
             return new Promise((resolve) => {
-                window.setTimeout(() => {
-                    flash.remove();
-                    celebrating = false;
-                    resolve();
-                }, 1700);
+                let closed = false;
+                const close = () => {
+                    if (closed) {
+                        return;
+                    }
+                    closed = true;
+                    modal.classList.add('is-leaving');
+                    window.setTimeout(() => {
+                        modal.remove();
+                        document.body.style.overflow = previousOverflow;
+                        celebrating = false;
+                        resolve();
+                    }, 320);
+                };
+
+                modal.querySelector('[data-payment-receipt-dismiss]')?.addEventListener('click', close);
+                window.setTimeout(close, 4800);
             });
         };
 

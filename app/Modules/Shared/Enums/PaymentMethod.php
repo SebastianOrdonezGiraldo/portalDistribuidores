@@ -42,6 +42,24 @@ enum PaymentMethod: string
         )));
     }
 
+    public function instructionImageUrl(): ?string
+    {
+        $path = config('commerce.payment.methods.'.$this->value.'.image');
+
+        if (! is_string($path) || trim($path) === '') {
+            return null;
+        }
+
+        $relative = ltrim(str_replace('\\', '/', $path), '/');
+        $absolute = public_path($relative);
+
+        if (! is_file($absolute)) {
+            return null;
+        }
+
+        return asset($relative);
+    }
+
     /**
      * @return array<int, string>
      */

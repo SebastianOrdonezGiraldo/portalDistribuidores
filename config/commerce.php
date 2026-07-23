@@ -183,8 +183,7 @@ return [
     | Manual payment (Bancolombia / Nequi / Llave / QR)
     |--------------------------------------------------------------------------
     |
-    | Placeholder bank details until real account numbers are configured.
-    | Update lines via env/config without a frontend deploy.
+    | Bank details and optional public image paths (under /public) for QR cards.
     |
     */
     'payment' => [
@@ -194,30 +193,38 @@ return [
             'bancolombia' => [
                 'label' => 'Bancolombia',
                 'lines' => [
-                    'Tipo de cuenta: Ahorros (pendiente de configurar)',
-                    'Número de cuenta: (pendiente de configurar)',
-                    'Titular: ICMTHERAPY (pendiente de confirmar)',
+                    'Cuenta de ahorros Bancolombia',
+                    'Número: 75690965348',
+                    'Titular: IMPORT CORPORAL MEDICAL SAS',
                 ],
+                'image' => null,
             ],
             'nequi' => [
                 'label' => 'Nequi',
                 'lines' => [
-                    'Número Nequi: (pendiente de configurar)',
-                    'Nombre: ICMTHERAPY (pendiente de confirmar)',
+                    'Llave Nequi / Bre-B: 0092741326',
+                    'Titular: IMPORT CORPORAL MEDICAL SAS',
+                    'Escanea el QR desde la app de tu banco o Nequi.',
                 ],
+                'image' => 'images/payments/llave-qr.png',
             ],
             'llave' => [
                 'label' => 'Llave',
                 'lines' => [
-                    'Llave: (pendiente de configurar)',
+                    'Llave: 0092741326',
+                    'Titular: IMPORT CORPORAL MEDICAL SAS',
+                    'En tu app bancaria: envío con llaves → escribe 0092741326.',
                 ],
+                'image' => 'images/payments/llave-qr.png',
             ],
             'qr' => [
                 'label' => 'QR',
                 'lines' => [
-                    'Código QR de pago: (pendiente de configurar)',
-                    'Escanea el QR bancario cuando esté disponible en esta sección.',
+                    'Escanea el QR Negocios Nequi / Bre-B',
+                    'Titular: IMPORT CORPORAL MEDICAL SAS',
+                    'Llave asociada: 0092741326',
                 ],
+                'image' => 'images/payments/llave-qr.png',
             ],
         ],
     ],
