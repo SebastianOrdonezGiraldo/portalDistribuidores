@@ -32,14 +32,12 @@ class PaymentReceiptAdminMail extends Mailable
 
     public function content(): Content
     {
-        $baseUrl = rtrim((string) config('app.url'), '/');
-
         return new Content(
             view: 'emails.orders.payment-receipt-admin',
             text: 'emails.orders.payment-receipt-admin-text',
             with: [
                 'order' => $this->order,
-                'adminOrderUrl' => $baseUrl.'/admin/orders/'.$this->order->id,
+                'adminOrderUrl' => route('admin.orders.show', $this->order),
                 'paymentMethodLabel' => $this->order->payment_method?->label() ?? '—',
             ],
         );

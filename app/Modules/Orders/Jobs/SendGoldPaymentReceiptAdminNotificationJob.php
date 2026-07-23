@@ -6,8 +6,7 @@ use App\Modules\Orders\Mail\PaymentReceiptAdminMail;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\Payment\PaymentReceiptUploadService;
 use App\Modules\Shared\Enums\DistributorTier;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -16,10 +15,13 @@ use Throwable;
 
 /**
  * Notifies the configured admin inbox when a Gold-tier client uploads a receipt.
+ *
+ * Runs synchronously (same pattern as registration admin notify) so local/dev
+ * without queue:work still delivers to Mailtrap/SMTP immediately.
  */
-class SendGoldPaymentReceiptAdminNotificationJob implements ShouldQueue
+class SendGoldPaymentReceiptAdminNotificationJob
 {
-    use Queueable;
+    use Dispatchable;
 
     public function __construct(
         public readonly int $orderId,

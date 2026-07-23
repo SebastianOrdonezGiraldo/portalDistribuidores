@@ -151,7 +151,8 @@ class PaymentReceiptUploadService
         }
 
         try {
-            SendGoldPaymentReceiptAdminNotificationJob::dispatch($order->id);
+            // dispatchSync: same reliability as registration notifyAdmin (no queue worker required).
+            SendGoldPaymentReceiptAdminNotificationJob::dispatchSync($order->id);
         } catch (Throwable $exception) {
             Log::warning('payment.gold_receipt_admin_email.dispatch_failed', [
                 'order_id' => $order->id,

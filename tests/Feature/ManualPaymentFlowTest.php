@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Catalog\Models\Product;
-use App\Modules\Orders\Jobs\SendGoldPaymentReceiptAdminNotificationJob;
 use App\Modules\Orders\Mail\PaymentReceiptAdminMail;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\PaymentUploadToken;
@@ -276,7 +275,6 @@ class ManualPaymentFlowTest extends TestCase
     public function test_gold_receipt_upload_notifies_admin_with_attachment(): void
     {
         Mail::fake();
-        Queue::fake();
 
         config(['mail.gold_payment_receipt_notification_to' => 'administrador@icmtherapy.com']);
 
@@ -298,13 +296,6 @@ class ManualPaymentFlowTest extends TestCase
             'receipt' => UploadedFile::fake()->image('comprobante-oro.jpg', 400, 400),
         ])->assertRedirect();
 
-        Queue::assertPushed(SendGoldPaymentReceiptAdminNotificationJob::class, function ($job) use ($order) {
-            return $job->orderId === $order->id;
-        });
-
-        // Run the job synchronously to assert the admin mail + attachment.
-        (new SendGoldPaymentReceiptAdminNotificationJob($order->id))->handle();
-
         Mail::assertSent(PaymentReceiptAdminMail::class, function ($mail) {
             return $mail->hasTo('administrador@icmtherapy.com')
                 && count($mail->attachments()) === 1;
@@ -313,7 +304,7 @@ class ManualPaymentFlowTest extends TestCase
 
     public function test_silver_receipt_upload_does_not_notify_gold_admin(): void
     {
-        Queue::fake();
+        Mail::fake();
 
         $distributor = Distributor::factory()->silver()->create();
         $order = Order::factory()->create([
@@ -333,7 +324,7 @@ class ManualPaymentFlowTest extends TestCase
             'receipt' => UploadedFile::fake()->image('comprobante-plata.jpg', 400, 400),
         ])->assertRedirect();
 
-        Queue::assertNotPushed(SendGoldPaymentReceiptAdminNotificationJob::class);
+        Mail::assertNotSent(PaymentReceiptAdminMail::class);
     }
 
     public function test_checkout_shows_quote_and_pay_buttons(): void
