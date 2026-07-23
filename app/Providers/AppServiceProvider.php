@@ -19,6 +19,8 @@ use App\Modules\Documents\Policies\ProductDocumentPolicy;
 use App\Modules\Inventory\Services\ContaPymeInventoryService;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Policies\OrderPolicy;
+use App\Modules\Orders\Pricing\CommercePricingRules;
+use App\Modules\Orders\Pricing\CommercePricingRulesProvider;
 use App\Modules\Orders\Pricing\DistributorTierResolver;
 use App\Modules\Orders\Services\Cart\CartService;
 use App\Modules\Shared\Contracts\InventorySyncInterface;
@@ -56,6 +58,12 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(SearchEngineInterface::class, PostgresSearchEngine::class);
 
         $this->app->singleton(InventorySyncInterface::class, ContaPymeInventoryService::class);
+
+        // Fresh resolve on every injection so long-running workers never keep stale rules.
+        $this->app->bind(
+            CommercePricingRules::class,
+            fn ($app) => $app->make(CommercePricingRulesProvider::class)->current(),
+        );
 
         if (! app()->environment(['local', 'testing'])) {
             $this->app->register(ScoutApmServiceProvider::class);

@@ -25,6 +25,12 @@ View contract:
         $savingsPct = $listTotal > 0 ? (int) round($savingsTotal / $listTotal * 100) : 0;
         $hasSavings = $savingsTotal > 0.5;
 
+        $goldTotal = (float) $items->sum(fn ($item) => (float) $item['base_unit_price'] * (int) $item['qty']);
+        $potentialSavings = max(0, $grossTotal - $goldTotal);
+        $potentialSavingsPct = $grossTotal > 0 ? (int) round($potentialSavings / $grossTotal * 100) : 0;
+        $hasPotentialSavings = $potentialSavings > 0.5;
+        $canOpenUpgradeModal = ! $isGold && auth()->user()?->distributor !== null;
+
         $visibleItems = 3;
         $hiddenCount = max(0, $items->count() - $visibleItems);
     @endphp
@@ -156,8 +162,11 @@ View contract:
 
             <div class="mt-5">
                 <label class="form-label" for="notes">Observaciones operativas (opcional)</label>
-                <x-ui.textarea id="notes" name="notes" rows="4" placeholder="Indica referencias de entrega, horarios o instrucciones especiales para el despacho.">{{ old('notes') }}</x-ui.textarea>
-                <p class="form-help">Incluye referencias de entrega, horarios o datos de recepción.</p>
+                <x-ui.textarea id="notes" name="notes" rows="4" maxlength="300" placeholder="Indica referencias de entrega, horarios o instrucciones especiales para el despacho." data-notes-input>{{ old('notes') }}</x-ui.textarea>
+                <div class="mt-1 flex items-center justify-between gap-2">
+                    <p class="form-help">Incluye referencias de entrega, horarios o datos de recepción.</p>
+                    <p class="text-xs text-slate-400"><span data-notes-count>{{ strlen(old('notes', '')) }}</span> / 300</p>
+                </div>
                 <x-input-error :messages="$errors->get('notes')" />
             </div>
         </x-ui.card>
@@ -174,7 +183,7 @@ View contract:
                         </span>
                     @else
                         <span class="checkout-tier-badge checkout-tier-badge--silver">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.6 8.5 12 3 3.4 8.5v7L12 21l8.6-5.5z"/></svg>
+                            <span class="checkout-tier-dot" aria-hidden="true"></span>
                             Cliente Plata
                         </span>
                     @endif
@@ -209,7 +218,7 @@ View contract:
                 @endif
 
                 <dl class="mt-5 space-y-2.5 border-t border-slate-200 pt-4 text-sm">
-                    @if($hasSavings)
+                    @if($isGold && $hasSavings)
                         <div class="flex items-center justify-between gap-3">
                             <dt class="text-slate-500">Subtotal (precio Plata)</dt>
                             <dd class="font-medium text-slate-700">{{ $money($listTotal) }}</dd>
@@ -218,6 +227,18 @@ View contract:
                             <dt class="font-medium text-amber-600">Descuento Cliente ORO ({{ $savingsPct }}%)</dt>
                             <dd class="font-semibold text-amber-600">− {{ $money($savingsTotal) }}</dd>
                         </div>
+                        <div class="!mt-3 border-t border-dashed border-slate-200 pt-3"></div>
+                    @elseif(! $isGold)
+                        <div class="flex items-center justify-between gap-3">
+                            <dt class="text-slate-500">Subtotal (precio Plata)</dt>
+                            <dd class="font-medium text-slate-700">{{ $money($grossTotal) }}</dd>
+                        </div>
+                        @if($hasPotentialSavings)
+                            <div class="flex items-center justify-between gap-3">
+                                <dt class="checkout-savings-line font-medium text-amber-600">Ahorro si fueras Cliente ORO ({{ $potentialSavingsPct }}%)</dt>
+                                <dd class="font-semibold text-amber-600">− {{ $money($potentialSavings) }}</dd>
+                            </div>
+                        @endif
                         <div class="!mt-3 border-t border-dashed border-slate-200 pt-3"></div>
                     @endif
                     <div class="flex items-center justify-between gap-3">
@@ -231,12 +252,41 @@ View contract:
                 </dl>
 
                 <div class="cart-review-total {{ $isGold ? 'cart-review-total--gold' : 'cart-review-total--silver' }} mt-4">
-                    <svg class="cart-review-crown" xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m5 16 -1.6 -8 4.6 3.5L12 5l3.9 6.5L20.6 8 19 16z"/></svg>
+                    @if($isGold)
+                        <svg class="cart-review-crown" xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m5 16 -1.6 -8 4.6 3.5L12 5l3.9 6.5L20.6 8 19 16z"/></svg>
+                    @endif
                     <p class="relative text-xs font-semibold uppercase tracking-wide text-slate-500">Total estimado</p>
                     <p class="relative mt-1 break-words text-3xl font-bold tracking-tight text-slate-950">{{ $money($grossTotal) }} <span class="text-base font-semibold text-slate-400">COP</span></p>
-                    <p class="relative text-xs text-slate-500">IVA incluido · La disponibilidad final se confirma con el equipo comercial.</p>
+                    <p class="relative text-xs text-slate-500">IVA incluido{{ $isGold ? ' · La disponibilidad final se confirma con el equipo comercial.' : '' }}</p>
                 </div>
 
+                @if(! $isGold && $hasPotentialSavings)
+                    <div class="checkout-oro-upsell mt-4">
+                        <p class="text-sm font-semibold text-slate-900">
+                            Con nivel <span class="text-brand-dark">ORO</span> ahorrarías
+                            <span class="text-brand-dark">{{ $money($potentialSavings) }}</span> en este pedido.
+                        </p>
+                        @if($canOpenUpgradeModal)
+                            <button type="button" class="checkout-oro-upsell-cta" @click="$dispatch('open-modal', 'tier-upgrade')">
+                                Conocer beneficios ORO
+                            </button>
+                        @else
+                            @php
+                                $upgradeMessage = (string) (\App\Modules\Shared\Enums\DistributorTier::Silver->upgrade()['whatsapp_message'] ?? '');
+                                $upgradeUrl = filled($upgradeMessage)
+                                    ? 'https://wa.me/'.config('commerce.support.whatsapp_number', '573117479607').'?text='.rawurlencode($upgradeMessage)
+                                    : null;
+                            @endphp
+                            @if($upgradeUrl)
+                                <a href="{{ $upgradeUrl }}" target="_blank" rel="noopener noreferrer" class="checkout-oro-upsell-cta">
+                                    Conocer beneficios ORO
+                                </a>
+                            @endif
+                        @endif
+                    </div>
+                @endif
+
+                @if($isGold)
                 <div class="checkout-trust-row mt-4">
                     <div class="checkout-trust-item">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-brand-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 13a8 8 0 0 1 16 0"/><path d="M4 13v3a2 2 0 0 0 2 2h1v-5H6a2 2 0 0 0-2 2z"/><path d="M20 13v3a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2z"/></svg>
@@ -251,6 +301,7 @@ View contract:
                         <span>Compra segura y garantizada</span>
                     </div>
                 </div>
+                @endif
 
                 <div class="mt-5 space-y-2">
                     <x-ui.button type="submit" variant="primary" class="w-full justify-center" data-loading-label="Enviando pedido...">
@@ -304,6 +355,16 @@ View contract:
                             : 'Ver menos productos';
                     }
                 });
+            }
+
+            const notesInput = document.querySelector('[data-notes-input]');
+            const notesCount = document.querySelector('[data-notes-count]');
+            if (notesInput && notesCount) {
+                const refreshNotesCount = () => {
+                    notesCount.textContent = String(notesInput.value.length);
+                };
+                notesInput.addEventListener('input', refreshNotesCount);
+                refreshNotesCount();
             }
         });
     </script>

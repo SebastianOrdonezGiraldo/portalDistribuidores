@@ -2793,6 +2793,22 @@
         @apply border-slate-300/70 from-slate-100 to-slate-50 text-slate-600;
     }
 
+    .checkout-tier-dot {
+        @apply h-1.5 w-1.5 rounded-full bg-slate-500;
+    }
+
+    .checkout-savings-line {
+        @apply underline decoration-amber-400/60 decoration-dotted underline-offset-2;
+    }
+
+    .checkout-oro-upsell {
+        @apply rounded-2xl border border-brand-primary/25 border-l-4 border-l-brand-primary bg-gradient-to-r from-brand-primary/[0.08] via-white to-white p-4;
+    }
+
+    .checkout-oro-upsell-cta {
+        @apply focus-ring mt-3 inline-flex items-center rounded-xl border border-brand-primary/40 bg-white px-4 py-2 text-sm font-semibold text-brand-dark transition hover:border-brand-primary hover:bg-brand-primary/5;
+    }
+
     .checkout-summary-item {
         @apply flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3;
     }
