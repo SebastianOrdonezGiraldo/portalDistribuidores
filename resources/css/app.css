@@ -356,6 +356,139 @@
         }
     }
 
+    /* Payment success modal — one-shot CSS choreography (no infinite loops). */
+    .payment-success-modal {
+        @apply fixed inset-0 z-[80] items-center justify-center p-4;
+        display: none;
+    }
+
+    .payment-success-modal.is-active {
+        display: flex;
+    }
+
+    .payment-success-modal__backdrop {
+        @apply absolute inset-0 bg-slate-950/55;
+        opacity: 0;
+    }
+
+    .payment-success-modal.is-active .payment-success-modal__backdrop {
+        animation: payment-success-backdrop-in 0.35s ease both;
+    }
+
+    .payment-success-modal__dialog {
+        @apply relative z-10 flex w-full max-w-xs flex-col items-center rounded-3xl border border-emerald-200/80 bg-white px-6 py-8 text-center shadow-panel;
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    .payment-success-modal.is-active .payment-success-modal__dialog {
+        animation: payment-success-dialog-in 0.4s ease both;
+    }
+
+    .payment-success-circle {
+        @apply relative flex h-20 w-20 items-center justify-center text-white;
+        background: linear-gradient(135deg, #10b981 0%, #14b8a6 55%, #0d9488 100%);
+        border-radius: 9999px;
+        clip-path: circle(0% at 50% 50%);
+    }
+
+    .payment-success-modal.is-active .payment-success-circle {
+        animation: payment-success-circle-reveal 0.55s ease forwards;
+    }
+
+    .payment-success-check {
+        width: 2.25rem;
+        height: 2.25rem;
+        stroke-dasharray: 36;
+        stroke-dashoffset: 36;
+    }
+
+    .payment-success-modal.is-active .payment-success-check {
+        animation: payment-success-check-draw 0.45s ease forwards 0.55s;
+    }
+
+    .payment-success-label {
+        @apply mt-5 text-lg font-semibold tracking-tight text-slate-900;
+        opacity: 0;
+        transform: translateY(8px);
+        min-height: 1.75rem;
+    }
+
+    .payment-success-modal.is-active .payment-success-label {
+        animation: payment-success-label-in 0.4s ease forwards 1s;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .payment-success-modal.is-active .payment-success-modal__backdrop,
+        .payment-success-modal.is-active .payment-success-modal__dialog,
+        .payment-success-modal.is-active .payment-success-circle,
+        .payment-success-modal.is-active .payment-success-check,
+        .payment-success-modal.is-active .payment-success-label {
+            animation: none !important;
+        }
+
+        .payment-success-modal.is-active .payment-success-modal__backdrop,
+        .payment-success-modal.is-active .payment-success-modal__dialog,
+        .payment-success-modal.is-active .payment-success-label {
+            opacity: 1;
+            transform: none;
+        }
+
+        .payment-success-modal.is-active .payment-success-circle {
+            clip-path: circle(75% at 50% 50%);
+        }
+
+        .payment-success-modal.is-active .payment-success-check {
+            stroke-dashoffset: 0;
+        }
+    }
+
+    @keyframes payment-success-backdrop-in {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    @keyframes payment-success-dialog-in {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes payment-success-circle-reveal {
+        from {
+            clip-path: circle(0% at 50% 50%);
+        }
+        to {
+            clip-path: circle(75% at 50% 50%);
+        }
+    }
+
+    @keyframes payment-success-check-draw {
+        to {
+            stroke-dashoffset: 0;
+        }
+    }
+
+    @keyframes payment-success-label-in {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
     .form-label {
         @apply mb-1.5 block text-sm font-semibold text-slate-700;
     }
@@ -1330,167 +1463,6 @@
     .payment-status-expired {
         background-color: #fee2e2 !important;
         color: #7f1d1d !important;
-    }
-
-    .payment-receipt-modal {
-        @apply fixed inset-0 z-[80] flex items-center justify-center p-4;
-        animation: payment-receipt-modal-in 0.35s ease both;
-    }
-
-    .payment-receipt-modal__backdrop {
-        @apply absolute inset-0 bg-slate-950/55;
-        backdrop-filter: blur(4px);
-        animation: payment-receipt-backdrop-in 0.35s ease both;
-    }
-
-    .payment-receipt-modal__dialog {
-        @apply relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-emerald-200/80 bg-white px-6 py-8 text-center shadow-panel;
-        animation: payment-receipt-dialog-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
-    }
-
-    .payment-receipt-modal__dialog::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        background: linear-gradient(110deg, transparent 25%, rgba(16, 185, 129, 0.18) 45%, transparent 65%);
-        transform: translateX(-130%);
-        animation: advisor-cta-sheen 2.4s linear infinite;
-    }
-
-    .payment-receipt-modal__halo {
-        @apply relative mx-auto mb-5 flex h-20 w-20 items-center justify-center;
-    }
-
-    .payment-receipt-modal__ring {
-        @apply absolute inset-0 rounded-full border-2 border-emerald-400/50;
-        animation: payment-receipt-ring-pulse 1.8s ease-out infinite;
-    }
-
-    .payment-receipt-modal__ring--delayed {
-        animation-delay: 0.55s;
-    }
-
-    .payment-receipt-modal__icon {
-        @apply relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-soft;
-        animation: payment-receipt-icon-pop 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both,
-            advisor-cta-pulse 2.4s ease-in-out 0.7s infinite;
-    }
-
-    .payment-receipt-modal__check {
-        width: 2rem;
-        height: 2rem;
-        stroke-dasharray: 48;
-        stroke-dashoffset: 48;
-        animation: payment-receipt-check-draw 0.55s ease forwards 0.35s;
-    }
-
-    .payment-receipt-modal__title {
-        @apply relative text-xl font-semibold tracking-tight text-slate-900;
-        animation: payment-receipt-text-in 0.4s ease 0.25s both;
-    }
-
-    .payment-receipt-modal__body {
-        @apply relative mt-2 text-sm leading-relaxed text-slate-600;
-        animation: payment-receipt-text-in 0.4s ease 0.35s both;
-    }
-
-    .payment-receipt-modal__badge {
-        @apply relative mt-5 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800;
-        animation: payment-receipt-text-in 0.4s ease 0.45s both, advisor-cta-pulse 2.4s ease-in-out 0.8s infinite;
-    }
-
-    .payment-receipt-modal__confetti {
-        @apply pointer-events-none absolute inset-0 overflow-hidden;
-    }
-
-    .payment-receipt-modal__confetti span {
-        position: absolute;
-        top: -0.5rem;
-        width: 0.45rem;
-        height: 0.9rem;
-        border-radius: 999px;
-        opacity: 0;
-        animation: payment-receipt-confetti-fall 2.8s ease-in forwards;
-    }
-
-    .payment-receipt-modal.is-leaving {
-        animation: payment-receipt-modal-out 0.35s ease both;
-    }
-
-    .payment-receipt-modal.is-leaving .payment-receipt-modal__dialog {
-        animation: payment-receipt-dialog-out 0.35s ease both;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .payment-receipt-modal,
-        .payment-receipt-modal__backdrop,
-        .payment-receipt-modal__dialog,
-        .payment-receipt-modal__dialog::after,
-        .payment-receipt-modal__ring,
-        .payment-receipt-modal__icon,
-        .payment-receipt-modal__check,
-        .payment-receipt-modal__title,
-        .payment-receipt-modal__body,
-        .payment-receipt-modal__badge,
-        .payment-receipt-modal__confetti span {
-            animation: none !important;
-        }
-
-        .payment-receipt-modal__check {
-            stroke-dashoffset: 0;
-        }
-    }
-
-    @keyframes payment-receipt-modal-in {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-
-    @keyframes payment-receipt-modal-out {
-        from { opacity: 1; }
-        to { opacity: 0; }
-    }
-
-    @keyframes payment-receipt-backdrop-in {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-
-    @keyframes payment-receipt-dialog-in {
-        0% { opacity: 0; transform: translateY(1.25rem) scale(0.92); }
-        100% { opacity: 1; transform: translateY(0) scale(1); }
-    }
-
-    @keyframes payment-receipt-dialog-out {
-        from { opacity: 1; transform: translateY(0) scale(1); }
-        to { opacity: 0; transform: translateY(0.75rem) scale(0.96); }
-    }
-
-    @keyframes payment-receipt-icon-pop {
-        0% { opacity: 0; transform: scale(0.45); }
-        70% { transform: scale(1.08); }
-        100% { opacity: 1; transform: scale(1); }
-    }
-
-    @keyframes payment-receipt-ring-pulse {
-        0% { transform: scale(0.85); opacity: 0.7; }
-        100% { transform: scale(1.55); opacity: 0; }
-    }
-
-    @keyframes payment-receipt-check-draw {
-        to { stroke-dashoffset: 0; }
-    }
-
-    @keyframes payment-receipt-text-in {
-        from { opacity: 0; transform: translateY(0.4rem); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    @keyframes payment-receipt-confetti-fall {
-        0% { opacity: 0; transform: translate3d(0, -0.5rem, 0) rotate(0deg); }
-        12% { opacity: 1; }
-        100% { opacity: 0; transform: translate3d(var(--drift, 0), 18rem, 0) rotate(220deg); }
     }
 
     .badge-violet {
