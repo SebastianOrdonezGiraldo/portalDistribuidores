@@ -169,7 +169,6 @@ View contract:
                         <th>Cliente</th>
                         <th>Contacto</th>
                         <th>Estado</th>
-                        <th>Pago</th>
                         <th>Total</th>
                         <th>Creado</th>
                         <th>Actualizado</th>
@@ -194,13 +193,6 @@ View contract:
                                 <p class="text-xs text-slate-500">{{ $order->contact_email ?? 'Sin email' }}</p>
                             </td>
                             <td data-label="Estado"><x-ui.status-badge :status="$order->status" /></td>
-                            <td data-label="Pago">
-                                @if($order->requiresManualPayment())
-                                    <x-ui.status-badge :status="$order->payment_status" />
-                                @else
-                                    <span class="text-xs text-slate-400">—</span>
-                                @endif
-                            </td>
                             <td data-label="Total" class="font-medium text-slate-900">${{ number_format((float) $order->total_amount, 0, ',', '.') }}</td>
                             <td data-label="Creado">
                                 <p>{{ $order->created_at?->format('d/m/Y H:i') }}</p>
