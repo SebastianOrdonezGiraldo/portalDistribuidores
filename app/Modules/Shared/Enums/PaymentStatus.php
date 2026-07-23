@@ -26,11 +26,12 @@ enum PaymentStatus: string
     public function badgeClass(): string
     {
         return match ($this) {
-            self::NotApplicable => 'bg-slate-400',
-            self::PendingUpload => 'bg-amber-500',
-            self::Confirming => 'bg-sky-600',
-            self::Validated => 'bg-emerald-600',
-            self::Rejected, self::Expired => 'bg-red-600',
+            self::NotApplicable => 'payment-status-na',
+            self::PendingUpload => 'payment-status-pending',
+            self::Confirming => 'payment-status-confirming',
+            self::Validated => 'payment-status-validated',
+            self::Rejected => 'payment-status-rejected',
+            self::Expired => 'payment-status-expired',
         };
     }
 

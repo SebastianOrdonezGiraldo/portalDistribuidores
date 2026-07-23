@@ -2170,7 +2170,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const expiresAt = expiresAtRaw ? Date.parse(expiresAtRaw) : null;
         const badge = panel.querySelector('[data-payment-status-badge]');
         const message = panel.querySelector('[data-payment-status-message]');
+        const uploadZone = panel.querySelector('[data-payment-upload-zone]');
         const pollable = ['pending_upload', 'rejected'];
+        const badgeClassByStatus = {
+            not_applicable: 'payment-status-na',
+            pending_upload: 'payment-status-pending',
+            confirming: 'payment-status-confirming',
+            validated: 'payment-status-validated',
+            rejected: 'payment-status-rejected',
+            expired: 'payment-status-expired',
+        };
+        const statusMessages = {
+            confirming: 'Comprobante recibido. Estamos confirmando tu pago.',
+            validated: 'Pago validado. Continuamos con la gestión de tu pedido.',
+            expired: 'El plazo de pago venció y la reserva se liberó. Puedes armar un nuevo pedido desde el catálogo.',
+            rejected: 'Tu comprobante fue rechazado. Sube uno nuevo antes de que venza la reserva.',
+        };
 
         if (!statusUrl || !pollable.includes(currentStatus)) {
             return;
@@ -2178,14 +2193,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let failures = 0;
         let timer = null;
-        const intervalMs = 8000;
-        const maxFailures = 5;
+        let celebrating = false;
+        let stopped = false;
+        let inFlight = false;
+        const baseIntervalMs = 8000;
+        const maxIntervalMs = 60000;
+        const maxFailures = 8;
 
-        const stop = () => {
+        const clearTimer = () => {
             if (timer) {
-                window.clearInterval(timer);
+                window.clearTimeout(timer);
                 timer = null;
             }
+        };
+
+        const stop = () => {
+            stopped = true;
+            clearTimer();
+        };
+
+        const nextDelayMs = () => {
+            if (failures <= 0) {
+                return baseIntervalMs;
+            }
+
+            // Exponential backoff on consecutive network/5xx failures: 8s → 16s → 32s → 60s.
+            return Math.min(maxIntervalMs, baseIntervalMs * (2 ** Math.min(failures, 3)));
+        };
+
+        const scheduleNext = () => {
+            if (stopped || celebrating) {
+                return;
+            }
+
+            if (document.visibilityState === 'hidden') {
+                clearTimer();
+                return;
+            }
+
+            clearTimer();
+            timer = window.setTimeout(() => {
+                tick();
+            }, nextDelayMs());
         };
 
         const shouldStopForTtl = () => {
@@ -2197,35 +2246,174 @@ document.addEventListener('DOMContentLoaded', () => {
             return Date.now() > (expiresAt + 120000);
         };
 
-        const applyStatus = (payload) => {
+        const syncBadgeClass = (status) => {
+            if (!badge) {
+                return;
+            }
+
+            Object.values(badgeClassByStatus).forEach((cls) => badge.classList.remove(cls));
+            const next = badgeClassByStatus[status];
+            if (next) {
+                badge.classList.add(next);
+            }
+        };
+
+        const renderConfirmingUi = (payload) => {
             currentStatus = payload.payment_status || currentStatus;
+            panel.setAttribute('data-payment-status', currentStatus);
+
+            if (badge) {
+                badge.textContent = payload.payment_status_label || 'Confirmando pago';
+            }
+
+            syncBadgeClass(currentStatus);
+
+            if (message) {
+                message.textContent = statusMessages.confirming;
+            }
+
+            if (uploadZone) {
+                uploadZone.hidden = true;
+            }
+        };
+
+        const celebrateReceiptReceived = () => {
+            if (celebrating || panel.querySelector('[data-payment-receipt-flash]')) {
+                return Promise.resolve();
+            }
+
+            celebrating = true;
+            clearTimer();
+
+            try {
+                panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } catch (error) {
+                // Ignore scroll issues on older browsers.
+            }
+
+            const flash = document.createElement('div');
+            flash.className = 'payment-receipt-received-flash';
+            flash.setAttribute('data-payment-receipt-flash', '1');
+            flash.setAttribute('role', 'status');
+            flash.setAttribute('aria-live', 'assertive');
+            flash.innerHTML = `
+                <div class="payment-receipt-received-flash__card">
+                    <div class="payment-receipt-received-flash__icon" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                            <path d="M20 6 9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <p class="text-base font-semibold text-slate-900">¡Comprobante recibido!</p>
+                    <p class="text-sm text-slate-600">Estamos confirmando tu pago.</p>
+                </div>
+            `;
+            panel.appendChild(flash);
+
+            try {
+                if (typeof window.AudioContext !== 'undefined' || typeof window.webkitAudioContext !== 'undefined') {
+                    const Ctx = window.AudioContext || window.webkitAudioContext;
+                    const ctx = new Ctx();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = 880;
+                    gain.gain.value = 0.0001;
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    const now = ctx.currentTime;
+                    gain.gain.exponentialRampToValueAtTime(0.05, now + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                }
+            } catch (error) {
+                // Sound is optional.
+            }
+
+            return new Promise((resolve) => {
+                window.setTimeout(() => {
+                    flash.remove();
+                    celebrating = false;
+                    resolve();
+                }, 1700);
+            });
+        };
+
+        const applyStatus = async (payload) => {
+            const previousStatus = currentStatus;
+            const nextStatus = payload.payment_status || currentStatus;
+
+            if (nextStatus === currentStatus) {
+                return;
+            }
+
+            // Terminal / non-upload states: update from payload, stop polling. No full reload.
+            if (!pollable.includes(nextStatus)) {
+                stop();
+
+                if (nextStatus === 'confirming' && pollable.includes(previousStatus)) {
+                    renderConfirmingUi(payload);
+                    await celebrateReceiptReceived();
+                    return;
+                }
+
+                currentStatus = nextStatus;
+                panel.setAttribute('data-payment-status', currentStatus);
+
+                if (badge && payload.payment_status_label) {
+                    badge.textContent = payload.payment_status_label;
+                }
+
+                syncBadgeClass(currentStatus);
+
+                if (message && statusMessages[currentStatus]) {
+                    message.textContent = statusMessages[currentStatus];
+                }
+
+                if (uploadZone && !payload.allows_upload) {
+                    uploadZone.hidden = true;
+                }
+
+                return;
+            }
+
+            currentStatus = nextStatus;
             panel.setAttribute('data-payment-status', currentStatus);
 
             if (badge && payload.payment_status_label) {
                 badge.textContent = payload.payment_status_label;
             }
 
-            if (message && payload.payment_status === 'confirming') {
-                message.textContent = 'Comprobante recibido. Estamos confirmando tu pago.';
+            syncBadgeClass(currentStatus);
+
+            if (message && statusMessages[currentStatus]) {
+                message.textContent = statusMessages[currentStatus];
             }
 
-            if (!pollable.includes(currentStatus)) {
-                stop();
-                if (payload.payment_status === 'confirming') {
-                    window.location.reload();
-                }
+            if (uploadZone) {
+                uploadZone.hidden = !payload.allows_upload;
             }
         };
 
         const tick = async () => {
+            if (stopped || celebrating || inFlight) {
+                return;
+            }
+
             if (document.visibilityState === 'hidden') {
+                clearTimer();
                 return;
             }
 
             if (shouldStopForTtl()) {
                 stop();
+                if (message) {
+                    message.textContent = `${message.textContent} (El plazo de reserva venció; recarga si necesitás el estado final.)`;
+                }
                 return;
             }
+
+            inFlight = true;
 
             try {
                 const response = await fetch(statusUrl, {
@@ -2234,12 +2422,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 if (!response.ok) {
-                    throw new Error('poll failed');
+                    throw new Error(`poll failed: ${response.status}`);
                 }
 
                 const payload = await response.json();
                 failures = 0;
-                applyStatus(payload);
+                await applyStatus(payload);
             } catch (error) {
                 failures += 1;
                 if (failures >= maxFailures) {
@@ -2247,15 +2435,36 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (message) {
                         message.textContent = `${message.textContent} (No pudimos actualizar el estado automáticamente; recarga la página.)`;
                     }
+                    return;
                 }
+            } finally {
+                inFlight = false;
+            }
+
+            if (!stopped && pollable.includes(currentStatus)) {
+                scheduleNext();
             }
         };
 
-        timer = window.setInterval(tick, intervalMs);
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                tick();
+        const onVisibilityChange = () => {
+            if (stopped) {
+                return;
             }
-        });
+
+            if (document.visibilityState === 'hidden') {
+                // Pause for real: clear the timer so we don't hit the API in background.
+                clearTimer();
+                return;
+            }
+
+            // Resume with an immediate poll when the tab becomes visible again.
+            tick();
+        };
+
+        document.addEventListener('visibilitychange', onVisibilityChange);
+
+        if (document.visibilityState === 'visible') {
+            scheduleNext();
+        }
     });
 });
