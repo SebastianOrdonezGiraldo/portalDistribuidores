@@ -1305,6 +1305,71 @@
         @apply bg-red-100 text-red-900;
     }
 
+    /* Payment status badges (used from PaymentStatus::badgeClass — must live in CSS so Tailwind keeps them) */
+    .payment-status-na {
+        @apply bg-slate-100 text-slate-700;
+        color: #334155;
+        background-color: #f1f5f9;
+    }
+
+    .payment-status-pending {
+        @apply bg-amber-100 text-amber-950;
+        color: #78350f;
+        background-color: #fef3c7;
+    }
+
+    .payment-status-confirming {
+        @apply bg-sky-100 text-sky-950;
+        color: #0c4a6e;
+        background-color: #e0f2fe;
+    }
+
+    .payment-status-validated {
+        @apply bg-emerald-100 text-emerald-950;
+        color: #064e3b;
+        background-color: #d1fae5;
+    }
+
+    .payment-status-rejected,
+    .payment-status-expired {
+        @apply bg-red-100 text-red-950;
+        color: #7f1d1d;
+        background-color: #fee2e2;
+    }
+
+    .payment-receipt-received-flash {
+        @apply pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-2xl p-6 opacity-0;
+        background: rgba(236, 253, 245, 0.96);
+        animation: payment-receipt-flash 1.6s ease forwards;
+    }
+
+    .payment-receipt-received-flash__card {
+        @apply flex max-w-sm flex-col items-center gap-3 rounded-2xl border border-emerald-200 bg-white px-6 py-5 text-center shadow-panel;
+        animation: payment-receipt-pop 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    .payment-receipt-received-flash__icon {
+        @apply flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600;
+        animation: payment-receipt-check 0.45s ease 0.15s both;
+    }
+
+    @keyframes payment-receipt-flash {
+        0% { opacity: 0; }
+        12% { opacity: 1; }
+        85% { opacity: 1; }
+        100% { opacity: 1; }
+    }
+
+    @keyframes payment-receipt-pop {
+        0% { opacity: 0; transform: scale(0.86) translateY(0.5rem); }
+        100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    @keyframes payment-receipt-check {
+        0% { transform: scale(0.4); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+
     .badge-violet {
         @apply bg-violet-100 text-violet-900;
     }

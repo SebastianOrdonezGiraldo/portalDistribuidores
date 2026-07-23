@@ -2143,6 +2143,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const badge = panel.querySelector('[data-payment-status-badge]');
         const message = panel.querySelector('[data-payment-status-message]');
         const pollable = ['pending_upload', 'rejected'];
+        const badgeClassByStatus = {
+            not_applicable: 'payment-status-na',
+            pending_upload: 'payment-status-pending',
+            confirming: 'payment-status-confirming',
+            validated: 'payment-status-validated',
+            rejected: 'payment-status-rejected',
+            expired: 'payment-status-expired',
+        };
 
         if (!statusUrl || !pollable.includes(currentStatus)) {
             return;
@@ -2150,6 +2158,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let failures = 0;
         let timer = null;
+        let celebrating = false;
         const intervalMs = 8000;
         const maxFailures = 5;
 
@@ -2169,7 +2178,77 @@ document.addEventListener('DOMContentLoaded', () => {
             return Date.now() > (expiresAt + 120000);
         };
 
-        const applyStatus = (payload) => {
+        const syncBadgeClass = (status) => {
+            if (!badge) {
+                return;
+            }
+
+            Object.values(badgeClassByStatus).forEach((cls) => badge.classList.remove(cls));
+            const next = badgeClassByStatus[status];
+            if (next) {
+                badge.classList.add(next);
+            }
+        };
+
+        const celebrateReceiptReceived = () => {
+            if (celebrating || panel.querySelector('[data-payment-receipt-flash]')) {
+                return Promise.resolve();
+            }
+
+            celebrating = true;
+
+            try {
+                panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } catch (error) {
+                // Ignore scroll issues on older browsers.
+            }
+
+            const flash = document.createElement('div');
+            flash.className = 'payment-receipt-received-flash';
+            flash.setAttribute('data-payment-receipt-flash', '1');
+            flash.setAttribute('role', 'status');
+            flash.setAttribute('aria-live', 'assertive');
+            flash.innerHTML = `
+                <div class="payment-receipt-received-flash__card">
+                    <div class="payment-receipt-received-flash__icon" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                            <path d="M20 6 9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <p class="text-base font-semibold text-slate-900">¡Comprobante recibido!</p>
+                    <p class="text-sm text-slate-600">Estamos confirmando tu pago. Un momento…</p>
+                </div>
+            `;
+            panel.appendChild(flash);
+
+            try {
+                if (typeof window.AudioContext !== 'undefined' || typeof window.webkitAudioContext !== 'undefined') {
+                    const Ctx = window.AudioContext || window.webkitAudioContext;
+                    const ctx = new Ctx();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = 880;
+                    gain.gain.value = 0.0001;
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    const now = ctx.currentTime;
+                    gain.gain.exponentialRampToValueAtTime(0.05, now + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                }
+            } catch (error) {
+                // Sound is optional.
+            }
+
+            return new Promise((resolve) => {
+                window.setTimeout(resolve, 1700);
+            });
+        };
+
+        const applyStatus = async (payload) => {
+            const previousStatus = currentStatus;
             currentStatus = payload.payment_status || currentStatus;
             panel.setAttribute('data-payment-status', currentStatus);
 
@@ -2177,20 +2256,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 badge.textContent = payload.payment_status_label;
             }
 
+            syncBadgeClass(currentStatus);
+
             if (message && payload.payment_status === 'confirming') {
                 message.textContent = 'Comprobante recibido. Estamos confirmando tu pago.';
             }
 
             if (!pollable.includes(currentStatus)) {
                 stop();
-                if (payload.payment_status === 'confirming') {
+                if (payload.payment_status === 'confirming' && pollable.includes(previousStatus)) {
+                    await celebrateReceiptReceived();
                     window.location.reload();
                 }
             }
         };
 
         const tick = async () => {
-            if (document.visibilityState === 'hidden') {
+            if (document.visibilityState === 'hidden' || celebrating) {
                 return;
             }
 
@@ -2211,7 +2293,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const payload = await response.json();
                 failures = 0;
-                applyStatus(payload);
+                await applyStatus(payload);
             } catch (error) {
                 failures += 1;
                 if (failures >= maxFailures) {
