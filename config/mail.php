@@ -142,4 +142,9 @@ return [
     */
     'registration_notification_to' => (string) (env('REGISTRATION_NOTIFICATION_EMAIL_TO') ?: 'ventas@importcorporalmedical.com'),
 
+    /*
+    | Destinatario de la copia del comprobante cuando un Cliente Oro sube el pago.
+    */
+    'gold_payment_receipt_notification_to' => (string) (env('GOLD_PAYMENT_RECEIPT_NOTIFICATION_EMAIL_TO') ?: 'administrador@icmtherapy.com'),
+
 ];

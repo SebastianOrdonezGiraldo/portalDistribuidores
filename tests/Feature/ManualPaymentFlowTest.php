@@ -5,12 +5,14 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Catalog\Models\Product;
+use App\Modules\Orders\Mail\PaymentReceiptAdminMail;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\PaymentUploadToken;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Orders\Services\Payment\OrderPaymentService;
 use App\Modules\Orders\Services\Payment\PaymentReceiptUploadService;
 use App\Modules\Orders\Services\Payment\PaymentUploadTokenService;
+use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Enums\PaymentMethod;
 use App\Modules\Shared\Enums\PaymentStatus;
@@ -268,6 +270,61 @@ class ManualPaymentFlowTest extends TestCase
             $order,
             UploadedFile::fake()->image('otro.jpg'),
         );
+    }
+
+    public function test_gold_receipt_upload_notifies_admin_with_attachment(): void
+    {
+        Mail::fake();
+
+        config(['mail.gold_payment_receipt_notification_to' => 'administrador@icmtherapy.com']);
+
+        $distributor = Distributor::factory()->gold()->create();
+        $order = Order::factory()->create([
+            'distributor_id' => $distributor->id,
+            'status' => OrderStatus::Submitted,
+            'payment_status' => PaymentStatus::PendingUpload,
+            'payment_method' => PaymentMethod::Bancolombia,
+            'distributor_tier_snapshot' => DistributorTier::Gold,
+            'payment_reservation_expires_at' => now()->addMinutes(30),
+        ]);
+
+        $tokenService = app(PaymentUploadTokenService::class);
+        $plain = $tokenService->issue($order);
+
+        $this->post(route('orders.payment-receipt.store', $order), [
+            'token' => $plain,
+            'receipt' => UploadedFile::fake()->image('comprobante-oro.jpg', 400, 400),
+        ])->assertRedirect();
+
+        Mail::assertSent(PaymentReceiptAdminMail::class, function ($mail) {
+            return $mail->hasTo('administrador@icmtherapy.com')
+                && count($mail->attachments()) === 1;
+        });
+    }
+
+    public function test_silver_receipt_upload_does_not_notify_gold_admin(): void
+    {
+        Mail::fake();
+
+        $distributor = Distributor::factory()->silver()->create();
+        $order = Order::factory()->create([
+            'distributor_id' => $distributor->id,
+            'status' => OrderStatus::Submitted,
+            'payment_status' => PaymentStatus::PendingUpload,
+            'payment_method' => PaymentMethod::Nequi,
+            'distributor_tier_snapshot' => DistributorTier::Silver,
+            'payment_reservation_expires_at' => now()->addMinutes(30),
+        ]);
+
+        $tokenService = app(PaymentUploadTokenService::class);
+        $plain = $tokenService->issue($order);
+
+        $this->post(route('orders.payment-receipt.store', $order), [
+            'token' => $plain,
+            'receipt' => UploadedFile::fake()->image('comprobante-plata.jpg', 400, 400),
+        ])->assertRedirect();
+
+        Mail::assertNotSent(PaymentReceiptAdminMail::class);
     }
 
     public function test_checkout_shows_quote_and_pay_buttons(): void
