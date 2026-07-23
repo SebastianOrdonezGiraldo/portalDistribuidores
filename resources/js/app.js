@@ -2250,109 +2250,64 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const celebrateReceiptReceived = () => {
-            if (celebrating || document.querySelector('[data-payment-receipt-modal]')) {
-                return Promise.resolve();
+            const modal = document.querySelector('[data-payment-success-modal]');
+
+            if (celebrating || !modal || modal.classList.contains('is-active')) {
+                return;
             }
 
             celebrating = true;
             clearTimer();
 
-            try {
-                panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            } catch (error) {
-                // Ignore scroll issues on older browsers.
-            }
-
-            const colors = ['#10b981', '#14b8a6', '#36B1BB', '#34d399', '#2dd4bf', '#fbbf24'];
-            const confetti = Array.from({ length: 18 }, (_, index) => {
-                const left = 8 + ((index * 37) % 84);
-                const delay = (index % 6) * 0.12;
-                const drift = `${(index % 2 === 0 ? -1 : 1) * (12 + (index % 5) * 8)}px`;
-                const color = colors[index % colors.length];
-                return `<span style="left:${left}%; background:${color}; animation-delay:${delay}s; --drift:${drift}"></span>`;
-            }).join('');
-
-            const modal = document.createElement('div');
-            modal.className = 'payment-receipt-modal';
-            modal.setAttribute('data-payment-receipt-modal', '1');
-            modal.setAttribute('role', 'dialog');
-            modal.setAttribute('aria-modal', 'true');
-            modal.setAttribute('aria-labelledby', 'payment-receipt-modal-title');
-            modal.innerHTML = `
-                <div class="payment-receipt-modal__backdrop" data-payment-receipt-dismiss></div>
-                <div class="payment-receipt-modal__dialog">
-                    <div class="payment-receipt-modal__confetti" aria-hidden="true">${confetti}</div>
-                    <div class="payment-receipt-modal__halo" aria-hidden="true">
-                        <span class="payment-receipt-modal__ring"></span>
-                        <span class="payment-receipt-modal__ring payment-receipt-modal__ring--delayed"></span>
-                        <div class="payment-receipt-modal__icon">
-                            <svg class="payment-receipt-modal__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M20 6 9 17l-5-5"/>
-                            </svg>
-                        </div>
-                    </div>
-                    <h2 id="payment-receipt-modal-title" class="payment-receipt-modal__title">¡Tu comprobante fue recibido!</h2>
-                    <p class="payment-receipt-modal__body">
-                        Ya lo tenemos. Estamos confirmando el pago y te avisamos cuando quede validado.
-                    </p>
-                    <div class="payment-receipt-modal__badge">
-                        <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
-                        Confirmando pago
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-
+            const previousFocus = document.activeElement instanceof HTMLElement
+                ? document.activeElement
+                : null;
+            const dialog = modal.querySelector('[data-payment-success-dialog]');
+            const label = modal.querySelector('[data-payment-success-label]');
             const previousOverflow = document.body.style.overflow;
+
+            modal.hidden = false;
+            modal.classList.add('is-active');
             document.body.style.overflow = 'hidden';
 
-            try {
-                if (typeof window.AudioContext !== 'undefined' || typeof window.webkitAudioContext !== 'undefined') {
-                    const Ctx = window.AudioContext || window.webkitAudioContext;
-                    const ctx = new Ctx();
-                    const playTone = (freq, start, dur) => {
-                        const osc = ctx.createOscillator();
-                        const gain = ctx.createGain();
-                        osc.type = 'sine';
-                        osc.frequency.value = freq;
-                        gain.gain.value = 0.0001;
-                        osc.connect(gain);
-                        gain.connect(ctx.destination);
-                        const now = ctx.currentTime + start;
-                        gain.gain.exponentialRampToValueAtTime(0.05, now + 0.02);
-                        gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
-                        osc.start(now);
-                        osc.stop(now + dur + 0.02);
-                    };
-                    playTone(740, 0, 0.18);
-                    playTone(988, 0.14, 0.22);
-                }
-            } catch (error) {
-                // Sound is optional.
+            // Re-set label so aria-live announces once the dialog is shown.
+            if (label) {
+                label.textContent = '';
+                label.textContent = 'Comprobante recibido';
             }
 
-            return new Promise((resolve) => {
-                let closed = false;
-                const close = () => {
-                    if (closed) {
-                        return;
-                    }
-                    closed = true;
-                    modal.classList.add('is-leaving');
-                    window.setTimeout(() => {
-                        modal.remove();
-                        document.body.style.overflow = previousOverflow;
-                        celebrating = false;
-                        resolve();
-                    }, 320);
-                };
+            dialog?.focus({ preventScroll: true });
 
-                modal.querySelector('[data-payment-receipt-dismiss]')?.addEventListener('click', close);
-                window.setTimeout(close, 4800);
-            });
+            let closed = false;
+            const close = () => {
+                if (closed) {
+                    return;
+                }
+
+                closed = true;
+                modal.classList.remove('is-active');
+                modal.hidden = true;
+                document.body.style.overflow = previousOverflow;
+                celebrating = false;
+                document.removeEventListener('keydown', onKeydown);
+
+                if (previousFocus && document.contains(previousFocus)) {
+                    previousFocus.focus({ preventScroll: true });
+                }
+            };
+
+            const onKeydown = (event) => {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    close();
+                }
+            };
+
+            modal.querySelector('[data-payment-success-dismiss]')?.addEventListener('click', close, { once: true });
+            document.addEventListener('keydown', onKeydown);
         };
 
-        const applyStatus = async (payload) => {
+        const applyStatus = (payload) => {
             const previousStatus = currentStatus;
             const nextStatus = payload.payment_status || currentStatus;
 
@@ -2364,9 +2319,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!pollable.includes(nextStatus)) {
                 stop();
 
+                // Positive poll response: receipt landed in BD → confirming.
                 if (nextStatus === 'confirming' && pollable.includes(previousStatus)) {
                     renderConfirmingUi(payload);
-                    await celebrateReceiptReceived();
+                    celebrateReceiptReceived();
                     return;
                 }
 

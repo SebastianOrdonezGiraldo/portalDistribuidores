@@ -126,4 +126,6 @@ Expects: $order, optional $paymentUploadUrl, $paymentUploadToken, $receiptMaxSiz
             </div>
         @endif
     </x-ui.card>
+
+    <x-orders.payment-success-modal />
 @endif
