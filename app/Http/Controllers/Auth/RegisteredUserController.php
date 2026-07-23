@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modules\AuthAccess\Mail\EmailVerificationCodeMail;
+use App\Rules\TurnstileToken;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -43,6 +44,7 @@ class RegisteredUserController extends Controller
             'city' => ['required', 'string', 'max:120', 'regex:/^[\pL\s]+$/u'],
             'address' => ['nullable', 'string', 'max:180'],
             'phone' => ['required', 'string', 'max:40', 'regex:/^\d+$/'],
+            'cf-turnstile-response' => [new TurnstileToken],
         ]);
 
         $code = (string) random_int(1000, 9999);

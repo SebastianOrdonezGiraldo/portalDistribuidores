@@ -38,6 +38,8 @@
             <span>Mantener sesión activa</span>
         </label>
 
+        <x-turnstile />
+
         <x-ui.button type="submit" variant="primary" class="w-full justify-center !py-3" data-loading-label="Ingresando...">Iniciar sesión</x-ui.button>
 
         @if(config('auth.allow_public_registration') && Route::has('register'))
