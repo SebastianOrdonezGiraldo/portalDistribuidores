@@ -8,6 +8,7 @@ use App\Modules\AuthAccess\Mail\EmailVerificationCodeMail;
 use App\Modules\Shared\Enums\DistributorStatus;
 use App\Modules\Shared\Enums\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Tests\TestCase;
@@ -21,6 +22,72 @@ class RegistrationTest extends TestCase
         $response = $this->get('/register');
 
         $response->assertStatus(200);
+    }
+
+    public function test_registration_requires_valid_turnstile_when_enabled(): void
+    {
+        Http::fake([
+            'challenges.cloudflare.com/turnstile/v0/siteverify' => Http::response([
+                'success' => false,
+                'error-codes' => ['missing-input-response'],
+            ], 200),
+        ]);
+
+        config([
+            'services.turnstile.enabled' => true,
+            'services.turnstile.site_key' => '1x00000000000000000000AA',
+            'services.turnstile.secret_key' => '1x0000000000000000000000000000000AA',
+        ]);
+
+        Mail::fake();
+
+        $this->from('/register')->post('/register', [
+            'name' => 'Juan Pérez',
+            'company_name' => 'Distribuciones Prueba SAS',
+            'nit' => '9001234567',
+            'city' => 'Bogotá',
+            'address' => 'Calle 1 # 2-3',
+            'phone' => '3001234567',
+            'email' => 'registro-captcha@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ])
+            ->assertRedirect('/register')
+            ->assertSessionHasErrors('cf-turnstile-response');
+
+        Mail::assertNothingSent();
+    }
+
+    public function test_registration_accepts_valid_turnstile_when_enabled(): void
+    {
+        Http::fake([
+            'challenges.cloudflare.com/turnstile/v0/siteverify' => Http::response([
+                'success' => true,
+            ], 200),
+        ]);
+
+        config([
+            'services.turnstile.enabled' => true,
+            'services.turnstile.site_key' => '1x00000000000000000000AA',
+            'services.turnstile.secret_key' => '1x0000000000000000000000000000000AA',
+        ]);
+
+        Mail::fake();
+
+        $this->post('/register', [
+            'name' => 'Juan Pérez',
+            'company_name' => 'Distribuciones Captcha SAS',
+            'nit' => '9001234599',
+            'city' => 'Bogotá',
+            'address' => 'Calle 1 # 2-3',
+            'phone' => '3001234567',
+            'email' => 'registro-ok-captcha@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'cf-turnstile-response' => 'valid-token',
+        ])->assertRedirect(route('register.verify-email', absolute: false));
+
+        Mail::assertSent(EmailVerificationCodeMail::class);
     }
 
     public function test_registration_sends_admin_notification_email(): void

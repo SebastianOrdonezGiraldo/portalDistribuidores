@@ -110,6 +110,8 @@
             </div>
         </div>
 
+        <x-turnstile />
+
         <div class="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
             <a class="rounded text-sm font-medium text-slate-600 hover:text-brand-dark hover:underline focus-ring" href="{{ route('login') }}">
                 {{ __('¿Ya tienes cuenta? Inicia sesión') }}
