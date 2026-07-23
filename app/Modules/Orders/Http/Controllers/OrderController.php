@@ -4,6 +4,7 @@ namespace App\Modules\Orders\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Modules\Catalog\Support\ProductUploadLimits;
 use App\Modules\Orders\Actions\CreateOrderAction;
 use App\Modules\Orders\DTOs\CreateOrderData;
 use App\Modules\Orders\Http\Requests\StoreOrderRequest;
@@ -13,7 +14,6 @@ use App\Modules\Orders\Services\OrderPdfGenerator;
 use App\Modules\Orders\Services\Payment\OrderPaymentService;
 use App\Modules\Orders\Services\Payment\PaymentReceiptUploadService;
 use App\Modules\Orders\Services\Payment\PaymentUploadTokenService;
-use App\Modules\Catalog\Support\ProductUploadLimits;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\JsonResponse;
@@ -98,6 +98,7 @@ class OrderController extends Controller
 
         if ($order->requiresManualPayment()) {
             $plainToken = app(OrderPaymentService::class)->issueUploadTokenBestEffort($order);
+
             if ($plainToken) {
                 $paymentUploadUrl = app(PaymentUploadTokenService::class)->uploadUrl($order, $plainToken);
                 session()->flash('payment_upload_url', $paymentUploadUrl);
@@ -175,6 +176,7 @@ class OrderController extends Controller
             && $order->payment_status->allowsReceiptUpload()
             && ! $paymentUploadUrl) {
             $plainToken = app(OrderPaymentService::class)->issueUploadTokenBestEffort($order);
+
             if ($plainToken) {
                 $paymentUploadToken = $plainToken;
                 $paymentUploadUrl = app(PaymentUploadTokenService::class)->uploadUrl($order, $plainToken);

@@ -2,6 +2,7 @@
 
 namespace App\Modules\Orders\Http\Requests;
 
+use App\Modules\Shared\Enums\PaymentMethod;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -39,7 +40,7 @@ class StoreOrderRequest extends FormRequest
                 Rule::requiredIf(fn () => $intent === 'pay'),
                 'nullable',
                 'string',
-                Rule::in(\App\Modules\Shared\Enums\PaymentMethod::values()),
+                Rule::in(PaymentMethod::values()),
             ],
         ];
 
