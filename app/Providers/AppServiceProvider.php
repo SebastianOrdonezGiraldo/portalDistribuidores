@@ -21,6 +21,7 @@ use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Policies\OrderPolicy;
 use App\Modules\Orders\Pricing\CommercePricingRules;
 use App\Modules\Orders\Pricing\CommercePricingRulesProvider;
+use App\Modules\Orders\Pricing\DistributorPriceCalculator;
 use App\Modules\Orders\Pricing\DistributorTierResolver;
 use App\Modules\Orders\Services\Cart\CartService;
 use App\Modules\Shared\Contracts\InventorySyncInterface;
@@ -63,6 +64,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             CommercePricingRules::class,
             fn ($app) => $app->make(CommercePricingRulesProvider::class)->current(),
+        );
+
+        $this->app->bind(
+            DistributorPriceCalculator::class,
+            fn ($app) => new DistributorPriceCalculator($app->make(CommercePricingRules::class)),
         );
 
         if (! app()->environment(['local', 'testing'])) {

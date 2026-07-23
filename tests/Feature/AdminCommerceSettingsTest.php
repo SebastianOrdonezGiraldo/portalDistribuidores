@@ -58,6 +58,58 @@ class AdminCommerceSettingsTest extends TestCase
             ->assertSee($admin->name);
     }
 
+    public function test_admin_can_save_six_percent(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->from(route('admin.settings.commerce.edit'))
+            ->patch(route('admin.settings.commerce.update'), [
+                'silver_markup_percent' => '6.00',
+                'silver_rounding_multiple' => 1000,
+            ])
+            ->assertRedirect(route('admin.settings.commerce.edit'))
+            ->assertSessionHas('status');
+
+        $latest = CommercePricingRule::query()->orderByDesc('id')->firstOrFail();
+        $this->assertSame(600, $latest->silver_markup_basis_points);
+        $this->assertSame(1000, $latest->silver_rounding_multiple);
+        $this->assertSame($admin->id, $latest->created_by_id);
+    }
+
+    public function test_saving_six_percent_updates_silver_catalog_price(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $distributor = Distributor::factory()->silver()->create();
+        $user = User::factory()->create(['distributor_id' => $distributor->id]);
+        Product::factory()->create([
+            'name' => 'Producto prueba reglas',
+            'price' => 96000,
+            'stock' => 10,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.settings.commerce.update'), [
+                'silver_markup_percent' => '6.00',
+                'silver_rounding_multiple' => 1000,
+            ])
+            ->assertRedirect(route('admin.settings.commerce.edit'));
+
+        $this->actingAs($user)
+            ->get(route('catalog.index', ['term' => 'Producto prueba reglas']))
+            ->assertOk()
+            ->assertSee('$102.000', false);
+
+        $goldDistributor = Distributor::factory()->gold()->create();
+        $goldUser = User::factory()->create(['distributor_id' => $goldDistributor->id]);
+
+        $this->actingAs($goldUser)
+            ->get(route('catalog.index', ['term' => 'Producto prueba reglas']))
+            ->assertOk()
+            ->assertSee('$96.000', false);
+    }
+
     public function test_admin_can_save_five_percent(): void
     {
         $admin = User::factory()->admin()->create();
