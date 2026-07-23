@@ -8,6 +8,11 @@ use Illuminate\Contracts\Validation\ValidationRule;
 
 class TurnstileToken implements ValidationRule
 {
+    /**
+     * Run even when cf-turnstile-response is missing from the request.
+     */
+    public bool $implicit = true;
+
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         $verifier = app(TurnstileVerifier::class);
