@@ -14,7 +14,10 @@ use Illuminate\Support\Str;
 use Throwable;
 
 /**
- * Notifies the configured admin inbox when a Gold-tier client uploads a receipt.
+ * Notifies the tier inbox when a client uploads a payment receipt.
+ *
+ * Gold  → mail.gold_payment_receipt_notification_to
+ * Silver → mail.silver_payment_receipt_notification_to
  *
  * Runs synchronously (same pattern as registration admin notify) so local/dev
  * without queue:work still delivers to Mailtrap/SMTP immediately.
@@ -31,25 +34,28 @@ class SendGoldPaymentReceiptAdminNotificationJob
     {
         $order = Order::query()->with('distributor')->find($this->orderId);
 
-        if (! $order || ! $this->isGoldOrder($order)) {
+        if (! $order || ! filled($order->payment_receipt_path)) {
             return;
         }
 
-        if (! filled($order->payment_receipt_path)) {
+        $tier = $this->resolveTier($order);
+
+        if ($tier === null) {
             return;
         }
 
-        $to = trim((string) config('mail.gold_payment_receipt_notification_to'));
+        $to = $this->recipientForTier($tier);
 
-        if ($to === '' || ! filter_var($to, FILTER_VALIDATE_EMAIL)) {
+        if ($to === null) {
             return;
         }
 
         $disk = Storage::disk(PaymentReceiptUploadService::diskName());
 
         if (! $disk->exists($order->payment_receipt_path)) {
-            Log::warning('payment.gold_receipt_admin_email.skipped_missing_file', [
+            Log::warning('payment.receipt_admin_email.skipped_missing_file', [
                 'order_id' => $order->id,
+                'tier' => $tier->value,
                 'path' => $order->payment_receipt_path,
             ]);
 
@@ -61,23 +67,44 @@ class SendGoldPaymentReceiptAdminNotificationJob
         $mime = $this->guessMime($filename, $order->payment_receipt_path);
 
         try {
-            Mail::to($to)->send(new PaymentReceiptAdminMail($order, $contents, $filename, $mime));
+            Mail::to($to)->send(new PaymentReceiptAdminMail(
+                $order,
+                $contents,
+                $filename,
+                $mime,
+                $tier,
+            ));
         } catch (Throwable $exception) {
-            Log::error('payment.gold_receipt_admin_email.failed', [
+            Log::error('payment.receipt_admin_email.failed', [
                 'order_id' => $order->id,
+                'tier' => $tier->value,
                 'mailer' => config('mail.default'),
                 'error' => $exception->getMessage(),
             ]);
         }
     }
 
-    private function isGoldOrder(Order $order): bool
+    private function resolveTier(Order $order): ?DistributorTier
     {
-        if ($order->distributor_tier_snapshot === DistributorTier::Gold) {
-            return true;
+        if ($order->distributor_tier_snapshot instanceof DistributorTier) {
+            return $order->distributor_tier_snapshot;
         }
 
-        return $order->distributor?->tier === DistributorTier::Gold;
+        return $order->distributor?->tier;
+    }
+
+    private function recipientForTier(DistributorTier $tier): ?string
+    {
+        $to = match ($tier) {
+            DistributorTier::Gold => trim((string) config('mail.gold_payment_receipt_notification_to')),
+            DistributorTier::Silver => trim((string) config('mail.silver_payment_receipt_notification_to')),
+        };
+
+        if ($to === '' || ! filter_var($to, FILTER_VALIDATE_EMAIL)) {
+            return null;
+        }
+
+        return $to;
     }
 
     private function guessMime(string $filename, string $path): string

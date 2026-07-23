@@ -1,6 +1,6 @@
-Comprobante de pago — Cliente Oro
+Comprobante de pago — {{ $tierLabel }}
 
-Un cliente ICM Oro subió el comprobante de pago. El archivo va adjunto a este correo.
+Un cliente {{ $tierLabel }} subió el comprobante de pago. El archivo va adjunto a este correo.
 
 Pedido: {{ $order->oc_number }}
 Empresa: {{ $order->company_name }}

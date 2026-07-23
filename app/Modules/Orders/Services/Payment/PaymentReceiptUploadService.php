@@ -134,19 +134,20 @@ class PaymentReceiptUploadService
                 : new DomainException('No fue posible registrar el comprobante. Intenta de nuevo.');
         }
 
-        $this->notifyGoldAdminBestEffort($updated);
+        $this->notifyTierAdminBestEffort($updated);
 
         return $updated;
     }
 
-    private function notifyGoldAdminBestEffort(Order $order): void
+    private function notifyTierAdminBestEffort(Order $order): void
     {
         $order->loadMissing('distributor');
 
-        $isGold = $order->distributor_tier_snapshot === DistributorTier::Gold
-            || $order->distributor?->tier === DistributorTier::Gold;
+        $tier = $order->distributor_tier_snapshot instanceof DistributorTier
+            ? $order->distributor_tier_snapshot
+            : $order->distributor?->tier;
 
-        if (! $isGold) {
+        if (! in_array($tier, [DistributorTier::Gold, DistributorTier::Silver], true)) {
             return;
         }
 
@@ -154,8 +155,9 @@ class PaymentReceiptUploadService
             // dispatchSync: same reliability as registration notifyAdmin (no queue worker required).
             SendGoldPaymentReceiptAdminNotificationJob::dispatchSync($order->id);
         } catch (Throwable $exception) {
-            Log::warning('payment.gold_receipt_admin_email.dispatch_failed', [
+            Log::warning('payment.receipt_admin_email.dispatch_failed', [
                 'order_id' => $order->id,
+                'tier' => $tier->value,
                 'message' => $exception->getMessage(),
             ]);
         }

@@ -3,6 +3,7 @@
 namespace App\Modules\Orders\Mail;
 
 use App\Modules\Orders\Models\Order;
+use App\Modules\Shared\Enums\DistributorTier;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
@@ -21,17 +22,22 @@ class PaymentReceiptAdminMail extends Mailable
         public readonly string $receiptContents,
         public readonly string $receiptFilename,
         public readonly string $receiptMime,
+        public readonly DistributorTier $tier = DistributorTier::Gold,
     ) {}
 
     public function envelope(): Envelope
     {
+        $tierWord = $this->tier === DistributorTier::Gold ? 'Oro' : 'Plata';
+
         return new Envelope(
-            subject: 'Comprobante Oro '.$this->order->oc_number.' | Portal',
+            subject: 'Comprobante '.$tierWord.' '.$this->order->oc_number.' | Portal',
         );
     }
 
     public function content(): Content
     {
+        $tierWord = $this->tier === DistributorTier::Gold ? 'Oro' : 'Plata';
+
         return new Content(
             view: 'emails.orders.payment-receipt-admin',
             text: 'emails.orders.payment-receipt-admin-text',
@@ -39,6 +45,8 @@ class PaymentReceiptAdminMail extends Mailable
                 'order' => $this->order,
                 'adminOrderUrl' => route('admin.orders.show', $this->order),
                 'paymentMethodLabel' => $this->order->payment_method?->label() ?? '—',
+                'tierWord' => $tierWord,
+                'tierLabel' => $this->tier->label(),
             ],
         );
     }

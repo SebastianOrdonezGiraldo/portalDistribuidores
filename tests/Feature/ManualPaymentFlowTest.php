@@ -298,13 +298,16 @@ class ManualPaymentFlowTest extends TestCase
 
         Mail::assertSent(PaymentReceiptAdminMail::class, function ($mail) {
             return $mail->hasTo('administrador@icmtherapy.com')
+                && $mail->tier === DistributorTier::Gold
                 && count($mail->attachments()) === 1;
         });
     }
 
-    public function test_silver_receipt_upload_does_not_notify_gold_admin(): void
+    public function test_silver_receipt_upload_notifies_comercial_with_attachment(): void
     {
         Mail::fake();
+
+        config(['mail.silver_payment_receipt_notification_to' => 'COMERCIAL@IMPORTCORPORALMEDICAL.COM']);
 
         $distributor = Distributor::factory()->silver()->create();
         $order = Order::factory()->create([
@@ -324,7 +327,11 @@ class ManualPaymentFlowTest extends TestCase
             'receipt' => UploadedFile::fake()->image('comprobante-plata.jpg', 400, 400),
         ])->assertRedirect();
 
-        Mail::assertNotSent(PaymentReceiptAdminMail::class);
+        Mail::assertSent(PaymentReceiptAdminMail::class, function ($mail) {
+            return $mail->hasTo('COMERCIAL@IMPORTCORPORALMEDICAL.COM')
+                && $mail->tier === DistributorTier::Silver
+                && count($mail->attachments()) === 1;
+        });
     }
 
     public function test_checkout_shows_quote_and_pay_buttons(): void
