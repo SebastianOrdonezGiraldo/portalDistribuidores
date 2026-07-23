@@ -284,6 +284,7 @@ class ManualPaymentFlowTest extends TestCase
             ->assertSee('Bancolombia')
             ->assertSee('Nequi')
             ->assertSee('Llave')
-            ->assertSee('pendiente de configurar', false);
+            ->assertSee('75690965348', false)
+            ->assertSee('0092741326', false);
     }
 }

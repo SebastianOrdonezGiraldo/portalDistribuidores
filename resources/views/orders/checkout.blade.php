@@ -336,7 +336,7 @@ View contract:
 
                     <div x-show="showPay || intent === 'pay'" x-cloak class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                         <p class="text-sm font-semibold text-slate-900">Elige cómo pagar</p>
-                        <p class="mt-1 text-xs text-slate-500">Los datos de cuenta se mostrarán al seleccionar. Luego confirma el pedido.</p>
+                        <p class="mt-1 text-xs text-slate-500">Los datos de cuenta se mostrarán al seleccionar. El QR lo verás en el detalle del pedido.</p>
 
                         <div class="mt-3 grid gap-2">
                             <template x-for="(meta, key) in methods" :key="key">

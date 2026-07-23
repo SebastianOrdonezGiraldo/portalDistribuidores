@@ -8,6 +8,7 @@ Expects: $order, optional $paymentUploadUrl, $paymentUploadToken, $receiptMaxSiz
     $receiptMaxSizeLabel = $receiptMaxSizeLabel ?? \App\Modules\Catalog\Support\ProductUploadLimits::photoMaxSizeLabel();
     $allowsUpload = $order->payment_status->allowsReceiptUpload();
     $methodLines = $order->payment_method?->instructionLines() ?? [];
+    $methodImageUrl = $order->payment_method?->instructionImageUrl();
 @endphp
 
 @if($order->requiresManualPayment())
@@ -23,7 +24,6 @@ Expects: $order, optional $paymentUploadUrl, $paymentUploadToken, $receiptMaxSiz
             <span
                 class="badge {{ $order->payment_status->badgeClass() }}"
                 data-payment-status-badge
-                data-badge-base="badge"
             >
                 {{ $order->payment_status->label() }}
             </span>
@@ -37,6 +37,15 @@ Expects: $order, optional $paymentUploadUrl, $paymentUploadToken, $receiptMaxSiz
                         <li>{{ $line }}</li>
                     @endforeach
                 </ul>
+                @if($methodImageUrl)
+                    <div class="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-[#2a0a3d]">
+                        <img
+                            src="{{ $methodImageUrl }}"
+                            alt="QR de pago {{ $order->payment_method->label() }}"
+                            class="mx-auto block h-auto w-full max-w-sm object-contain"
+                        >
+                    </div>
+                @endif
             </div>
         @endif
 
