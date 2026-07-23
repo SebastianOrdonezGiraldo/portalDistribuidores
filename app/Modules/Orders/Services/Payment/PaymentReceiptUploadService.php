@@ -4,12 +4,15 @@ namespace App\Modules\Orders\Services\Payment;
 
 use App\Modules\Catalog\Security\SafeUploadValidator;
 use App\Modules\Catalog\Support\ProductUploadLimits;
+use App\Modules\Orders\Jobs\SendGoldPaymentReceiptAdminNotificationJob;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\PaymentUploadToken;
+use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\PaymentStatus;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Throwable;
@@ -89,7 +92,7 @@ class PaymentReceiptUploadService
         }
 
         try {
-            return DB::transaction(function () use ($order, $storedPath, $safeName, $token): Order {
+            $updated = DB::transaction(function () use ($order, $storedPath, $safeName, $token): Order {
                 /** @var Order $locked */
                 $locked = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
 
@@ -129,6 +132,31 @@ class PaymentReceiptUploadService
             throw $exception instanceof DomainException
                 ? $exception
                 : new DomainException('No fue posible registrar el comprobante. Intenta de nuevo.');
+        }
+
+        $this->notifyGoldAdminBestEffort($updated);
+
+        return $updated;
+    }
+
+    private function notifyGoldAdminBestEffort(Order $order): void
+    {
+        $order->loadMissing('distributor');
+
+        $isGold = $order->distributor_tier_snapshot === DistributorTier::Gold
+            || $order->distributor?->tier === DistributorTier::Gold;
+
+        if (! $isGold) {
+            return;
+        }
+
+        try {
+            SendGoldPaymentReceiptAdminNotificationJob::dispatch($order->id);
+        } catch (Throwable $exception) {
+            Log::warning('payment.gold_receipt_admin_email.dispatch_failed', [
+                'order_id' => $order->id,
+                'message' => $exception->getMessage(),
+            ]);
         }
     }
 
