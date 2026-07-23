@@ -1,0 +1,43 @@
+<?php
+
+namespace App\Modules\Orders\Models;
+
+use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
+
+/**
+ * Versioned commercial pricing rule used as the source of truth for Plata markup.
+ *
+ * @property int $id
+ * @property int $silver_markup_basis_points
+ * @property int $silver_rounding_multiple
+ * @property int|null $created_by_id
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read User|null $createdBy
+ */
+class CommercePricingRule extends Model
+{
+    protected $fillable = [
+        'silver_markup_basis_points',
+        'silver_rounding_multiple',
+        'created_by_id',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'silver_markup_basis_points' => 'integer',
+            'silver_rounding_multiple' => 'integer',
+            'created_by_id' => 'integer',
+        ];
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_id');
+    }
+}

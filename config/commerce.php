@@ -3,22 +3,24 @@
 return [
     /*
     |--------------------------------------------------------------------------
-    | Reglas comerciales de niveles de distribuidor
+    | Reglas comerciales de niveles de distribuidor (fallback)
     |--------------------------------------------------------------------------
     |
-    | Valores usados por el motor central de precios (DistributorPriceCalculator)
-    | para derivar el precio Plata a partir del precio base (Oro).
+    | Valores de arranque seguro usados por CommercePricingRulesProvider cuando:
+    | - la tabla commerce_pricing_rules aún no existe (pre-migración);
+    | - no hay registros en la tabla.
     |
-    | Diseñado para ser reemplazado en el futuro por valores administrables desde
-    | base de datos sin cambiar la lógica de cálculo.
+    | La fuente vigente en runtime es la última fila de commerce_pricing_rules.
+    | No eliminar estas claves: permiten migrate/config:cache antes de migrar.
+    |
+    | Fórmula: Precio Plata = techo(Precio Oro × (1 + incremento)) + redondeo.
     |
     */
     'tiers' => [
-        // El precio Plata es el precio base (Oro) incrementado en este porcentaje.
+        // Incremento porcentual del precio Plata sobre el precio Oro (fallback).
         'silver_markup_percent' => 5,
 
-        // El precio Plata se redondea hacia arriba al siguiente múltiplo de este
-        // valor (en pesos). Un múltiplo exacto no se incrementa.
+        // Múltiplo de redondeo del precio Plata en pesos (fallback).
         'silver_rounding_multiple' => 1000,
     ],
 

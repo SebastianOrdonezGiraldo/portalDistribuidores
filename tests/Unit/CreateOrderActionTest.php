@@ -12,6 +12,7 @@ use App\Modules\Orders\Actions\CreateOrderAction;
 use App\Modules\Orders\DTOs\CreateOrderData;
 use App\Modules\Orders\Events\OrderPlaced;
 use App\Modules\Orders\Models\Order;
+use App\Modules\Orders\Pricing\CommercePricingRules;
 use App\Modules\Orders\Pricing\DistributorPriceCalculator;
 use App\Modules\Orders\Pricing\DistributorTierResolver;
 use App\Modules\Orders\Services\OrderInventoryService;
@@ -408,7 +409,7 @@ class CreateOrderActionTest extends TestCase
         return new CreateOrderAction(
             $statusService,
             $inventoryService,
-            new DistributorPriceCalculator(silverMarkupPercent: 5, silverRoundingMultiple: 1000),
+            new DistributorPriceCalculator(new CommercePricingRules(500, 1000)),
             new DistributorTierResolver,
         );
     }

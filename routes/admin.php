@@ -2,6 +2,7 @@
 
 use App\Modules\Admin\Http\Controllers\CatalogBannerAdminController;
 use App\Modules\Admin\Http\Controllers\CategoryAdminController;
+use App\Modules\Admin\Http\Controllers\CommerceSettingsAdminController;
 use App\Modules\Admin\Http\Controllers\DashboardController;
 use App\Modules\Admin\Http\Controllers\DistributorAdminController;
 use App\Modules\Admin\Http\Controllers\OrderAdminController;
@@ -46,6 +47,9 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::patch('distributors/{distributor}/tier', [DistributorAdminController::class, 'updateTier'])->name('distributors.tier.update');
         Route::resource('distributors', DistributorAdminController::class)->except('show');
         Route::resource('users', UserAdminController::class)->except('show');
+
+        Route::get('settings/commerce', [CommerceSettingsAdminController::class, 'edit'])->name('settings.commerce.edit');
+        Route::patch('settings/commerce', [CommerceSettingsAdminController::class, 'update'])->name('settings.commerce.update');
 
         Route::get('orders', [OrderAdminController::class, 'index'])->name('orders.index');
         Route::get('orders/{order}/edit', [OrderAdminController::class, 'edit'])->name('orders.edit');
