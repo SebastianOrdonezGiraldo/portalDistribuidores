@@ -8,6 +8,7 @@ use App\Modules\Catalog\Models\Product;
 use App\Modules\Categories\Models\Category;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\OrderItem;
+use App\Modules\Orders\Pricing\DistributorPriceCalculator;
 use App\Modules\Orders\Pricing\DistributorTierMetricsService;
 use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\OrderStatus;
@@ -106,13 +107,31 @@ class CatalogTierExperienceTest extends TestCase
     public function test_guest_product_detail_keeps_single_price(): void
     {
         $product = $this->seedCatalogProduct();
+        [$formattedGold, $formattedSilver] = $this->formattedTierPrices($product);
 
         $response = $this->get(route('products.show', $product));
 
         $response->assertOk();
         $response->assertDontSee('product-detail-price__nudge', false);
         $response->assertDontSee('product-detail-price__hero--gold', false);
-        $response->assertSee('$96.000');
+        // Guests see list/Plata (2026), never the Gold/base discount price.
+        $response->assertSee($formattedSilver);
+        $response->assertDontSee($formattedGold);
+    }
+
+    public function test_guest_catalog_shows_silver_list_price(): void
+    {
+        $product = $this->seedCatalogProduct();
+        [$formattedGold, $formattedSilver] = $this->formattedTierPrices($product);
+
+        $response = $this->get(route('catalog.index'));
+
+        $response->assertOk();
+        $response->assertSee($product->name);
+        $response->assertSee($formattedSilver);
+        $response->assertDontSee($formattedGold);
+        $response->assertDontSee('Precio Oro');
+        $response->assertDontSee('Ahorras', false);
     }
 
     public function test_metrics_service_sums_snapshot_delta_only(): void
@@ -191,5 +210,21 @@ class CatalogTierExperienceTest extends TestCase
             'stock' => 10,
             'is_active' => true,
         ]);
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function formattedTierPrices(Product $product): array
+    {
+        $tierPrice = app(DistributorPriceCalculator::class)
+            ->calculateFromDecimal((string) $product->price, DistributorTier::Silver);
+
+        $formatMoney = static fn (string $amount): string => '$'.number_format((float) $amount, 0, ',', '.');
+
+        return [
+            $formatMoney($tierPrice->basePriceDecimal()),
+            $formatMoney($tierPrice->silverPriceDecimal()),
+        ];
     }
 }

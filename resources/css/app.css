@@ -2175,6 +2175,21 @@
         }
     }
 
+    /* Durante loading/éxito/error: liberar ancho del CTA y ocultar qty */
+    .cart-qty-form.is-cart-feedback .cart-qty-control {
+        max-width: 0;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .cart-add-btn.cart-add-btn--feedback {
+        width: auto !important;
+        min-width: 2.5rem;
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+        white-space: nowrap;
+    }
+
     /* ── Tier experience (catalog / shell) ─────────────────────────────────── */
 
     .catalog-tier-stack {

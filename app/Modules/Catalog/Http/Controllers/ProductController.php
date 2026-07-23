@@ -307,8 +307,9 @@ class ProductController extends Controller
             $maxEffective = (float) $priced->max(fn ($p) => (float) $p->effectivePriceDecimal());
             $mode = $tier->pricingMode();
         } else {
-            $minEffective = $minGold;
-            $maxEffective = $maxGold;
+            // Guests/admins: list price 2026 (Silver), never the Gold discount.
+            $minEffective = $minSilver;
+            $maxEffective = $maxSilver;
             $mode = 'single';
         }
 
@@ -342,7 +343,7 @@ class ProductController extends Controller
                 $silver = (float) $tierPrice->silverPriceDecimal();
                 $effective = $isDistributor
                     ? (float) $tierPrice->effectivePriceDecimal()
-                    : $gold;
+                    : $silver;
 
                 $variantPriceMap[(int) $variant->id] = [
                     'gold' => $gold,
