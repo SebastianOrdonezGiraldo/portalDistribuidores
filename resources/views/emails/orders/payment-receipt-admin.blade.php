@@ -1,12 +1,12 @@
 @extends('emails.layouts.base')
 
-@section('title', 'Comprobante Oro '.$order->oc_number)
-@section('preheader', 'Cliente ICM Oro subió comprobante de pago para '.$order->oc_number.'.')
-@section('heading', 'Comprobante de pago — Cliente Oro')
+@section('title', 'Comprobante '.$tierWord.' '.$order->oc_number)
+@section('preheader', $tierLabel.' subió comprobante de pago para '.$order->oc_number.'.')
+@section('heading', 'Comprobante de pago — '.$tierLabel)
 
 @section('content')
     <p style="margin: 0 0 12px;">
-        Un cliente <strong>ICM Oro</strong> subió el comprobante de pago. El archivo va adjunto a este correo.
+        Un cliente <strong>{{ $tierLabel }}</strong> subió el comprobante de pago. El archivo va adjunto a este correo.
     </p>
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 14px 0 18px; border: 1px solid #e2e8f0; border-radius: 10px;">
