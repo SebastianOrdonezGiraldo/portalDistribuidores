@@ -1154,6 +1154,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmCancel = confirmModal?.querySelector('[data-confirm-cancel]');
     let pendingForm = null;
 
+    const resetLoadingFormState = (form) => {
+        delete form.dataset.formSubmitting;
+
+        form.querySelectorAll('[data-loading-label]').forEach((button) => {
+            if (button.dataset.originalLabel) {
+                button.textContent = button.dataset.originalLabel;
+                delete button.dataset.originalLabel;
+            }
+
+            button.disabled = false;
+        });
+    };
+
     document.querySelectorAll('form[data-confirm]').forEach((form) => {
         form.addEventListener('submit', (event) => {
             if (form.dataset.confirmed === 'true') {
@@ -1178,19 +1191,29 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        pendingForm.dataset.confirmed = 'true';
-        pendingForm.requestSubmit();
+        const form = pendingForm;
         pendingForm = null;
         closeModal(confirmModal);
+        resetLoadingFormState(form);
+        form.dataset.confirmed = 'true';
+        form.requestSubmit();
     });
 
     confirmCancel?.addEventListener('click', () => {
+        if (pendingForm) {
+            resetLoadingFormState(pendingForm);
+        }
+
         pendingForm = null;
         closeModal(confirmModal);
     });
 
     confirmModal?.addEventListener('click', (event) => {
         if (event.target === confirmModal) {
+            if (pendingForm) {
+                resetLoadingFormState(pendingForm);
+            }
+
             pendingForm = null;
             closeModal(confirmModal);
         }
@@ -1199,6 +1222,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('form[data-loading-form]').forEach((form) => {
         form.addEventListener('submit', (event) => {
             if (form.dataset.ajaxCart === 'true') {
+                return;
+            }
+
+            // Another submit handler (e.g. data-confirm) may have cancelled this attempt.
+            if (event.defaultPrevented) {
                 return;
             }
 
