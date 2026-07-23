@@ -6,6 +6,8 @@ use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\OrderStatus;
+use App\Modules\Shared\Enums\PaymentMethod;
+use App\Modules\Shared\Enums\PaymentStatus;
 use App\Modules\Shared\Enums\ShippingCarrier;
 use Carbon\Carbon;
 use Database\Factories\OrderFactory;
@@ -17,6 +19,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * @property int $id
  * @property OrderStatus $status
+ * @property PaymentStatus $payment_status
+ * @property PaymentMethod|null $payment_method
+ * @property string|null $payment_receipt_path
+ * @property string|null $payment_receipt_filename
+ * @property Carbon|null $payment_receipt_uploaded_at
+ * @property Carbon|null $payment_reservation_expires_at
  * @property DistributorTier|null $distributor_tier_snapshot
  * @property float $total_amount
  * @property string|null $pdf_path
@@ -56,6 +64,12 @@ class Order extends Model
         'notes',
         'approval_note',
         'status',
+        'payment_status',
+        'payment_method',
+        'payment_receipt_path',
+        'payment_receipt_filename',
+        'payment_receipt_uploaded_at',
+        'payment_reservation_expires_at',
         'distributor_tier_snapshot',
         'tracking_number',
         'shipping_carrier',
@@ -67,9 +81,24 @@ class Order extends Model
     {
         return [
             'status' => OrderStatus::class,
+            'payment_status' => PaymentStatus::class,
+            'payment_method' => PaymentMethod::class,
+            'payment_receipt_uploaded_at' => 'datetime',
+            'payment_reservation_expires_at' => 'datetime',
             'distributor_tier_snapshot' => DistributorTier::class,
             'total_amount' => 'decimal:2',
         ];
+    }
+
+    public function requiresManualPayment(): bool
+    {
+        return $this->payment_status !== PaymentStatus::NotApplicable
+            && $this->payment_method !== null;
+    }
+
+    public function canDispatchRegardingPayment(): bool
+    {
+        return ! $this->payment_status->blocksDispatchUnlessOk();
     }
 
     public function shippingCarrierLabel(): ?string
@@ -103,5 +132,11 @@ class Order extends Model
     public function statusHistory(): HasMany
     {
         return $this->hasMany(OrderStatusHistory::class)->latest('created_at');
+    }
+
+    /** @return HasMany<PaymentUploadToken, $this> */
+    public function paymentUploadTokens(): HasMany
+    {
+        return $this->hasMany(PaymentUploadToken::class);
     }
 }

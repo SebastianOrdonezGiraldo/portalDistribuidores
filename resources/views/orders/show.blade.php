@@ -93,6 +93,13 @@ View contract:
                 </dl>
             </x-ui.card>
 
+            @include('orders.partials.payment-panel', [
+                'order' => $order,
+                'paymentUploadUrl' => $paymentUploadUrl ?? null,
+                'paymentUploadToken' => $paymentUploadToken ?? null,
+                'receiptMaxSizeLabel' => $receiptMaxSizeLabel ?? null,
+            ])
+
             <x-ui.card>
                 <x-slot name="header">
                     <h2 class="card-title">Ítems del pedido</h2>

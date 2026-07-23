@@ -177,4 +177,48 @@ return [
     'support' => [
         'whatsapp_number' => '573117479607',
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Manual payment (Bancolombia / Nequi / Llave / QR)
+    |--------------------------------------------------------------------------
+    |
+    | Placeholder bank details until real account numbers are configured.
+    | Update lines via env/config without a frontend deploy.
+    |
+    */
+    'payment' => [
+        'manual_reservation_ttl_minutes' => (int) env('PAYMENT_MANUAL_RESERVATION_TTL_MINUTES', 45),
+        'upload_token_ttl_minutes' => (int) env('PAYMENT_UPLOAD_TOKEN_TTL_MINUTES', 20),
+        'methods' => [
+            'bancolombia' => [
+                'label' => 'Bancolombia',
+                'lines' => [
+                    'Tipo de cuenta: Ahorros (pendiente de configurar)',
+                    'Número de cuenta: (pendiente de configurar)',
+                    'Titular: ICMTHERAPY (pendiente de confirmar)',
+                ],
+            ],
+            'nequi' => [
+                'label' => 'Nequi',
+                'lines' => [
+                    'Número Nequi: (pendiente de configurar)',
+                    'Nombre: ICMTHERAPY (pendiente de confirmar)',
+                ],
+            ],
+            'llave' => [
+                'label' => 'Llave',
+                'lines' => [
+                    'Llave: (pendiente de configurar)',
+                ],
+            ],
+            'qr' => [
+                'label' => 'QR',
+                'lines' => [
+                    'Código QR de pago: (pendiente de configurar)',
+                    'Escanea el QR bancario cuando esté disponible en esta sección.',
+                ],
+            ],
+        ],
+    ],
 ];

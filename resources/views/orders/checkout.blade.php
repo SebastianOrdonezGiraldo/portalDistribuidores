@@ -252,14 +252,89 @@ View contract:
                     </div>
                 </div>
 
-                <div class="mt-5 space-y-2">
-                    <x-ui.button type="submit" variant="primary" class="w-full justify-center" data-loading-label="Enviando pedido...">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-                        Confirmar pedido
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-                    </x-ui.button>
+                <div class="mt-5 space-y-3" x-data="checkoutPayment(@js([
+                    'methods' => collect(\App\Modules\Shared\Enums\PaymentMethod::cases())->mapWithKeys(fn ($m) => [
+                        $m->value => [
+                            'label' => $m->label(),
+                            'lines' => $m->instructionLines(),
+                        ],
+                    ])->all(),
+                    'intent' => old('checkout_intent', 'quote'),
+                    'method' => old('payment_method'),
+                ]))">
+                    <input type="hidden" name="checkout_intent" :value="intent">
+                    <input type="hidden" name="payment_method" :value="method || ''">
+
+                    <div class="grid gap-2 sm:grid-cols-2">
+                        <button
+                            type="submit"
+                            class="btn btn-secondary w-full justify-center"
+                            data-loading-label="Enviando cotización..."
+                            @click="intent = 'quote'; method = null"
+                        >
+                            Solo cotizar
+                        </button>
+                        <button
+                            type="button"
+                            class="btn btn-primary w-full justify-center"
+                            @click="intent = 'pay'; showPay = true"
+                        >
+                            Pagar ahora
+                        </button>
+                    </div>
+
+                    <div x-show="showPay || intent === 'pay'" x-cloak class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <p class="text-sm font-semibold text-slate-900">Elige cómo pagar</p>
+                        <p class="mt-1 text-xs text-slate-500">Los datos de cuenta se mostrarán al seleccionar. Luego confirma el pedido.</p>
+
+                        <div class="mt-3 grid gap-2">
+                            <template x-for="(meta, key) in methods" :key="key">
+                                <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 hover:border-brand-primary/40">
+                                    <input type="radio" class="mt-1" name="payment_method_ui" :value="key" x-model="method">
+                                    <span>
+                                        <span class="block text-sm font-semibold text-slate-900" x-text="meta.label"></span>
+                                    </span>
+                                </label>
+                            </template>
+                        </div>
+
+                        <div x-show="method" x-cloak class="mt-3 rounded-xl border border-dashed border-amber-200 bg-amber-50/60 px-3 py-3 text-sm text-slate-700">
+                            <p class="font-semibold text-amber-900" x-text="methods[method]?.label"></p>
+                            <ul class="mt-1 list-disc space-y-0.5 pl-4 text-xs text-slate-600">
+                                <template x-for="(line, idx) in (methods[method]?.lines || [])" :key="idx">
+                                    <li x-text="line"></li>
+                                </template>
+                            </ul>
+                        </div>
+
+                        <x-input-error class="mt-2" :messages="$errors->get('payment_method')" />
+                        <x-input-error class="mt-2" :messages="$errors->get('checkout_intent')" />
+
+                        <button
+                            type="submit"
+                            class="btn btn-primary mt-4 w-full justify-center"
+                            data-loading-label="Registrando pedido..."
+                            @click="intent = 'pay'"
+                            :disabled="!method"
+                        >
+                            Confirmar y pagar
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                        </button>
+                    </div>
+
                     <a href="{{ route('cart.index') }}" class="btn btn-secondary w-full justify-center">Volver al carrito</a>
                 </div>
+
+                <script>
+                    function checkoutPayment(initial) {
+                        return {
+                            methods: initial.methods || {},
+                            intent: initial.intent || 'quote',
+                            method: initial.method || null,
+                            showPay: (initial.intent || 'quote') === 'pay',
+                        };
+                    }
+                </script>
             </x-ui.card>
         </aside>
     </form>

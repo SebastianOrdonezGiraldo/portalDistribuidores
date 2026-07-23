@@ -12,11 +12,19 @@ class StoreOrderRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if (! $this->filled('checkout_intent')) {
+            $this->merge(['checkout_intent' => 'quote']);
+        }
+    }
+
     public function rules(): array
     {
         $departments = config('locations.colombia_departments', []);
+        $intent = (string) $this->input('checkout_intent', 'quote');
 
-        return [
+        $rules = [
             'contact_name' => ['required', 'string', 'max:120'],
             'contact_email' => ['required', 'string', 'email', 'max:120'],
             'phone' => ['required', 'string', 'max:40'],
@@ -26,7 +34,16 @@ class StoreOrderRequest extends FormRequest
             'city' => ['required', 'string', 'max:120'],
             'department' => ['required', 'string', 'max:120', Rule::in($departments)],
             'notes' => ['nullable', 'string', 'max:1000'],
+            'checkout_intent' => ['required', 'string', Rule::in(['quote', 'pay'])],
+            'payment_method' => [
+                Rule::requiredIf(fn () => $intent === 'pay'),
+                'nullable',
+                'string',
+                Rule::in(\App\Modules\Shared\Enums\PaymentMethod::values()),
+            ],
         ];
+
+        return $rules;
     }
 
     public function bodyParameters(): array
@@ -68,6 +85,14 @@ class StoreOrderRequest extends FormRequest
                 'description' => 'Notas opcionales para el pedido.',
                 'example' => 'Entregar en horario de oficina.',
             ],
+            'checkout_intent' => [
+                'description' => 'quote = solo cotizar; pay = pagar ahora.',
+                'example' => 'quote',
+            ],
+            'payment_method' => [
+                'description' => 'Método de pago manual (requerido si checkout_intent=pay).',
+                'example' => 'bancolombia',
+            ],
         ];
     }
 
@@ -76,6 +101,9 @@ class StoreOrderRequest extends FormRequest
         return [
             'company_nit.regex' => 'El NIT/Cédula debe contener solo números.',
             'department.in' => 'Selecciona un departamento válido.',
+            'checkout_intent.in' => 'Selecciona si deseas cotizar o pagar.',
+            'payment_method.required' => 'Selecciona un método de pago.',
+            'payment_method.in' => 'Método de pago no válido.',
         ];
     }
 }

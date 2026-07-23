@@ -30,6 +30,7 @@ class OrderFactory extends Factory
             'department' => fake()->randomElement(config('locations.colombia_departments', ['Antioquia'])),
             'notes' => null,
             'status' => OrderStatus::Submitted,
+            'payment_status' => \App\Modules\Shared\Enums\PaymentStatus::NotApplicable,
             'total_amount' => fake()->numberBetween(5000, 500000),
             'pdf_path' => null,
         ];

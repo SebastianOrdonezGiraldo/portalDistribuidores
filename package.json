@@ -26,5 +26,8 @@
     },
     "overrides": {
         "esbuild": "0.28.1"
+    },
+    "dependencies": {
+        "qrcode": "^1.5.4"
     }
 }
