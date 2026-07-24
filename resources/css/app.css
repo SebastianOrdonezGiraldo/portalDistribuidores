@@ -356,6 +356,139 @@
         }
     }
 
+    /* Payment success modal — one-shot CSS choreography (no infinite loops). */
+    .payment-success-modal {
+        @apply fixed inset-0 z-[80] items-center justify-center p-4;
+        display: none;
+    }
+
+    .payment-success-modal.is-active {
+        display: flex;
+    }
+
+    .payment-success-modal__backdrop {
+        @apply absolute inset-0 bg-slate-950/55;
+        opacity: 0;
+    }
+
+    .payment-success-modal.is-active .payment-success-modal__backdrop {
+        animation: payment-success-backdrop-in 0.35s ease both;
+    }
+
+    .payment-success-modal__dialog {
+        @apply relative z-10 flex w-full max-w-xs flex-col items-center rounded-3xl border border-emerald-200/80 bg-white px-6 py-8 text-center shadow-panel;
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    .payment-success-modal.is-active .payment-success-modal__dialog {
+        animation: payment-success-dialog-in 0.4s ease both;
+    }
+
+    .payment-success-circle {
+        @apply relative flex h-20 w-20 items-center justify-center text-white;
+        background: linear-gradient(135deg, #10b981 0%, #14b8a6 55%, #0d9488 100%);
+        border-radius: 9999px;
+        clip-path: circle(0% at 50% 50%);
+    }
+
+    .payment-success-modal.is-active .payment-success-circle {
+        animation: payment-success-circle-reveal 0.55s ease forwards;
+    }
+
+    .payment-success-check {
+        width: 2.25rem;
+        height: 2.25rem;
+        stroke-dasharray: 36;
+        stroke-dashoffset: 36;
+    }
+
+    .payment-success-modal.is-active .payment-success-check {
+        animation: payment-success-check-draw 0.45s ease forwards 0.55s;
+    }
+
+    .payment-success-label {
+        @apply mt-5 text-lg font-semibold tracking-tight text-slate-900;
+        opacity: 0;
+        transform: translateY(8px);
+        min-height: 1.75rem;
+    }
+
+    .payment-success-modal.is-active .payment-success-label {
+        animation: payment-success-label-in 0.4s ease forwards 1s;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .payment-success-modal.is-active .payment-success-modal__backdrop,
+        .payment-success-modal.is-active .payment-success-modal__dialog,
+        .payment-success-modal.is-active .payment-success-circle,
+        .payment-success-modal.is-active .payment-success-check,
+        .payment-success-modal.is-active .payment-success-label {
+            animation: none !important;
+        }
+
+        .payment-success-modal.is-active .payment-success-modal__backdrop,
+        .payment-success-modal.is-active .payment-success-modal__dialog,
+        .payment-success-modal.is-active .payment-success-label {
+            opacity: 1;
+            transform: none;
+        }
+
+        .payment-success-modal.is-active .payment-success-circle {
+            clip-path: circle(75% at 50% 50%);
+        }
+
+        .payment-success-modal.is-active .payment-success-check {
+            stroke-dashoffset: 0;
+        }
+    }
+
+    @keyframes payment-success-backdrop-in {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    @keyframes payment-success-dialog-in {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes payment-success-circle-reveal {
+        from {
+            clip-path: circle(0% at 50% 50%);
+        }
+        to {
+            clip-path: circle(75% at 50% 50%);
+        }
+    }
+
+    @keyframes payment-success-check-draw {
+        to {
+            stroke-dashoffset: 0;
+        }
+    }
+
+    @keyframes payment-success-label-in {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
     .form-label {
         @apply mb-1.5 block text-sm font-semibold text-slate-700;
     }
@@ -1305,6 +1438,33 @@
         @apply bg-red-100 text-red-900;
     }
 
+    /* Payment status badges (used from PaymentStatus::badgeClass — must live in CSS so Tailwind keeps them) */
+    .payment-status-na {
+        background-color: #f1f5f9 !important;
+        color: #334155 !important;
+    }
+
+    .payment-status-pending {
+        background-color: #fef3c7 !important;
+        color: #78350f !important;
+    }
+
+    .payment-status-confirming {
+        background-color: #e0f2fe !important;
+        color: #0c4a6e !important;
+    }
+
+    .payment-status-validated {
+        background-color: #d1fae5 !important;
+        color: #064e3b !important;
+    }
+
+    .payment-status-rejected,
+    .payment-status-expired {
+        background-color: #fee2e2 !important;
+        color: #7f1d1d !important;
+    }
+
     .badge-violet {
         @apply bg-violet-100 text-violet-900;
     }
@@ -2175,6 +2335,21 @@
         }
     }
 
+    /* Durante loading/éxito/error: liberar ancho del CTA y ocultar qty */
+    .cart-qty-form.is-cart-feedback .cart-qty-control {
+        max-width: 0;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .cart-add-btn.cart-add-btn--feedback {
+        width: auto !important;
+        min-width: 2.5rem;
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+        white-space: nowrap;
+    }
+
     /* ── Tier experience (catalog / shell) ─────────────────────────────────── */
 
     .catalog-tier-stack {
@@ -2721,6 +2896,30 @@
         @apply flex flex-col items-start justify-between gap-4 rounded-2xl border border-brand-primary/20 bg-gradient-to-r from-brand-primary/[0.07] via-white to-white p-5 sm:flex-row sm:items-center;
     }
 
+    .cart-review-oro-upsell {
+        @apply flex flex-col items-start justify-between gap-4 rounded-2xl border border-amber-200/80 bg-gradient-to-r from-amber-50 via-amber-50/40 to-white p-4 sm:flex-row sm:items-center;
+    }
+
+    .cart-review-oro-upsell-icon {
+        @apply inline-flex h-10 w-10 flex-none items-center justify-center rounded-full bg-amber-100 text-amber-600;
+    }
+
+    .cart-review-oro-upsell-cta {
+        @apply focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-amber-400/70 bg-white px-4 py-2.5 text-sm font-semibold text-amber-800 shadow-sm transition hover:border-amber-500 hover:bg-amber-50;
+    }
+
+    .cart-review-oro-estimate-chip {
+        @apply inline-flex items-center rounded-full border border-amber-200/80 bg-amber-50 px-2 py-0.5 text-[0.68rem] font-semibold text-amber-700;
+    }
+
+    .cart-review-oro-savings-box {
+        @apply flex items-start gap-3 rounded-2xl border border-amber-200/70 bg-gradient-to-br from-amber-50/90 via-white to-white p-4;
+    }
+
+    .cart-review-info-strip {
+        @apply flex items-start gap-2.5 rounded-2xl border border-brand-primary/20 bg-brand-primary/[0.06] px-4 py-3;
+    }
+
     /* ---- Vista de checkout (/checkout) ---- */
     .checkout-header {
         @apply flex items-start gap-3;
@@ -2752,6 +2951,22 @@
 
     .checkout-tier-badge--silver {
         @apply border-slate-300/70 from-slate-100 to-slate-50 text-slate-600;
+    }
+
+    .checkout-tier-dot {
+        @apply h-1.5 w-1.5 rounded-full bg-slate-500;
+    }
+
+    .checkout-savings-line {
+        @apply underline decoration-amber-400/60 decoration-dotted underline-offset-2;
+    }
+
+    .checkout-oro-upsell {
+        @apply rounded-2xl border border-brand-primary/25 border-l-4 border-l-brand-primary bg-gradient-to-r from-brand-primary/[0.08] via-white to-white p-4;
+    }
+
+    .checkout-oro-upsell-cta {
+        @apply focus-ring mt-3 inline-flex items-center rounded-xl border border-brand-primary/40 bg-white px-4 py-2 text-sm font-semibold text-brand-dark transition hover:border-brand-primary hover:bg-brand-primary/5;
     }
 
     .checkout-summary-item {

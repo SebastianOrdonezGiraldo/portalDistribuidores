@@ -66,9 +66,9 @@ Component contract:
         $minEffective = (float) $priced->min(fn ($p) => (float) $p->effectivePriceDecimal());
         $maxEffective = (float) $priced->max(fn ($p) => (float) $p->effectivePriceDecimal());
     } else {
-        // Invitados/admins: precio base de catálogo (comportamiento histórico).
-        $minEffective = $minGold;
-        $maxEffective = $maxGold;
+        // Invitados/admins: precio lista 2026 (Plata), sin descuento Oro.
+        $minEffective = $minSilver;
+        $maxEffective = $maxSilver;
         $mode = 'single';
     }
 
@@ -94,7 +94,12 @@ Component contract:
     'border-amber-200/90 hover:border-amber-300' => $showDual,
     'border-slate-200 hover:border-slate-300' => ! $showDual,
 ])>
-    <div class="relative isolate flex aspect-square items-center justify-center overflow-hidden bg-slate-100 p-2 sm:p-3">
+    <a
+        href="{{ $detailUrl }}"
+        class="relative isolate flex aspect-square items-center justify-center overflow-hidden bg-slate-100 p-2 focus-ring sm:p-3"
+        aria-label="Ver detalle de {{ $product->name }}"
+        tabindex="-1"
+    >
         @if($showDual)
             <div class="pointer-events-none absolute left-2 top-2 z-10 max-w-[calc(100%-1rem)]">
                 <span @class([
@@ -113,7 +118,7 @@ Component contract:
         @if($coverPhoto)
             <img
                 src="{{ $coverPhotoUrl }}"
-                alt="{{ $product->name }}"
+                alt=""
                 width="{{ $coverPhotoDimensions['width'] }}"
                 height="{{ $coverPhotoDimensions['height'] }}"
                 loading="{{ $isLcpImage ? 'eager' : 'lazy' }}"
@@ -128,7 +133,7 @@ Component contract:
                 class="h-full w-full object-contain object-center transition duration-300 group-hover:scale-[1.03]"
             >
         @else
-            <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-50 to-slate-200">
+            <div class="pointer h-full w-full items-center justify-center bg-gradient-to-br from-slate-50 to-slate-200">
                 <div class="rounded-full border border-slate-300 bg-white p-4 shadow-soft">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
                         <rect x="3" y="5" width="18" height="14" rx="2"></rect>
@@ -138,7 +143,7 @@ Component contract:
                 </div>
             </div>
         @endif
-    </div>
+    </a>
 
     <div class="relative z-[1] flex flex-1 flex-col bg-white p-2 sm:p-3">
         {{-- Title in normal flow (no absolute category badge over text). --}}
@@ -147,7 +152,6 @@ Component contract:
                 href="{{ $detailUrl }}"
                 class="focus-ring rounded after:absolute after:inset-0 after:z-0 after:content-['']"
                 tabindex="0"
-                aria-label="Ver detalle de {{ $product->name }}"
             >{{ $product->name }}</a>
         </h3>
 
@@ -260,15 +264,16 @@ Component contract:
 
                             <button
                                 type="submit"
-                                class="inline-flex h-10 min-h-[2.5rem] items-center justify-center gap-1.5 rounded-lg border border-brand-primary bg-brand-primary px-3 text-xs font-semibold text-white transition hover:bg-brand-hover focus-ring sm:w-10 sm:px-0"
+                                data-cart-compact="true"
+                                class="cart-add-btn inline-flex h-10 min-h-[2.5rem] shrink-0 items-center justify-center gap-1.5 rounded-lg border border-brand-primary bg-brand-primary px-3 text-xs font-semibold text-white transition hover:bg-brand-hover focus-ring sm:w-10 sm:px-0"
                                 aria-label="Agregar {{ $product->name }} al carrito"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                     <circle cx="10" cy="20.5" r="1.25"></circle>
                                     <circle cx="17.5" cy="20.5" r="1.25"></circle>
                                     <path d="M3 3h2l2.3 10.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 7H7.2"></path>
                                 </svg>
-                                <span class="sm:hidden">Agregar</span>
+                                <span class="sm:hidden" data-cart-btn-label>Agregar</span>
                             </button>
                         </div>
                     </form>

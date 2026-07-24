@@ -1154,6 +1154,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmCancel = confirmModal?.querySelector('[data-confirm-cancel]');
     let pendingForm = null;
 
+    const resetLoadingFormState = (form) => {
+        delete form.dataset.formSubmitting;
+
+        form.querySelectorAll('[data-loading-label]').forEach((button) => {
+            if (button.dataset.originalLabel) {
+                button.textContent = button.dataset.originalLabel;
+                delete button.dataset.originalLabel;
+            }
+
+            button.disabled = false;
+        });
+    };
+
     document.querySelectorAll('form[data-confirm]').forEach((form) => {
         form.addEventListener('submit', (event) => {
             if (form.dataset.confirmed === 'true') {
@@ -1178,19 +1191,29 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        pendingForm.dataset.confirmed = 'true';
-        pendingForm.requestSubmit();
+        const form = pendingForm;
         pendingForm = null;
         closeModal(confirmModal);
+        resetLoadingFormState(form);
+        form.dataset.confirmed = 'true';
+        form.requestSubmit();
     });
 
     confirmCancel?.addEventListener('click', () => {
+        if (pendingForm) {
+            resetLoadingFormState(pendingForm);
+        }
+
         pendingForm = null;
         closeModal(confirmModal);
     });
 
     confirmModal?.addEventListener('click', (event) => {
         if (event.target === confirmModal) {
+            if (pendingForm) {
+                resetLoadingFormState(pendingForm);
+            }
+
             pendingForm = null;
             closeModal(confirmModal);
         }
@@ -1199,6 +1222,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('form[data-loading-form]').forEach((form) => {
         form.addEventListener('submit', (event) => {
             if (form.dataset.ajaxCart === 'true') {
+                return;
+            }
+
+            // Another submit handler (e.g. data-confirm) may have cancelled this attempt.
+            if (event.defaultPrevented) {
                 return;
             }
 
@@ -1236,40 +1264,64 @@ document.addEventListener('DOMContentLoaded', () => {
 
         form.dataset.ajaxCart = 'true';
 
-        const isIconButton = submitButton.textContent.trim() === '';
+        // Compact card CTAs hide the label with sm:hidden; textContent still sees it.
+        const isCompactButton = submitButton.dataset.cartCompact === 'true'
+            || submitButton.classList.contains('sm:w-10');
+        const isIconButton = !isCompactButton && submitButton.textContent.trim() === '';
         const originalHtml = submitButton.innerHTML;
         const loadingLabel = submitButton.dataset.loadingLabel || 'Agregando...';
 
+        const setFeedbackLayout = (withLabel) => {
+            form.classList.add('is-cart-feedback');
+            if (withLabel) {
+                submitButton.classList.add('cart-add-btn', 'cart-add-btn--feedback');
+            } else {
+                submitButton.classList.remove('cart-add-btn--feedback');
+            }
+        };
+
+        const clearFeedbackLayout = () => {
+            form.classList.remove('is-cart-feedback');
+            submitButton.classList.remove('cart-add-btn--feedback');
+        };
+
         const setLoading = () => {
             submitButton.disabled = true;
-            submitButton.style.transition = 'background-color 150ms ease, border-color 150ms ease';
+            submitButton.style.transition = 'background-color 150ms ease, border-color 150ms ease, width 150ms ease, padding 150ms ease';
             if (isIconButton) {
+                setFeedbackLayout(false);
                 submitButton.innerHTML = makeSpinnerSvg();
             } else {
-                submitButton.innerHTML = `${makeSpinnerSvg('shrink-0')} ${loadingLabel}`;
+                setFeedbackLayout(true);
+                submitButton.innerHTML = `${makeSpinnerSvg('shrink-0')} <span>${loadingLabel}</span>`;
             }
         };
 
         const setSuccess = () => {
             if (isIconButton) {
+                setFeedbackLayout(false);
                 submitButton.innerHTML = makeCheckSvg();
             } else {
-                submitButton.innerHTML = `${makeCheckSvg()} Agregado`;
+                setFeedbackLayout(true);
+                submitButton.innerHTML = `${makeCheckSvg()} <span>Agregado</span>`;
             }
             submitButton.classList.add('!bg-emerald-500', '!border-emerald-500');
         };
 
         const setError = () => {
             if (isIconButton) {
+                setFeedbackLayout(false);
                 submitButton.innerHTML = makeCrossSvg();
             } else {
-                submitButton.innerHTML = `${makeCrossSvg()} Ups`;
+                setFeedbackLayout(true);
+                submitButton.innerHTML = `${makeCrossSvg()} <span>Ups</span>`;
             }
             submitButton.classList.add('!bg-red-500', '!border-red-500');
             shakeCartButton(submitButton);
         };
 
         const resetButton = () => {
+            clearFeedbackLayout();
             submitButton.innerHTML = originalHtml;
             submitButton.classList.remove(
                 '!bg-emerald-500', '!border-emerald-500',
@@ -2087,4 +2139,329 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
+
+    // Magic-link QR canvases for payment receipt upload.
+    document.querySelectorAll('canvas[data-qr-url]').forEach(async (canvas) => {
+        const url = canvas.getAttribute('data-qr-url');
+        if (!url) {
+            return;
+        }
+
+        try {
+            const QRCode = (await import('qrcode')).default;
+            await QRCode.toCanvas(canvas, url, {
+                width: 160,
+                margin: 1,
+                color: { dark: '#0f172a', light: '#ffffff' },
+            });
+        } catch (error) {
+            canvas.replaceWith(Object.assign(document.createElement('p'), {
+                className: 'text-xs text-slate-500',
+                textContent: 'No se pudo generar el QR. Usa el enlace de texto.',
+            }));
+        }
+    });
+
+    // Poll payment status while waiting for cross-device receipt upload.
+    document.querySelectorAll('[data-payment-panel]').forEach((panel) => {
+        const statusUrl = panel.getAttribute('data-payment-status-url');
+        let currentStatus = panel.getAttribute('data-payment-status') || '';
+        const expiresAtRaw = panel.getAttribute('data-payment-expires-at');
+        const expiresAt = expiresAtRaw ? Date.parse(expiresAtRaw) : null;
+        const badge = panel.querySelector('[data-payment-status-badge]');
+        const message = panel.querySelector('[data-payment-status-message]');
+        const uploadZone = panel.querySelector('[data-payment-upload-zone]');
+        const pollable = ['pending_upload', 'rejected'];
+        const badgeClassByStatus = {
+            not_applicable: 'payment-status-na',
+            pending_upload: 'payment-status-pending',
+            confirming: 'payment-status-confirming',
+            validated: 'payment-status-validated',
+            rejected: 'payment-status-rejected',
+            expired: 'payment-status-expired',
+        };
+        const statusMessages = {
+            confirming: 'Comprobante recibido. Estamos confirmando tu pago.',
+            validated: 'Pago validado. Continuamos con la gestión de tu pedido.',
+            expired: 'El plazo de pago venció y la reserva se liberó. Puedes armar un nuevo pedido desde el catálogo.',
+            rejected: 'Tu comprobante fue rechazado. Sube uno nuevo antes de que venza la reserva.',
+        };
+
+        if (!statusUrl || !pollable.includes(currentStatus)) {
+            return;
+        }
+
+        let failures = 0;
+        let timer = null;
+        let celebrating = false;
+        let stopped = false;
+        let inFlight = false;
+        const baseIntervalMs = 8000;
+        const maxIntervalMs = 60000;
+        const maxFailures = 8;
+
+        const clearTimer = () => {
+            if (timer) {
+                window.clearTimeout(timer);
+                timer = null;
+            }
+        };
+
+        const stop = () => {
+            stopped = true;
+            clearTimer();
+        };
+
+        const nextDelayMs = () => {
+            if (failures <= 0) {
+                return baseIntervalMs;
+            }
+
+            // Exponential backoff on consecutive network/5xx failures: 8s → 16s → 32s → 60s.
+            return Math.min(maxIntervalMs, baseIntervalMs * (2 ** Math.min(failures, 3)));
+        };
+
+        const scheduleNext = () => {
+            if (stopped || celebrating) {
+                return;
+            }
+
+            if (document.visibilityState === 'hidden') {
+                clearTimer();
+                return;
+            }
+
+            clearTimer();
+            timer = window.setTimeout(() => {
+                tick();
+            }, nextDelayMs());
+        };
+
+        const shouldStopForTtl = () => {
+            if (!expiresAt || Number.isNaN(expiresAt)) {
+                return false;
+            }
+
+            // Stop a bit after reservation TTL (+2 min margin).
+            return Date.now() > (expiresAt + 120000);
+        };
+
+        const syncBadgeClass = (status) => {
+            if (!badge) {
+                return;
+            }
+
+            Object.values(badgeClassByStatus).forEach((cls) => badge.classList.remove(cls));
+            const next = badgeClassByStatus[status];
+            if (next) {
+                badge.classList.add(next);
+            }
+        };
+
+        const renderConfirmingUi = (payload) => {
+            currentStatus = payload.payment_status || currentStatus;
+            panel.setAttribute('data-payment-status', currentStatus);
+
+            if (badge) {
+                badge.textContent = payload.payment_status_label || 'Confirmando pago';
+            }
+
+            syncBadgeClass(currentStatus);
+
+            if (message) {
+                message.textContent = statusMessages.confirming;
+            }
+
+            if (uploadZone) {
+                uploadZone.hidden = true;
+            }
+        };
+
+        const celebrateReceiptReceived = () => {
+            const modal = document.querySelector('[data-payment-success-modal]');
+
+            if (celebrating || !modal || modal.classList.contains('is-active')) {
+                return;
+            }
+
+            celebrating = true;
+            clearTimer();
+
+            const previousFocus = document.activeElement instanceof HTMLElement
+                ? document.activeElement
+                : null;
+            const dialog = modal.querySelector('[data-payment-success-dialog]');
+            const label = modal.querySelector('[data-payment-success-label]');
+            const previousOverflow = document.body.style.overflow;
+
+            modal.hidden = false;
+            modal.classList.add('is-active');
+            document.body.style.overflow = 'hidden';
+
+            // Re-set label so aria-live announces once the dialog is shown.
+            if (label) {
+                label.textContent = '';
+                label.textContent = 'Comprobante recibido';
+            }
+
+            dialog?.focus({ preventScroll: true });
+
+            let closed = false;
+            const close = () => {
+                if (closed) {
+                    return;
+                }
+
+                closed = true;
+                modal.classList.remove('is-active');
+                modal.hidden = true;
+                document.body.style.overflow = previousOverflow;
+                celebrating = false;
+                document.removeEventListener('keydown', onKeydown);
+
+                if (previousFocus && document.contains(previousFocus)) {
+                    previousFocus.focus({ preventScroll: true });
+                }
+            };
+
+            const onKeydown = (event) => {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    close();
+                }
+            };
+
+            modal.querySelector('[data-payment-success-dismiss]')?.addEventListener('click', close, { once: true });
+            document.addEventListener('keydown', onKeydown);
+        };
+
+        const applyStatus = (payload) => {
+            const previousStatus = currentStatus;
+            const nextStatus = payload.payment_status || currentStatus;
+
+            if (nextStatus === currentStatus) {
+                return;
+            }
+
+            // Terminal / non-upload states: update from payload, stop polling. No full reload.
+            if (!pollable.includes(nextStatus)) {
+                stop();
+
+                // Positive poll response: receipt landed in BD → confirming.
+                if (nextStatus === 'confirming' && pollable.includes(previousStatus)) {
+                    renderConfirmingUi(payload);
+                    celebrateReceiptReceived();
+                    return;
+                }
+
+                currentStatus = nextStatus;
+                panel.setAttribute('data-payment-status', currentStatus);
+
+                if (badge && payload.payment_status_label) {
+                    badge.textContent = payload.payment_status_label;
+                }
+
+                syncBadgeClass(currentStatus);
+
+                if (message && statusMessages[currentStatus]) {
+                    message.textContent = statusMessages[currentStatus];
+                }
+
+                if (uploadZone && !payload.allows_upload) {
+                    uploadZone.hidden = true;
+                }
+
+                return;
+            }
+
+            currentStatus = nextStatus;
+            panel.setAttribute('data-payment-status', currentStatus);
+
+            if (badge && payload.payment_status_label) {
+                badge.textContent = payload.payment_status_label;
+            }
+
+            syncBadgeClass(currentStatus);
+
+            if (message && statusMessages[currentStatus]) {
+                message.textContent = statusMessages[currentStatus];
+            }
+
+            if (uploadZone) {
+                uploadZone.hidden = !payload.allows_upload;
+            }
+        };
+
+        const tick = async () => {
+            if (stopped || celebrating || inFlight) {
+                return;
+            }
+
+            if (document.visibilityState === 'hidden') {
+                clearTimer();
+                return;
+            }
+
+            if (shouldStopForTtl()) {
+                stop();
+                if (message) {
+                    message.textContent = `${message.textContent} (El plazo de reserva venció; recarga si necesitás el estado final.)`;
+                }
+                return;
+            }
+
+            inFlight = true;
+
+            try {
+                const response = await fetch(statusUrl, {
+                    headers: { Accept: 'application/json' },
+                    credentials: 'same-origin',
+                });
+
+                if (!response.ok) {
+                    throw new Error(`poll failed: ${response.status}`);
+                }
+
+                const payload = await response.json();
+                failures = 0;
+                await applyStatus(payload);
+            } catch (error) {
+                failures += 1;
+                if (failures >= maxFailures) {
+                    stop();
+                    if (message) {
+                        message.textContent = `${message.textContent} (No pudimos actualizar el estado automáticamente; recarga la página.)`;
+                    }
+                    return;
+                }
+            } finally {
+                inFlight = false;
+            }
+
+            if (!stopped && pollable.includes(currentStatus)) {
+                scheduleNext();
+            }
+        };
+
+        const onVisibilityChange = () => {
+            if (stopped) {
+                return;
+            }
+
+            if (document.visibilityState === 'hidden') {
+                // Pause for real: clear the timer so we don't hit the API in background.
+                clearTimer();
+                return;
+            }
+
+            // Resume with an immediate poll when the tab becomes visible again.
+            tick();
+        };
+
+        document.addEventListener('visibilitychange', onVisibilityChange);
+
+        if (document.visibilityState === 'visible') {
+            scheduleNext();
+        }
+    });
 });

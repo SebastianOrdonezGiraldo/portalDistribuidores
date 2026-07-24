@@ -27,6 +27,18 @@ View contract:
         $savingsPct = $listTotal > 0 ? (int) round($savingsTotal / $listTotal * 100) : 0;
         $hasSavings = $savingsTotal > 0.5;
 
+        $goldTotal = (float) $items->sum(fn ($item) => (float) $item['base_unit_price'] * (int) $item['qty']);
+        $potentialSavings = max(0, $grossTotal - $goldTotal);
+        $potentialSavingsPct = $grossTotal > 0 ? (int) round($potentialSavings / $grossTotal * 100) : 0;
+        $hasPotentialSavings = $potentialSavings > 0.5;
+
+        $silverTier = \App\Modules\Shared\Enums\DistributorTier::Silver;
+        $upgradeMessage = (string) ($silverTier->upgrade()['whatsapp_message'] ?? '');
+        $upgradeWhatsappUrl = (! $isGold && filled($upgradeMessage))
+            ? 'https://wa.me/'.config('commerce.support.whatsapp_number', '573117479607').'?text='.rawurlencode($upgradeMessage)
+            : null;
+        $canOpenUpgradeModal = ! $isGold && auth()->user()?->distributor !== null;
+
         $advisorUrl = 'https://wa.me/573117479607?text='.rawurlencode('Hola, tengo dudas con mi pedido en el portal ICMTHERAPY.');
     @endphp
 
@@ -64,39 +76,65 @@ View contract:
         </x-ui.empty-state-panel>
     @else
         <div class="space-y-4">
-            {{-- Franja de garantías comerciales --}}
-            <div class="cart-review-strip">
-                <div class="cart-review-feature">
-                    <span class="cart-review-feature-icon" aria-hidden="true">
-                        @if($isGold)
+            @if($isGold)
+                {{-- Franja de garantías comerciales (Cliente Oro) --}}
+                <div class="cart-review-strip">
+                    <div class="cart-review-feature">
+                        <span class="cart-review-feature-icon" aria-hidden="true">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m5 16 -1.6 -8 4.6 3.5L12 5l3.9 6.5L20.6 8 19 16z"/><path d="M5 19h14"/></svg>
-                        @else
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.6 8.5 12 3 3.4 8.5v7L12 21l8.6-5.5z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>
-                        @endif
-                    </span>
-                    <p class="cart-review-feature-text">
-                        {{ $isGold ? 'Precios exclusivos por tu nivel ORO' : 'Precios preferenciales para distribuidores' }}
-                    </p>
+                        </span>
+                        <p class="cart-review-feature-text">Precios exclusivos por tu nivel ORO</p>
+                    </div>
+                    <div class="cart-review-feature">
+                        <span class="cart-review-feature-icon" aria-hidden="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 13a8 8 0 0 1 16 0"/><path d="M4 13v3a2 2 0 0 0 2 2h1v-5H6a2 2 0 0 0-2 2z"/><path d="M20 13v3a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2z"/><path d="M17 18a3 3 0 0 1-3 3h-1"/></svg>
+                        </span>
+                        <p class="cart-review-feature-text">Asesoría especializada en tu compra</p>
+                    </div>
+                    <div class="cart-review-feature">
+                        <span class="cart-review-feature-icon" aria-hidden="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="1.8"/><circle cx="17.5" cy="18" r="1.8"/></svg>
+                        </span>
+                        <p class="cart-review-feature-text">Envíos a todo el país con cobertura nacional</p>
+                    </div>
+                    <div class="cart-review-feature">
+                        <span class="cart-review-feature-icon" aria-hidden="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 5 6v5c0 4.5 3 7.5 7 10 4-2.5 7-5.5 7-10V6z"/></svg>
+                        </span>
+                        <p class="cart-review-feature-text">Garantía y respaldo ICMTHERAPY</p>
+                    </div>
                 </div>
-                <div class="cart-review-feature">
-                    <span class="cart-review-feature-icon" aria-hidden="true">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 13a8 8 0 0 1 16 0"/><path d="M4 13v3a2 2 0 0 0 2 2h1v-5H6a2 2 0 0 0-2 2z"/><path d="M20 13v3a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2z"/><path d="M17 18a3 3 0 0 1-3 3h-1"/></svg>
-                    </span>
-                    <p class="cart-review-feature-text">Asesoría especializada en tu compra</p>
+            @elseif($hasPotentialSavings)
+                {{-- Banner de oportunidad Oro (Cliente Plata) --}}
+                <div class="cart-review-oro-upsell">
+                    <div class="flex min-w-0 flex-1 items-start gap-3">
+                        <span class="cart-review-oro-upsell-icon" aria-hidden="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="m5 16 -1.6 -8 4.6 3.5L12 5l3.9 6.5L20.6 8 19 16z"/></svg>
+                        </span>
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-slate-900">
+                                Con nivel <span class="text-amber-700">Oro</span> te habrías ahorrado
+                                <span class="text-amber-700" data-sum-potential-savings>{{ $money($potentialSavings) }}</span>
+                                en este pedido
+                            </p>
+                            <p class="mt-0.5 text-xs text-slate-500">
+                                Descuento estimado nivel Oro: <span data-sum-potential-savings-pct>{{ $potentialSavingsPct }}</span>%
+                            </p>
+                        </div>
+                    </div>
+                    @if($canOpenUpgradeModal)
+                        <button type="button" class="cart-review-oro-upsell-cta" @click="$dispatch('open-modal', 'tier-upgrade')">
+                            Solicitar ascenso a Oro
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                        </button>
+                    @elseif($upgradeWhatsappUrl)
+                        <a href="{{ $upgradeWhatsappUrl }}" target="_blank" rel="noopener noreferrer" class="cart-review-oro-upsell-cta">
+                            Solicitar ascenso a Oro
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                        </a>
+                    @endif
                 </div>
-                <div class="cart-review-feature">
-                    <span class="cart-review-feature-icon" aria-hidden="true">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="1.8"/><circle cx="17.5" cy="18" r="1.8"/></svg>
-                    </span>
-                    <p class="cart-review-feature-text">Envíos a todo el país con cobertura nacional</p>
-                </div>
-                <div class="cart-review-feature">
-                    <span class="cart-review-feature-icon" aria-hidden="true">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 5 6v5c0 4.5 3 7.5 7 10 4-2.5 7-5.5 7-10V6z"/></svg>
-                    </span>
-                    <p class="cart-review-feature-text">Garantía y respaldo ICMTHERAPY</p>
-                </div>
-            </div>
+            @endif
 
             <form id="cart-update-form" action="{{ route('cart.update') }}" method="POST" data-loading-form data-cart-form class="grid min-w-0 gap-4 lg:grid-cols-[1.85fr_1fr] lg:items-start">
                 @csrf
@@ -128,6 +166,7 @@ View contract:
                                 class="cart-review-line"
                                 data-cart-item
                                 data-unit-price="{{ (float) $item['unit_price'] }}"
+                                data-base-price="{{ (float) $item['base_unit_price'] }}"
                                 data-silver-price="{{ (float) $item['silver_unit_price'] }}"
                                 data-vat-excluded="{{ $item['is_vat_excluded'] ? '1' : '0' }}"
                                 data-stock-limit="{{ $available ?? '' }}"
@@ -159,10 +198,14 @@ View contract:
                                     <span class="cart-review-cell-label lg:hidden">Precio unitario</span>
                                     <p class="text-sm font-semibold text-slate-900">{{ $money($item['unit_price']) }}</p>
                                     <p class="text-[0.7rem] text-slate-400">{{ $item['vat_label'] }}</p>
-                                    @if($linePct > 0)
+                                    @if($isGold && $linePct > 0)
                                         <span class="cart-review-oro-chip mt-1.5">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="currentColor"><path d="m5 16 -1.6 -8 4.6 3.5L12 5l3.9 6.5L20.6 8 19 16z"/></svg>
                                             {{ $linePct }}% dto. Cliente ORO
+                                        </span>
+                                    @elseif(! $isGold && (float) $item['base_unit_price'] < (float) $item['unit_price'])
+                                        <span class="cart-review-oro-estimate-chip mt-1.5">
+                                            Precio Oro estimado: {{ $money($item['base_unit_price']) }}
                                         </span>
                                     @endif
                                 </div>
@@ -224,7 +267,7 @@ View contract:
                         <h2 class="text-base font-bold text-slate-900">Resumen del pedido</h2>
 
                         <dl class="mt-4 space-y-2.5 text-sm">
-                            @if($hasSavings)
+                            @if($isGold && $hasSavings)
                                 <div class="flex items-center justify-between gap-3">
                                     <dt class="text-slate-500">Subtotal (precio Plata)</dt>
                                     <dd class="font-medium text-slate-700" data-sum-list>{{ $money($listTotal) }}</dd>
@@ -234,27 +277,60 @@ View contract:
                                     <dd class="font-semibold text-amber-600">− <span data-sum-savings>{{ $money($savingsTotal) }}</span></dd>
                                 </div>
                                 <div class="!mt-3 border-t border-dashed border-slate-200 pt-3"></div>
+                            @elseif(! $isGold)
+                                <div class="flex items-center justify-between gap-3">
+                                    <dt class="text-slate-500">Subtotal (antes de IVA)</dt>
+                                    <dd class="font-medium text-slate-700" data-sum-net>{{ $money($netTotal) }}</dd>
+                                </div>
+                                <div class="flex items-center justify-between gap-3">
+                                    <dt class="text-slate-500">IVA (13%)</dt>
+                                    <dd class="font-medium text-slate-700" data-sum-iva>{{ $money($ivaTotal) }}</dd>
+                                </div>
                             @endif
-                            <div class="flex items-center justify-between gap-3">
-                                <dt class="text-slate-500">Base gravable</dt>
-                                <dd class="font-medium text-slate-700" data-sum-net>{{ $money($netTotal) }}</dd>
-                            </div>
-                            <div class="flex items-center justify-between gap-3">
-                                <dt class="text-slate-500">IVA (13%)</dt>
-                                <dd class="font-medium text-slate-700" data-sum-iva>{{ $money($ivaTotal) }}</dd>
-                            </div>
+                            @if($isGold)
+                                <div class="flex items-center justify-between gap-3">
+                                    <dt class="text-slate-500">Base gravable</dt>
+                                    <dd class="font-medium text-slate-700" data-sum-net>{{ $money($netTotal) }}</dd>
+                                </div>
+                                <div class="flex items-center justify-between gap-3">
+                                    <dt class="text-slate-500">IVA (13%)</dt>
+                                    <dd class="font-medium text-slate-700" data-sum-iva>{{ $money($ivaTotal) }}</dd>
+                                </div>
+                            @endif
                         </dl>
 
                         <div class="cart-review-total {{ $isGold ? 'cart-review-total--gold' : 'cart-review-total--silver' }} mt-4">
-                            <svg class="cart-review-crown" xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m5 16 -1.6 -8 4.6 3.5L12 5l3.9 6.5L20.6 8 19 16z"/></svg>
+                            @if($isGold)
+                                <svg class="cart-review-crown" xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m5 16 -1.6 -8 4.6 3.5L12 5l3.9 6.5L20.6 8 19 16z"/></svg>
+                            @endif
                             <p class="relative text-xs font-semibold uppercase tracking-wide text-slate-500">Total del pedido</p>
                             <p class="relative mt-1 break-words text-3xl font-bold tracking-tight text-slate-950" data-sum-total>{{ $money($grossTotal) }} <span class="text-base font-semibold text-slate-400">COP</span></p>
                             <p class="relative text-xs text-slate-500">IVA incluido</p>
                         </div>
 
+                        @if(! $isGold && $hasPotentialSavings)
+                            <div class="cart-review-oro-savings-box mt-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-none text-amber-600" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m5 16 -1.6 -8 4.6 3.5L12 5l3.9 6.5L20.6 8 19 16z"/></svg>
+                                <div>
+                                    <p class="text-sm font-semibold text-slate-900">
+                                        Si fueras Cliente Oro ahorrarías:
+                                        <span class="text-amber-700"><span data-sum-potential-savings>{{ $money($potentialSavings) }}</span> COP</span>
+                                    </p>
+                                    <p class="mt-0.5 text-xs text-slate-500">
+                                        Descuento estimado nivel Oro: <span data-sum-potential-savings-pct>{{ $potentialSavingsPct }}</span>%
+                                    </p>
+                                </div>
+                            </div>
+                        @endif
+
                         <ul class="mt-4 space-y-2">
-                            @foreach([
-                                $isGold ? 'Precios exclusivos por tu nivel ORO' : 'Precios preferenciales para distribuidores',
+                            @foreach($isGold ? [
+                                'Precios exclusivos por tu nivel ORO',
+                                'Envíos a todo el país',
+                                'Asesoría especializada',
+                                'Garantía y respaldo ICMTHERAPY',
+                            ] : [
+                                'Precios exclusivos por tu nivel Oro',
                                 'Envíos a todo el país',
                                 'Asesoría especializada',
                                 'Garantía y respaldo ICMTHERAPY',
@@ -297,7 +373,7 @@ View contract:
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 13a8 8 0 0 1 16 0"/><path d="M4 13v3a2 2 0 0 0 2 2h1v-5H6a2 2 0 0 0-2 2z"/><path d="M20 13v3a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2z"/><path d="M17 18a3 3 0 0 1-3 3h-1"/></svg>
                     </span>
                     <div>
-                        <p class="text-sm font-semibold text-slate-900">¿Dudas con tu pedido?</p>
+                        <p class="text-sm font-semibold text-slate-900">{{ $isGold ? '¿Dudas con tu pedido?' : '¿Necesitas ayuda con tu pedido?' }}</p>
                         <p class="text-xs text-slate-500">Nuestro equipo comercial está listo para ayudarte.</p>
                     </div>
                 </div>
@@ -306,6 +382,16 @@ View contract:
                     Contactar asesor
                 </a>
             </div>
+
+            @if(! $isGold)
+                <div class="cart-review-info-strip">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-none text-brand-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+                    <p class="text-xs text-slate-600">
+                        <span class="font-semibold text-slate-800">¿Dudas con tu pedido?</span>
+                        Escríbenos por WhatsApp o contáctanos; un asesor comercial te orientará antes de confirmar.
+                    </p>
+                </div>
+            @endif
         </div>
     @endif
 
@@ -318,6 +404,7 @@ View contract:
             }
 
             const VAT_RATE = {{ $vatRate }};
+            const IS_GOLD = {{ $isGold ? 'true' : 'false' }};
 
             const parseQty = (value) => {
                 const parsed = Number(value);
@@ -343,6 +430,7 @@ View contract:
             const refreshCartSummary = () => {
                 let total = 0;
                 let listTotal = 0;
+                let goldTotal = 0;
                 let netTotal = 0;
                 let units = 0;
                 let products = 0;
@@ -362,11 +450,13 @@ View contract:
 
                     const unitPrice = Number(item.dataset.unitPrice || 0);
                     const silverPrice = Number(item.dataset.silverPrice || 0);
+                    const basePrice = Number(item.dataset.basePrice || 0);
                     const vatExcluded = item.dataset.vatExcluded === '1';
                     const subtotal = qty * unitPrice;
 
                     total += subtotal;
                     listTotal += qty * silverPrice;
+                    goldTotal += qty * basePrice;
                     netTotal += vatExcluded ? subtotal : subtotal / (1 + VAT_RATE);
                     units += qty;
                     if (qty > 0) {
@@ -380,17 +470,25 @@ View contract:
                 });
 
                 const savings = Math.max(0, listTotal - total);
+                const potentialSavings = Math.max(0, total - goldTotal);
                 const iva = Math.max(0, total - netTotal);
                 const savingsPct = listTotal > 0 ? Math.round((savings / listTotal) * 100) : 0;
+                const potentialSavingsPct = total > 0 ? Math.round((potentialSavings / total) * 100) : 0;
 
                 setText('[data-sum-total]', `${formatMoney(total)} COP`);
-                setText('[data-sum-list]', formatMoney(listTotal));
-                setText('[data-sum-savings]', formatMoney(savings));
-                setText('[data-sum-savings-pct]', String(savingsPct));
                 setText('[data-sum-net]', formatMoney(netTotal));
                 setText('[data-sum-iva]', formatMoney(iva));
                 setText('[data-cart-units-count]', formatNumber(units));
                 setText('[data-cart-products-count]', formatNumber(products));
+
+                if (IS_GOLD) {
+                    setText('[data-sum-list]', formatMoney(listTotal));
+                    setText('[data-sum-savings]', formatMoney(savings));
+                    setText('[data-sum-savings-pct]', String(savingsPct));
+                } else {
+                    setText('[data-sum-potential-savings]', formatMoney(potentialSavings));
+                    setText('[data-sum-potential-savings-pct]', String(potentialSavingsPct));
+                }
             };
 
             document.querySelectorAll('[data-cart-step]').forEach((button) => {

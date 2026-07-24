@@ -34,5 +34,6 @@
         <env name="TELESCOPE_ENABLED" value="false" force="true"/>
         <env name="NIGHTWATCH_ENABLED" value="false" force="true"/>
         <env name="SCOUT_MONITOR_ENABLED" value="false" force="true"/>
+        <env name="TURNSTILE_ENABLED" value="false" force="true"/>
     </php>
 </phpunit>

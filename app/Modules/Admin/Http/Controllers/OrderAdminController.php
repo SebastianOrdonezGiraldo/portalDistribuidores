@@ -14,9 +14,12 @@ use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Pricing\DistributorPriceCalculator;
 use App\Modules\Orders\Services\OrderPdfGenerator;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
+use App\Modules\Orders\Services\Payment\OrderPaymentService;
+use App\Modules\Orders\Services\Payment\PaymentReceiptUploadService;
 use App\Modules\Orders\Support\OrderLineVat;
 use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\OrderStatus;
+use App\Modules\Shared\Enums\PaymentStatus;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
@@ -53,12 +56,17 @@ class OrderAdminController extends Controller
         $this->authorize('viewAny', Order::class);
 
         $statusOptions = array_map(fn (OrderStatus $status) => $status->value, OrderStatus::cases());
+        $paymentStatusOptions = array_map(
+            fn (PaymentStatus $status) => $status->value,
+            PaymentStatus::adminFilterable(),
+        );
         $sortOptions = ['newest', 'oldest', 'amount_desc', 'amount_asc'];
         $perPageOptions = [20, 50, 100];
 
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:120'],
             'status' => ['nullable', 'string', Rule::in($statusOptions)],
+            'payment_status' => ['nullable', 'string', Rule::in($paymentStatusOptions)],
             'distributor_id' => ['nullable', 'integer', 'exists:distributors,id'],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
@@ -69,6 +77,7 @@ class OrderAdminController extends Controller
         $filters = array_merge([
             'q' => null,
             'status' => null,
+            'payment_status' => null,
             'distributor_id' => null,
             'date_from' => null,
             'date_to' => null,
@@ -89,6 +98,7 @@ class OrderAdminController extends Controller
                 });
             })
             ->when(! empty($filters['status']), fn ($query) => $query->where('status', $filters['status']))
+            ->when(! empty($filters['payment_status']), fn ($query) => $query->where('payment_status', $filters['payment_status']))
             ->when(! empty($filters['distributor_id']), fn ($query) => $query->where('distributor_id', $filters['distributor_id']))
             ->when(! empty($filters['date_from']), fn ($query) => $query->whereDate('created_at', '>=', $filters['date_from']))
             ->when(! empty($filters['date_to']), fn ($query) => $query->whereDate('created_at', '<=', $filters['date_to']));
@@ -110,16 +120,22 @@ class OrderAdminController extends Controller
         $statusSummary = collect(OrderStatus::cases())
             ->mapWithKeys(fn (OrderStatus $status) => [$status->value => (int) ($statusCounts[$status->value] ?? 0)]);
 
+        $paymentConfirmingCount = Order::query()
+            ->where('payment_status', PaymentStatus::Confirming->value)
+            ->count();
+
         $metrics = [
             'total_orders' => (clone $filteredQuery)->count(),
             'total_amount' => (float) (clone $filteredQuery)->sum('total_amount'),
             'pending_pdf' => (clone $filteredQuery)->whereNull('pdf_path')->count(),
             'in_progress' => (int) (($statusSummary[OrderStatus::Sold->value] ?? 0) + ($statusSummary[OrderStatus::Dispatched->value] ?? 0)),
+            'payment_confirming' => $paymentConfirmingCount,
         ];
 
         $activeFiltersCount = collect([
             $filters['q'],
             $filters['status'],
+            $filters['payment_status'],
             $filters['distributor_id'],
             $filters['date_from'],
             $filters['date_to'],
@@ -129,6 +145,7 @@ class OrderAdminController extends Controller
             'orders' => $orders,
             'filters' => $filters,
             'statusOptions' => $statusOptions,
+            'paymentStatusOptions' => $paymentStatusOptions,
             'sortOptions' => $sortOptions,
             'perPageOptions' => $perPageOptions,
             'distributors' => Distributor::query()->orderBy('name')->get(['id', 'name']),
@@ -170,6 +187,13 @@ class OrderAdminController extends Controller
 
         $hasFinancialGap = abs($totals['subtotals_total'] - (float) $order->total_amount) > 0.01;
         $nextStatuses = collect($order->status->nextAllowedStatuses())
+            ->filter(function (OrderStatus $status) use ($order): bool {
+                if ($status === OrderStatus::Dispatched && ! $order->canDispatchRegardingPayment()) {
+                    return false;
+                }
+
+                return true;
+            })
             ->map(fn (OrderStatus $status) => [
                 'value' => $status->value,
                 'label' => $status->label(),
@@ -211,7 +235,72 @@ class OrderAdminController extends Controller
             'recommendedAction' => $recommendedAction,
             'secondaryActions' => $secondaryActions,
             'dangerActions' => $dangerActions,
+            'paymentWaitingHours' => $order->payment_receipt_uploaded_at
+                ? round($order->payment_receipt_uploaded_at->diffInMinutes(now()) / 60, 1)
+                : null,
         ]);
+    }
+
+    public function validatePayment(
+        Request $request,
+        Order $order,
+        OrderPaymentService $paymentService,
+    ): RedirectResponse {
+        $this->authorize('update', $order);
+
+        /** @var User $actor */
+        $actor = $request->user();
+
+        try {
+            $paymentService->validate($order, $actor);
+        } catch (DomainException $exception) {
+            return back()->withErrors($exception->getMessage());
+        }
+
+        return back()->with('status', "Pago de {$order->oc_number} validado.");
+    }
+
+    public function rejectPayment(
+        Request $request,
+        Order $order,
+        OrderPaymentService $paymentService,
+    ): RedirectResponse {
+        $this->authorize('update', $order);
+
+        $payload = $request->validate([
+            'note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        /** @var User $actor */
+        $actor = $request->user();
+
+        try {
+            $paymentService->reject($order, $actor, $payload['note'] ?? null);
+        } catch (DomainException $exception) {
+            return back()->withErrors($exception->getMessage());
+        }
+
+        return back()->with('status', "Comprobante de {$order->oc_number} rechazado. El cliente puede subir uno nuevo.");
+    }
+
+    public function downloadPaymentReceipt(Order $order): StreamedResponse|RedirectResponse
+    {
+        $this->authorize('view', $order);
+
+        if (! filled($order->payment_receipt_path)) {
+            return back()->withErrors('Este pedido no tiene comprobante de pago.');
+        }
+
+        $disk = Storage::disk(PaymentReceiptUploadService::diskName());
+
+        if (! $disk->exists($order->payment_receipt_path)) {
+            return back()->withErrors('No se encontró el archivo del comprobante.');
+        }
+
+        return $disk->download(
+            $order->payment_receipt_path,
+            $order->payment_receipt_filename ?: ('comprobante-'.$order->oc_number)
+        );
     }
 
     private function buildOrderTimeline(Order $order): Collection

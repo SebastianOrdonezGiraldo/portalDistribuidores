@@ -38,7 +38,7 @@ Component contract:
         <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
             <dt class="text-xs uppercase tracking-wide text-slate-500">Cambiado por</dt>
             <dd class="mt-1 font-semibold text-slate-900">
-                @if($distributor->relationLoaded('tierChangedBy') && $distributor->tierChangedBy)
+                @if($distributor->tierChangedBy)
                     {{ $distributor->tierChangedBy->name }}
                     <span class="block text-xs font-normal text-slate-500">{{ $distributor->tierChangedBy->email }}</span>
                 @elseif($distributor->tier_changed_by_id)

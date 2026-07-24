@@ -14,9 +14,11 @@ use App\Modules\Orders\Pricing\PricedOrderLine;
 use App\Modules\Orders\Pricing\TierPrice;
 use App\Modules\Orders\Services\OrderInventoryService;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
+use App\Modules\Orders\Services\Payment\OrderPaymentService;
 use App\Modules\Orders\Support\OrderLineVat;
 use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\OrderStatus;
+use App\Modules\Shared\Enums\PaymentStatus;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -38,6 +40,7 @@ class CreateOrderAction
         private readonly OrderInventoryService $orderInventoryService,
         private readonly DistributorPriceCalculator $priceCalculator,
         private readonly DistributorTierResolver $tierResolver,
+        private readonly OrderPaymentService $orderPaymentService,
     ) {}
 
     /**
@@ -85,10 +88,20 @@ class CreateOrderAction
             throw new DomainException('El carrito no puede generar una orden vacía.');
         }
 
+        if ($data->isPayIntent() && $data->paymentMethod === null) {
+            throw new DomainException('Selecciona un método de pago para continuar.');
+        }
+
         $order = DB::transaction(function () use ($user, $data, $pricedLines, $tier, $totalCents) {
             $status = $data->requiresApproval
                 ? OrderStatus::PendingApproval
                 : OrderStatus::Submitted;
+
+            $isPay = $data->isPayIntent() && $data->paymentMethod !== null;
+            $paymentStatus = $isPay ? PaymentStatus::PendingUpload : PaymentStatus::NotApplicable;
+            $reservationExpiresAt = $isPay
+                ? now()->addMinutes($this->orderPaymentService->reservationTtlMinutes())
+                : null;
 
             $order = Order::create([
                 'distributor_id' => $user?->distributor_id,
@@ -104,6 +117,9 @@ class CreateOrderAction
                 'department' => $data->department,
                 'notes' => $data->notes,
                 'status' => $status,
+                'payment_status' => $paymentStatus,
+                'payment_method' => $isPay ? $data->paymentMethod : null,
+                'payment_reservation_expires_at' => $reservationExpiresAt,
                 'distributor_tier_snapshot' => $tier,
                 'total_amount' => 0,
             ]);

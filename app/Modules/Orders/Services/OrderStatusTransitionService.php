@@ -58,6 +58,12 @@ class OrderStatusTransitionService
             throw new DomainException('El número de guía es obligatorio para marcar el pedido como despachado.');
         }
 
+        if ($toStatus === OrderStatus::Dispatched && ! $order->canDispatchRegardingPayment()) {
+            throw new DomainException(
+                'No se puede despachar este pedido hasta validar el pago (o marcar la cotización sin pago). Estado de pago: '.$order->payment_status->label().'.'
+            );
+        }
+
         $normalizedShippingCarrier = ShippingCarrier::resolveValue($shippingCarrier, $normalizedTrackingNumber);
 
         if ($toStatus === OrderStatus::Dispatched && $normalizedShippingCarrier === null) {

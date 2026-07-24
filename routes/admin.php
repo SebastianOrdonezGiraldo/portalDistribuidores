@@ -2,6 +2,7 @@
 
 use App\Modules\Admin\Http\Controllers\CatalogBannerAdminController;
 use App\Modules\Admin\Http\Controllers\CategoryAdminController;
+use App\Modules\Admin\Http\Controllers\CommerceSettingsAdminController;
 use App\Modules\Admin\Http\Controllers\DashboardController;
 use App\Modules\Admin\Http\Controllers\DistributorAdminController;
 use App\Modules\Admin\Http\Controllers\OrderAdminController;
@@ -47,11 +48,17 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::resource('distributors', DistributorAdminController::class)->except('show');
         Route::resource('users', UserAdminController::class)->except('show');
 
+        Route::get('settings/commerce', [CommerceSettingsAdminController::class, 'edit'])->name('settings.commerce.edit');
+        Route::patch('settings/commerce', [CommerceSettingsAdminController::class, 'update'])->name('settings.commerce.update');
+
         Route::get('orders', [OrderAdminController::class, 'index'])->name('orders.index');
         Route::get('orders/{order}/edit', [OrderAdminController::class, 'edit'])->name('orders.edit');
         Route::put('orders/{order}', [OrderAdminController::class, 'update'])->name('orders.update');
         Route::get('orders/{order}', [OrderAdminController::class, 'show'])->name('orders.show');
         Route::patch('orders/{order}/status', [OrderAdminController::class, 'updateStatus'])->name('orders.status');
+        Route::post('orders/{order}/payment/validate', [OrderAdminController::class, 'validatePayment'])->name('orders.payment.validate');
+        Route::post('orders/{order}/payment/reject', [OrderAdminController::class, 'rejectPayment'])->name('orders.payment.reject');
+        Route::get('orders/{order}/payment/receipt', [OrderAdminController::class, 'downloadPaymentReceipt'])->name('orders.payment.receipt');
         Route::get('orders/{order}/pdf', [OrderAdminController::class, 'downloadPdf'])->name('orders.pdf');
         Route::delete('orders/{order}', [OrderAdminController::class, 'destroy'])->name('orders.destroy');
     });

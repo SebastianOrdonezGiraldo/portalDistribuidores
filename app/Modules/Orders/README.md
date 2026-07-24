@@ -56,3 +56,17 @@ estados, inventario asociado, PDF de cotizacion y notificaciones por correo.
 - El listener encadena `GenerateOrderPdfJob` y luego
   `SendOrderNotificationEmailJob`; no hay listener separado de email.
 - El flujo normal no requiere aprobacion interna de empresa.
+
+## Pago manual (auditorias previas)
+
+- `order_status` y `payment_status` son ortogonales. Validar pago pone
+  `payment_status=validated` y auto-avanza a `sold` con nota de sistema.
+  No se puede despachar si el pago no es `validated` o `not_applicable`.
+- Stock al crear: `lockForUpdate` + transaccion del caller (atomico en paths
+  actuales). Cancelar desde estados que consumen inventario restaura via
+  `OrderStatusTransitionService` + `increaseForOrder`.
+- ContaPyme reserva por `inventoryConsuming()` de `order_status`. Por eso al
+  expirar `pending_upload` se marca `expired` y se cancela el pedido (libera
+  stock y deja de contar como reserva).
+- Detalle de pedido sin login: solo sesion `orders.guest_access`. El magic
+  link de comprobante es la puerta publica cross-device (token hasheado).

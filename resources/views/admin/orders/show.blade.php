@@ -135,6 +135,70 @@ View contract:
             </dl>
         </x-ui.card>
 
+        @if($order->requiresManualPayment())
+            <x-ui.card class="p-5">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <h2 class="card-title">Pago manual</h2>
+                        <p class="mt-1 text-xs text-slate-500">Revisa el comprobante y valida o rechaza el pago.</p>
+                    </div>
+                    <span class="badge {{ $order->payment_status->badgeClass() }}">
+                        {{ $order->payment_status->label() }}
+                    </span>
+                </div>
+
+                <dl class="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                        <dt class="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">Método</dt>
+                        <dd class="mt-0.5 text-sm font-semibold text-slate-900">{{ $order->payment_method?->label() ?? '-' }}</dd>
+                    </div>
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                        <dt class="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">Comprobante</dt>
+                        <dd class="mt-0.5 text-sm font-semibold text-slate-900">
+                            @if($order->payment_receipt_uploaded_at)
+                                {{ $order->payment_receipt_uploaded_at->format('d/m/Y H:i') }}
+                                @if($paymentWaitingHours !== null && $order->payment_status === \App\Modules\Shared\Enums\PaymentStatus::Confirming)
+                                    <span class="mt-0.5 block text-xs font-medium text-amber-800">Esperando hace {{ $paymentWaitingHours }} h</span>
+                                @endif
+                            @else
+                                Sin subir
+                            @endif
+                        </dd>
+                    </div>
+                </dl>
+
+                @if(filled($order->payment_receipt_path))
+                    <div class="mt-3">
+                        <a href="{{ route('admin.orders.payment.receipt', $order) }}" class="btn btn-secondary w-full justify-center sm:w-auto">
+                            Descargar comprobante
+                        </a>
+                    </div>
+                @endif
+
+                @if($order->payment_status === \App\Modules\Shared\Enums\PaymentStatus::Confirming)
+                    <div class="mt-3 space-y-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+                        <form method="POST" action="{{ route('admin.orders.payment.validate', $order) }}">
+                            @csrf
+                            <button type="submit" class="btn btn-primary w-full justify-center">Validar pago</button>
+                        </form>
+                        <form method="POST" action="{{ route('admin.orders.payment.reject', $order) }}" class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                            @csrf
+                            <input
+                                type="text"
+                                name="note"
+                                class="form-input min-w-0"
+                                placeholder="Motivo (opcional)"
+                                maxlength="500"
+                            >
+                            <button type="submit" class="btn btn-secondary w-full justify-center sm:w-auto">
+                                Rechazar comprobante
+                            </button>
+                        </form>
+                    </div>
+                @endif
+            </x-ui.card>
+        @endif
+
             <x-ui.card>
             <x-slot name="header">
                 <div>

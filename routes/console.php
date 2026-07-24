@@ -22,6 +22,12 @@ Schedule::call(function (): void {
     ->onOneServer()
     ->withoutOverlapping(10);
 
+Schedule::command('payments:expire-pending')
+    ->everyFiveMinutes()
+    ->name('payments-expire-pending')
+    ->onOneServer()
+    ->withoutOverlapping(10);
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');

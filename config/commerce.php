@@ -3,22 +3,24 @@
 return [
     /*
     |--------------------------------------------------------------------------
-    | Reglas comerciales de niveles de distribuidor
+    | Reglas comerciales de niveles de distribuidor (fallback)
     |--------------------------------------------------------------------------
     |
-    | Valores usados por el motor central de precios (DistributorPriceCalculator)
-    | para derivar el precio Plata a partir del precio base (Oro).
+    | Valores de arranque seguro usados por CommercePricingRulesProvider cuando:
+    | - la tabla commerce_pricing_rules aún no existe (pre-migración);
+    | - no hay registros en la tabla.
     |
-    | Diseñado para ser reemplazado en el futuro por valores administrables desde
-    | base de datos sin cambiar la lógica de cálculo.
+    | La fuente vigente en runtime es la última fila de commerce_pricing_rules.
+    | No eliminar estas claves: permiten migrate/config:cache antes de migrar.
+    |
+    | Fórmula: Precio Plata = techo(Precio Oro × (1 + incremento)) + redondeo.
     |
     */
     'tiers' => [
-        // El precio Plata es el precio base (Oro) incrementado en este porcentaje.
+        // Incremento porcentual del precio Plata sobre el precio Oro (fallback).
         'silver_markup_percent' => 5,
 
-        // El precio Plata se redondea hacia arriba al siguiente múltiplo de este
-        // valor (en pesos). Un múltiplo exacto no se incrementa.
+        // Múltiplo de redondeo del precio Plata en pesos (fallback).
         'silver_rounding_multiple' => 1000,
     ],
 
@@ -176,5 +178,56 @@ return [
 
     'support' => [
         'whatsapp_number' => '573117479607',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Manual payment (Bancolombia / Nequi / Llave / QR)
+    |--------------------------------------------------------------------------
+    |
+    | Bank details and optional public image paths (under /public) for QR cards.
+    |
+    */
+    'payment' => [
+        'manual_reservation_ttl_minutes' => (int) env('PAYMENT_MANUAL_RESERVATION_TTL_MINUTES', 45),
+        'upload_token_ttl_minutes' => (int) env('PAYMENT_UPLOAD_TOKEN_TTL_MINUTES', 20),
+        'methods' => [
+            'bancolombia' => [
+                'label' => 'Bancolombia',
+                'lines' => [
+                    'Cuenta de ahorros Bancolombia',
+                    'Número: 75690965348',
+                    'Titular: IMPORT CORPORAL MEDICAL SAS',
+                ],
+                'image' => null,
+            ],
+            'nequi' => [
+                'label' => 'Nequi',
+                'lines' => [
+                    'Llave Nequi / Bre-B: 0092741326',
+                    'Titular: IMPORT CORPORAL MEDICAL SAS',
+                    'Escanea el QR desde la app de tu banco o Nequi.',
+                ],
+                'image' => 'images/payments/llave-qr.png',
+            ],
+            'llave' => [
+                'label' => 'Llave',
+                'lines' => [
+                    'Llave: 0092741326',
+                    'Titular: IMPORT CORPORAL MEDICAL SAS',
+                    'En tu app bancaria: envío con llaves → escribe 0092741326.',
+                ],
+                'image' => 'images/payments/llave-qr.png',
+            ],
+            'qr' => [
+                'label' => 'QR',
+                'lines' => [
+                    'Escanea el QR Negocios Nequi / Bre-B',
+                    'Titular: IMPORT CORPORAL MEDICAL SAS',
+                    'Llave asociada: 0092741326',
+                ],
+                'image' => 'images/payments/llave-qr.png',
+            ],
+        ],
     ],
 ];

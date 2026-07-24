@@ -100,10 +100,11 @@ class AdminDistributorTierUiTest extends TestCase
     public function test_tier_card_shows_audit_information_when_present(): void
     {
         $admin = User::factory()->admin()->create();
-        $distributor = Distributor::factory()->gold()->create([
+        $distributor = Distributor::factory()->gold()->create();
+        $distributor->forceFill([
             'tier_changed_at' => now(),
             'tier_changed_by_id' => $admin->id,
-        ]);
+        ])->save();
         $distributor->load('tierChangedBy');
 
         $html = Blade::render(
@@ -112,8 +113,8 @@ class AdminDistributorTierUiTest extends TestCase
         );
 
         $this->assertStringContainsString('Último cambio', $html);
-        $this->assertStringContainsString($admin->name, $html);
-        $this->assertStringContainsString($admin->email, $html);
+        $this->assertStringContainsString(e($admin->name), $html);
+        $this->assertStringContainsString(e($admin->email), $html);
         $this->assertStringContainsString('ICM Oro', $html);
     }
 

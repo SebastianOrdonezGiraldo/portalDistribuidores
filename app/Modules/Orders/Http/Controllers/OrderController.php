@@ -4,15 +4,21 @@ namespace App\Modules\Orders\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Modules\Catalog\Support\ProductUploadLimits;
 use App\Modules\Orders\Actions\CreateOrderAction;
 use App\Modules\Orders\DTOs\CreateOrderData;
 use App\Modules\Orders\Http\Requests\StoreOrderRequest;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\Cart\CartService;
 use App\Modules\Orders\Services\OrderPdfGenerator;
+use App\Modules\Orders\Services\Payment\OrderPaymentService;
+use App\Modules\Orders\Services\Payment\PaymentReceiptUploadService;
+use App\Modules\Orders\Services\Payment\PaymentUploadTokenService;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Filesystem\FilesystemAdapter;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
@@ -88,6 +94,18 @@ class OrderController extends Controller
         $this->rememberGuestOrder($order);
         $cartService->clear();
 
+        $paymentUploadUrl = null;
+
+        if ($order->requiresManualPayment()) {
+            $plainToken = app(OrderPaymentService::class)->issueUploadTokenBestEffort($order);
+
+            if ($plainToken) {
+                $paymentUploadUrl = app(PaymentUploadTokenService::class)->uploadUrl($order, $plainToken);
+                session()->flash('payment_upload_url', $paymentUploadUrl);
+                session()->flash('payment_upload_token', $plainToken);
+            }
+        }
+
         if ($requiresApproval) {
             return redirect()
                 ->route('empresa.orders.show', $order)
@@ -97,9 +115,13 @@ class OrderController extends Controller
         // El PDF y el email de notificación se gestionan vía el evento OrderPlaced
         // que dispara CreateOrderAction. Ver GenerateOrderPdfListener.
 
+        $statusMessage = $order->requiresManualPayment()
+            ? 'Pedido creado. Sube tu comprobante de pago para continuar.'
+            : 'Orden creada correctamente. Estamos procesando la cotización.';
+
         return redirect()
             ->route('orders.submitted', ['order' => $order])
-            ->with('status', 'Orden creada correctamente. Estamos procesando la cotización.');
+            ->with('status', $statusMessage);
     }
 
     /**
@@ -147,7 +169,105 @@ class OrderController extends Controller
 
         $order->loadMissing('items', 'distributor', 'user', 'statusHistory.actor');
 
-        return view('orders.show', ['order' => $order]);
+        $paymentUploadUrl = session('payment_upload_url');
+        $paymentUploadToken = session('payment_upload_token');
+
+        if ($order->requiresManualPayment()
+            && $order->payment_status->allowsReceiptUpload()
+            && ! $paymentUploadUrl) {
+            $plainToken = app(OrderPaymentService::class)->issueUploadTokenBestEffort($order);
+
+            if ($plainToken) {
+                $paymentUploadToken = $plainToken;
+                $paymentUploadUrl = app(PaymentUploadTokenService::class)->uploadUrl($order, $plainToken);
+            }
+        }
+
+        return view('orders.show', [
+            'order' => $order,
+            'paymentUploadUrl' => $paymentUploadUrl,
+            'paymentUploadToken' => $paymentUploadToken,
+            'receiptMaxSizeLabel' => ProductUploadLimits::photoMaxSizeLabel(),
+        ]);
+    }
+
+    /**
+     * JSON poll endpoint for payment_status (same-device + cross-device sync).
+     */
+    public function paymentStatus(Order $order): JsonResponse|RedirectResponse
+    {
+        if (! $this->canAccessOrder($order)) {
+            return $this->unauthorizedOrderAccessResponse();
+        }
+
+        return response()->json([
+            'payment_status' => $order->payment_status->value,
+            'payment_status_label' => $order->payment_status->label(),
+            'order_status' => $order->status->value,
+            'allows_upload' => $order->payment_status->allowsReceiptUpload(),
+            'expires_at' => $order->payment_reservation_expires_at?->toIso8601String(),
+            'receipt_uploaded_at' => $order->payment_receipt_uploaded_at?->toIso8601String(),
+        ]);
+    }
+
+    public function uploadPaymentReceipt(
+        Request $request,
+        Order $order,
+        PaymentReceiptUploadService $uploadService,
+    ): RedirectResponse {
+        if (! $this->canAccessOrder($order)) {
+            return $this->unauthorizedOrderAccessResponse();
+        }
+
+        $request->validate([
+            'receipt' => [
+                'required',
+                'file',
+                'max:'.ProductUploadLimits::photoMaxSizeKb(),
+                'mimes:jpg,jpeg,png,gif,webp,pdf',
+            ],
+        ], [
+            'receipt.required' => 'Adjunta el comprobante de pago.',
+            'receipt.mimes' => 'El comprobante debe ser imagen (JPG, PNG, WEBP) o PDF.',
+            'receipt.max' => 'El comprobante no puede superar '.ProductUploadLimits::photoMaxSizeLabel().'.',
+        ]);
+
+        try {
+            $uploadService->upload($order, $request->file('receipt'));
+        } catch (DomainException $exception) {
+            return back()->withErrors($exception->getMessage());
+        }
+
+        return back()->with('status', 'Comprobante recibido. Estamos confirmando tu pago.');
+    }
+
+    public function regeneratePaymentUploadLink(
+        Order $order,
+        PaymentUploadTokenService $tokenService,
+        OrderPaymentService $paymentService,
+    ): RedirectResponse {
+        if (! $this->canAccessOrder($order)) {
+            return $this->unauthorizedOrderAccessResponse();
+        }
+
+        if (! $order->payment_status->allowsReceiptUpload()) {
+            return back()->withErrors('Este pedido ya no acepta comprobantes de pago.');
+        }
+
+        if ($order->payment_reservation_expires_at === null
+            || $order->payment_reservation_expires_at->isPast()) {
+            $order->update([
+                'payment_reservation_expires_at' => now()->addMinutes($paymentService->reservationTtlMinutes()),
+            ]);
+        }
+
+        $plain = $tokenService->regenerate($order);
+        $url = $tokenService->uploadUrl($order, $plain);
+
+        return back()
+            ->with('status', 'Nuevo enlace generado para subir el comprobante desde tu celular.')
+            ->with('payment_upload_url', $url)
+            ->with('payment_upload_token', $plain);
     }
 
     /**

@@ -25,12 +25,13 @@ View contract:
 --}}
 @php
     $isRegistration = request()->routeIs('register*');
+    $isCompact = (bool) ($compact ?? false);
 @endphp
 <div class="min-h-dvh bg-[radial-gradient(circle_at_6%_48%,rgba(54,177,187,0.12),transparent_30%),linear-gradient(135deg,#f8fcfc_0%,#ffffff_60%,#f5fbfb_100%)]">
     <header class="border-b border-slate-200/90 bg-white/90 backdrop-blur">
-        <div class="flex h-16 items-center gap-2 px-3 sm:gap-3 sm:px-6 lg:px-8">
+        <div class="flex h-14 items-center gap-2 px-3 sm:h-16 sm:gap-3 sm:px-6 lg:px-8">
             <a href="{{ route('catalog.index') }}" class="flex min-w-0 items-center gap-2 rounded-lg focus-ring" aria-label="Ir al catálogo">
-                <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-8 w-auto">
+                <img src="{{ asset('images/import-corporal-logo.png') }}" alt="Import Corporal Medical SAS" class="h-7 w-auto sm:h-8">
                 <span class="truncate text-sm font-semibold text-slate-900">Portal Distribuidores</span>
             </a>
             <a href="{{ route('catalog.index') }}" class="btn btn-secondary ml-auto !min-h-10 !px-3 sm:!px-4" title="Volver al catálogo">
@@ -41,7 +42,12 @@ View contract:
         </div>
     </header>
 
-    <main class="mx-auto grid max-w-[1440px] gap-8 px-5 py-8 sm:px-8 lg:min-h-[calc(100dvh-4rem)] lg:grid-cols-[minmax(0,1.1fr)_minmax(32rem,0.9fr)] lg:items-center lg:px-12 lg:py-10 xl:gap-14">
+    <main @class([
+        'mx-auto px-4 py-5 sm:px-8',
+        'max-w-lg lg:min-h-[calc(100dvh-4rem)] lg:flex lg:items-center lg:py-10' => $isCompact,
+        'grid max-w-[1440px] gap-8 sm:px-8 lg:min-h-[calc(100dvh-4rem)] lg:grid-cols-[minmax(0,1.1fr)_minmax(32rem,0.9fr)] lg:items-center lg:px-12 lg:py-10 xl:gap-14' => ! $isCompact,
+    ])>
+        @unless($isCompact)
         <section class="hidden min-w-0 flex-col justify-center lg:flex">
             <div class="max-w-3xl">
                 <p class="text-xs font-bold uppercase tracking-[0.18em] text-brand-primary">Import Corporal Medical</p>
@@ -122,13 +128,27 @@ View contract:
                 @endif
             </div>
         </section>
+        @endunless
 
-        <section class="flex min-w-0 items-center justify-center lg:py-4">
-            <div class="w-full {{ $isRegistration ? 'max-w-2xl' : 'max-w-xl' }}">
-                <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-panel sm:p-10">
+        <section @class([
+            'flex min-w-0 w-full items-center justify-center',
+            'lg:py-4' => ! $isCompact,
+        ])>
+            <div @class([
+                'w-full',
+                'max-w-md' => $isCompact,
+                'max-w-2xl' => ! $isCompact && $isRegistration,
+                'max-w-xl' => ! $isCompact && ! $isRegistration,
+            ])>
+                <div @class([
+                    'rounded-2xl border border-slate-200 bg-white shadow-panel',
+                    'p-5 sm:p-7' => $isCompact,
+                    'p-6 sm:p-10' => ! $isCompact,
+                ])>
                     {{ $slot }}
                 </div>
 
+                @unless($isCompact)
                 <div class="mt-2 grid grid-cols-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
                     <a href="https://wa.me/573117479607?text=Hola%20vengo%20desde%20la%20plataforma" target="_blank" rel="noopener noreferrer" class="flex gap-3 p-4 transition hover:bg-emerald-50/60 focus-ring">
                         <svg xmlns="http://www.w3.org/2000/svg" class="mt-0.5 h-6 w-6 shrink-0 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.5 11.7a8.5 8.5 0 0 1-12.56 7.5L3.5 20.5l1.3-4.2A8.5 8.5 0 1 1 20.5 11.7Z"/><path d="M8.1 7.8c.2-.5.5-.5.8-.5h.5c.2 0 .4.1.5.4l.7 1.7c.1.2.1.4 0 .6l-.5.7c-.1.2-.1.3 0 .5.6 1.1 1.5 2 2.6 2.6.2.1.3.1.5 0l.7-.5c.2-.1.4-.1.6 0l1.7.7c.3.1.4.3.4.5v.5c0 .3 0 .6-.5.8-.5.2-1.6.5-3-.1-1-.4-2.2-1.1-3.4-2.3-1-1-1.8-2.1-2.2-3.1-.6-1.4-.3-2.5-.1-3Z"/></svg>
@@ -139,6 +159,12 @@ View contract:
                         <span><span class="block text-xs font-semibold text-slate-900">Correo comercial</span><span class="mt-0.5 block text-xs text-slate-500">Resolvemos tus consultas</span></span>
                     </a>
                 </div>
+                @else
+                <p class="mt-4 text-center text-xs text-slate-500">
+                    ¿Necesitas ayuda?
+                    <a href="https://wa.me/573117479607?text=Hola%20vengo%20desde%20la%20plataforma" target="_blank" rel="noopener noreferrer" class="font-semibold text-brand-primary hover:underline">WhatsApp</a>
+                </p>
+                @endunless
             </div>
         </section>
     </main>

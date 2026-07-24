@@ -32,8 +32,19 @@ Component contract:
         'inactive'         => ['class' => 'bg-slate-100 text-slate-700', 'label' => 'Inactivo', 'tone' => 'neutral'],
         'suspended'        => ['class' => 'status-error',      'label' => 'Suspendido', 'tone' => 'danger'],
         'info'             => ['class' => 'status-processing', 'label' => 'Info', 'tone' => 'info'],
+        // PaymentStatus (manual payment) — keep keys unique from OrderStatus above
+        'not_applicable'   => ['class' => 'payment-status-na', 'label' => 'Sin pago', 'tone' => 'neutral'],
+        'pending_upload'   => ['class' => 'payment-status-pending', 'label' => 'Pendiente de comprobante', 'tone' => 'warning'],
+        'confirming'       => ['class' => 'payment-status-confirming', 'label' => 'Confirmando pago', 'tone' => 'info'],
+        'validated'        => ['class' => 'payment-status-validated', 'label' => 'Pago validado', 'tone' => 'success'],
+        'payment_rejected' => ['class' => 'payment-status-rejected', 'label' => 'Comprobante rechazado', 'tone' => 'danger'],
+        'expired'          => ['class' => 'payment-status-expired', 'label' => 'Pago expirado', 'tone' => 'danger'],
     ];
 
+    // Payment "rejected" shares the OrderStatus key; prefer payment label when enum is PaymentStatus.
+    if ($status instanceof \App\Modules\Shared\Enums\PaymentStatus) {
+        $map['rejected'] = ['class' => 'payment-status-rejected', 'label' => 'Comprobante rechazado', 'tone' => 'danger'];
+    }
     $meta = $map[$value] ?? ['class' => 'bg-slate-100 text-slate-700', 'label' => ucfirst($value ?: 'Sin estado'), 'tone' => 'neutral'];
     $displayLabel = $label ?? $meta['label'];
 @endphp
