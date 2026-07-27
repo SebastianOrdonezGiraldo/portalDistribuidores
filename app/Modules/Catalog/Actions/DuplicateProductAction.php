@@ -41,6 +41,8 @@ class DuplicateProductAction
                     'price' => $product->price,
                     'stock' => $product->stock,
                     'is_active' => false,
+                    'is_new' => $product->is_new,
+                    'new_until' => $product->new_until,
                     'is_vat_excluded' => $product->is_vat_excluded,
                 ]);
 

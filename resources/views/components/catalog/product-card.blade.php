@@ -38,6 +38,7 @@ Component contract:
     $hasStock = is_numeric($product->stock ?? null) && (float) $product->stock > 0;
     $stockLabel = $hasStock ? 'En stock' : 'Agotado';
     $stockLabelClasses = $hasStock ? 'text-emerald-700' : 'text-red-700';
+    $isCurrentlyNew = $product->isCurrentlyNew();
     $vatLabel = \App\Modules\Orders\Support\OrderLineVat::label((bool) $product->is_vat_excluded);
 
     $resolvedTier = $tier instanceof DistributorTier
@@ -100,8 +101,20 @@ Component contract:
         aria-label="Ver detalle de {{ $product->name }}"
         tabindex="-1"
     >
+        @if($isCurrentlyNew)
+            <div class="pointer-events-none absolute right-2 top-2 z-10" data-product-new-badge>
+                <span class="inline-flex items-center rounded-full bg-[#309EA7] px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.08em] text-white shadow-sm sm:px-2.5 sm:py-1 sm:text-[0.65rem]">
+                    NUEVO
+                </span>
+            </div>
+        @endif
+
         @if($showDual)
-            <div class="pointer-events-none absolute left-2 top-2 z-10 max-w-[calc(100%-1rem)]">
+            <div @class([
+                'pointer-events-none absolute left-2 top-2 z-10',
+                'max-w-[calc(100%-5rem)]' => $isCurrentlyNew,
+                'max-w-[calc(100%-1rem)]' => ! $isCurrentlyNew,
+            ])>
                 <span @class([
                     'inline-flex max-w-full items-center truncate rounded-full border px-2 py-0.5 text-[0.65rem] font-semibold shadow-sm',
                     'border-amber-300 bg-amber-100 text-amber-950' => ! $isLocked,
