@@ -7,6 +7,7 @@ use App\Modules\Inventory\Models\ContaPymeInventoryMapping;
 use App\Modules\Orders\Models\CartItem;
 use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Shared\Support\TextNormalizer;
+use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -25,7 +26,9 @@ use Illuminate\Support\Facades\DB;
  * @property string|null $brand
  * @property string $sku
  * @property bool $is_active
+ * @property bool $is_new
  * @property bool $is_vat_excluded
+ * @property CarbonInterface|null $new_until
  * @property int|null $category_id
  * @property int|null $variant_attribute_id
  * @property int $active_variants_count
@@ -53,6 +56,8 @@ class Product extends Model
         'stock_synced_at',
         'stock_sync_status',
         'is_active',
+        'is_new',
+        'new_until',
         'is_vat_excluded',
     ];
 
@@ -60,6 +65,8 @@ class Product extends Model
     {
         return [
             'is_active' => 'boolean',
+            'is_new' => 'boolean',
+            'new_until' => 'date',
             'is_vat_excluded' => 'boolean',
             'price' => 'decimal:2',
             'stock' => 'decimal:2',
@@ -168,6 +175,45 @@ class Product extends Model
         return $this->stock_sync_status === 'synced' && $this->stock_synced_at !== null;
     }
 
+    public function isCurrentlyNew(?CarbonInterface $at = null): bool
+    {
+        if (! $this->is_new) {
+            return false;
+        }
+
+        if ($this->new_until === null) {
+            return true;
+        }
+
+        return $this->new_until->format('Y-m-d') >= $this->localDate($at)->format('Y-m-d');
+    }
+
+    public function isNewExpired(?CarbonInterface $at = null): bool
+    {
+        return $this->is_new
+            && $this->new_until !== null
+            && ! $this->isCurrentlyNew($at);
+    }
+
+    public function newStatusText(?CarbonInterface $at = null): string
+    {
+        if (! $this->is_new) {
+            return 'No marcado como nuevo.';
+        }
+
+        if ($this->new_until === null) {
+            return 'Nuevo activo sin vencimiento.';
+        }
+
+        $formattedDate = $this->new_until->format('d/m/Y');
+
+        if ($this->isNewExpired($at)) {
+            return "Etiqueta vencida desde {$formattedDate}.";
+        }
+
+        return "Nuevo activo hasta {$formattedDate}.";
+    }
+
     /** @return HasOne<ContaPymeInventoryMapping, $this> */
     public function contapymeMapping(): HasOne
     {
@@ -222,5 +268,14 @@ class Product extends Model
         }
 
         return "lower({$expression})";
+    }
+
+    private function localDate(?CarbonInterface $at = null): CarbonImmutable
+    {
+        $timezone = (string) config('app.timezone', 'America/Bogota');
+
+        return $at === null
+            ? CarbonImmutable::now($timezone)
+            : CarbonImmutable::instance($at)->setTimezone($timezone);
     }
 }

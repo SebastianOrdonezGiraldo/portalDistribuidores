@@ -24,6 +24,8 @@ class ProductFactory extends Factory
             'price' => fake()->numberBetween(1000, 100000),
             'stock' => fake()->numberBetween(1, 500),
             'is_active' => true,
+            'is_new' => false,
+            'new_until' => null,
             'is_vat_excluded' => false,
         ];
     }
@@ -36,5 +38,13 @@ class ProductFactory extends Factory
     public function withPrice(float $price): static
     {
         return $this->state(fn () => ['price' => $price]);
+    }
+
+    public function markedAsNew(?string $until = null): static
+    {
+        return $this->state(fn () => [
+            'is_new' => true,
+            'new_until' => $until,
+        ]);
     }
 }

@@ -13,6 +13,15 @@ View contract:
         $indexContextQuery = $indexContextQuery ?? [];
         $isActiveRaw = old('is_active', $product->is_active ?? true);
         $isActiveChecked = filter_var($isActiveRaw, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
+        $isNewRaw = old('is_new', $product->is_new ?? false);
+        $isNewChecked = filter_var($isNewRaw, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
+        $newUntilValue = old('new_until', $product->new_until?->format('Y-m-d'));
+        $newStatusProduct = new \App\Modules\Catalog\Models\Product;
+        $newStatusProduct->forceFill([
+            'is_new' => $isNewChecked ?? false,
+            'new_until' => filled($newUntilValue) ? $newUntilValue : null,
+        ]);
+        $newStatusText = $newStatusProduct->newStatusText();
         $isVatExcludedRaw = old('is_vat_excluded', $product->is_vat_excluded ?? false);
         $isVatExcludedChecked = filter_var($isVatExcludedRaw, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
         $selectedCategoryId = old('category_id', $product->category_id);
@@ -153,6 +162,42 @@ View contract:
                         <p class="form-help">Marca esta opcion si la venta del producto no causa IVA. El precio se conservara tal cual.</p>
                         <x-input-error :messages="$errors->get('is_vat_excluded')" />
                     </div>
+                </div>
+            </x-ui.card>
+
+            <x-ui.card class="p-5" id="visibilidad-comercial">
+                <h2 class="card-title">Visibilidad comercial</h2>
+                <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div class="sm:col-span-2">
+                        <input type="hidden" name="is_new" value="0">
+                        <x-ui.checkbox
+                            name="is_new"
+                            value="1"
+                            :checked="$isNewChecked ?? false"
+                            label="Marcar como producto nuevo"
+                        />
+                        <p class="form-help">Muestra la etiqueta “Nuevo” en el catálogo y en el detalle del producto.</p>
+                        <x-input-error :messages="$errors->get('is_new')" />
+                    </div>
+
+                    <div>
+                        <label class="form-label" for="new_until">Mostrar como nuevo hasta</label>
+                        <x-ui.input
+                            id="new_until"
+                            name="new_until"
+                            type="date"
+                            :value="$newUntilValue"
+                        />
+                        <p class="form-help">Deja este campo vacío para mantener la etiqueta activa hasta que sea deshabilitada manualmente.</p>
+                        <x-input-error :messages="$errors->get('new_until')" />
+                    </div>
+
+                    @if($isEdit)
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Estado de la etiqueta</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-900">{{ $newStatusText }}</p>
+                        </div>
+                    @endif
                 </div>
             </x-ui.card>
 
