@@ -6,7 +6,9 @@
     aria-label="Aviso de cookies"
 >
     <p class="text-sm text-slate-700">
-        Este portal utiliza cookies para mejorar tu experiencia de navegación.
+        Usamos cookies esenciales de sesión y seguridad para operar el portal.
+        Consulta nuestra
+        <a href="{{ route('legal.privacy') }}" class="font-semibold text-brand-primary hover:underline">política de privacidad</a>.
     </p>
     <div class="mt-3 flex justify-end">
         <button type="button" class="btn btn-primary" data-cookie-accept>

@@ -4,7 +4,7 @@
 
 <footer class="mt-8 border-t border-slate-200 bg-white/95">
     <div class="px-4 py-10 sm:px-6 lg:px-8">
-        <div class="grid gap-8 md:grid-cols-2 xl:grid-cols-4">
+        <div class="grid gap-8 md:grid-cols-2 xl:grid-cols-5">
             <section>
                 <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Import Corporal Medical SAS</p>
                 <div class="mt-3 flex items-start gap-3">
@@ -24,6 +24,21 @@
                     </li>
                     <li>
                         <a href="{{ route('login') }}" class="text-sm text-slate-600 transition hover:text-brand-primary">Iniciar sesion</a>
+                    </li>
+                </ul>
+            </section>
+
+            <section>
+                <h2 class="text-sm font-semibold text-slate-900">Legal</h2>
+                <ul class="mt-3 space-y-2">
+                    <li>
+                        <a href="{{ route('legal.privacy') }}" class="text-sm text-slate-600 transition hover:text-brand-primary">Política de privacidad</a>
+                    </li>
+                    <li>
+                        <a href="{{ route('legal.treatment') }}" class="text-sm text-slate-600 transition hover:text-brand-primary">Aviso de tratamiento</a>
+                    </li>
+                    <li>
+                        <a href="{{ route('legal.terms') }}" class="text-sm text-slate-600 transition hover:text-brand-primary">Términos y condiciones</a>
                     </li>
                 </ul>
             </section>

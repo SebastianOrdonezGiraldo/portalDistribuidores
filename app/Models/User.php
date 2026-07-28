@@ -32,6 +32,8 @@ use Illuminate\Support\Facades\Hash;
  * @property Carbon|null $email_verified_at
  * @property string|null $email_verification_code
  * @property Carbon|null $email_verification_code_expires_at
+ * @property Carbon|null $privacy_accepted_at
+ * @property string|null $privacy_policy_version
  */
 class User extends Authenticatable
 {
@@ -52,6 +54,8 @@ class User extends Authenticatable
         'password',
         'email_verification_code',
         'email_verification_code_expires_at',
+        'privacy_accepted_at',
+        'privacy_policy_version',
     ];
 
     /**
@@ -74,6 +78,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'email_verification_code_expires_at' => 'datetime',
+            'privacy_accepted_at' => 'datetime',
             'is_active' => 'boolean',
             'password' => 'hashed',
             'role' => UserRole::class,

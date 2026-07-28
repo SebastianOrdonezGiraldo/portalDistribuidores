@@ -15,6 +15,8 @@
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
+        <x-turnstile />
+
         <div class="flex items-center justify-between gap-2">
             <a href="{{ route('login') }}" class="text-sm font-medium text-slate-600 hover:text-slate-900">Volver al login</a>
             <x-ui.button type="submit" variant="primary" data-loading-label="Enviando...">Enviar enlace</x-ui.button>
