@@ -307,6 +307,7 @@ class ContaPymeStockSyncRunner
             $this->emit($emit, "CONTAPYME_MISSING irecurso={$sku}");
 
             $product = Product::query()->where('sku', $sku)->first();
+
             if ($product !== null && ! $dryRun) {
                 $this->inventory->markProductMissingInContaPyme($product);
             }
