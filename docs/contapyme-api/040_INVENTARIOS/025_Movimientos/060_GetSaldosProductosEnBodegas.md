@@ -1,0 +1,151 @@
+# DocumentaciÃ³n API.
+
+> Fuente original: https://www.contapyme.com/api/040_INVENTARIOS/025_Movimientos/060_GetSaldosProductosEnBodegas.html
+
+Â¿CÃ³mo obtener el saldo de los productos en las bodegas?
+
+GetSaldosProductosEnBodegas (datajson, controlkey, iapp, random) : json
+
+[DescripciÃ³n](#primer_enlace)
+[PeticiÃ³n](#segundo_enlace)
+[Respuesta](#tercer_enlace)
+
+## DescripciÃ³n
+
+Retorna un json con el sado fÃ­sico, contable y proyectado de los productos en cada bodega, esto siempre y cuando se indique
+quÃ© tipo de saldo se desea obtener, si no se envÃ­a ningÃºn tipo de saldo, retornarÃ¡ por defecto el saldo fÃ­sico del producto.
+EntiÃ©ndase saldo fÃ­sico como: Saldo contable + Recepciones - Remisiones.
+Se puede solicitar el saldo para un producto especÃ­fico o para todos los productos.
+Cuando el producto no tenga saldo no se retornarÃ¡ nada en el json de respuesta.
+
+#### Resultado
+
+Retorna la existencia fÃ­sica, contable y proyectada del producto en cada bodega.
+
+Seguridad
+
+Aplica todas las configuraciones de seguridad de datos y de seguridad de acciones de ContaPyme / AgroWin.
+
+Compatibilidad de la API
+
+FunciÃ³n disponible desde ContaPyme/AgroWin VersiÃ³n 4 - Release 8 ActualizaciÃ³n 14.
+
+## PeticiÃ³n
+
+Requisitos
+
+Debe haber realizado el logueo en el agente a travÃ©s de la funciÃ³n [GETAUTH().](../../005_INTRODUCCION/020-GetAuth.html)
+
+ParÃ¡metros
+
+| Nombre parÃ¡metro | Tipo | DescripciÃ³n | Ejemplo |
+| --- | --- | --- | --- |
+| dataJSON | JSON | Este Json contiene en su interior la siguiente estructura:  **irecurso:** CÃ³digo del elemento de inventario al que se le van a calcular los saldos, si no estÃ¡ dado, se retornan todos los elementos de inventario. (opcional).  **iinventario:** EnvÃ­e T para obtener el nombre del elemento de inventario en la respuesta de la peticiÃ³n. Si no estÃ¡ dado no retornarÃ¡ nombre, solo cÃ³digo. (opcional).  **bunidadrecurso:** EnvÃ­e T para obtener la unidad de medida del elemento de inventario en la respuesta de la peticiÃ³n. Si no estÃ¡ dado no retornarÃ¡ unidad de medida, solo cÃ³digo. (opcional).  **binventariocontable:** EnvÃ­e T para obtener el saldo contable del elemento de inventario en las diferentes bodegas. (opcional).  **binventariofisico:** EnvÃ­e T para obtener el saldo fÃ­sico del elemento de inventario en las diferentes bodegas. (opcional).  **binventarioproyectado:** EnvÃ­e T para obtener el saldo proyectado del elemento de inventario en las diferentes bodegas. (opcional).  **bnombreinventario:** EnvÃ­e T para obtener una lista adicional con el cÃ³digo y nombre de cada una de las bodegas, (opcional).  **NOTA:** : Si no estÃ¡ especificado binventariocontable, binventariofisico, binventarioproyectado se retornarÃ¡ por defecto el saldo fÃ­sico del elemento de inventario. | { "irecurso": "102030" } |
+| controlkey | Varchar | Corresponde al keyagente obtenido en el logueo (requerido). | "2B685117A1" | "222912" |
+| iapp | Varchar | CÃ³digo que identifica a la aplicaciÃ³n que interactÃºa con el Agente (requerido) | "1001" |
+| random | Varchar | Cadena aleatoria que se crea en el lado del cliente, esto con el fin de que las peticiones no sean cacheadas por el navegador Internet Explorer (para aplicaciones web). (Opcional). | "6935968966323469" |
+
+Ejemplo de la ejecuciÃ³n en JavaScript
+
+//Escriba a continuaciÃ³n la URL donde se encuentra su Agente de servicios web de ContaPyme.
+var URLUbicacion = 'http://local.insoft.co:9000'
+var URLFuncion = '/datasnap/rest/TCatElemInv/"GetSaldosProductosEnBodegas"/';
+//Se construye la URL completa la cual es la concatenaciÃ³n de la ubicaciÃ³n y la funciÃ³n
+var URL = URLUbicacion + URLFuncion;
+//Invocamos la funciÃ³n que retorna controlKey para modo aprendizaje
+var controlkey = getControlKey(URLUbicacion);
+//1001 es el iapp configurado para agente de servicios web de ContaPyme.
+var iapp = "1001";
+//dataJSON: parÃ¡metros de entrada para la funciÃ³n
+var dataJSON = {
+"irecurso": "102030",
+};
+//Se arma los 4 parÃ¡metros de entrada de la funcion
+var JSONSend ={ "\_parameters" : [ JSON.stringify(dataJSON), controlkey, iapp ,"0" ] };
+//se constuye objeto para realizar la peticiÃ³n desde JavaScript
+var xhr = new XMLHttpRequest();
+//Se inicializa la solicitud enviando el verbo y la URL a invocar
+xhr.open("POST",URL);
+//Se define el evento que se dispararÃ¡ cuando se resuelva la peticiÃ³n
+xhr.onreadystatechange = function() {
+//se verifica que la peticiÃ³n se hubiese terminado
+if (xhr.readyState == 4 && xhr.status == 200) {
+//se envia la respuesta del servidor para que se imprima
+imprimirRespuesta(xhr.responseText)
+}
+};
+//EnvÃ­a la solicitud adjuntando el JSONSend que contiene los 4 parametros de la funciÃ³n
+xhr.send(JSON.stringify(JSONSend));
+
+âº EJECUTAR CODIGO
+
+Ver otros ejemplos en:
+[PHP](../../ejemplo/PHP.html) ,
+[JAVA](../../ejemplo/JAVA.html),
+[C#](../../ejemplo/Csharp.html),
+[Visual Basic.net](../../ejemplo/visualBasic.html),
+[Visual Basic 6](../../ejemplo/visualBasic6.html),
+[Delphi.](../../ejemplo/Delphi.zip)
+
+Ver documentaciÃ³n de la peticiÃ³n por [GET.](PDFS/020_GetSaldosProductosEnBodegas.pdf)
+
+## Respuesta
+
+JSON[Ir arriba](#arriba)
+
+{
+"result": [
+{
+"encabezado": {
+"resultado": "true",
+"imensaje": "",
+"mensaje": "",
+"tiempo": "49"
+},
+"respuesta": {
+"datos": {
+"listaproductos": [
+{
+"irecurso": "102030",
+"listabodegas":[
+{
+"iinventario":"2","qinvfisico":"15"
+},
+{
+"iinventario":"3","qinvfisico":"8"
+}
+]
+}
+]
+}
+}
+}
+]
+}
+
+DescripciÃ³n del JSON[Ir arriba](#arriba)
+
+| Nombre parÃ¡metro | Tipo | DescripciÃ³n |
+| --- | --- | --- |
+| encabezado | JSON | Json que contiene en su interior los siguientes datos:  **resultado (varchar):** Retorna true siempre que la petición se ejecute satisfactoriamente. **imensaje** (**varchar**): Código del mensaje de eventualidad o error en caso de presentarse. **mensaje** (**varchar**): Mensaje de eventualidad o error en caso de presentarse. **tiempo** (**varchar**): Tiempo que se tardó el Agente en resolver la petición, este tiempo está dado en milisegundos. |
+| respuesta | JSON | Json que contiene en su interior el arreglo de objetos “datos” que será descrito a continuación:  **datos (arreglo de objetos):** Cada objeto está conformado por:  - **listaproductos:**  Arreglo que contiene en su interior la informaciÃ³n de los saldos de los productos registrados en el sistema.  - **irecurso:** CÃ³digo del elemento de inventario.  - **listabodegas:** Arreglo que contiene el listado de bodegas en las que se encuentra el elemento.  - **iinventario:** CÃ³digo de la bodega.  - **qinvfisico** Saldo fÃ­sico del elemento en la bodega. |
+
+Eventualidades[Ir arriba](#arriba)
+
+Para esta funciÃ³n se pueden presentar las siguientes eventualidades o errores:
+
+- 0: Error en la aplicación, errores no controlados.
+- 1: Mensaje que le indica al usuario que debe corregir errores (errores controlados).
+- 10: No se ingresÃ³ un Json como parÃ¡metro.
+- 40: Usuario no logueado.
+
+Un ejemplo del JSON que retorna la funciÃ³n cuando se genera una eventualidad es el siguiente:
+
+{
+"result":[{
+"encabezado":{"resultado":"false","imensaje":"40","mensaje":"Usuario no logueado."},
+"respuesta":{"datos":""}
+}]
+}
+
+Â©2016 InSoft Todos los derechos reservados.
