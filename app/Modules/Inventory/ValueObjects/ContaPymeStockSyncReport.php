@@ -41,13 +41,13 @@ final class ContaPymeStockSyncReport
     public function summary(): string
     {
         return sprintf(
-            'Sincronización de stock ContaPyme: procesados=%d, actualizados=%d, sin cambios=%d, ausentes en ContaPyme=%d, sin SKU=%d, variantes omitidas=%d, fallidos=%d',
+            'Sincronización de stock ContaPyme: procesados=%d, actualizados=%d, sin cambios=%d, ausentes en ContaPyme=%d, sin SKU=%d, ceros confirmados=%d, fallidos=%d',
             $this->stats['processed'] ?? 0,
             $this->stats['updated'] ?? 0,
             $this->stats['unchanged'] ?? 0,
             $this->stats['missing_contapyme'] ?? 0,
             $this->stats['no_sku'] ?? 0,
-            $this->stats['skipped_variants'] ?? 0,
+            $this->stats['confirmed_zero'] ?? 0,
             $this->stats['failed'] ?? 0,
         );
     }

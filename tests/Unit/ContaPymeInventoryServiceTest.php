@@ -26,7 +26,6 @@ class ContaPymeInventoryServiceTest extends TestCase
             'contapyme.password_hash' => '00000000000000000000000000000000',
             'contapyme.idmaquina' => '1',
             'contapyme.iapp' => '1003',
-            'contapyme.warehouse' => '1',
             'contapyme.timeout' => 5,
         ]);
     }
@@ -99,7 +98,7 @@ class ContaPymeInventoryServiceTest extends TestCase
         $this->assertStringContainsString('[redacted]', $message);
     }
 
-    public function test_get_product_info_uses_auth_token_and_physical_stock_endpoint(): void
+    public function test_get_product_info_sums_stock_across_all_warehouses(): void
     {
         Http::fakeSequence()
             ->push($this->successResponse(['keyagente' => 'TOKEN-123']))
@@ -114,7 +113,7 @@ class ContaPymeInventoryServiceTest extends TestCase
 
         $this->assertNotNull($item);
         $this->assertSame('TENS7000', $item->sku);
-        $this->assertSame(39.0, $item->stock);
+        $this->assertSame(138.0, $item->stock);
 
         Http::assertSent(function ($request): bool {
             if (! str_contains($request->url(), '/TBasicoGeneral/GetAuth')) {
@@ -137,12 +136,24 @@ class ContaPymeInventoryServiceTest extends TestCase
             $dataJson = json_decode((string) $request->data()['_parameters'][0], true);
 
             return $dataJson['irecurso'] === 'TENS7000'
-                && $dataJson['iinventario'] === '1'
+                && ! array_key_exists('iinventario', $dataJson)
                 && $request->data()['_parameters'][1] === 'TOKEN-123';
         });
     }
 
-    public function test_list_products_normalizes_bulk_stock_for_the_configured_warehouse(): void
+    public function test_get_product_info_treats_an_empty_balance_list_as_zero(): void
+    {
+        Http::fakeSequence()
+            ->push($this->successResponse(['keyagente' => 'TOKEN-123']))
+            ->push($this->successResponse([]));
+
+        $item = (new ContaPymeInventoryService)->getProductInfo('ZERO-SKU');
+
+        $this->assertNotNull($item);
+        $this->assertSame(0.0, $item->stock);
+    }
+
+    public function test_list_products_sums_bulk_stock_across_all_warehouses(): void
     {
         Http::fakeSequence()
             ->push($this->successResponse(['keyagente' => 'TOKEN-123']))
@@ -156,7 +167,7 @@ class ContaPymeInventoryServiceTest extends TestCase
                         ],
                     ],
                     [
-                        'irecurso' => 'NO-STOCK-IN-ONE',
+                        'irecurso' => 'ONLY-IN-TWO',
                         'listabodegas' => [
                             ['iinventario' => '2', 'qinvfisico' => '12'],
                         ],
@@ -168,8 +179,8 @@ class ContaPymeInventoryServiceTest extends TestCase
             ->listProducts()
             ->keyBy('sku');
 
-        $this->assertSame(39.0, $items->get('TENS7000')?->stock);
-        $this->assertNull($items->get('NO-STOCK-IN-ONE')?->stock);
+        $this->assertSame(138.0, $items->get('TENS7000')?->stock);
+        $this->assertSame(12.0, $items->get('ONLY-IN-TWO')?->stock);
 
         Http::assertSent(function ($request): bool {
             if (! str_contains($request->url(), '/TCatElemInv/GetSaldosProductosEnBodegas')) {
@@ -186,43 +197,7 @@ class ContaPymeInventoryServiceTest extends TestCase
         });
     }
 
-    public function test_inventory_catalog_is_loaded_page_by_page_for_reconciliation(): void
-    {
-        config(['contapyme.catalog_page_size' => 2]);
-        Http::fakeSequence()
-            ->push($this->successResponse(['keyagente' => 'TOKEN-123']))
-            ->push($this->catalogResponse([
-                'datos' => [['irecurso' => 'SKU-001', 'nrecurso' => 'Producto 1']],
-                'paginacion' => ['totalpaginas' => 2],
-            ]))
-            ->push($this->catalogResponse([
-                'datos' => [
-                    ['irecurso' => 'SKU-002', 'nrecurso' => 'Producto 2'],
-                    ['irecurso' => 'SKU-001', 'nrecurso' => 'Duplicado ignorado'],
-                ],
-                'paginacion' => ['totalpaginas' => 2],
-            ]));
-
-        $catalog = (new ContaPymeInventoryService)->listInventoryCatalog();
-
-        $this->assertNotNull($catalog);
-        $this->assertSame(['SKU-001', 'SKU-002'], $catalog->pluck('irecurso')->all());
-        Http::assertSentCount(3);
-        Http::assertSent(function ($request): bool {
-            if (! str_contains($request->url(), '/TCatElemInv/GetListaElemInv')) {
-                return false;
-            }
-
-            $dataJson = json_decode((string) $request->data()['_parameters'][0]);
-
-            return is_object($dataJson)
-                && is_object($dataJson->datosfiltro)
-                && $dataJson->datospagina->cantidadregistros === '2'
-                && in_array($dataJson->datospagina->pagina, ['1', '2'], true);
-        });
-    }
-
-    public function test_product_exists_uses_the_inventory_catalog_endpoint(): void
+    public function test_product_exists_uses_get_existe_elem_inv(): void
     {
         Http::fakeSequence()
             ->push($this->successResponse(['keyagente' => 'TOKEN-123']))
@@ -346,6 +321,25 @@ class ContaPymeInventoryServiceTest extends TestCase
         ]);
     }
 
+    public function test_sync_product_stock_writes_zero_when_balance_list_is_empty(): void
+    {
+        Http::fakeSequence()
+            ->push($this->successResponse(['keyagente' => 'TOKEN-123']))
+            ->push($this->successResponse(['existe' => 'true']))
+            ->push($this->successResponse([]));
+
+        $product = Product::factory()->create([
+            'sku' => 'ZERO-SKU',
+            'stock' => 10,
+        ]);
+
+        $this->assertTrue((new ContaPymeInventoryService)->syncProductStock('ZERO-SKU'));
+
+        $product->refresh();
+        $this->assertSame(0.0, (float) $product->stock);
+        $this->assertSame('synced', $product->stock_sync_status);
+    }
+
     public function test_sync_product_stock_preserves_local_stock_when_the_sku_does_not_exist(): void
     {
         Http::fakeSequence()
@@ -413,21 +407,6 @@ class ContaPymeInventoryServiceTest extends TestCase
                 'respuesta' => [
                     'datos' => $datos,
                 ],
-            ]],
-        ];
-    }
-
-    private function catalogResponse(array $respuesta): array
-    {
-        return [
-            'result' => [[
-                'encabezado' => [
-                    'resultado' => 'true',
-                    'imensaje' => '',
-                    'mensaje' => '',
-                    'tiempo' => '49',
-                ],
-                'respuesta' => $respuesta,
             ]],
         ];
     }
