@@ -15,7 +15,7 @@ class ContaPymeScheduleTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_scheduler_runs_on_five_minute_boundaries_without_overlapping(): void
+    public function test_scheduler_runs_on_two_minute_boundaries_without_overlapping(): void
     {
         Cache::flush();
         Queue::fake();
@@ -29,7 +29,7 @@ class ContaPymeScheduleTest extends TestCase
             $firstJob = Queue::pushed(SyncContaPymeStockJob::class)->first();
             $this->assertInstanceOf(SyncContaPymeStockJob::class, $firstJob);
 
-            Carbon::setTestNow('2026-07-14 10:05:00');
+            Carbon::setTestNow('2026-07-14 10:02:00');
             $this->artisan('schedule:run')->assertSuccessful();
             Queue::assertPushedTimes(SyncContaPymeStockJob::class, 1);
 
@@ -37,7 +37,7 @@ class ContaPymeScheduleTest extends TestCase
             $state->complete('Sincronización completada.');
             $state->release($firstJob->lockOwner);
 
-            Carbon::setTestNow('2026-07-14 10:10:00');
+            Carbon::setTestNow('2026-07-14 10:04:00');
             $this->artisan('schedule:run')->assertSuccessful();
             Queue::assertPushedTimes(SyncContaPymeStockJob::class, 2);
 

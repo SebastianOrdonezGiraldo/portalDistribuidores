@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Schedule;
 Schedule::call(function (): void {
     app(ContaPymeSyncDispatcher::class)->dispatchIfAvailable('scheduled');
 })
-    ->everyFiveMinutes()
+    ->everyTwoMinutes()
     ->name('contapyme-stock-sync')
     ->withoutOverlapping(10);
 

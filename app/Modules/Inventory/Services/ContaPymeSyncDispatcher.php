@@ -44,7 +44,7 @@ class ContaPymeSyncDispatcher
                 'origin' => $origin,
                 'mode' => 'full',
                 'status' => 'queued',
-                'warehouse' => (string) config('contapyme.warehouse'),
+                'warehouse' => null,
             ]);
 
             Bus::dispatch(new SyncContaPymeStockJob(
