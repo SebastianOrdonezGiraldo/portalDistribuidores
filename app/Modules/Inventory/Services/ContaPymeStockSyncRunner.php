@@ -5,8 +5,6 @@ namespace App\Modules\Inventory\Services;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Inventory\Models\ContaPymeSyncRun;
 use App\Modules\Inventory\ValueObjects\ContaPymeStockSyncReport;
-use App\Modules\Orders\Models\OrderItem;
-use App\Modules\Shared\Enums\OrderStatus;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -85,13 +83,10 @@ class ContaPymeStockSyncRunner
                 'portal_products' => $products->count(),
             ]);
 
-            $reservations = $this->reservationsByProductId($products);
-
             foreach ($products as $product) {
                 $this->syncSimpleProduct(
                     product: $product,
                     externalStock: $externalStock,
-                    reservedStock: (float) ($reservations->get($product->id) ?? 0.0),
                     dryRun: $dryRun,
                     stats: $stats,
                     emit: $emit,
@@ -171,7 +166,6 @@ class ContaPymeStockSyncRunner
     private function syncSimpleProduct(
         Product $product,
         Collection $externalStock,
-        float $reservedStock,
         bool $dryRun,
         array &$stats,
         ?callable $emit,
@@ -196,10 +190,10 @@ class ContaPymeStockSyncRunner
             return;
         }
 
-        $availableStock = round(max(0, $physicalStock - $reservedStock), 2);
+        $availableStock = round(max(0, $physicalStock), 2);
 
         if ($dryRun) {
-            $this->emit($emit, "DRY_OK {$product->sku} physical={$physicalStock} reserved={$reservedStock} available={$availableStock}");
+            $this->emit($emit, "DRY_OK {$product->sku} contable={$physicalStock} available={$availableStock}");
             $this->countStockResult($stats, $product->stock, $availableStock);
 
             return;
@@ -209,7 +203,7 @@ class ContaPymeStockSyncRunner
             $result = $this->inventory->syncProductFromPhysicalStock(
                 product: $product,
                 physicalStock: $physicalStock,
-                reservedStock: $reservedStock,
+                reservedStock: 0.0,
                 syncStatus: 'synced',
             );
         } catch (Throwable $e) {
@@ -330,7 +324,7 @@ class ContaPymeStockSyncRunner
             $stats['confirmed_zero']++;
         }
 
-        $this->emit($emit, "CONTAPYME_STOCK irecurso={$sku} physical={$this->displayStock($physicalStock)}");
+        $this->emit($emit, "CONTAPYME_STOCK irecurso={$sku} contable={$this->displayStock($physicalStock)}");
 
         $product = Product::query()->where('sku', $sku)->first();
 
@@ -341,18 +335,17 @@ class ContaPymeStockSyncRunner
             return;
         }
 
-        $reservedStock = (float) $this->reservationsByProductId(collect([$product]))->get($product->id, 0.0);
-        $availableStock = round(max(0, $physicalStock - $reservedStock), 2);
+        $availableStock = round(max(0, $physicalStock), 2);
 
         if ($dryRun) {
             $this->countStockResult($stats, $product->stock, $availableStock);
-            $this->emit($emit, "DRY_OK {$sku} physical={$this->displayStock($physicalStock)} reserved={$this->displayStock($reservedStock)} available={$this->displayStock($availableStock)} local_stock={$this->displayStock($product->stock)}");
+            $this->emit($emit, "DRY_OK {$sku} contable={$this->displayStock($physicalStock)} available={$this->displayStock($availableStock)} local_stock={$this->displayStock($product->stock)}");
 
             return;
         }
 
         try {
-            $result = $this->inventory->syncProductFromPhysicalStock($product, $physicalStock, $reservedStock);
+            $result = $this->inventory->syncProductFromPhysicalStock($product, $physicalStock, 0.0);
             $this->countStockResult($stats, $product->stock, (float) $result['stock'], $result['status']);
             $this->emit($emit, strtoupper($result['status'])." {$sku} stock={$result['stock']}");
         } catch (Throwable $e) {
@@ -434,26 +427,6 @@ class ContaPymeStockSyncRunner
             'phase' => $phase,
             'message' => $message,
         ]);
-    }
-
-    /** @return Collection<int, float> */
-    private function reservationsByProductId(Collection $products): Collection
-    {
-        $productIds = $products->pluck('id')->all();
-
-        if ($productIds === []) {
-            return collect();
-        }
-
-        return OrderItem::query()
-            ->selectRaw('order_items.product_id, SUM(order_items.qty) as reserved_stock')
-            ->join('orders', 'orders.id', '=', 'order_items.order_id')
-            ->whereIn('order_items.product_id', $productIds)
-            ->whereNull('order_items.product_variant_id')
-            ->whereIn('orders.status', array_map(fn (OrderStatus $status): string => $status->value, OrderStatus::inventoryConsuming()))
-            ->groupBy('order_items.product_id')
-            ->pluck('reserved_stock', 'order_items.product_id')
-            ->map(fn ($reserved): float => (float) $reserved);
     }
 
     private function activeProductsWithoutSku(): int

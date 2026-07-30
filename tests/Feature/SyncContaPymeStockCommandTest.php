@@ -52,13 +52,13 @@ class SyncContaPymeStockCommandTest extends TestCase
         ]));
 
         $this->artisan('contapyme:sync-stock --force --dry-run')
-            ->expectsOutput('DRY_OK TENS7000 physical=25 reserved=0 available=25')
+            ->expectsOutput('DRY_OK TENS7000 contable=25 available=25')
             ->assertSuccessful();
 
         $this->assertSame(10.0, (float) $product->fresh()->stock);
     }
 
-    public function test_command_reduces_contapyme_physical_stock_by_local_order_reservations(): void
+    public function test_command_writes_contapyme_accounting_stock_without_local_reservations(): void
     {
         $product = Product::factory()->create([
             'sku' => 'TENS7000',
@@ -78,10 +78,10 @@ class SyncContaPymeStockCommandTest extends TestCase
         ]));
 
         $this->artisan('contapyme:sync-stock --force')
-            ->expectsOutput('UPDATED TENS7000 stock=21')
+            ->expectsOutput('UPDATED TENS7000 stock=25')
             ->assertSuccessful();
 
-        $this->assertSame(21.0, (float) $product->fresh()->stock);
+        $this->assertSame(25.0, (float) $product->fresh()->stock);
     }
 
     public function test_command_keeps_existing_stock_when_the_bulk_api_fails(): void
@@ -252,7 +252,7 @@ class SyncContaPymeStockCommandTest extends TestCase
         $this->app->instance(ContaPymeInventoryService::class, $service);
 
         $this->artisan('contapyme:sync-stock --force --sku=TENS7000')
-            ->expectsOutputToContain('CONTAPYME_STOCK irecurso=TENS7000 physical=25')
+            ->expectsOutputToContain('CONTAPYME_STOCK irecurso=TENS7000 contable=25')
             ->expectsOutput('UPDATED TENS7000 stock=25')
             ->assertSuccessful();
 
@@ -285,7 +285,7 @@ class SyncContaPymeStockCommandTest extends TestCase
         $this->app->instance(ContaPymeInventoryService::class, $service);
 
         $this->artisan('contapyme:sync-stock --force --sku=TC-23 --dry-run')
-            ->expectsOutput('CONTAPYME_STOCK irecurso=TC-23 physical=421')
+            ->expectsOutput('CONTAPYME_STOCK irecurso=TC-23 contable=421')
             ->expectsOutputToContain('CONTAPYME_ONLY TC-23')
             ->assertSuccessful();
     }
@@ -322,7 +322,7 @@ class SyncContaPymeStockCommandTest extends TestCase
         $this->app->instance(ContaPymeInventoryService::class, $service);
 
         $this->artisan('contapyme:sync-stock --force --sku=ZERO-SKU')
-            ->expectsOutputToContain('CONTAPYME_STOCK irecurso=ZERO-SKU physical=0')
+            ->expectsOutputToContain('CONTAPYME_STOCK irecurso=ZERO-SKU contable=0')
             ->expectsOutput('UPDATED ZERO-SKU stock=0')
             ->assertSuccessful();
 

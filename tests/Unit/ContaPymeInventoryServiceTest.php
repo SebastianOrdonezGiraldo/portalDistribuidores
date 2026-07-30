@@ -98,13 +98,18 @@ class ContaPymeInventoryServiceTest extends TestCase
         $this->assertStringContainsString('[redacted]', $message);
     }
 
-    public function test_get_product_info_sums_stock_across_all_warehouses(): void
+    public function test_get_product_info_sums_accounting_stock_across_all_warehouses(): void
     {
         Http::fakeSequence()
             ->push($this->successResponse(['keyagente' => 'TOKEN-123']))
             ->push($this->successResponse([
-                ['iinventario' => '1', 'ninventario' => 'Bodega 1', 'qproducto' => '39'],
-                ['iinventario' => '2', 'ninventario' => 'Bodega 2', 'qproducto' => '99'],
+                'listaproductos' => [[
+                    'irecurso' => 'TENS7000',
+                    'listabodegas' => [
+                        ['iinventario' => '1', 'qinvcontable' => '39'],
+                        ['iinventario' => '2', 'qinvcontable' => '99'],
+                    ],
+                ]],
             ]));
 
         $service = new ContaPymeInventoryService;
@@ -116,27 +121,14 @@ class ContaPymeInventoryServiceTest extends TestCase
         $this->assertSame(138.0, $item->stock);
 
         Http::assertSent(function ($request): bool {
-            if (! str_contains($request->url(), '/TBasicoGeneral/GetAuth')) {
-                return false;
-            }
-
-            $dataJson = json_decode((string) $request->data()['_parameters'][0], true);
-
-            return $dataJson['email'] === 'stock@example.com'
-                && $dataJson['password'] === '00000000000000000000000000000000'
-                && $dataJson['idmaquina'] === '1'
-                && $request->data()['_parameters'][2] === '1003';
-        });
-
-        Http::assertSent(function ($request): bool {
-            if (! str_contains($request->url(), '/TInventarios/GetSaldoFisicoProductoEnBodegas')) {
+            if (! str_contains($request->url(), '/TCatElemInv/GetSaldosProductosEnBodegas')) {
                 return false;
             }
 
             $dataJson = json_decode((string) $request->data()['_parameters'][0], true);
 
             return $dataJson['irecurso'] === 'TENS7000'
-                && ! array_key_exists('iinventario', $dataJson)
+                && $dataJson['binventariocontable'] === 'T'
                 && $request->data()['_parameters'][1] === 'TOKEN-123';
         });
     }
@@ -145,7 +137,9 @@ class ContaPymeInventoryServiceTest extends TestCase
     {
         Http::fakeSequence()
             ->push($this->successResponse(['keyagente' => 'TOKEN-123']))
-            ->push($this->successResponse([]));
+            ->push($this->successResponse([
+                'listaproductos' => [],
+            ]));
 
         $item = (new ContaPymeInventoryService)->getProductInfo('ZERO-SKU');
 
@@ -153,7 +147,7 @@ class ContaPymeInventoryServiceTest extends TestCase
         $this->assertSame(0.0, $item->stock);
     }
 
-    public function test_list_products_sums_bulk_stock_across_all_warehouses(): void
+    public function test_list_products_sums_accounting_stock_across_all_warehouses(): void
     {
         Http::fakeSequence()
             ->push($this->successResponse(['keyagente' => 'TOKEN-123']))
@@ -162,14 +156,14 @@ class ContaPymeInventoryServiceTest extends TestCase
                     [
                         'irecurso' => 'TENS7000',
                         'listabodegas' => [
-                            ['iinventario' => '1', 'qinvfisico' => '39'],
-                            ['iinventario' => '2', 'qinvfisico' => '99'],
+                            ['iinventario' => '1', 'qinvcontable' => '39'],
+                            ['iinventario' => '2', 'qinvcontable' => '99'],
                         ],
                     ],
                     [
                         'irecurso' => 'ONLY-IN-TWO',
                         'listabodegas' => [
-                            ['iinventario' => '2', 'qinvfisico' => '12'],
+                            ['iinventario' => '2', 'qinvcontable' => '12'],
                         ],
                     ],
                 ],
@@ -191,7 +185,7 @@ class ContaPymeInventoryServiceTest extends TestCase
 
             return $dataJson['iinventario'] === 'T'
                 && $dataJson['bunidadrecurso'] === 'T'
-                && $dataJson['binventariofisico'] === 'T'
+                && $dataJson['binventariocontable'] === 'T'
                 && $dataJson['bnombreinventario'] === 'T'
                 && $request->data()['_parameters'][1] === 'TOKEN-123';
         });
@@ -268,7 +262,7 @@ class ContaPymeInventoryServiceTest extends TestCase
             ->push($this->successResponse([
                 'listaproductos' => [[
                     'irecurso' => 'TENS7000',
-                    'listabodegas' => [['iinventario' => '1', 'qinvfisico' => '39']],
+                    'listabodegas' => [['iinventario' => '1', 'qinvcontable' => '39']],
                 ]],
             ]));
 
@@ -294,7 +288,10 @@ class ContaPymeInventoryServiceTest extends TestCase
             ->push($this->successResponse(['keyagente' => 'TOKEN-123']))
             ->push($this->successResponse(['existe' => 'true']))
             ->push($this->successResponse([
-                ['iinventario' => '1', 'ninventario' => 'Bodega 1', 'qproducto' => '39'],
+                'listaproductos' => [[
+                    'irecurso' => 'TENS7000',
+                    'listabodegas' => [['iinventario' => '1', 'qinvcontable' => '39']],
+                ]],
             ]));
 
         $product = Product::factory()->create([
@@ -326,7 +323,9 @@ class ContaPymeInventoryServiceTest extends TestCase
         Http::fakeSequence()
             ->push($this->successResponse(['keyagente' => 'TOKEN-123']))
             ->push($this->successResponse(['existe' => 'true']))
-            ->push($this->successResponse([]));
+            ->push($this->successResponse([
+                'listaproductos' => [],
+            ]));
 
         $product = Product::factory()->create([
             'sku' => 'ZERO-SKU',

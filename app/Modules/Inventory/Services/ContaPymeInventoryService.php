@@ -4,9 +4,7 @@ namespace App\Modules\Inventory\Services;
 
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Inventory\Models\StockMovement;
-use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Shared\Contracts\InventorySyncInterface;
-use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\ValueObjects\InventoryItemData;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Collection;
@@ -228,10 +226,10 @@ class ContaPymeInventoryService implements InventorySyncInterface
     }
 
     /**
-     * Fetch physical stock for one portal SKU across all ContaPyme warehouses.
+     * Fetch ContaPyme accounting stock (inventario contable) for one SKU.
      *
-     * An empty balance list means zero physical stock. Use productExists() when
-     * the caller also needs to confirm the SKU exists independently.
+     * Empty balance lists mean zero. Use productExists() when the caller also
+     * needs to confirm the SKU exists independently.
      */
     public function getProductInfo(string $sku): ?InventoryItemData
     {
@@ -244,10 +242,12 @@ class ContaPymeInventoryService implements InventorySyncInterface
 
         try {
             $data = $this->callWithRetry(
-                serverClass: 'TInventarios',
-                function: 'GetSaldoFisicoProductoEnBodegas',
+                serverClass: 'TCatElemInv',
+                function: 'GetSaldosProductosEnBodegas',
                 dataJson: [
                     'irecurso' => $sku,
+                    'binventariocontable' => 'T',
+                    'bnombreinventario' => 'T',
                 ],
             );
 
@@ -255,7 +255,15 @@ class ContaPymeInventoryService implements InventorySyncInterface
                 return null;
             }
 
-            $stock = $this->stockFromWarehouseRows($data);
+            $products = data_get($data, 'listaproductos', []);
+            $row = is_array($products) ? collect($products)->first(
+                fn (mixed $item): bool => is_array($item)
+                    && trim((string) ($item['irecurso'] ?? '')) === $sku,
+            ) : null;
+
+            $stock = $this->stockFromBulkWarehouseRows(
+                is_array($row) ? (array) ($row['listabodegas'] ?? []) : [],
+            );
 
             return new InventoryItemData(
                 sku: $sku,
@@ -276,7 +284,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
     }
 
     /**
-     * Fetch stock for all products exposed by ContaPyme.
+     * Fetch ContaPyme accounting stock for all products with balance.
      *
      * @return Collection<int, InventoryItemData>
      */
@@ -291,7 +299,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
                 dataJson: [
                     'iinventario' => 'T',
                     'bunidadrecurso' => 'T',
-                    'binventariofisico' => 'T',
+                    'binventariocontable' => 'T',
                     'bnombreinventario' => 'T',
                 ],
             );
@@ -400,7 +408,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
         return $this->syncProductFromPhysicalStock(
             product: $product,
             physicalStock: (float) $info->stock,
-            reservedStock: $this->reservedQuantityForProduct((int) $product->id),
+            reservedStock: 0.0,
         );
     }
 
@@ -437,7 +445,10 @@ class ContaPymeInventoryService implements InventorySyncInterface
     }
 
     /**
-     * Persist portal availability from ContaPyme physical stock minus local reservations.
+     * Persist portal stock from ContaPyme accounting balance.
+     *
+     * ContaPyme "disponible" (contable − pedidos sin entregar) is the source of
+     * truth; local order reservations are not subtracted again here.
      *
      * @return array{status:string, changed:bool, stock:float}
      */
@@ -688,50 +699,27 @@ class ContaPymeInventoryService implements InventorySyncInterface
     }
 
     /**
-     * Sum physical balances across all warehouses. Empty balance lists mean zero.
-     */
-    private function stockFromWarehouseRows(mixed $data): float
-    {
-        if (! is_array($data)) {
-            return 0.0;
-        }
-
-        $rows = array_is_list($data) ? $data : [$data];
-
-        return (float) collect($rows)
-            ->filter(fn (mixed $row): bool => is_array($row))
-            ->map(fn (array $row): ?float => $this->normalizeNumeric($row['qproducto'] ?? null))
-            ->filter(fn (?float $value): bool => $value !== null)
-            ->sum();
-    }
-
-    /**
+     * Sum ContaPyme warehouse balances. Prefers accounting qty (qinvcontable).
+     *
      * @param  array<int, mixed>  $rows
      */
     private function stockFromBulkWarehouseRows(array $rows): float
     {
         return (float) collect($rows)
             ->filter(fn (mixed $row): bool => is_array($row))
-            ->map(fn (array $row): ?float => $this->normalizeNumeric($row['qinvfisico'] ?? null))
+            ->map(function (array $row): ?float {
+                foreach (['qinvcontable', 'qinvproyectado', 'qinvfisico', 'qproducto'] as $field) {
+                    $value = $this->normalizeNumeric($row[$field] ?? null);
+
+                    if ($value !== null) {
+                        return $value;
+                    }
+                }
+
+                return null;
+            })
             ->filter(fn (?float $value): bool => $value !== null)
             ->sum();
-    }
-
-    private function reservedQuantityForProduct(int $productId): float
-    {
-        if ($productId <= 0) {
-            return 0.0;
-        }
-
-        return (float) OrderItem::query()
-            ->join('orders', 'orders.id', '=', 'order_items.order_id')
-            ->where('order_items.product_id', $productId)
-            ->whereNull('order_items.product_variant_id')
-            ->whereIn('orders.status', array_map(
-                fn (OrderStatus $status): string => $status->value,
-                OrderStatus::inventoryConsuming(),
-            ))
-            ->sum('order_items.qty');
     }
 
     private function normalizeNumeric(mixed $value): ?float

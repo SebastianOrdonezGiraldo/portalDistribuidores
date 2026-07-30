@@ -13,13 +13,13 @@ una visita publica.
 - Proveer un adaptador `ContaPymeInventoryService` detras de
   `InventorySyncInterface`.
 - Normalizar datos externos de inventario hacia `InventoryItemData`.
-- Sincronizar masivamente desde `GetSaldosProductosEnBodegas` (match
-  `products.sku` = ContaPyme `irecurso`).
+- Sincronizar masivamente desde `GetSaldosProductosEnBodegas` con
+  `binventariocontable` (match `products.sku` = ContaPyme `irecurso`).
 - Confirmar ceros con `GetExisteElemInv` cuando un SKU del portal no viene en
   el bulk (ContaPyme omite saldos en cero).
 - Registrar cada ejecucion en `contapyme_sync_runs`.
-- Permitir sincronizacion puntual por SKU mediante
-  `GetSaldoFisicoProductoEnBodegas` para diagnostico.
+- Permitir sincronizacion puntual por SKU mediante el mismo endpoint de saldos
+  filtrado por `irecurso`.
 
 ## No debe contener
 
@@ -45,15 +45,15 @@ una visita publica.
 
 - Match: `products.sku` = ContaPyme `irecurso`. No se usa
   `contapyme_inventory_mappings` en el sync.
-- El sync no filtra por bodega: suma el saldo fisico de todas las filas
-  devueltas (en la instalacion hay una sola bodega).
-- `products.stock` es disponibilidad: stock fisico menos cantidades de pedidos
-  en estados que consumen inventario.
-- `OrderInventoryService` conserva la deduccion/restauracion inmediata para
-  que una orden afecte disponibilidad entre dos sincronizaciones.
-- Flujo full: `GetAuth` → `GetSaldosProductosEnBodegas` → por cada producto
-  activo con SKU, actualizar si aparece en el bulk; si no, `GetExisteElemInv`
-  (existe → escribir 0; no existe → no tocar / `missing_contapyme`).
+- El sync usa inventario **contable** de ContaPyme (`qinvcontable`), no el
+  fisico. ContaPyme ya refleja pedidos sin entregar en su disponible; el sync
+  no vuelve a restar reservas del portal.
+- El sync no filtra por bodega: suma el saldo contable de todas las filas
+  devueltas.
+- Flujo full: `GetAuth` → `GetSaldosProductosEnBodegas` (contable) → por cada
+  producto activo con SKU, actualizar si aparece en el bulk; si no,
+  `GetExisteElemInv` (existe → escribir 0; no existe → no tocar /
+  `missing_contapyme`).
 - El scheduler ejecuta el mismo `ContaPymeStockSyncJob` que el boton manual cada
   dos minutos.
 - `php artisan contapyme:diagnose --json` valida `GetAuth` y `Test` sin modificar
