@@ -226,7 +226,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
     }
 
     /**
-     * Fetch ContaPyme accounting stock (inventario contable) for one SKU.
+     * Fetch ContaPyme projected stock (disponible) for one SKU.
      *
      * Empty balance lists mean zero. Use productExists() when the caller also
      * needs to confirm the SKU exists independently.
@@ -246,7 +246,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
                 function: 'GetSaldosProductosEnBodegas',
                 dataJson: [
                     'irecurso' => $sku,
-                    'binventariocontable' => 'T',
+                    'binventarioproyectado' => 'T',
                     'bnombreinventario' => 'T',
                 ],
             );
@@ -284,7 +284,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
     }
 
     /**
-     * Fetch ContaPyme accounting stock for all products with balance.
+     * Fetch ContaPyme projected stock for all products with balance.
      *
      * @return Collection<int, InventoryItemData>
      */
@@ -299,7 +299,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
                 dataJson: [
                     'iinventario' => 'T',
                     'bunidadrecurso' => 'T',
-                    'binventariocontable' => 'T',
+                    'binventarioproyectado' => 'T',
                     'bnombreinventario' => 'T',
                 ],
             );
@@ -445,10 +445,10 @@ class ContaPymeInventoryService implements InventorySyncInterface
     }
 
     /**
-     * Persist portal stock from ContaPyme accounting balance.
+     * Persist portal stock from ContaPyme projected balance (disponible).
      *
-     * ContaPyme "disponible" (contable − pedidos sin entregar) is the source of
-     * truth; local order reservations are not subtracted again here.
+     * ContaPyme projected stock already nets undelivered orders; local order
+     * reservations are not subtracted again here.
      *
      * @return array{status:string, changed:bool, stock:float}
      */
@@ -699,7 +699,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
     }
 
     /**
-     * Sum ContaPyme warehouse balances. Prefers accounting qty (qinvcontable).
+     * Sum ContaPyme warehouse balances. Prefers projected qty (qinvproyectado).
      *
      * @param  array<int, mixed>  $rows
      */
@@ -708,7 +708,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
         return (float) collect($rows)
             ->filter(fn (mixed $row): bool => is_array($row))
             ->map(function (array $row): ?float {
-                foreach (['qinvcontable', 'qinvproyectado', 'qinvfisico', 'qproducto'] as $field) {
+                foreach (['qinvproyectado', 'qinvcontable', 'qinvfisico', 'qproducto'] as $field) {
                     $value = $this->normalizeNumeric($row[$field] ?? null);
 
                     if ($value !== null) {
