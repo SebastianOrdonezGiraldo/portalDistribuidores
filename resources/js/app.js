@@ -1933,6 +1933,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const setVariantRequiredRules = (enabled) => {
             if (priceInput instanceof HTMLInputElement) {
                 priceInput.required = !enabled;
+                priceInput.readOnly = enabled;
+                priceInput.classList.toggle('bg-slate-100', enabled);
+                priceInput.classList.toggle('cursor-not-allowed', enabled);
+            }
+
+            const basePriceHelp = productForm.querySelector('[data-product-base-price-help]');
+            const variantsPriceHelp = productForm.querySelector('[data-product-base-price-variants-help]');
+
+            if (basePriceHelp) {
+                basePriceHelp.classList.toggle('hidden', enabled);
+            }
+
+            if (variantsPriceHelp) {
+                variantsPriceHelp.classList.toggle('hidden', !enabled);
             }
 
             if (!variantRowsContainer) {
@@ -1944,6 +1958,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 .forEach((input) => {
                     if (input instanceof HTMLInputElement) {
                         input.required = enabled;
+                    }
+                });
+        };
+
+        const contapymeStockManaged = productForm.dataset.contapymeStockManaged === '1';
+
+        const applyContaPymeVariantStockLocks = () => {
+            if (!contapymeStockManaged || !variantRowsContainer) {
+                return;
+            }
+
+            variantRowsContainer
+                .querySelectorAll('[data-variant-stock-input], input[name$="[stock]"]')
+                .forEach((input) => {
+                    if (input instanceof HTMLInputElement) {
+                        input.disabled = true;
                     }
                 });
         };
@@ -1979,6 +2009,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const variantsEnabled = variantToggle instanceof HTMLInputElement ? variantToggle.checked : false;
             setVariantRequiredRules(variantsEnabled);
+            applyContaPymeVariantStockLocks();
         };
 
         const refreshVariantSection = () => {
@@ -1993,6 +2024,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             setVariantRequiredRules(enabled);
+            applyContaPymeVariantStockLocks();
         };
 
         addVariantRowButton?.addEventListener('click', () => {

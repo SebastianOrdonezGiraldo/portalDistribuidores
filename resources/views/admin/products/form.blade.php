@@ -76,6 +76,9 @@ View contract:
           data-loading-form
           data-unsaved-guard
           data-product-form
+          @if($isContaPymeStockManaged)
+              data-contapyme-stock-managed="1"
+          @endif
           data-sku-check-url="{{ route('admin.products.check-sku') }}"
           data-sku-ignore="{{ $isEdit ? $product->id : '' }}"
           data-total-max-kb="{{ $uploadLimits['request_max_kb'] }}"
@@ -122,12 +125,28 @@ View contract:
                     </div>
                     <div>
                         <label class="form-label" for="price">Precio *</label>
-                        <x-ui.input id="price" name="price" type="number" min="0" step="0.01" :value="old('price', $product->price)" required data-live-price />
-                        <p class="form-help">
-                            Monto en moneda local, sin separador de miles.
+                        <x-ui.input
+                            id="price"
+                            name="price"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            :value="old('price', $product->price)"
+                            :readonly="$hasVariantsChecked"
+                            class="{{ $hasVariantsChecked ? 'bg-slate-100 cursor-not-allowed' : '' }}"
+                            data-live-price
+                            data-product-base-price
+                            @if(! $hasVariantsChecked) required @endif
+                        />
+                        <p class="form-help {{ $hasVariantsChecked ? 'hidden' : '' }}" data-product-base-price-help>
+                            Monto en moneda local (precio Oro base), sin separador de miles.
                             <span class="ml-1 font-semibold text-slate-700" data-live-price-output>$0</span>
                         </p>
+                        <p class="form-help text-amber-800 {{ $hasVariantsChecked ? '' : 'hidden' }}" data-product-base-price-variants-help>
+                            Con variantes activas, el precio que ven los clientes es el de cada variante. Este campo se actualiza al mínimo de variantes al guardar.
+                        </p>
                         <x-input-error :messages="$errors->get('price')" />
+                        <x-input-error :messages="$errors->get('stock')" />
                     </div>
                     <div>
                         <label class="form-label" for="stock">Stock</label>
@@ -253,6 +272,9 @@ View contract:
                             <p class="text-sm font-semibold text-slate-700">Valores de variante (precio y stock por valor)</p>
                             <button type="button" class="btn btn-secondary" data-variant-add-row>Agregar valor</button>
                         </div>
+                        @if($isContaPymeStockManaged)
+                            <p class="mt-2 text-sm text-amber-800">El stock de cada variante lo gestiona ContaPyme; puedes editar precios y valores.</p>
+                        @endif
 
                         <div class="mt-3 space-y-2" data-variant-rows>
                             @foreach($variantRows as $index => $row)
@@ -290,6 +312,8 @@ View contract:
                                             step="0.01"
                                             :value="data_get($row, 'stock')"
                                             placeholder="Opcional"
+                                            :disabled="$isContaPymeStockManaged"
+                                            data-variant-stock-input
                                         />
                                         <x-input-error :messages="$errors->get('variants.'.$index.'.stock')" />
                                     </div>
@@ -301,6 +325,7 @@ View contract:
                         </div>
 
                         <x-input-error :messages="$errors->get('variants')" />
+                        <x-input-error :messages="$errors->get('stock')" />
                     </div>
                 </div>
 
@@ -331,6 +356,8 @@ View contract:
                                 min="0"
                                 step="0.01"
                                 placeholder="Opcional"
+                                data-variant-stock-input
+                                @if($isContaPymeStockManaged) disabled @endif
                                 class="block w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
                             >
                         </div>

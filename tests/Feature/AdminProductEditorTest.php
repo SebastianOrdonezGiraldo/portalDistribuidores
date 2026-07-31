@@ -11,6 +11,7 @@ use App\Modules\Catalog\Support\ProductUploadLimits;
 use App\Modules\Categories\Models\Category;
 use App\Modules\Documents\Models\DocumentDownload;
 use App\Modules\Orders\Models\OrderItem;
+use App\Modules\Orders\Services\Cart\CartService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\UploadedFile;
@@ -110,7 +111,7 @@ class AdminProductEditorTest extends TestCase
             'sku' => 'CB-08',
             'description' => 'Producto sincronizado',
             'category_id' => $category->id,
-            'price' => 10000,
+            'price' => 77777,
             'stock' => 1,
             'is_active' => 1,
         ];
@@ -125,7 +126,154 @@ class AdminProductEditorTest extends TestCase
             ->assertRedirect()
             ->assertSessionHasErrors('stock');
 
-        $this->assertSame(1565.0, (float) $product->fresh()->stock);
+        $fresh = $product->fresh();
+        $this->assertSame(1565.0, (float) $fresh->stock);
+        $this->assertSame(10000.0, (float) $fresh->price);
+    }
+
+    public function test_contapyme_product_can_update_price_without_submitting_stock(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProduct($category, 'CB-PRICE-001');
+        $product->forceFill([
+            'price' => 10000,
+            'stock' => 1565,
+            'stock_synced_at' => now(),
+            'stock_sync_status' => 'synced',
+        ])->save();
+
+        $distributor = Distributor::factory()->gold()->create();
+        $distributorUser = User::factory()->create(['distributor_id' => $distributor->id]);
+
+        $this->actingAs($admin)
+            ->put('/admin/products/'.$product->id, [
+                'name' => 'Producto ContaPyme precio',
+                'sku' => 'CB-PRICE-001',
+                'description' => 'Precio editable',
+                'category_id' => $category->id,
+                'price' => 25000,
+                'is_active' => 1,
+                'has_variants' => 0,
+            ])
+            ->assertRedirect()
+            ->assertSessionDoesntHaveErrors();
+
+        $product->refresh();
+        $this->assertSame(25000.0, (float) $product->price);
+        $this->assertSame(1565.0, (float) $product->stock);
+        $this->assertSame('synced', $product->stock_sync_status);
+
+        $this->actingAs($distributorUser);
+        $cart = app(CartService::class);
+        $cart->add($product, 1);
+
+        $this->assertSame(25000.0, $cart->items()->firstOrFail()['unit_price']);
+    }
+
+    public function test_contapyme_product_with_variants_can_update_variant_prices_without_changing_stock(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProductWithVariants($category, 'CB-VAR-PRICE', [10, 20]);
+        $product->forceFill([
+            'stock_synced_at' => now(),
+            'stock_sync_status' => 'synced',
+        ])->save();
+
+        $variants = $product->variants()->orderBy('sort_order')->get();
+        $this->assertCount(2, $variants);
+
+        $payload = [
+            'name' => $product->name,
+            'sku' => $product->sku,
+            'description' => $product->description,
+            'category_id' => $category->id,
+            'is_active' => 1,
+            'has_variants' => 1,
+            'variant_attribute_id' => $product->variant_attribute_id,
+            'variants' => [
+                [
+                    'value' => $variants[0]->attributeValue?->value,
+                    'price' => 22000,
+                ],
+                [
+                    'value' => $variants[1]->attributeValue?->value,
+                    'price' => 33000,
+                ],
+            ],
+        ];
+
+        $this->actingAs($admin)
+            ->put('/admin/products/'.$product->id, $payload)
+            ->assertRedirect()
+            ->assertSessionDoesntHaveErrors();
+
+        $product->refresh();
+        $updatedVariants = $product->variants()->orderBy('sort_order')->get();
+
+        $this->assertSame(22000.0, (float) $updatedVariants[0]->price);
+        $this->assertSame(33000.0, (float) $updatedVariants[1]->price);
+        $this->assertSame(10.0, (float) $updatedVariants[0]->stock);
+        $this->assertSame(20.0, (float) $updatedVariants[1]->stock);
+        $this->assertSame(22000.0, (float) $product->price);
+        $this->assertSame(30.0, (float) $product->stock);
+
+        $distributor = Distributor::factory()->gold()->create();
+        $distributorUser = User::factory()->create(['distributor_id' => $distributor->id]);
+        $this->actingAs($distributorUser);
+
+        $cart = app(CartService::class);
+        $cart->add($product, 1, 'unidad', $updatedVariants[1]);
+
+        $this->assertSame(33000.0, $cart->items()->firstOrFail()['unit_price']);
+    }
+
+    public function test_changing_only_parent_price_does_not_change_client_variant_price(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $product = $this->createProductWithVariants($category, 'VAR-PARENT-PRICE', [5, 5]);
+        $variants = $product->variants()->orderBy('sort_order')->get();
+
+        $this->actingAs($admin)
+            ->put('/admin/products/'.$product->id, [
+                'name' => $product->name,
+                'sku' => $product->sku,
+                'description' => $product->description,
+                'category_id' => $category->id,
+                'price' => 99999,
+                'is_active' => 1,
+                'has_variants' => 1,
+                'variant_attribute_id' => $product->variant_attribute_id,
+                'variants' => [
+                    [
+                        'value' => $variants[0]->attributeValue?->value,
+                        'price' => (float) $variants[0]->price,
+                        'stock' => (float) $variants[0]->stock,
+                    ],
+                    [
+                        'value' => $variants[1]->attributeValue?->value,
+                        'price' => (float) $variants[1]->price,
+                        'stock' => (float) $variants[1]->stock,
+                    ],
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionDoesntHaveErrors();
+
+        $product->refresh();
+        $this->assertSame((float) $variants[0]->price, (float) $product->price);
+
+        $distributor = Distributor::factory()->gold()->create();
+        $distributorUser = User::factory()->create(['distributor_id' => $distributor->id]);
+        $this->actingAs($distributorUser);
+
+        $cart = app(CartService::class);
+        $cart->add($product->fresh(), 1, 'unidad', $variants[0]->fresh());
+
+        $this->assertSame((float) $variants[0]->price, $cart->items()->firstOrFail()['unit_price']);
+        $this->assertNotSame(99999.0, $cart->items()->firstOrFail()['unit_price']);
     }
 
     public function test_admin_update_flow_preserves_listing_context_when_present(): void
