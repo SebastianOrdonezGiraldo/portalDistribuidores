@@ -1933,20 +1933,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const setVariantRequiredRules = (enabled) => {
             if (priceInput instanceof HTMLInputElement) {
                 priceInput.required = !enabled;
-                priceInput.readOnly = enabled;
-                priceInput.classList.toggle('bg-slate-100', enabled);
-                priceInput.classList.toggle('cursor-not-allowed', enabled);
-            }
-
-            const basePriceHelp = productForm.querySelector('[data-product-base-price-help]');
-            const variantsPriceHelp = productForm.querySelector('[data-product-base-price-variants-help]');
-
-            if (basePriceHelp) {
-                basePriceHelp.classList.toggle('hidden', enabled);
-            }
-
-            if (variantsPriceHelp) {
-                variantsPriceHelp.classList.toggle('hidden', !enabled);
             }
 
             if (!variantRowsContainer) {

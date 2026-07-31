@@ -125,26 +125,16 @@ View contract:
                     </div>
                     <div>
                         <label class="form-label" for="price">Precio *</label>
-                        <x-ui.input
-                            id="price"
-                            name="price"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            :value="old('price', $product->price)"
-                            :readonly="$hasVariantsChecked"
-                            class="{{ $hasVariantsChecked ? 'bg-slate-100 cursor-not-allowed' : '' }}"
-                            data-live-price
-                            data-product-base-price
-                            @if(! $hasVariantsChecked) required @endif
-                        />
-                        <p class="form-help {{ $hasVariantsChecked ? 'hidden' : '' }}" data-product-base-price-help>
-                            Monto en moneda local (precio Oro base), sin separador de miles.
+                        <x-ui.input id="price" name="price" type="number" min="0" step="0.01" :value="old('price', $product->price)" required data-live-price />
+                        <p class="form-help">
+                            Monto en moneda local, sin separador de miles.
                             <span class="ml-1 font-semibold text-slate-700" data-live-price-output>$0</span>
                         </p>
-                        <p class="form-help text-amber-800 {{ $hasVariantsChecked ? '' : 'hidden' }}" data-product-base-price-variants-help>
-                            Con variantes activas, el precio que ven los clientes es el de cada variante. Este campo se actualiza al mínimo de variantes al guardar.
-                        </p>
+                        @if($hasVariantsChecked)
+                            <p class="form-help text-amber-800">
+                                Si el producto tiene variantes, el precio que ven los clientes es el de cada variante (no este campo).
+                            </p>
+                        @endif
                         <x-input-error :messages="$errors->get('price')" />
                         <x-input-error :messages="$errors->get('stock')" />
                     </div>
