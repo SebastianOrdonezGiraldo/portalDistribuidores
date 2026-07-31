@@ -54,7 +54,7 @@ class SyncContaPymeStockJobTest extends TestCase
         $status = $state->status();
 
         $this->assertSame('completed', $status['state']);
-        $this->assertSame('Sincronización de stock ContaPyme: procesados=1, actualizados=1, sin cambios=0, ausentes en ContaPyme=0, sin SKU=0, variantes omitidas=0, fallidos=0', $status['summary']);
+        $this->assertSame('Sincronización de stock ContaPyme: procesados=1, actualizados=1, sin cambios=0, ausentes en ContaPyme=0, sin SKU=0, ceros confirmados=0, fallidos=0', $status['summary']);
         $this->assertSame(0, $status['error_count']);
         $this->assertFalse($state->isRunning());
         $this->assertTrue($state->availability()['can_run']);
@@ -107,7 +107,7 @@ class SyncContaPymeStockJobTest extends TestCase
         $status = $state->status();
 
         $this->assertSame('failed', $status['state']);
-        $this->assertSame('Sincronización de stock ContaPyme: procesados=2, actualizados=0, sin cambios=0, ausentes en ContaPyme=0, sin SKU=0, variantes omitidas=0, fallidos=2', $status['summary']);
+        $this->assertSame('Sincronización de stock ContaPyme: procesados=2, actualizados=0, sin cambios=0, ausentes en ContaPyme=0, sin SKU=0, ceros confirmados=0, fallidos=2', $status['summary']);
         $this->assertSame(2, $status['error_count']);
         $this->assertSame([
             ['message' => 'Timeout de ContaPyme', 'count' => 2],

@@ -746,7 +746,7 @@ El script verifica previamente que existan PHP, Composer, npm y el archivo `.env
 
 ### Tareas programadas
 
-La sincronización automática de stock ContaPyme está definida cada cinco minutos
+La sincronización automática de stock ContaPyme está definida cada dos minutos
 en `routes/console.php` y usa el mismo dispatcher/job del botón manual.
 `deploy.sh` instala o actualiza de forma idempotente una entrada por entorno en
 `/etc/cron.d/portal-distribuidores-{entorno}`, valida que el daemon `cron` esté

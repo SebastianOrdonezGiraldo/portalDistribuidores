@@ -14,6 +14,7 @@ para compra.
 - Implementar busqueda con SQL y ranking local.
 - Validar cargas de archivos y limites de upload.
 - Actualizar stock manual de productos y variantes.
+- Calcular y presentar la etiqueta comercial `NUEVO` de los productos.
 
 ## No debe contener
 
@@ -51,6 +52,13 @@ para compra.
 ## Notas actuales
 
 - El stock operativo es manual/portal-owned en productos y variantes.
+- La etiqueta `NUEVO` se controla con `products.is_new` y la fecha opcional
+  `products.new_until`. `Product::isCurrentlyNew()` es la unica fuente de
+  verdad: una fecha igual al dia actual sigue vigente usando
+  `config('app.timezone')`; no se persiste un tercer campo de estado.
+- La configuracion de la etiqueta vive solo en el formulario administrativo de
+  creacion/edicion. El listado `/admin/products` no muestra columnas, filtros ni
+  acciones relacionadas.
 - `PostgresSearchEngine` prefiltra candidatos en SQL y rankea en PHP.
 - Los documentos protegidos se adjuntan aqui, pero se descargan por Documents.
 - Si agregas un tipo de documento protegido, revisa `Shared\Enums\DocumentType`.

@@ -16,7 +16,9 @@ class StoreProductRequest extends FormRequest
     {
         $this->merge([
             'has_variants' => $this->boolean('has_variants'),
+            'is_new' => $this->boolean('is_new'),
             'is_vat_excluded' => $this->boolean('is_vat_excluded'),
+            'new_until' => $this->filled('new_until') ? $this->input('new_until') : null,
         ]);
 
         if (! $this->boolean('has_variants')) {
@@ -90,6 +92,8 @@ class StoreProductRequest extends FormRequest
                 'max:9999999',
             ],
             'is_active' => ['nullable', 'boolean'],
+            'is_new' => ['nullable', 'boolean'],
+            'new_until' => ['nullable', 'date_format:Y-m-d'],
             'is_vat_excluded' => ['nullable', 'boolean'],
             'video_url' => ['nullable', 'url', 'max:255'],
         ], $this->productUploadRules());
@@ -157,6 +161,14 @@ class StoreProductRequest extends FormRequest
             'is_active' => [
                 'description' => 'Indica si el producto queda visible en catalogo.',
                 'example' => true,
+            ],
+            'is_new' => [
+                'description' => 'Indica si el producto muestra la etiqueta Nuevo.',
+                'example' => true,
+            ],
+            'new_until' => [
+                'description' => 'Fecha final opcional para mostrar la etiqueta Nuevo.',
+                'example' => '2026-12-31',
             ],
             'is_vat_excluded' => [
                 'description' => 'Indica si el producto esta excluido de IVA.',

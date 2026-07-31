@@ -3,11 +3,8 @@
 namespace App\Modules\Inventory\Services;
 
 use App\Modules\Catalog\Models\Product;
-use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Inventory\Models\StockMovement;
-use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Shared\Contracts\InventorySyncInterface;
-use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\ValueObjects\InventoryItemData;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Collection;
@@ -40,8 +37,6 @@ class ContaPymeInventoryService implements InventorySyncInterface
 
     private string $iapp = '1003';
 
-    private string $warehouse = '1';
-
     private int $timeout = 10;
 
     private ?string $lastError = null;
@@ -57,7 +52,6 @@ class ContaPymeInventoryService implements InventorySyncInterface
         $this->passwordHash = strtolower((string) config('contapyme.password_hash', ''));
         $this->idmaquina = (string) config('contapyme.idmaquina', '');
         $this->iapp = (string) config('contapyme.iapp', '1003');
-        $this->warehouse = (string) config('contapyme.warehouse', '1');
         $this->timeout = (int) config('contapyme.timeout', 10);
     }
 
@@ -232,10 +226,10 @@ class ContaPymeInventoryService implements InventorySyncInterface
     }
 
     /**
-     * Fetch the physical stock for one portal SKU in the configured warehouse.
+     * Fetch ContaPyme accounting stock (inventario contable) for one SKU.
      *
-     * The endpoint can return no rows when physical balance is zero. Use
-     * productExists() when the caller also needs to establish SKU identity.
+     * Empty balance lists mean zero. Use productExists() when the caller also
+     * needs to confirm the SKU exists independently.
      */
     public function getProductInfo(string $sku): ?InventoryItemData
     {
@@ -248,26 +242,32 @@ class ContaPymeInventoryService implements InventorySyncInterface
 
         try {
             $data = $this->callWithRetry(
-                serverClass: 'TInventarios',
-                function: 'GetSaldoFisicoProductoEnBodegas',
+                serverClass: 'TCatElemInv',
+                function: 'GetSaldosProductosEnBodegas',
                 dataJson: [
                     'irecurso' => $sku,
-                    'iinventario' => $this->warehouse,
+                    'binventariocontable' => 'T',
+                    'bnombreinventario' => 'T',
                 ],
             );
 
-            if ($data === null) {
-                $this->lastError ??= $this->diagnosticError(
-                    null,
-                    'ContaPyme no devolvio datos de stock para el SKU consultado.',
-                );
-
+            if ($data === null && $this->lastError !== null) {
                 return null;
             }
 
+            $products = data_get($data, 'listaproductos', []);
+            $row = is_array($products) ? collect($products)->first(
+                fn (mixed $item): bool => is_array($item)
+                    && trim((string) ($item['irecurso'] ?? '')) === $sku,
+            ) : null;
+
+            $stock = $this->stockFromBulkWarehouseRows(
+                is_array($row) ? (array) ($row['listabodegas'] ?? []) : [],
+            );
+
             return new InventoryItemData(
                 sku: $sku,
-                stock: $this->stockFromWarehouseRows($data),
+                stock: $stock,
                 externalId: $sku,
                 rawData: is_array($data) ? $data : ['datos' => $data],
             );
@@ -284,7 +284,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
     }
 
     /**
-     * Fetch stock for all products exposed by ContaPyme.
+     * Fetch ContaPyme accounting stock for all products with balance.
      *
      * @return Collection<int, InventoryItemData>
      */
@@ -299,7 +299,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
                 dataJson: [
                     'iinventario' => 'T',
                     'bunidadrecurso' => 'T',
-                    'binventariofisico' => 'T',
+                    'binventariocontable' => 'T',
                     'bnombreinventario' => 'T',
                 ],
             );
@@ -355,121 +355,13 @@ class ContaPymeInventoryService implements InventorySyncInterface
 
                 return new InventoryItemData(
                     sku: $sku,
-                    stock: $this->stockFromBulkWarehouseRows(
-                        rows: (array) ($row['listabodegas'] ?? []),
-                        sku: $sku,
-                    ),
+                    stock: $this->stockFromBulkWarehouseRows((array) ($row['listabodegas'] ?? [])),
                     externalId: $sku,
                     rawData: $row,
                 );
             })
             ->filter()
             ->values();
-    }
-
-    /**
-     * Read the visible ContaPyme inventory catalog page by page.
-     *
-     * The stock endpoint omits products without balance. This catalog is used
-     * only to establish identity before a zero can be written locally.
-     *
-     * @return Collection<int, array{irecurso:string, name:string|null}>|null
-     */
-    public function listInventoryCatalog(): ?Collection
-    {
-        $this->lastError = null;
-        $page = 1;
-        $pageSize = min(1000, max(1, (int) config('contapyme.catalog_page_size', 200)));
-        $items = collect();
-        $totalPages = null;
-
-        try {
-            do {
-                $response = $this->callWithRetry(
-                    serverClass: 'TCatElemInv',
-                    function: 'GetListaElemInv',
-                    dataJson: [
-                        'datospagina' => [
-                            'cantidadregistros' => (string) $pageSize,
-                            'pagina' => (string) $page,
-                        ],
-                        'camposderetorno' => ['irecurso', 'nrecurso'],
-                        'datosfiltro' => new \stdClass,
-                    ],
-                    withResponse: true,
-                );
-
-                if (! is_array($response)) {
-                    $this->lastError ??= $this->diagnosticError(
-                        null,
-                        'ContaPyme no devolvio el catalogo de inventario.',
-                    );
-
-                    Log::error('contapyme.catalog_invalid_response', [
-                        'error' => $this->lastError,
-                        'page' => $page,
-                    ]);
-
-                    return null;
-                }
-
-                $rows = data_get($response, 'datos', []);
-
-                if (! is_array($rows)) {
-                    $this->lastError = $this->diagnosticError(
-                        null,
-                        'ContaPyme devolvio un catalogo de inventario invalido.',
-                    );
-
-                    Log::error('contapyme.catalog_invalid_rows', [
-                        'error' => $this->lastError,
-                        'page' => $page,
-                    ]);
-
-                    return null;
-                }
-
-                $items = $items->merge(collect($rows)
-                    ->filter(fn (mixed $row): bool => is_array($row))
-                    ->map(function (array $row): ?array {
-                        $irecurso = trim((string) ($row['irecurso'] ?? ''));
-
-                        return $irecurso === '' ? null : [
-                            'irecurso' => $irecurso,
-                            'name' => filled($row['nrecurso'] ?? null) ? (string) $row['nrecurso'] : null,
-                        ];
-                    })
-                    ->filter()
-                    ->values());
-
-                $totalPages ??= max(1, (int) data_get($response, 'paginacion.totalpaginas', 1));
-                $page++;
-            } while ($page <= $totalPages);
-
-            $context = [
-                'pages' => $page - 1,
-                'items' => $items->count(),
-                'catalog_status' => $items->isEmpty() ? 'empty' : 'loaded',
-            ];
-
-            if ($items->isEmpty()) {
-                Log::warning('contapyme.catalog_empty', $context);
-            } else {
-                Log::info('contapyme.catalog_loaded', $context);
-            }
-
-            return $items->unique('irecurso')->values();
-        } catch (\Throwable $e) {
-            $this->lastError = $this->diagnosticError($e->getMessage());
-
-            Log::error('contapyme.catalog_failed', [
-                'error' => $this->lastError,
-                'page' => $page,
-                'catalog_status' => 'unavailable',
-            ]);
-
-            return null;
-        }
     }
 
     /**
@@ -515,8 +407,8 @@ class ContaPymeInventoryService implements InventorySyncInterface
 
         return $this->syncProductFromPhysicalStock(
             product: $product,
-            physicalStock: $info->stock,
-            reservedStock: $this->reservedQuantityForProduct((int) $product->id),
+            physicalStock: (float) $info->stock,
+            reservedStock: 0.0,
         );
     }
 
@@ -553,7 +445,10 @@ class ContaPymeInventoryService implements InventorySyncInterface
     }
 
     /**
-     * Persist portal availability from ContaPyme physical stock minus local reservations.
+     * Persist portal stock from ContaPyme accounting balance.
+     *
+     * ContaPyme "disponible" (contable − pedidos sin entregar) is the source of
+     * truth; local order reservations are not subtracted again here.
      *
      * @return array{status:string, changed:bool, stock:float}
      */
@@ -608,71 +503,6 @@ class ContaPymeInventoryService implements InventorySyncInterface
                 );
             }
         });
-
-        return [
-            'status' => $changed ? 'updated' : 'unchanged',
-            'changed' => $changed,
-            'stock' => $newStock,
-        ];
-    }
-
-    /**
-     * Persist a mapped variant using the same reservation-safe arithmetic as a
-     * simple product. The parent aggregate is recalculated after the update.
-     *
-     * @return array{status:string, changed:bool, stock:float}
-     */
-    public function syncVariantFromPhysicalStock(
-        ProductVariant $variant,
-        float $physicalStock,
-        float $reservedStock = 0.0,
-        string $syncStatus = 'synced',
-    ): array {
-        $baseAvailableStock = round(max(0, $physicalStock - max(0, $reservedStock)), 2);
-        $expectedPreviousStock = is_numeric($variant->stock) ? (float) $variant->stock : null;
-        $previousStock = null;
-        $newStock = $baseAvailableStock;
-        $changed = false;
-
-        DB::transaction(function () use (
-            $variant,
-            $expectedPreviousStock,
-            $baseAvailableStock,
-            $syncStatus,
-            &$previousStock,
-            &$newStock,
-            &$changed,
-        ): void {
-            $lockedVariant = ProductVariant::query()
-                ->whereKey($variant->id)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            $previousStock = is_numeric($lockedVariant->stock) ? (float) $lockedVariant->stock : null;
-            $localStockDelta = $expectedPreviousStock !== null && $previousStock !== null
-                ? $previousStock - $expectedPreviousStock
-                : 0.0;
-            $newStock = round(max(0, $baseAvailableStock + $localStockDelta), 2);
-            $changed = $previousStock === null || abs($previousStock - $newStock) > 0.00001;
-
-            $lockedVariant->forceFill([
-                'stock' => $newStock,
-                'stock_sync_status' => $syncStatus,
-                'stock_synced_at' => now(),
-            ])->save();
-
-            if ($changed) {
-                StockMovement::record(
-                    product: $lockedVariant->product,
-                    variant: $lockedVariant,
-                    previousStock: $previousStock,
-                    newStock: $newStock,
-                    source: 'contapyme_sync',
-                );
-            }
-        });
-
-        $this->recalculateVariantParentStock($variant->product_id);
 
         return [
             'status' => $changed ? 'updated' : 'unchanged',
@@ -868,74 +698,28 @@ class ContaPymeInventoryService implements InventorySyncInterface
         return null;
     }
 
-    private function stockFromWarehouseRows(mixed $data): ?float
-    {
-        if (! is_array($data)) {
-            return null;
-        }
-
-        $rows = array_is_list($data) ? $data : [$data];
-
-        $warehouseRows = collect($rows)
-            ->filter(fn (mixed $row): bool => is_array($row))
-            ->filter(fn (array $row): bool => (string) ($row['iinventario'] ?? '') === $this->warehouse)
-            ->filter(fn (array $row): bool => $this->normalizeNumeric($row['qproducto'] ?? null) !== null);
-
-        if ($warehouseRows->isEmpty()) {
-            return null;
-        }
-
-        return (float) $warehouseRows->sum(fn (array $row): float => (float) $this->normalizeNumeric($row['qproducto']));
-    }
-
     /**
+     * Sum ContaPyme warehouse balances. Prefers accounting qty (qinvcontable).
+     *
      * @param  array<int, mixed>  $rows
      */
-    private function stockFromBulkWarehouseRows(array $rows, string $sku): ?float
+    private function stockFromBulkWarehouseRows(array $rows): float
     {
-        $warehouseRows = collect($rows)
+        return (float) collect($rows)
             ->filter(fn (mixed $row): bool => is_array($row))
-            ->filter(fn (array $row): bool => (string) ($row['iinventario'] ?? '') === $this->warehouse);
+            ->map(function (array $row): ?float {
+                foreach (['qinvcontable', 'qinvproyectado', 'qinvfisico', 'qproducto'] as $field) {
+                    $value = $this->normalizeNumeric($row[$field] ?? null);
 
-        if ($warehouseRows->isEmpty()) {
-            Log::warning('contapyme.bulk_warehouse_not_found_for_product', [
-                'sku' => $sku,
-                'warehouse' => $this->warehouse,
-            ]);
+                    if ($value !== null) {
+                        return $value;
+                    }
+                }
 
-            return null;
-        }
-
-        $warehouseRows = $warehouseRows
-            ->filter(fn (array $row): bool => $this->normalizeNumeric($row['qinvfisico'] ?? null) !== null);
-
-        if ($warehouseRows->isEmpty()) {
-            Log::warning('contapyme.bulk_warehouse_balance_invalid_for_product', [
-                'sku' => $sku,
-                'warehouse' => $this->warehouse,
-            ]);
-
-            return null;
-        }
-
-        return (float) $warehouseRows->sum(fn (array $row): float => (float) $this->normalizeNumeric($row['qinvfisico']));
-    }
-
-    private function reservedQuantityForProduct(int $productId): float
-    {
-        if ($productId <= 0) {
-            return 0.0;
-        }
-
-        return (float) OrderItem::query()
-            ->join('orders', 'orders.id', '=', 'order_items.order_id')
-            ->where('order_items.product_id', $productId)
-            ->whereNull('order_items.product_variant_id')
-            ->whereIn('orders.status', array_map(
-                fn (OrderStatus $status): string => $status->value,
-                OrderStatus::inventoryConsuming(),
-            ))
-            ->sum('order_items.qty');
+                return null;
+            })
+            ->filter(fn (?float $value): bool => $value !== null)
+            ->sum();
     }
 
     private function normalizeNumeric(mixed $value): ?float
@@ -1046,36 +830,6 @@ class ContaPymeInventoryService implements InventorySyncInterface
             $this->iapp,
             $this->idmaquina,
         ]));
-    }
-
-    private function recalculateVariantParentStock(int $productId): void
-    {
-        if ($productId <= 0) {
-            return;
-        }
-
-        DB::transaction(function () use ($productId): void {
-            $product = Product::query()->whereKey($productId)->lockForUpdate()->first();
-
-            if (! $product) {
-                return;
-            }
-
-            $stocks = ProductVariant::query()
-                ->where('product_id', $productId)
-                ->where('is_active', true)
-                ->pluck('stock');
-            $hasAnyStock = $stocks->contains(fn ($stock): bool => $stock !== null);
-            $aggregate = $hasAnyStock
-                ? (float) round($stocks->filter(fn ($stock): bool => $stock !== null)->sum(), 2)
-                : null;
-
-            $product->forceFill([
-                'stock' => $aggregate,
-                'stock_synced_at' => now(),
-                'stock_sync_status' => 'synced',
-            ])->save();
-        });
     }
 
     private function assertConfigured(): void

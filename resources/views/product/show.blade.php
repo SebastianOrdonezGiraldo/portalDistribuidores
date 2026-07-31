@@ -178,6 +178,12 @@ View contract:
 
                     {{-- Badges de estado --}}
                     <div class="flex flex-wrap items-center gap-2">
+                        @if($product->isCurrentlyNew())
+                            <span class="inline-flex items-center rounded-full bg-[#309EA7] px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-[0.08em] text-white shadow-sm sm:text-[0.7rem]" data-product-new-badge>
+                                NUEVO
+                            </span>
+                        @endif
+
                         {{-- Solo Oro muestra badge de precio activo; en Plata confundiría con el precio a pagar. --}}
                         @if($showDualPricing && ! $isLockedDiscount)
                             <span class="inline-flex items-center rounded-full border border-amber-300/80 bg-amber-50 px-2.5 py-1 text-[0.7rem] font-semibold text-amber-950">
