@@ -3,9 +3,9 @@
 ## Proposito
 
 Registra movimientos de stock y conserva el adaptador de sincronizacion externa
-por contrato. ContaPyme es la fuente del stock fisico; el portal conserva la
-disponibilidad local rapida en `products.stock` y nunca consulta ContaPyme durante
-una visita publica.
+por contrato. ContaPyme es la fuente del stock disponible (proyectado); el portal
+conserva la disponibilidad local rapida en `products.stock` y nunca consulta
+ContaPyme durante una visita publica.
 
 ## Responsabilidades
 
@@ -14,7 +14,7 @@ una visita publica.
   `InventorySyncInterface`.
 - Normalizar datos externos de inventario hacia `InventoryItemData`.
 - Sincronizar masivamente desde `GetSaldosProductosEnBodegas` con
-  `binventariocontable` (match `products.sku` = ContaPyme `irecurso`).
+  `binventarioproyectado` (match `products.sku` = ContaPyme `irecurso`).
 - Confirmar ceros con `GetExisteElemInv` cuando un SKU del portal no viene en
   el bulk (ContaPyme omite saldos en cero).
 - Registrar cada ejecucion en `contapyme_sync_runs`.
@@ -45,12 +45,12 @@ una visita publica.
 
 - Match: `products.sku` = ContaPyme `irecurso`. No se usa
   `contapyme_inventory_mappings` en el sync.
-- El sync usa inventario **contable** de ContaPyme (`qinvcontable`), no el
-  fisico. ContaPyme ya refleja pedidos sin entregar en su disponible; el sync
-  no vuelve a restar reservas del portal.
-- El sync no filtra por bodega: suma el saldo contable de todas las filas
+- El sync usa inventario **proyectado** de ContaPyme (`qinvproyectado`), que
+  corresponde al disponible (contable menos pedidos sin entregar). El sync no
+  vuelve a restar reservas del portal.
+- El sync no filtra por bodega: suma el saldo proyectado de todas las filas
   devueltas.
-- Flujo full: `GetAuth` → `GetSaldosProductosEnBodegas` (contable) → por cada
+- Flujo full: `GetAuth` → `GetSaldosProductosEnBodegas` (proyectado) → por cada
   producto activo con SKU, actualizar si aparece en el bulk; si no,
   `GetExisteElemInv` (existe → escribir 0; no existe → no tocar /
   `missing_contapyme`).

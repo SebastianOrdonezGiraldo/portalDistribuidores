@@ -193,7 +193,7 @@ class ContaPymeStockSyncRunner
         $availableStock = round(max(0, $physicalStock), 2);
 
         if ($dryRun) {
-            $this->emit($emit, "DRY_OK {$product->sku} contable={$physicalStock} available={$availableStock}");
+            $this->emit($emit, "DRY_OK {$product->sku} proyectado={$physicalStock} available={$availableStock}");
             $this->countStockResult($stats, $product->stock, $availableStock);
 
             return;
@@ -324,7 +324,7 @@ class ContaPymeStockSyncRunner
             $stats['confirmed_zero']++;
         }
 
-        $this->emit($emit, "CONTAPYME_STOCK irecurso={$sku} contable={$this->displayStock($physicalStock)}");
+        $this->emit($emit, "CONTAPYME_STOCK irecurso={$sku} proyectado={$this->displayStock($physicalStock)}");
 
         $product = Product::query()->where('sku', $sku)->first();
 
@@ -339,7 +339,7 @@ class ContaPymeStockSyncRunner
 
         if ($dryRun) {
             $this->countStockResult($stats, $product->stock, $availableStock);
-            $this->emit($emit, "DRY_OK {$sku} contable={$this->displayStock($physicalStock)} available={$this->displayStock($availableStock)} local_stock={$this->displayStock($product->stock)}");
+            $this->emit($emit, "DRY_OK {$sku} proyectado={$this->displayStock($physicalStock)} available={$this->displayStock($availableStock)} local_stock={$this->displayStock($product->stock)}");
 
             return;
         }
