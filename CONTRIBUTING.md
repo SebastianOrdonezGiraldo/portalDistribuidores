@@ -46,8 +46,7 @@ Comandos canonicos usados por CI o equivalentes locales:
 composer test
 npm run build
 composer audit --locked --ignore-unreachable
-# En CI el audit npm usa --package-lock-only sobre manifests de HEAD en un
-# directorio aislado (sin npm ci), porque el runner inyecta tooling externo.
+# En CI: bash .github/scripts/npm-audit-project.sh (filtra tooling inyectado por el runner)
 npm audit --audit-level=high --package-lock-only
 ```
 
