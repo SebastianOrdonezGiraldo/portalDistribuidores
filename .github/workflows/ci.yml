@@ -104,17 +104,17 @@ jobs:
       - name: Audit Node.js dependencies
         run: |
           set -euo pipefail
-          # Audit committed manifests in an isolated directory. The runner
-          # workspace can be mutated by extraneous tooling (e.g. injecting
-          # @openai/codex-security into package.json / node_modules).
+          # Audit only the committed lockfile in an isolated directory.
+          # Do not run npm ci here: the runner injects extraneous packages
+          # (e.g. @openai/codex-security) into any install tree, which then
+          # fails npm audit even though those packages are not project deps.
           audit_dir="$RUNNER_TEMP/npm-project-audit"
           rm -rf "$audit_dir"
           mkdir -p "$audit_dir"
           git show HEAD:package.json >"$audit_dir/package.json"
           git show HEAD:package-lock.json >"$audit_dir/package-lock.json"
           cd "$audit_dir"
-          npm ci --no-audit
-          npm audit --audit-level=high
+          npm audit --audit-level=high --package-lock-only
       - name: Install actionlint with checksum verification
         run: |
           mkdir -p "$RUNNER_TEMP/actionlint"
