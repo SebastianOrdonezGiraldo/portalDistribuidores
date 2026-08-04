@@ -104,18 +104,14 @@ jobs:
       - name: Audit Node.js dependencies
         run: |
           set -euo pipefail
-          # Audit in an isolated directory with only this project's manifests.
-          # The runner workspace can contain extraneous tooling (e.g.
-          # @openai/codex-security) that is not part of package-lock.json and
-          # must not fail the project dependency audit.
-          if grep -F -- '@openai/codex-security' package-lock.json package.json >/dev/null; then
-            echo '@openai/codex-security must not be a project dependency.' >&2
-            exit 1
-          fi
+          # Audit committed manifests in an isolated directory. The runner
+          # workspace can be mutated by extraneous tooling (e.g. injecting
+          # @openai/codex-security into package.json / node_modules).
           audit_dir="$RUNNER_TEMP/npm-project-audit"
           rm -rf "$audit_dir"
           mkdir -p "$audit_dir"
-          cp package.json package-lock.json "$audit_dir/"
+          git show HEAD:package.json >"$audit_dir/package.json"
+          git show HEAD:package-lock.json >"$audit_dir/package-lock.json"
           cd "$audit_dir"
           npm ci --no-audit
           npm audit --audit-level=high
