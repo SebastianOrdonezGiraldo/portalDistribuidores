@@ -103,8 +103,11 @@ jobs:
           done
       - name: Audit Node.js dependencies
         run: |
-          npm ci
-          npm audit --audit-level=high
+          # --no-audit / --package-lock-only: audit only declared lockfile deps.
+          # Ignores extraneous packages that may appear in the runner workspace
+          # (e.g. security tooling not owned by this project).
+          npm ci --no-audit
+          npm audit --audit-level=high --package-lock-only
       - name: Install actionlint with checksum verification
         run: |
           mkdir -p "$RUNNER_TEMP/actionlint"
