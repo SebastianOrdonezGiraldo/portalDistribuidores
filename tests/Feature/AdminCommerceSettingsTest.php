@@ -18,6 +18,22 @@ class AdminCommerceSettingsTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    private function commercePayload(array $overrides = []): array
+    {
+        return array_merge([
+            'silver_markup_percent' => '5.00',
+            'silver_rounding_multiple' => 1000,
+            'silver_min_order_amount' => 1_000_000,
+            'gold_min_order_amount' => 1_000_000,
+            'gold_pricing_threshold_amount' => 1_000_000,
+            'gold_pricing_threshold_basis' => 'gold_candidate',
+        ], $overrides);
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -64,10 +80,9 @@ class AdminCommerceSettingsTest extends TestCase
 
         $this->actingAs($admin)
             ->from(route('admin.settings.commerce.edit'))
-            ->patch(route('admin.settings.commerce.update'), [
+            ->patch(route('admin.settings.commerce.update'), $this->commercePayload([
                 'silver_markup_percent' => '6.00',
-                'silver_rounding_multiple' => 1000,
-            ])
+            ]))
             ->assertRedirect(route('admin.settings.commerce.edit'))
             ->assertSessionHas('status');
 
@@ -90,10 +105,9 @@ class AdminCommerceSettingsTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->patch(route('admin.settings.commerce.update'), [
+            ->patch(route('admin.settings.commerce.update'), $this->commercePayload([
                 'silver_markup_percent' => '6.00',
-                'silver_rounding_multiple' => 1000,
-            ])
+            ]))
             ->assertRedirect(route('admin.settings.commerce.edit'));
 
         $this->actingAs($user)
@@ -117,10 +131,9 @@ class AdminCommerceSettingsTest extends TestCase
 
         $this->actingAs($admin)
             ->from(route('admin.settings.commerce.edit'))
-            ->patch(route('admin.settings.commerce.update'), [
+            ->patch(route('admin.settings.commerce.update'), $this->commercePayload([
                 'silver_markup_percent' => '5',
-                'silver_rounding_multiple' => 1000,
-            ])
+            ]))
             ->assertRedirect(route('admin.settings.commerce.edit'))
             ->assertSessionHas('status');
 
@@ -136,10 +149,10 @@ class AdminCommerceSettingsTest extends TestCase
         $admin = User::factory()->admin()->create();
 
         $this->actingAs($admin)
-            ->patch(route('admin.settings.commerce.update'), [
+            ->patch(route('admin.settings.commerce.update'), $this->commercePayload([
                 'silver_markup_percent' => '6,50',
                 'silver_rounding_multiple' => 500,
-            ])
+            ]))
             ->assertRedirect(route('admin.settings.commerce.edit'));
 
         $latest = CommercePricingRule::query()->orderByDesc('id')->firstOrFail();
@@ -153,10 +166,9 @@ class AdminCommerceSettingsTest extends TestCase
 
         $this->actingAs($admin)
             ->from(route('admin.settings.commerce.edit'))
-            ->patch(route('admin.settings.commerce.update'), [
+            ->patch(route('admin.settings.commerce.update'), $this->commercePayload([
                 'silver_markup_percent' => '-1',
-                'silver_rounding_multiple' => 1000,
-            ])
+            ]))
             ->assertRedirect(route('admin.settings.commerce.edit'))
             ->assertSessionHasErrors('silver_markup_percent');
     }
@@ -167,10 +179,9 @@ class AdminCommerceSettingsTest extends TestCase
 
         $this->actingAs($admin)
             ->from(route('admin.settings.commerce.edit'))
-            ->patch(route('admin.settings.commerce.update'), [
+            ->patch(route('admin.settings.commerce.update'), $this->commercePayload([
                 'silver_markup_percent' => '101',
-                'silver_rounding_multiple' => 1000,
-            ])
+            ]))
             ->assertSessionHasErrors('silver_markup_percent');
     }
 
@@ -180,10 +191,9 @@ class AdminCommerceSettingsTest extends TestCase
 
         $this->actingAs($admin)
             ->from(route('admin.settings.commerce.edit'))
-            ->patch(route('admin.settings.commerce.update'), [
+            ->patch(route('admin.settings.commerce.update'), $this->commercePayload([
                 'silver_markup_percent' => '5.125',
-                'silver_rounding_multiple' => 1000,
-            ])
+            ]))
             ->assertSessionHasErrors('silver_markup_percent');
     }
 
@@ -193,10 +203,10 @@ class AdminCommerceSettingsTest extends TestCase
 
         $this->actingAs($admin)
             ->from(route('admin.settings.commerce.edit'))
-            ->patch(route('admin.settings.commerce.update'), [
+            ->patch(route('admin.settings.commerce.update'), $this->commercePayload([
                 'silver_markup_percent' => '5',
                 'silver_rounding_multiple' => 250,
-            ])
+            ]))
             ->assertSessionHasErrors('silver_rounding_multiple');
     }
 
@@ -206,14 +216,37 @@ class AdminCommerceSettingsTest extends TestCase
         $before = CommercePricingRule::query()->count();
 
         $this->actingAs($admin)
-            ->patch(route('admin.settings.commerce.update'), [
-                'silver_markup_percent' => '5.00',
-                'silver_rounding_multiple' => 1000,
-            ])
+            ->patch(route('admin.settings.commerce.update'), $this->commercePayload())
             ->assertRedirect(route('admin.settings.commerce.edit'))
             ->assertSessionHas('status');
 
         $this->assertSame($before, CommercePricingRule::query()->count());
+    }
+
+    public function test_admin_can_save_minimum_order_and_gold_threshold_rules(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->patch(route('admin.settings.commerce.update'), $this->commercePayload([
+                'silver_min_order_enabled' => '1',
+                'silver_min_order_amount' => 500_000,
+                'gold_min_order_enabled' => '1',
+                'gold_min_order_amount' => 800_000,
+                'gold_pricing_threshold_enabled' => '1',
+                'gold_pricing_threshold_amount' => 1_000_000,
+                'gold_pricing_threshold_basis' => 'silver_candidate',
+            ]))
+            ->assertRedirect(route('admin.settings.commerce.edit'));
+
+        $latest = CommercePricingRule::query()->orderByDesc('id')->firstOrFail();
+        $this->assertTrue($latest->silver_min_order_enabled);
+        $this->assertSame(500_000, $latest->silver_min_order_amount);
+        $this->assertTrue($latest->gold_min_order_enabled);
+        $this->assertSame(800_000, $latest->gold_min_order_amount);
+        $this->assertTrue($latest->gold_pricing_threshold_enabled);
+        $this->assertSame(1_000_000, $latest->gold_pricing_threshold_amount);
+        $this->assertSame('silver_candidate', $latest->gold_pricing_threshold_basis);
     }
 
     public function test_admin_sidebar_shows_commerce_rules_link(): void

@@ -71,6 +71,21 @@ class Order extends Model
         'payment_receipt_uploaded_at',
         'payment_reservation_expires_at',
         'distributor_tier_snapshot',
+        'commerce_pricing_rule_id',
+        'minimum_order_tier_snapshot',
+        'minimum_order_enabled_snapshot',
+        'minimum_order_amount_snapshot',
+        'minimum_order_evaluated_amount',
+        'minimum_order_reached',
+        'minimum_order_decision_reason_snapshot',
+        'gold_pricing_threshold_enabled_snapshot',
+        'gold_pricing_threshold_amount_snapshot',
+        'gold_pricing_threshold_basis_snapshot',
+        'gold_pricing_decision_reason_snapshot',
+        'gold_pricing_applied',
+        'silver_candidate_total',
+        'gold_candidate_total',
+        'gold_savings_total',
         'tracking_number',
         'shipping_carrier',
         'total_amount',
@@ -86,6 +101,16 @@ class Order extends Model
             'payment_receipt_uploaded_at' => 'datetime',
             'payment_reservation_expires_at' => 'datetime',
             'distributor_tier_snapshot' => DistributorTier::class,
+            'minimum_order_enabled_snapshot' => 'boolean',
+            'minimum_order_amount_snapshot' => 'integer',
+            'minimum_order_evaluated_amount' => 'decimal:2',
+            'minimum_order_reached' => 'boolean',
+            'gold_pricing_threshold_enabled_snapshot' => 'boolean',
+            'gold_pricing_threshold_amount_snapshot' => 'integer',
+            'gold_pricing_applied' => 'boolean',
+            'silver_candidate_total' => 'decimal:2',
+            'gold_candidate_total' => 'decimal:2',
+            'gold_savings_total' => 'decimal:2',
             'total_amount' => 'decimal:2',
         ];
     }
@@ -108,6 +133,12 @@ class Order extends Model
         }
 
         return ShippingCarrier::tryFrom($this->shipping_carrier)?->label() ?? $this->shipping_carrier;
+    }
+
+    /** @return BelongsTo<CommercePricingRule, $this> */
+    public function commercePricingRule(): BelongsTo
+    {
+        return $this->belongsTo(CommercePricingRule::class);
     }
 
     /** @return BelongsTo<Distributor, $this> */

@@ -16,6 +16,13 @@ View contract:
         $money = fn ($value) => '$'.number_format((float) $value, 0, ',', '.');
         $displayPercent = old('silver_markup_percent', $current->silverMarkupPercentageDisplay());
         $displayRounding = (int) old('silver_rounding_multiple', $current->silverRoundingMultiple);
+        $silverMinEnabled = (bool) old('silver_min_order_enabled', $current->silverMinOrderEnabled);
+        $silverMinAmount = (int) old('silver_min_order_amount', $current->silverMinOrderAmount);
+        $goldMinEnabled = (bool) old('gold_min_order_enabled', $current->goldMinOrderEnabled);
+        $goldMinAmount = (int) old('gold_min_order_amount', $current->goldMinOrderAmount);
+        $goldThresholdEnabled = (bool) old('gold_pricing_threshold_enabled', $current->goldPricingThresholdEnabled);
+        $goldThresholdAmount = (int) old('gold_pricing_threshold_amount', $current->goldPricingThresholdAmount);
+        $goldThresholdBasis = old('gold_pricing_threshold_basis', $current->goldPricingThresholdBasis->value);
     @endphp
 
     <div
@@ -86,6 +93,71 @@ View contract:
                     <p class="font-semibold">Al guardar, los precios visibles y los carritos abiertos se recalcularán con la nueva regla. Los pedidos confirmados conservarán sus precios históricos.</p>
                     <p class="mt-2 text-amber-900/80">Las líneas existentes de pedidos editados conservan su precio. Las líneas nuevas usarán la regla vigente.</p>
                 </div>
+            </x-ui.card>
+
+            <x-ui.card class="p-5">
+                <h2 class="card-title">Pedidos mínimos</h2>
+                <p class="mt-1 text-sm text-slate-600">
+                    Si está activo, el distribuidor no puede finalizar el checkout hasta alcanzar el monto (total con IVA incluido).
+                </p>
+
+                <div class="mt-5 grid gap-6 sm:grid-cols-2">
+                    <div class="space-y-3 rounded-xl border border-slate-200 p-4">
+                        <h3 class="text-sm font-semibold text-slate-900">Cliente Plata</h3>
+                        <label class="flex items-center gap-2 text-sm text-slate-700">
+                            <input type="checkbox" name="silver_min_order_enabled" value="1" class="rounded border-slate-300" @checked($silverMinEnabled)>
+                            Exigir pedido mínimo
+                        </label>
+                        <div>
+                            <label class="form-label" for="silver_min_order_amount">Monto mínimo (COP)</label>
+                            <x-ui.input id="silver_min_order_amount" name="silver_min_order_amount" type="number" min="1" step="1" :value="$silverMinAmount" required />
+                            <x-input-error :messages="$errors->get('silver_min_order_amount')" />
+                        </div>
+                    </div>
+
+                    <div class="space-y-3 rounded-xl border border-slate-200 p-4">
+                        <h3 class="text-sm font-semibold text-slate-900">Cliente Oro</h3>
+                        <label class="flex items-center gap-2 text-sm text-slate-700">
+                            <input type="checkbox" name="gold_min_order_enabled" value="1" class="rounded border-slate-300" @checked($goldMinEnabled)>
+                            Exigir pedido mínimo
+                        </label>
+                        <div>
+                            <label class="form-label" for="gold_min_order_amount">Monto mínimo (COP)</label>
+                            <x-ui.input id="gold_min_order_amount" name="gold_min_order_amount" type="number" min="1" step="1" :value="$goldMinAmount" required />
+                            <x-input-error :messages="$errors->get('gold_min_order_amount')" />
+                        </div>
+                    </div>
+                </div>
+            </x-ui.card>
+
+            <x-ui.card class="p-5">
+                <h2 class="card-title">Precios Oro</h2>
+                <p class="mt-1 text-sm text-slate-600">
+                    Umbral independiente del pedido mínimo. Si no se alcanza, el cliente Oro paga precios Plata pero puede finalizar si cumple su pedido mínimo.
+                </p>
+
+                <div class="mt-5 space-y-4">
+                    <label class="flex items-center gap-2 text-sm text-slate-700">
+                        <input type="checkbox" name="gold_pricing_threshold_enabled" value="1" class="rounded border-slate-300" @checked($goldThresholdEnabled)>
+                        Exigir monto para activar precios Oro
+                    </label>
+
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label class="form-label" for="gold_pricing_threshold_amount">Monto requerido (COP)</label>
+                            <x-ui.input id="gold_pricing_threshold_amount" name="gold_pricing_threshold_amount" type="number" min="1" step="1" :value="$goldThresholdAmount" required />
+                            <x-input-error :messages="$errors->get('gold_pricing_threshold_amount')" />
+                        </div>
+                        <div>
+                            <label class="form-label" for="gold_pricing_threshold_basis">Base de evaluación</label>
+                            <x-ui.select id="gold_pricing_threshold_basis" name="gold_pricing_threshold_basis" required>
+                                <option value="gold_candidate" @selected($goldThresholdBasis === 'gold_candidate')>Total candidato Oro</option>
+                                <option value="silver_candidate" @selected($goldThresholdBasis === 'silver_candidate')>Total candidato Plata</option>
+                            </x-ui.select>
+                            <x-input-error :messages="$errors->get('gold_pricing_threshold_basis')" />
+                        </div>
+                    </div>
+                </div>
 
                 <div class="mt-5 flex justify-end">
                     <x-ui.button type="submit" variant="primary" data-loading-label="Guardando...">
@@ -136,6 +208,29 @@ View contract:
                         <dd class="mt-1 font-semibold text-slate-900">{{ $money($current->silverRoundingMultiple) }}</dd>
                     </div>
                     <div>
+                        <dt class="text-xs uppercase tracking-wide text-slate-500">Pedido mínimo Plata</dt>
+                        <dd class="mt-1 font-semibold text-slate-900">
+                            {{ $current->silverMinOrderEnabled ? $money($current->silverMinOrderAmount) : 'Desactivado' }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs uppercase tracking-wide text-slate-500">Pedido mínimo Oro</dt>
+                        <dd class="mt-1 font-semibold text-slate-900">
+                            {{ $current->goldMinOrderEnabled ? $money($current->goldMinOrderAmount) : 'Desactivado' }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs uppercase tracking-wide text-slate-500">Umbral precios Oro</dt>
+                        <dd class="mt-1 font-semibold text-slate-900">
+                            @if($current->goldPricingThresholdEnabled)
+                                {{ $money($current->goldPricingThresholdAmount) }}
+                                <span class="block text-xs font-normal text-slate-500">{{ $current->goldPricingThresholdBasis->label() }}</span>
+                            @else
+                                Desactivado
+                            @endif
+                        </dd>
+                    </div>
+                    <div>
                         <dt class="text-xs uppercase tracking-wide text-slate-500">Última modificación</dt>
                         <dd class="mt-1 font-semibold text-slate-900">
                             @if($latestRule?->created_at)
@@ -172,8 +267,10 @@ View contract:
                 <thead>
                     <tr class="text-left text-xs uppercase tracking-wide text-slate-500">
                         <th class="px-3 py-2">Fecha</th>
-                        <th class="px-3 py-2">Porcentaje</th>
-                        <th class="px-3 py-2">Redondeo</th>
+                        <th class="px-3 py-2">Markup</th>
+                        <th class="px-3 py-2">Mín. Plata</th>
+                        <th class="px-3 py-2">Mín. Oro</th>
+                        <th class="px-3 py-2">Umbral Oro</th>
                         <th class="px-3 py-2">Administrador</th>
                     </tr>
                 </thead>
@@ -182,11 +279,25 @@ View contract:
                         @php
                             $bp = (int) $rule->silver_markup_basis_points;
                             $pct = intdiv($bp, 100).'.'.str_pad((string) ($bp % 100), 2, '0', STR_PAD_LEFT);
+                            $basis = \App\Modules\Shared\Enums\GoldThresholdBasis::tryFrom((string) $rule->gold_pricing_threshold_basis);
                         @endphp
                         <tr>
                             <td class="px-3 py-2 text-slate-700">{{ $rule->created_at?->format('d/m/Y H:i') }}</td>
-                            <td class="px-3 py-2 font-semibold text-slate-900">{{ $pct }}%</td>
-                            <td class="px-3 py-2 text-slate-700">{{ $money($rule->silver_rounding_multiple) }}</td>
+                            <td class="px-3 py-2 font-semibold text-slate-900">{{ $pct }}% / {{ $money($rule->silver_rounding_multiple) }}</td>
+                            <td class="px-3 py-2 text-slate-700">
+                                {{ $rule->silver_min_order_enabled ? $money($rule->silver_min_order_amount) : 'Off' }}
+                            </td>
+                            <td class="px-3 py-2 text-slate-700">
+                                {{ $rule->gold_min_order_enabled ? $money($rule->gold_min_order_amount) : 'Off' }}
+                            </td>
+                            <td class="px-3 py-2 text-slate-700">
+                                @if($rule->gold_pricing_threshold_enabled)
+                                    {{ $money($rule->gold_pricing_threshold_amount) }}
+                                    <span class="block text-xs text-slate-500">{{ $basis?->label() ?? $rule->gold_pricing_threshold_basis }}</span>
+                                @else
+                                    Off
+                                @endif
+                            </td>
                             <td class="px-3 py-2 text-slate-700">
                                 @if($rule->createdBy)
                                     {{ $rule->createdBy->name }}
@@ -197,7 +308,7 @@ View contract:
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="px-3 py-4 text-slate-500">Aún no hay versiones registradas.</td>
+                            <td colspan="6" class="px-3 py-4 text-slate-500">Aún no hay versiones registradas.</td>
                         </tr>
                     @endforelse
                 </tbody>
