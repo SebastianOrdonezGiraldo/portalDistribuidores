@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Modules\Orders\Pricing\CommercePricingRules;
 use App\Modules\Orders\Pricing\DistributorPriceCalculator;
 use App\Modules\Shared\Enums\DistributorTier;
+use App\Modules\Shared\Enums\GoldThresholdBasis;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
@@ -15,7 +16,22 @@ class DistributorPriceCalculatorTest extends TestCase
 {
     private function calculator(int $basisPoints = 500, int $rounding = 1000): DistributorPriceCalculator
     {
-        return new DistributorPriceCalculator(new CommercePricingRules($basisPoints, $rounding));
+        return new DistributorPriceCalculator($this->rules($basisPoints, $rounding));
+    }
+
+    private function rules(int $basisPoints = 500, int $rounding = 1000): CommercePricingRules
+    {
+        return new CommercePricingRules(
+            silverMarkupBasisPoints: $basisPoints,
+            silverRoundingMultiple: $rounding,
+            silverMinOrderEnabled: false,
+            silverMinOrderAmount: 1_000_000,
+            goldMinOrderEnabled: false,
+            goldMinOrderAmount: 1_000_000,
+            goldPricingThresholdEnabled: false,
+            goldPricingThresholdAmount: 1_000_000,
+            goldPricingThresholdBasis: GoldThresholdBasis::GoldCandidate,
+        );
     }
 
     public function test_gold_uses_base_price(): void
@@ -132,14 +148,14 @@ class DistributorPriceCalculatorTest extends TestCase
     {
         $this->expectException(InvalidArgumentException::class);
 
-        new DistributorPriceCalculator(new CommercePricingRules(-1, 1000));
+        new DistributorPriceCalculator($this->rules(-1, 1000));
     }
 
     public function test_invalid_rounding_multiple_is_rejected(): void
     {
         $this->expectException(InvalidArgumentException::class);
 
-        new DistributorPriceCalculator(new CommercePricingRules(500, 0));
+        new DistributorPriceCalculator($this->rules(500, 0));
     }
 
     public function test_public_signatures_do_not_accept_float(): void

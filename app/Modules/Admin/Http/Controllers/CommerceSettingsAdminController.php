@@ -50,6 +50,13 @@ class CommerceSettingsAdminController extends Controller
             silverMarkupBasisPoints: $request->silverMarkupBasisPoints(),
             silverRoundingMultiple: $request->silverRoundingMultiple(),
             actor: $actor,
+            silverMinOrderEnabled: $request->silverMinOrderEnabled(),
+            silverMinOrderAmount: $request->silverMinOrderAmount(),
+            goldMinOrderEnabled: $request->goldMinOrderEnabled(),
+            goldMinOrderAmount: $request->goldMinOrderAmount(),
+            goldPricingThresholdEnabled: $request->goldPricingThresholdEnabled(),
+            goldPricingThresholdAmount: $request->goldPricingThresholdAmount(),
+            goldPricingThresholdBasis: $request->goldPricingThresholdBasis(),
         );
 
         $message = $result->changed

@@ -160,7 +160,7 @@ class AdminOrderShowTest extends TestCase
             'department' => 'Antioquia',
             'notes' => 'Ajuste administrativo',
             'status' => OrderStatus::Submitted->value,
-            'total_amount' => 240000,
+            'total_amount' => 252000,
             'pdf_path' => null,
         ]);
 
@@ -168,7 +168,8 @@ class AdminOrderShowTest extends TestCase
             'order_id' => $order->id,
             'qty' => 4,
             'unit_label' => 'caja',
-            'subtotal' => 240000,
+            'price_each' => 63000,
+            'subtotal' => 252000,
         ]);
 
         $this->assertEquals(1.0, (float) $product->fresh()->stock);

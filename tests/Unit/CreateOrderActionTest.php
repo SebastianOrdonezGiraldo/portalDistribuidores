@@ -12,13 +12,15 @@ use App\Modules\Orders\Actions\CreateOrderAction;
 use App\Modules\Orders\DTOs\CreateOrderData;
 use App\Modules\Orders\Events\OrderPlaced;
 use App\Modules\Orders\Models\Order;
-use App\Modules\Orders\Pricing\CommercePricingRules;
-use App\Modules\Orders\Pricing\DistributorPriceCalculator;
+use App\Modules\Orders\Pricing\CommercePricingRulesService;
 use App\Modules\Orders\Pricing\DistributorTierResolver;
+use App\Modules\Orders\Pricing\OrderPricingCalculator;
+use App\Modules\Orders\Pricing\OrderPricingSnapshotMapper;
 use App\Modules\Orders\Services\OrderInventoryService;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Orders\Services\Payment\OrderPaymentService;
 use App\Modules\Shared\Enums\DistributorTier;
+use App\Modules\Shared\Enums\GoldThresholdBasis;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -329,6 +331,8 @@ class CreateOrderActionTest extends TestCase
         ]));
 
         $this->assertSame(DistributorTier::Gold, $order->distributor_tier_snapshot);
+        $this->assertTrue($order->gold_pricing_applied);
+        $this->assertSame('minimum_not_required', $order->minimum_order_decision_reason_snapshot);
         $this->assertDatabaseHas('order_items', [
             'order_id' => $order->id,
             'price_each' => 100000,
@@ -338,6 +342,81 @@ class CreateOrderActionTest extends TestCase
             'subtotal' => 100000,
             'line_savings' => 5000,
         ]);
+    }
+
+    public function test_create_order_rejects_when_gold_minimum_not_reached(): void
+    {
+        Event::fake([OrderPlaced::class]);
+
+        $admin = User::factory()->admin()->create();
+        app(CommercePricingRulesService::class)->publish(
+            silverMarkupBasisPoints: 500,
+            silverRoundingMultiple: 1000,
+            actor: $admin,
+            goldMinOrderEnabled: true,
+            goldMinOrderAmount: 800_000,
+            goldPricingThresholdEnabled: true,
+            goldPricingThresholdAmount: 1_000_000,
+        );
+
+        $user = $this->makeDistributorUser();
+        $product = Product::factory()->create(['price' => 700_000, 'stock' => 10, 'is_active' => true]);
+
+        $statusService = $this->createMock(OrderStatusTransitionService::class);
+        $statusService->expects($this->never())->method('recordInitialStatus');
+        $inventoryService = $this->createMock(OrderInventoryService::class);
+        $inventoryService->expects($this->never())->method('decreaseForOrder');
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('Pedido mínimo');
+
+        $this->makeAction($statusService, $inventoryService)->execute($user, $this->makeOrderData([
+            ['product_id' => $product->id, 'variant_id' => null, 'qty' => 1, 'unit_label' => 'unidades'],
+        ]));
+    }
+
+    public function test_create_order_persists_pricing_snapshots_from_same_result(): void
+    {
+        Event::fake([OrderPlaced::class]);
+
+        $admin = User::factory()->admin()->create();
+        $publish = app(CommercePricingRulesService::class)->publish(
+            silverMarkupBasisPoints: 500,
+            silverRoundingMultiple: 1000,
+            actor: $admin,
+            goldMinOrderEnabled: true,
+            goldMinOrderAmount: 800_000,
+            goldPricingThresholdEnabled: true,
+            goldPricingThresholdAmount: 1_000_000,
+            goldPricingThresholdBasis: GoldThresholdBasis::GoldCandidate,
+        );
+
+        $user = $this->makeDistributorUser();
+        $product = Product::factory()->create(['price' => 1_050_000, 'stock' => 10, 'is_active' => true]);
+
+        $statusService = $this->createMock(OrderStatusTransitionService::class);
+        $statusService->expects($this->once())->method('recordInitialStatus');
+        $inventoryService = $this->createMock(OrderInventoryService::class);
+        $inventoryService->expects($this->once())->method('decreaseForOrder');
+
+        $order = $this->makeAction($statusService, $inventoryService)->execute($user, $this->makeOrderData([
+            ['product_id' => $product->id, 'variant_id' => null, 'qty' => 1, 'unit_label' => 'unidades'],
+        ]));
+
+        $this->assertSame($publish->rule->id, $order->commerce_pricing_rule_id);
+        $this->assertSame(DistributorTier::Gold, $order->distributor_tier_snapshot);
+        $this->assertTrue($order->minimum_order_enabled_snapshot);
+        $this->assertSame(800_000, $order->minimum_order_amount_snapshot);
+        $this->assertTrue($order->minimum_order_reached);
+        $this->assertSame('minimum_reached', $order->minimum_order_decision_reason_snapshot);
+        $this->assertTrue($order->gold_pricing_threshold_enabled_snapshot);
+        $this->assertSame(1_000_000, $order->gold_pricing_threshold_amount_snapshot);
+        $this->assertSame('gold_candidate', $order->gold_pricing_threshold_basis_snapshot);
+        $this->assertSame('threshold_reached', $order->gold_pricing_decision_reason_snapshot);
+        $this->assertTrue($order->gold_pricing_applied);
+        $this->assertSame('1050000.00', $order->gold_candidate_total);
+        $this->assertSame('1050000.00', $order->total_amount);
+        $this->assertGreaterThan(0, (float) $order->gold_savings_total);
     }
 
     public function test_silver_order_stores_silver_price_as_effective_and_silver_snapshot(): void
@@ -410,9 +489,10 @@ class CreateOrderActionTest extends TestCase
         return new CreateOrderAction(
             $statusService,
             $inventoryService,
-            new DistributorPriceCalculator(new CommercePricingRules(500, 1000)),
             new DistributorTierResolver,
+            app(OrderPricingCalculator::class),
             app(OrderPaymentService::class),
+            app(OrderPricingSnapshotMapper::class),
         );
     }
 

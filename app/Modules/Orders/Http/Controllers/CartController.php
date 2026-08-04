@@ -31,6 +31,7 @@ class CartController extends Controller
         return view('cart.index', [
             'items' => $cartService->items(),
             'total' => $cartService->total(),
+            'pricing' => $cartService->pricingResult(),
         ]);
     }
 

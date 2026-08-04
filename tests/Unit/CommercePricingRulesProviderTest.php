@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Modules\Orders\Models\CommercePricingRule;
 use App\Modules\Orders\Pricing\CommercePricingRulesProvider;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -81,6 +82,14 @@ class CommercePricingRulesProviderTest extends TestCase
 
     public function test_missing_table_falls_back_to_config(): void
     {
+        // orders.commerce_pricing_rule_id is RESTRICT; drop the FK before the parent table
+        // so this assertion stays portable across SQLite and PostgreSQL.
+        if (Schema::hasTable('orders')) {
+            Schema::table('orders', function (Blueprint $table): void {
+                $table->dropForeign(['commerce_pricing_rule_id']);
+            });
+        }
+
         Schema::drop('commerce_pricing_rules');
         config([
             'commerce.tiers.silver_markup_percent' => 5,

@@ -4,8 +4,8 @@ namespace App\Modules\Orders\Pricing;
 
 use App\Models\User;
 use App\Modules\Orders\Models\CommercePricingRule;
+use App\Modules\Shared\Enums\GoldThresholdBasis;
 use Illuminate\Support\Facades\DB;
-use InvalidArgumentException;
 
 /**
  * Publishes a new immutable version of commercial pricing rules when values change.
@@ -20,23 +20,49 @@ final class CommercePricingRulesService
         int $silverMarkupBasisPoints,
         int $silverRoundingMultiple,
         User $actor,
+        ?bool $silverMinOrderEnabled = null,
+        ?int $silverMinOrderAmount = null,
+        ?bool $goldMinOrderEnabled = null,
+        ?int $goldMinOrderAmount = null,
+        ?bool $goldPricingThresholdEnabled = null,
+        ?int $goldPricingThresholdAmount = null,
+        ?GoldThresholdBasis $goldPricingThresholdBasis = null,
     ): CommercePricingRulesPublishResult {
-        if ($silverMarkupBasisPoints < 0 || $silverMarkupBasisPoints > 10_000) {
-            throw new InvalidArgumentException(
-                'silver_markup_basis_points debe estar entre 0 y 10000.',
-            );
-        }
+        $bootstrap = $this->provider->current();
 
-        if ($silverRoundingMultiple <= 0) {
-            throw new InvalidArgumentException(
-                'silver_rounding_multiple debe ser mayor que cero.',
-            );
-        }
+        $silverMinOrderEnabled ??= $bootstrap->silverMinOrderEnabled;
+        $silverMinOrderAmount ??= $bootstrap->silverMinOrderAmount;
+        $goldMinOrderEnabled ??= $bootstrap->goldMinOrderEnabled;
+        $goldMinOrderAmount ??= $bootstrap->goldMinOrderAmount;
+        $goldPricingThresholdEnabled ??= $bootstrap->goldPricingThresholdEnabled;
+        $goldPricingThresholdAmount ??= $bootstrap->goldPricingThresholdAmount;
+        $goldPricingThresholdBasis ??= $bootstrap->goldPricingThresholdBasis;
 
         // DTO invariants are also asserted here so invalid values never reach DB.
-        new CommercePricingRules($silverMarkupBasisPoints, $silverRoundingMultiple);
+        new CommercePricingRules(
+            silverMarkupBasisPoints: $silverMarkupBasisPoints,
+            silverRoundingMultiple: $silverRoundingMultiple,
+            silverMinOrderEnabled: $silverMinOrderEnabled,
+            silverMinOrderAmount: $silverMinOrderAmount,
+            goldMinOrderEnabled: $goldMinOrderEnabled,
+            goldMinOrderAmount: $goldMinOrderAmount,
+            goldPricingThresholdEnabled: $goldPricingThresholdEnabled,
+            goldPricingThresholdAmount: $goldPricingThresholdAmount,
+            goldPricingThresholdBasis: $goldPricingThresholdBasis,
+        );
 
-        $result = DB::transaction(function () use ($silverMarkupBasisPoints, $silverRoundingMultiple, $actor): CommercePricingRulesPublishResult {
+        $result = DB::transaction(function () use (
+            $silverMarkupBasisPoints,
+            $silverRoundingMultiple,
+            $actor,
+            $silverMinOrderEnabled,
+            $silverMinOrderAmount,
+            $goldMinOrderEnabled,
+            $goldMinOrderAmount,
+            $goldPricingThresholdEnabled,
+            $goldPricingThresholdAmount,
+            $goldPricingThresholdBasis,
+        ): CommercePricingRulesPublishResult {
             /** @var CommercePricingRule|null $latest */
             $latest = CommercePricingRule::query()
                 ->orderByDesc('id')
@@ -47,6 +73,13 @@ final class CommercePricingRulesService
                 $latest
                 && (int) $latest->silver_markup_basis_points === $silverMarkupBasisPoints
                 && (int) $latest->silver_rounding_multiple === $silverRoundingMultiple
+                && (bool) $latest->silver_min_order_enabled === $silverMinOrderEnabled
+                && (int) $latest->silver_min_order_amount === $silverMinOrderAmount
+                && (bool) $latest->gold_min_order_enabled === $goldMinOrderEnabled
+                && (int) $latest->gold_min_order_amount === $goldMinOrderAmount
+                && (bool) $latest->gold_pricing_threshold_enabled === $goldPricingThresholdEnabled
+                && (int) $latest->gold_pricing_threshold_amount === $goldPricingThresholdAmount
+                && (string) $latest->gold_pricing_threshold_basis === $goldPricingThresholdBasis->value
             ) {
                 return new CommercePricingRulesPublishResult(rule: $latest, changed: false);
             }
@@ -54,6 +87,13 @@ final class CommercePricingRulesService
             $created = CommercePricingRule::query()->create([
                 'silver_markup_basis_points' => $silverMarkupBasisPoints,
                 'silver_rounding_multiple' => $silverRoundingMultiple,
+                'silver_min_order_enabled' => $silverMinOrderEnabled,
+                'silver_min_order_amount' => $silverMinOrderAmount,
+                'gold_min_order_enabled' => $goldMinOrderEnabled,
+                'gold_min_order_amount' => $goldMinOrderAmount,
+                'gold_pricing_threshold_enabled' => $goldPricingThresholdEnabled,
+                'gold_pricing_threshold_amount' => $goldPricingThresholdAmount,
+                'gold_pricing_threshold_basis' => $goldPricingThresholdBasis->value,
                 'created_by_id' => $actor->id,
             ]);
 

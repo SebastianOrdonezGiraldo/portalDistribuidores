@@ -11,11 +11,27 @@ View contract:
         $itemsCount = $items->count();
         $unitsCount = (int) $items->sum(fn ($item) => (int) $item['qty']);
         $money = fn ($value) => '$'.number_format((float) $value, 0, ',', '.');
+        $moneyFromCents = fn (int $cents) => $money(intdiv($cents, 100));
 
         $tier = $items->isNotEmpty() ? $items->first()['tier'] : \App\Modules\Shared\Enums\DistributorTier::Silver;
         $isGold = $tier === \App\Modules\Shared\Enums\DistributorTier::Gold;
         $tierName = $isGold ? 'ORO' : 'Plata';
         $vatRate = \App\Modules\Orders\Support\OrderLineVat::DEFAULT_RATE;
+
+        /** @var \App\Modules\Orders\Pricing\OrderPricingResult|null $pricing */
+        $pricing = $pricing ?? null;
+        $checkoutAllowed = $pricing?->checkoutAllowed() ?? true;
+        $goldPricingApplied = $pricing?->goldPricingApplied ?? $isGold;
+        $minMissingCents = $pricing?->minimumOrderMissingAmountCents() ?? 0;
+        $minAmountCents = $pricing?->minimumOrderAmountCents() ?? 0;
+        $goldThresholdMissingCents = $pricing?->goldPricingMissingAmountCents() ?? 0;
+        $showMinimumBlocked = $pricing !== null && ! $checkoutAllowed;
+        $showGoldThresholdHint = $isGold
+            && $checkoutAllowed
+            && $pricing !== null
+            && $pricing->goldPricingDecision->ruleEnabled
+            && ! $goldPricingApplied
+            && $goldThresholdMissingCents > 0;
 
         $grossTotal = (float) $total;
         $listTotal = (float) $items->sum(fn ($item) => (float) $item['silver_unit_price'] * (int) $item['qty']);
@@ -198,10 +214,14 @@ View contract:
                                     <span class="cart-review-cell-label lg:hidden">Precio unitario</span>
                                     <p class="text-sm font-semibold text-slate-900">{{ $money($item['unit_price']) }}</p>
                                     <p class="text-[0.7rem] text-slate-400">{{ $item['vat_label'] }}</p>
-                                    @if($isGold && $linePct > 0)
+                                    @if($isGold && $goldPricingApplied && $linePct > 0)
                                         <span class="cart-review-oro-chip mt-1.5">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="currentColor"><path d="m5 16 -1.6 -8 4.6 3.5L12 5l3.9 6.5L20.6 8 19 16z"/></svg>
                                             {{ $linePct }}% dto. Cliente ORO
+                                        </span>
+                                    @elseif($isGold && ! $goldPricingApplied && (float) $item['base_unit_price'] < (float) $item['unit_price'])
+                                        <span class="cart-review-oro-estimate-chip mt-1.5">
+                                            Precio Oro estimado: {{ $money($item['base_unit_price']) }}
                                         </span>
                                     @elseif(! $isGold && (float) $item['base_unit_price'] < (float) $item['unit_price'])
                                         <span class="cart-review-oro-estimate-chip mt-1.5">
@@ -299,14 +319,30 @@ View contract:
                             @endif
                         </dl>
 
-                        <div class="cart-review-total {{ $isGold ? 'cart-review-total--gold' : 'cart-review-total--silver' }} mt-4">
-                            @if($isGold)
+                        <div class="cart-review-total {{ ($isGold && $goldPricingApplied) ? 'cart-review-total--gold' : 'cart-review-total--silver' }} mt-4">
+                            @if($isGold && $goldPricingApplied)
                                 <svg class="cart-review-crown" xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m5 16 -1.6 -8 4.6 3.5L12 5l3.9 6.5L20.6 8 19 16z"/></svg>
                             @endif
                             <p class="relative text-xs font-semibold uppercase tracking-wide text-slate-500">Total del pedido</p>
                             <p class="relative mt-1 break-words text-3xl font-bold tracking-tight text-slate-950" data-sum-total>{{ $money($grossTotal) }} <span class="text-base font-semibold text-slate-400">COP</span></p>
                             <p class="relative text-xs text-slate-500">IVA incluido</p>
                         </div>
+
+                        @if($showMinimumBlocked)
+                            <div class="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-950">
+                                <p class="font-semibold">
+                                    Pedido mínimo para {{ $tier->badgeLabel() }}: {{ $moneyFromCents($minAmountCents) }}.
+                                    Te faltan {{ $moneyFromCents($minMissingCents) }}.
+                                </p>
+                            </div>
+                        @elseif($showGoldThresholdHint)
+                            <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                                <p class="font-semibold">Pedido mínimo alcanzado.</p>
+                                <p class="mt-1 text-amber-900/90">
+                                    Agrega {{ $moneyFromCents($goldThresholdMissingCents) }} más para activar tus precios Oro.
+                                </p>
+                            </div>
+                        @endif
 
                         @if(! $isGold && $hasPotentialSavings)
                             <div class="cart-review-oro-savings-box mt-4">
@@ -343,10 +379,16 @@ View contract:
                         </ul>
 
                         <div class="mt-5 space-y-2">
-                            <x-ui.button type="submit" variant="primary" class="w-full justify-center" data-loading-label="Procesando..." data-checkout-submit>
-                                Continuar con mi pedido
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-                            </x-ui.button>
+                            @if($checkoutAllowed)
+                                <x-ui.button type="submit" variant="primary" class="w-full justify-center" data-loading-label="Procesando..." data-checkout-submit>
+                                    Continuar con mi pedido
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                                </x-ui.button>
+                            @else
+                                <x-ui.button type="button" variant="primary" class="w-full justify-center opacity-60" disabled>
+                                    Pedido mínimo no alcanzado
+                                </x-ui.button>
+                            @endif
                             <button type="submit" class="w-full text-center text-xs font-semibold text-slate-500 transition hover:text-brand-dark" data-loading-label="Actualizando..." data-cart-update>
                                 Actualizar cantidades
                             </button>

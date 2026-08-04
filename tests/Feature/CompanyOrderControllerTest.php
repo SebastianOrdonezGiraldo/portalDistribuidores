@@ -265,7 +265,7 @@ class CompanyOrderControllerTest extends TestCase
             'department' => 'Antioquia',
             'notes' => 'nota nueva',
             'status' => OrderStatus::PendingApproval->value,
-            'total_amount' => 15000,
+            'total_amount' => 18000,
             'pdf_path' => null,
         ]);
 
@@ -273,8 +273,8 @@ class CompanyOrderControllerTest extends TestCase
             'order_id' => $order->id,
             'qty' => 3,
             'unit_label' => 'cajas',
-            'price_each' => 5000,
-            'subtotal' => 15000,
+            'price_each' => 6000,
+            'subtotal' => 18000,
         ]);
 
         $this->assertDatabaseHas('order_status_histories', [
