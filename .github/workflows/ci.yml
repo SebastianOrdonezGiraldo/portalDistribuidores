@@ -103,11 +103,22 @@ jobs:
           done
       - name: Audit Node.js dependencies
         run: |
-          # --no-audit / --package-lock-only: audit only declared lockfile deps.
-          # Ignores extraneous packages that may appear in the runner workspace
-          # (e.g. security tooling not owned by this project).
+          set -euo pipefail
+          # Audit in an isolated directory with only this project's manifests.
+          # The runner workspace can contain extraneous tooling (e.g.
+          # @openai/codex-security) that is not part of package-lock.json and
+          # must not fail the project dependency audit.
+          if grep -F -- '@openai/codex-security' package-lock.json package.json >/dev/null; then
+            echo '@openai/codex-security must not be a project dependency.' >&2
+            exit 1
+          fi
+          audit_dir="$RUNNER_TEMP/npm-project-audit"
+          rm -rf "$audit_dir"
+          mkdir -p "$audit_dir"
+          cp package.json package-lock.json "$audit_dir/"
+          cd "$audit_dir"
           npm ci --no-audit
-          npm audit --audit-level=high --package-lock-only
+          npm audit --audit-level=high
       - name: Install actionlint with checksum verification
         run: |
           mkdir -p "$RUNNER_TEMP/actionlint"
