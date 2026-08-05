@@ -31,7 +31,9 @@ Component contract:
             <span class="commerce-status-dot commerce-status-dot--ok" aria-hidden="true"></span>
             <div class="min-w-0">
                 <p class="text-sm font-semibold text-emerald-800">Pedido mínimo alcanzado</p>
-                <p class="mt-0.5 text-xs text-slate-500">Ya puedes continuar con tu compra.</p>
+                @if($variant !== 'cart-gold')
+                    <p class="mt-0.5 text-xs text-slate-500">Ya puedes continuar con tu compra.</p>
+                @endif
             </div>
         </div>
     </div>
@@ -40,7 +42,12 @@ Component contract:
         <div class="commerce-status-row__head">
             <span class="commerce-status-dot commerce-status-dot--warn" aria-hidden="true"></span>
             <div class="min-w-0 flex-1">
-                @if($variant === 'cart-silver')
+                @if($variant === 'cart-gold')
+                    <p class="text-sm font-semibold text-slate-900">Pedido mínimo</p>
+                    <p class="mt-1 text-sm font-bold text-amber-800">
+                        Te faltan {{ $moneyFromCents($missing) }} para completar el pedido mínimo.
+                    </p>
+                @elseif($variant === 'cart-silver')
                     <p class="text-sm font-semibold text-slate-900">Completa el pedido mínimo</p>
                     <p class="mt-1 text-xs text-slate-600">
                         El pedido mínimo para Cliente Plata es de {{ $moneyFromCents($amount) }}.
