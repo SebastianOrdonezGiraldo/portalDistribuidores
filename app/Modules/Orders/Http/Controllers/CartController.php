@@ -8,6 +8,7 @@ use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Orders\Http\Requests\AddToCartRequest;
 use App\Modules\Orders\Http\Requests\UpdateCartRequest;
 use App\Modules\Orders\Services\Cart\CartService;
+use App\Modules\Orders\Support\CartLiveUpdatePresenter;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -145,6 +146,8 @@ class CartController extends Controller
     /**
      * Actualizar cantidades del carrito.
      *
+     * Responde JSON para autosync del carrito o redirect para formularios HTML.
+     *
      * @group Carrito y pedidos
      *
      * @unauthenticated
@@ -152,16 +155,47 @@ class CartController extends Controller
      * @bodyParam quantities object required Mapa lineKey => cantidad. Example: {"10-0":2}
      * @bodyParam redirect_checkout boolean Redirige al checkout despues de actualizar. Example: true
      *
+     * @response 200 {"ok":true,"empty":false,"pricing":{},"lines":{},"html":{}}
      * @response 302 {"redirect":"back|checkout"}
-     * @response 422 {"message":"Formato de linea o cantidad invalida"}
+     * @response 422 {"ok":false,"message":"...","state":{}}
      * @response 429 {"message":"Has realizado demasiados intentos."}
      */
-    public function update(UpdateCartRequest $request, CartService $cartService): RedirectResponse
-    {
+    public function update(
+        UpdateCartRequest $request,
+        CartService $cartService,
+        CartLiveUpdatePresenter $presenter,
+    ): JsonResponse|RedirectResponse {
+        $wantsJson = $request->expectsJson();
+
         try {
             $cartService->update($request->input('quantities', []));
         } catch (DomainException $exception) {
+            if ($wantsJson) {
+                return $this->jsonCanonicalState(
+                    $cartService,
+                    $presenter,
+                    ok: false,
+                    message: $exception->getMessage(),
+                    status: 422,
+                );
+            }
+
             return back()->withErrors($exception->getMessage());
+        }
+
+        if ($wantsJson) {
+            $items = $cartService->items();
+            $pricing = $cartService->pricingResult();
+
+            if ($items->isEmpty() || $pricing === null) {
+                return response()->json([
+                    'ok' => true,
+                    'empty' => true,
+                    'redirect_url' => route('cart.index', absolute: false),
+                ]);
+            }
+
+            return response()->json($presenter->present($items, $pricing));
         }
 
         if ($request->boolean('redirect_checkout')) {
@@ -193,5 +227,34 @@ class CartController extends Controller
         $cartService->remove($lineKey);
 
         return back()->with('status', 'Línea eliminada del carrito.');
+    }
+
+    private function jsonCanonicalState(
+        CartService $cartService,
+        CartLiveUpdatePresenter $presenter,
+        bool $ok,
+        string $message,
+        int $status,
+    ): JsonResponse {
+        $items = $cartService->items();
+        $pricing = $cartService->pricingResult();
+
+        if ($items->isEmpty() || $pricing === null) {
+            return response()->json([
+                'ok' => $ok,
+                'message' => $message,
+                'state' => [
+                    'ok' => true,
+                    'empty' => true,
+                    'redirect_url' => route('cart.index', absolute: false),
+                ],
+            ], $status);
+        }
+
+        return response()->json([
+            'ok' => $ok,
+            'message' => $message,
+            'state' => $presenter->present($items, $pricing),
+        ], $status);
     }
 }

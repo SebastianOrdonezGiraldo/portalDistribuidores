@@ -3,6 +3,7 @@ View contract:
 - Source: App\Modules\Orders\Http\Controllers\CartController::index.
 - Expects: $items from CartService::items(), $total from CartService::total(), $pricing from CartService::pricingResult().
 - Owns: cart review UI and checkout navigation. Commercial decisions come from $pricing only.
+- Live sync: PATCH cart.update expectsJson → CartLiveUpdatePresenter fragments (no client-side rule recalculation).
 --}}
 <x-app-layout>
     @php
@@ -72,8 +73,17 @@ View contract:
             </x-slot>
         </x-ui.empty-state-panel>
     @else
-        <div class="space-y-4">
-            <x-commerce.order-commercial-status :pricing="$pricing" :tier="$tier" context="cart" />
+        <div class="space-y-4" data-cart-live-root>
+            <div data-commerce-status-root>
+                <x-commerce.order-commercial-status :pricing="$pricing" :tier="$tier" context="cart" />
+            </div>
+
+            <div
+                data-cart-sync-alert
+                class="hidden rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+                role="alert"
+                aria-live="polite"
+            ></div>
 
             @if($isGold)
                 <div class="cart-review-strip">
@@ -103,7 +113,7 @@ View contract:
                     </div>
                 </div>
             @elseif($hasPotentialSavings)
-                <div class="cart-review-oro-upsell">
+                <div class="cart-review-oro-upsell" data-oro-upsell>
                     <div class="flex min-w-0 flex-1 items-start gap-3">
                         <span class="cart-review-oro-upsell-icon" aria-hidden="true">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="m5 16 -1.6 -8 4.6 3.5L12 5l3.9 6.5L20.6 8 19 16z"/></svg>
@@ -133,7 +143,16 @@ View contract:
                 </div>
             @endif
 
-            <form id="cart-update-form" action="{{ route('cart.update') }}" method="POST" data-loading-form data-cart-form class="grid min-w-0 gap-4 lg:grid-cols-[1.85fr_1fr] lg:items-start">
+            <form
+                id="cart-update-form"
+                action="{{ route('cart.update') }}"
+                method="POST"
+                data-loading-form
+                data-cart-form
+                data-cart-live="1"
+                data-checkout-allowed="{{ $checkoutAllowed ? '1' : '0' }}"
+                class="grid min-w-0 gap-4 lg:grid-cols-[1.85fr_1fr] lg:items-start"
+            >
                 @csrf
                 @method('PATCH')
 
@@ -145,7 +164,7 @@ View contract:
                         <span class="text-right">Total</span>
                     </div>
 
-                    <div class="space-y-3 lg:space-y-0">
+                    <div class="space-y-3 lg:space-y-0" data-cart-lines>
                         @foreach($items as $item)
                             @php
                                 $product = $item['product'];
@@ -153,12 +172,11 @@ View contract:
                                 $inputId = 'qty-'.preg_replace('/[^A-Za-z0-9\-_]/', '-', $lineKey);
                                 $available = $item['available_qty'];
                                 $inStock = $available === null || (int) $available > 0;
-                                $lineSavings = (float) $item['line_savings'];
-                                $showGoldLinePricing = $goldPricingApplied && (float) $item['silver_unit_price'] > (float) $item['unit_price'];
                             @endphp
                             <article
                                 class="cart-review-line"
                                 data-cart-item
+                                data-line-key="{{ $lineKey }}"
                                 data-unit-price="{{ (float) $item['unit_price'] }}"
                                 data-base-price="{{ (float) $item['base_unit_price'] }}"
                                 data-silver-price="{{ (float) $item['silver_unit_price'] }}"
@@ -186,18 +204,14 @@ View contract:
                                     </div>
                                 </div>
 
-                                <div class="min-w-0">
-                                    <span class="cart-review-cell-label lg:hidden">Precio unitario</span>
-                                    @if($showGoldLinePricing)
-                                        <p class="text-xs text-slate-400 line-through">{{ $money($item['silver_unit_price']) }}</p>
-                                    @endif
-                                    <p class="text-sm font-semibold text-slate-900">{{ $money($item['unit_price']) }}</p>
-                                    <p class="text-[0.7rem] text-slate-400">{{ $item['vat_label'] }}</p>
-                                    @if($showGoldLinePricing && $lineSavings > 0.5)
-                                        <span class="cart-review-oro-chip mt-1.5">
-                                            Precio Oro aplicado
-                                        </span>
-                                    @endif
+                                <div class="min-w-0" data-line-pricing>
+                                    <x-cart.line-pricing
+                                        :unit-price="$item['unit_price']"
+                                        :silver-unit-price="$item['silver_unit_price']"
+                                        :vat-label="$item['vat_label']"
+                                        :gold-pricing-applied="$goldPricingApplied"
+                                        :line-savings="$item['line_savings']"
+                                    />
                                 </div>
 
                                 <div class="flex flex-col items-start gap-2 lg:items-center">
@@ -228,10 +242,8 @@ View contract:
                                     </button>
                                 </div>
 
-                                <div class="lg:text-right">
-                                    <span class="cart-review-cell-label lg:hidden">Total</span>
-                                    <p class="text-base font-bold text-slate-950" data-cart-subtotal-amount>{{ $money($item['subtotal']) }}</p>
-                                    <p class="text-[0.7rem] text-slate-400">{{ $item['vat_label'] }}</p>
+                                <div class="lg:text-right" data-line-subtotal>
+                                    <x-cart.line-subtotal :subtotal="$item['subtotal']" :vat-label="$item['vat_label']" />
                                 </div>
                             </article>
                         @endforeach
@@ -251,44 +263,18 @@ View contract:
 
                 <aside class="min-w-0 max-w-full space-y-4 lg:sticky lg:top-24 lg:h-fit">
                     <x-ui.card class="min-w-0 p-5">
-                        <h2 class="text-base font-bold text-slate-900">Resumen del pedido</h2>
-
-                        <dl class="mt-4 space-y-2.5 text-sm">
-                            <div class="flex items-center justify-between gap-3">
-                                <dt class="text-slate-500">Subtotal de productos</dt>
-                                <dd class="font-medium text-slate-700" data-sum-products-subtotal>{{ $money($productsSubtotal) }}</dd>
-                            </div>
-                            @if($hasGoldSavings)
-                                <div class="flex items-center justify-between gap-3">
-                                    <dt class="font-medium text-amber-600">Ahorro Cliente Oro</dt>
-                                    <dd class="font-semibold text-amber-600">− {{ $money($goldSavings) }}</dd>
-                                </div>
-                            @endif
-                        </dl>
-
-                        <div class="cart-review-total {{ $goldPricingApplied ? 'cart-review-total--gold' : 'cart-review-total--silver' }} mt-4">
-                            @if($goldPricingApplied)
-                                <svg class="cart-review-crown" xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m5 16 -1.6 -8 4.6 3.5L12 5l3.9 6.5L20.6 8 19 16z"/></svg>
-                            @endif
-                            <p class="relative text-xs font-semibold uppercase tracking-wide text-slate-500">Total del pedido</p>
-                            <p class="relative mt-1 break-words text-3xl font-bold tracking-tight text-slate-950" data-sum-total>{{ $money($grossTotal) }} <span class="text-base font-semibold text-slate-400">COP</span></p>
-                            <p class="relative text-xs text-slate-500">IVA incluido</p>
+                        <div data-order-summary-root>
+                            <x-cart.order-summary
+                                :products-subtotal="$productsSubtotal"
+                                :gross-total="$grossTotal"
+                                :gold-pricing-applied="$goldPricingApplied"
+                                :gold-savings="$goldSavings"
+                                :is-gold="$isGold"
+                                :has-potential-savings="$hasPotentialSavings"
+                                :potential-savings="$potentialSavings"
+                                :potential-savings-pct="$potentialSavingsPct"
+                            />
                         </div>
-
-                        @if(! $isGold && $hasPotentialSavings)
-                            <div class="cart-review-oro-savings-box mt-4">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-none text-amber-600" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m5 16 -1.6 -8 4.6 3.5L12 5l3.9 6.5L20.6 8 19 16z"/></svg>
-                                <div>
-                                    <p class="text-sm font-semibold text-slate-900">
-                                        Si fueras Cliente Oro ahorrarías:
-                                        <span class="text-amber-700"><span data-sum-potential-savings>{{ $money($potentialSavings) }}</span> COP</span>
-                                    </p>
-                                    <p class="mt-0.5 text-xs text-slate-500">
-                                        Descuento estimado nivel Oro: <span data-sum-potential-savings-pct>{{ $potentialSavingsPct }}</span>%
-                                    </p>
-                                </div>
-                            </div>
-                        @endif
 
                         <ul class="mt-4 space-y-2">
                             @foreach([
@@ -304,17 +290,16 @@ View contract:
                         </ul>
 
                         <div class="mt-5 space-y-2">
-                            @if($checkoutAllowed)
-                                <x-ui.button type="submit" variant="primary" class="w-full justify-center" data-loading-label="Procesando..." data-checkout-submit>
-                                    Continuar al checkout
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-                                </x-ui.button>
-                            @else
-                                <x-ui.button type="button" variant="primary" class="w-full justify-center opacity-60" disabled>
-                                    Completa el pedido mínimo
-                                </x-ui.button>
-                            @endif
-                            <button type="submit" class="w-full text-center text-xs font-semibold text-slate-500 transition hover:text-brand-dark" data-loading-label="Actualizando..." data-cart-update>
+                            <div data-checkout-cta-root>
+                                <x-cart.checkout-cta :checkout-allowed="$checkoutAllowed" />
+                            </div>
+                            <button
+                                type="submit"
+                                class="w-full text-center text-xs font-semibold text-slate-500 transition hover:text-brand-dark"
+                                data-loading-label="Actualizando..."
+                                data-cart-update
+                                data-cart-manual-update
+                            >
                                 Actualizar cantidades
                             </button>
                         </div>
@@ -363,14 +348,35 @@ View contract:
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const cartForm = document.querySelector('[data-cart-form]');
+            const cartForm = document.querySelector('[data-cart-form][data-cart-live]');
 
             if (!cartForm) {
                 return;
             }
 
             const IS_GOLD = {{ $isGold ? 'true' : 'false' }};
-            const GOLD_PRICING_APPLIED = {{ $goldPricingApplied ? 'true' : 'false' }};
+            const DEBOUNCE_MS = 400;
+            const NETWORK_ERROR_MESSAGE = 'No pudimos confirmar los cambios del carrito. Actualiza las cantidades manualmente para continuar.';
+            const UPDATING_CTA_HTML = `
+                <button type="button" class="btn btn-primary w-full justify-center opacity-60" disabled data-checkout-updating>
+                    Actualizando carrito…
+                </button>
+            `;
+
+            let editVersion = 0;
+            let confirmedVersion = 0;
+            let dirty = false;
+            let requestInFlight = false;
+            let syncQueued = false;
+            let debounceTimer = null;
+            let checkoutAllowedConfirmed = cartForm.dataset.checkoutAllowed === '1';
+            let confirmedCtaHtml = document.querySelector('[data-checkout-cta-root]')?.innerHTML || '';
+            let consecutiveNetworkFailures = 0;
+
+            const csrfToken = cartForm.querySelector('input[name="_token"]')?.value || '';
+            const syncAlert = document.querySelector('[data-cart-sync-alert]');
+            const manualUpdateBtn = cartForm.querySelector('[data-cart-manual-update]');
+            const redirectCheckoutInput = cartForm.querySelector('[data-redirect-checkout-input]');
 
             const parseQty = (value) => {
                 const parsed = Number(value);
@@ -388,22 +394,72 @@ View contract:
             const numberFormatter = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 });
             const formatNumber = (value) => numberFormatter.format(Math.max(0, Math.round(value)));
             const formatMoney = (value) => `$${formatNumber(value)}`;
+            const centsToPesos = (cents) => Math.floor(Number(cents || 0) / 100);
 
             const setText = (selector, text) => {
                 document.querySelectorAll(selector).forEach((el) => { el.textContent = text; });
             };
 
-            // Solo actualiza subtotales de línea y contadores. Totales comerciales y
-            // elegibilidad Oro/mínimo se confirman al actualizar cantidades (backend).
-            const refreshCartSummary = () => {
-                let total = 0;
-                let goldTotal = 0;
+            const showAlert = (message) => {
+                if (!syncAlert) {
+                    return;
+                }
+                syncAlert.textContent = message || '';
+                syncAlert.classList.toggle('hidden', !message);
+            };
+
+            const hideManualUpdate = () => {
+                if (manualUpdateBtn) {
+                    manualUpdateBtn.classList.add('hidden');
+                }
+            };
+
+            const showManualUpdate = () => {
+                if (manualUpdateBtn) {
+                    manualUpdateBtn.classList.remove('hidden');
+                }
+            };
+
+            hideManualUpdate();
+
+            const showUpdatingCta = () => {
+                const root = document.querySelector('[data-checkout-cta-root]');
+                if (!root) {
+                    return;
+                }
+                if (!root.querySelector('[data-checkout-updating]')) {
+                    confirmedCtaHtml = root.innerHTML;
+                }
+                root.innerHTML = UPDATING_CTA_HTML;
+            };
+
+            const collectQuantities = () => {
+                const quantities = {};
+                cartForm.querySelectorAll('[data-cart-item]').forEach((item) => {
+                    const lineKey = item.dataset.lineKey;
+                    const qtyInput = item.querySelector('[data-cart-qty]');
+                    if (!lineKey || !qtyInput) {
+                        return;
+                    }
+                    const stockLimit = parseStockLimit(item.dataset.stockLimit);
+                    let qty = parseQty(qtyInput.value);
+                    if (stockLimit !== null) {
+                        qty = Math.min(qty, stockLimit);
+                    }
+                    quantities[lineKey] = qty;
+                });
+                return quantities;
+            };
+
+            const refreshLocalLineSubtotals = () => {
                 let units = 0;
                 let products = 0;
+                let total = 0;
+                let goldTotal = 0;
 
                 cartForm.querySelectorAll('[data-cart-item]').forEach((item) => {
                     const qtyInput = item.querySelector('[data-cart-qty]');
-                    if (!qtyInput) {
+                    if (!qtyInput || qtyInput.value === '') {
                         return;
                     }
 
@@ -412,12 +468,10 @@ View contract:
                     if (stockLimit !== null) {
                         qty = Math.min(qty, stockLimit);
                     }
-                    qtyInput.value = String(qty);
 
                     const unitPrice = Number(item.dataset.unitPrice || 0);
                     const basePrice = Number(item.dataset.basePrice || 0);
                     const subtotal = qty * unitPrice;
-
                     total += subtotal;
                     goldTotal += qty * basePrice;
                     units += qty;
@@ -431,15 +485,202 @@ View contract:
                     }
                 });
 
-                const potentialSavings = Math.max(0, total - goldTotal);
-                const potentialSavingsPct = total > 0 ? Math.round((potentialSavings / total) * 100) : 0;
-
                 setText('[data-cart-units-count]', formatNumber(units));
                 setText('[data-cart-products-count]', formatNumber(products));
 
-                if (!IS_GOLD && !GOLD_PRICING_APPLIED) {
+                if (!IS_GOLD) {
+                    const potentialSavings = Math.max(0, total - goldTotal);
+                    const potentialSavingsPct = total > 0 ? Math.round((potentialSavings / total) * 100) : 0;
                     setText('[data-sum-potential-savings]', formatMoney(potentialSavings));
                     setText('[data-sum-potential-savings-pct]', String(potentialSavingsPct));
+                }
+            };
+
+            const applyCanonicalState = (payload, { preserveLocalQty = false } = {}) => {
+                if (!payload || payload.empty) {
+                    window.location.href = payload?.redirect_url || '{{ route('cart.index') }}';
+                    return;
+                }
+
+                const serverKeys = new Set(Object.keys(payload.lines || {}));
+
+                cartForm.querySelectorAll('[data-cart-item]').forEach((item) => {
+                    const lineKey = item.dataset.lineKey;
+                    if (!serverKeys.has(lineKey)) {
+                        item.remove();
+                        return;
+                    }
+
+                    const line = payload.lines[lineKey];
+                    const qtyInput = item.querySelector('[data-cart-qty]');
+                    if (qtyInput && !preserveLocalQty) {
+                        qtyInput.value = String(line.qty);
+                    }
+
+                    item.dataset.unitPrice = String(centsToPesos(line.unit_price_cents));
+                    item.dataset.silverPrice = String(centsToPesos(line.silver_unit_price_cents));
+                    item.dataset.basePrice = String(centsToPesos(line.base_unit_price_cents));
+
+                    const pricingRoot = item.querySelector('[data-line-pricing]');
+                    if (pricingRoot && typeof line.pricing_html === 'string') {
+                        pricingRoot.innerHTML = line.pricing_html;
+                    }
+
+                    const subtotalRoot = item.querySelector('[data-line-subtotal]');
+                    if (subtotalRoot && typeof line.subtotal_html === 'string') {
+                        subtotalRoot.innerHTML = line.subtotal_html;
+                    }
+                });
+
+                const commercialRoot = document.querySelector('[data-commerce-status-root]');
+                if (commercialRoot && payload.html?.commercial_status !== undefined) {
+                    commercialRoot.innerHTML = payload.html.commercial_status;
+                }
+
+                const summaryRoot = document.querySelector('[data-order-summary-root]');
+                if (summaryRoot && payload.html?.order_summary !== undefined) {
+                    summaryRoot.innerHTML = payload.html.order_summary;
+                }
+
+                const ctaRoot = document.querySelector('[data-checkout-cta-root]');
+                if (ctaRoot && payload.html?.checkout_cta !== undefined) {
+                    ctaRoot.innerHTML = payload.html.checkout_cta;
+                    confirmedCtaHtml = payload.html.checkout_cta;
+                    bindCheckoutSubmit();
+                }
+
+                if (payload.counts) {
+                    setText('[data-cart-products-count]', formatNumber(payload.counts.products || 0));
+                    setText('[data-cart-units-count]', formatNumber(payload.counts.units || 0));
+                }
+
+                checkoutAllowedConfirmed = Boolean(payload.pricing?.checkout_allowed);
+                cartForm.dataset.checkoutAllowed = checkoutAllowedConfirmed ? '1' : '0';
+            };
+
+            const bindCheckoutSubmit = () => {
+                cartForm.querySelector('[data-checkout-submit]')?.addEventListener('click', (event) => {
+                    if (dirty || requestInFlight || !checkoutAllowedConfirmed) {
+                        event.preventDefault();
+                        showUpdatingCta();
+                        return;
+                    }
+                    if (redirectCheckoutInput) {
+                        redirectCheckoutInput.value = '1';
+                    }
+                });
+            };
+
+            bindCheckoutSubmit();
+
+            const markDirty = () => {
+                dirty = true;
+                editVersion += 1;
+                checkoutAllowedConfirmed = false;
+                showUpdatingCta();
+                showAlert('');
+            };
+
+            const scheduleSync = () => {
+                if (debounceTimer) {
+                    clearTimeout(debounceTimer);
+                }
+                debounceTimer = setTimeout(() => {
+                    debounceTimer = null;
+                    maybeSync();
+                }, DEBOUNCE_MS);
+            };
+
+            const maybeSync = () => {
+                if (requestInFlight) {
+                    syncQueued = true;
+                    return;
+                }
+                void runSync();
+            };
+
+            const runSync = async () => {
+                if (requestInFlight) {
+                    syncQueued = true;
+                    return;
+                }
+
+                requestInFlight = true;
+                syncQueued = false;
+                const sentVersion = editVersion;
+                const quantities = collectQuantities();
+
+                const body = new FormData();
+                body.append('_token', csrfToken);
+                body.append('_method', 'PATCH');
+                Object.entries(quantities).forEach(([lineKey, qty]) => {
+                    body.append(`quantities[${lineKey}]`, String(qty));
+                });
+
+                try {
+                    const response = await fetch(cartForm.action, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body,
+                        credentials: 'same-origin',
+                    });
+
+                    let payload = null;
+                    try {
+                        payload = await response.json();
+                    } catch (_error) {
+                        payload = null;
+                    }
+
+                    if (response.status === 422 && payload?.state) {
+                        applyCanonicalState(payload.state);
+                        confirmedVersion = editVersion;
+                        dirty = false;
+                        consecutiveNetworkFailures = 0;
+                        hideManualUpdate();
+                        showAlert(payload.message || '');
+                        return;
+                    }
+
+                    if (!response.ok || !payload || payload.ok !== true) {
+                        throw new Error('network');
+                    }
+
+                    const hasPendingEdits = editVersion > sentVersion;
+                    applyCanonicalState(payload, { preserveLocalQty: hasPendingEdits });
+
+                    if (!hasPendingEdits) {
+                        confirmedVersion = sentVersion;
+                        dirty = false;
+                        consecutiveNetworkFailures = 0;
+                        hideManualUpdate();
+                        showAlert('');
+                    } else {
+                        dirty = true;
+                        checkoutAllowedConfirmed = false;
+                        showUpdatingCta();
+                        syncQueued = true;
+                        refreshLocalLineSubtotals();
+                    }
+                } catch (_error) {
+                    consecutiveNetworkFailures += 1;
+                    dirty = true;
+                    checkoutAllowedConfirmed = false;
+                    showUpdatingCta();
+                    showManualUpdate();
+                    showAlert(NETWORK_ERROR_MESSAGE);
+                    // No reintentar automáticamente: la petición pudo haberse aplicado en el servidor.
+                    syncQueued = false;
+                } finally {
+                    requestInFlight = false;
+
+                    if (syncQueued) {
+                        syncQueued = false;
+                        void runSync();
+                    }
                 }
             };
 
@@ -452,29 +693,71 @@ View contract:
                     const direction = Number(button.dataset.cartStep || 0);
                     const item = input.closest('[data-cart-item]');
                     const stockLimit = parseStockLimit(item?.dataset.stockLimit);
-                    let next = Math.max(0, parseQty(input.value) + direction);
+                    let next = Math.max(0, parseQty(input.value || '0') + direction);
                     if (stockLimit !== null) {
                         next = Math.min(next, stockLimit);
                     }
                     input.value = String(next);
-                    refreshCartSummary();
+                    markDirty();
+                    refreshLocalLineSubtotals();
+                    scheduleSync();
                 });
             });
 
             cartForm.querySelectorAll('[data-cart-qty]').forEach((input) => {
-                input.addEventListener('input', refreshCartSummary);
-                input.addEventListener('change', refreshCartSummary);
+                input.addEventListener('input', () => {
+                    if (input.value === '') {
+                        markDirty();
+                        return;
+                    }
+                    markDirty();
+                    refreshLocalLineSubtotals();
+                    scheduleSync();
+                });
+
+                input.addEventListener('change', () => {
+                    if (input.value === '') {
+                        input.value = '0';
+                    }
+                    const item = input.closest('[data-cart-item]');
+                    const stockLimit = parseStockLimit(item?.dataset.stockLimit);
+                    let qty = parseQty(input.value);
+                    if (stockLimit !== null) {
+                        qty = Math.min(qty, stockLimit);
+                    }
+                    input.value = String(qty);
+                    markDirty();
+                    refreshLocalLineSubtotals();
+                    scheduleSync();
+                });
+
+                input.addEventListener('blur', () => {
+                    if (input.value === '') {
+                        input.value = '0';
+                        markDirty();
+                        refreshLocalLineSubtotals();
+                        scheduleSync();
+                    }
+                });
             });
 
-            const redirectCheckoutInput = cartForm.querySelector('[data-redirect-checkout-input]');
-            const setRedirect = (value) => {
+            cartForm.querySelector('[data-cart-update]')?.addEventListener('click', () => {
                 if (redirectCheckoutInput) {
-                    redirectCheckoutInput.value = value;
+                    redirectCheckoutInput.value = '0';
                 }
-            };
+            });
 
-            cartForm.querySelector('[data-checkout-submit]')?.addEventListener('click', () => setRedirect('1'));
-            cartForm.querySelector('[data-cart-update]')?.addEventListener('click', () => setRedirect('0'));
+            cartForm.addEventListener('submit', (event) => {
+                const goingToCheckout = redirectCheckoutInput?.value === '1';
+                if (!goingToCheckout) {
+                    return;
+                }
+                if (dirty || requestInFlight || !checkoutAllowedConfirmed) {
+                    event.preventDefault();
+                    showUpdatingCta();
+                    showAlert('Espera a que se confirmen los cambios del carrito antes de continuar.');
+                }
+            });
 
             document.querySelectorAll('[data-cart-remove]').forEach((button) => {
                 button.addEventListener('click', () => {
@@ -483,20 +766,20 @@ View contract:
                         return;
                     }
                     input.value = '0';
-                    refreshCartSummary();
-                    setRedirect('0');
-                    cartForm.requestSubmit();
+                    markDirty();
+                    refreshLocalLineSubtotals();
+                    scheduleSync();
                 });
             });
 
             cartForm.querySelector('[data-cart-clear]')?.addEventListener('click', () => {
                 cartForm.querySelectorAll('[data-cart-qty]').forEach((input) => { input.value = '0'; });
-                refreshCartSummary();
-                setRedirect('0');
-                cartForm.requestSubmit();
+                markDirty();
+                refreshLocalLineSubtotals();
+                scheduleSync();
             });
 
-            refreshCartSummary();
+            refreshLocalLineSubtotals();
         });
     </script>
 </x-app-layout>
