@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Catalog\Models\Product;
+use App\Modules\Orders\Models\CommercePricingRule;
 use App\Modules\Orders\Pricing\CommercePricingRulesService;
 use App\Modules\Orders\Services\Cart\CartService;
 use App\Modules\Shared\Enums\GoldThresholdBasis;
@@ -396,7 +397,7 @@ class CommerceRulesUiTest extends TestCase
             goldPricingThresholdBasis: GoldThresholdBasis::GoldCandidate,
         );
 
-        $latest = \App\Modules\Orders\Models\CommercePricingRule::query()->orderByDesc('id')->firstOrFail();
+        $latest = CommercePricingRule::query()->orderByDesc('id')->firstOrFail();
         $this->assertTrue($latest->gold_min_order_enabled);
         $this->assertSame(1_000_000, $latest->gold_min_order_amount);
         $this->assertFalse($latest->gold_pricing_threshold_enabled);
