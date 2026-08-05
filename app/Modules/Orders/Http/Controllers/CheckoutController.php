@@ -4,7 +4,6 @@ namespace App\Modules\Orders\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Modules\Orders\Pricing\TierPrice;
 use App\Modules\Orders\Services\Cart\CartService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -40,18 +39,6 @@ class CheckoutController extends Controller
         }
 
         $pricing = $cartService->pricingResult();
-
-        if ($pricing !== null && ! $pricing->checkoutAllowed()) {
-            $missing = TierPrice::centsToDecimal($pricing->minimumOrderMissingAmountCents());
-            $minimum = TierPrice::centsToDecimal($pricing->minimumOrderAmountCents());
-            $tierLabel = $pricing->minimumOrderDecision->tier->badgeLabel();
-            [$missingWhole] = array_pad(explode('.', $missing, 2), 2, '0');
-            [$minimumWhole] = array_pad(explode('.', $minimum, 2), 2, '0');
-
-            return redirect()->route('cart.index')->withErrors(
-                'Pedido mínimo para '.$tierLabel.': $'.number_format((int) $minimumWhole, 0, ',', '.').'. Te faltan $'.number_format((int) $missingWhole, 0, ',', '.').'.'
-            );
-        }
 
         $distributor = $user?->distributor;
         $branches = $distributor

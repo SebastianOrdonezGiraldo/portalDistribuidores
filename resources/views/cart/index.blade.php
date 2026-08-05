@@ -1,52 +1,33 @@
 {{--
 View contract:
 - Source: App\Modules\Orders\Http\Controllers\CartController::index.
-- Expects: $items collection from CartService::items() and $total from CartService::total().
-- Owns: cart review, quantity update form, and checkout navigation.
-- Notes: line validation, stock checks, and cart mutations stay in CartController/CartService.
+- Expects: $items from CartService::items(), $total from CartService::total(), $pricing from CartService::pricingResult().
+- Owns: cart review UI and checkout navigation. Commercial decisions come from $pricing only.
 --}}
 <x-app-layout>
     @php
-        // Presentation-only summaries; the authoritative pricing lives in CartService.
         $itemsCount = $items->count();
         $unitsCount = (int) $items->sum(fn ($item) => (int) $item['qty']);
         $money = fn ($value) => '$'.number_format((float) $value, 0, ',', '.');
-        $moneyFromCents = fn (int $cents) => $money(intdiv($cents, 100));
 
         $tier = $items->isNotEmpty() ? $items->first()['tier'] : \App\Modules\Shared\Enums\DistributorTier::Silver;
         $isGold = $tier === \App\Modules\Shared\Enums\DistributorTier::Gold;
-        $tierName = $isGold ? 'ORO' : 'Plata';
-        $vatRate = \App\Modules\Orders\Support\OrderLineVat::DEFAULT_RATE;
 
         /** @var \App\Modules\Orders\Pricing\OrderPricingResult|null $pricing */
         $pricing = $pricing ?? null;
         $checkoutAllowed = $pricing?->checkoutAllowed() ?? true;
-        $goldPricingApplied = $pricing?->goldPricingApplied ?? $isGold;
-        $minMissingCents = $pricing?->minimumOrderMissingAmountCents() ?? 0;
-        $minAmountCents = $pricing?->minimumOrderAmountCents() ?? 0;
-        $goldThresholdMissingCents = $pricing?->goldPricingMissingAmountCents() ?? 0;
-        $showMinimumBlocked = $pricing !== null && ! $checkoutAllowed;
-        $showGoldThresholdHint = $isGold
-            && $checkoutAllowed
-            && $pricing !== null
-            && $pricing->goldPricingDecision->ruleEnabled
-            && ! $goldPricingApplied
-            && $goldThresholdMissingCents > 0;
-
-        $grossTotal = (float) $total;
-        $listTotal = (float) $items->sum(fn ($item) => (float) $item['silver_unit_price'] * (int) $item['qty']);
-        $savingsTotal = (float) $items->sum('line_savings');
-        $netTotal = (float) $items->sum(fn ($item) => $item['is_vat_excluded']
-            ? (float) $item['subtotal']
-            : (float) $item['subtotal'] / (1 + $vatRate));
-        $ivaTotal = max(0, $grossTotal - $netTotal);
-        $savingsPct = $listTotal > 0 ? (int) round($savingsTotal / $listTotal * 100) : 0;
-        $hasSavings = $savingsTotal > 0.5;
+        $goldPricingApplied = $pricing?->goldPricingApplied ?? false;
+        $goldSavings = $pricing !== null ? (float) $pricing->goldSavingsDecimal() : 0.0;
+        $hasGoldSavings = $goldPricingApplied && $goldSavings > 0.5;
+        $grossTotal = $pricing !== null ? (float) $pricing->effectiveTotalDecimal() : (float) $total;
+        $productsSubtotal = $hasGoldSavings
+            ? (float) $pricing->silverCandidateTotalDecimal()
+            : $grossTotal;
 
         $goldTotal = (float) $items->sum(fn ($item) => (float) $item['base_unit_price'] * (int) $item['qty']);
         $potentialSavings = max(0, $grossTotal - $goldTotal);
         $potentialSavingsPct = $grossTotal > 0 ? (int) round($potentialSavings / $grossTotal * 100) : 0;
-        $hasPotentialSavings = $potentialSavings > 0.5;
+        $hasPotentialSavings = ! $isGold && $potentialSavings > 0.5;
 
         $silverTier = \App\Modules\Shared\Enums\DistributorTier::Silver;
         $upgradeMessage = (string) ($silverTier->upgrade()['whatsapp_message'] ?? '');
@@ -92,8 +73,9 @@ View contract:
         </x-ui.empty-state-panel>
     @else
         <div class="space-y-4">
+            <x-commerce.order-commercial-status :pricing="$pricing" :tier="$tier" context="cart" />
+
             @if($isGold)
-                {{-- Franja de garantías comerciales (Cliente Oro) --}}
                 <div class="cart-review-strip">
                     <div class="cart-review-feature">
                         <span class="cart-review-feature-icon" aria-hidden="true">
@@ -121,7 +103,6 @@ View contract:
                     </div>
                 </div>
             @elseif($hasPotentialSavings)
-                {{-- Banner de oportunidad Oro (Cliente Plata) --}}
                 <div class="cart-review-oro-upsell">
                     <div class="flex min-w-0 flex-1 items-start gap-3">
                         <span class="cart-review-oro-upsell-icon" aria-hidden="true">
@@ -156,7 +137,6 @@ View contract:
                 @csrf
                 @method('PATCH')
 
-                {{-- Listado de productos --}}
                 <x-ui.card class="min-w-0 p-4 sm:p-5">
                     <div class="cart-review-head">
                         <span>Producto</span>
@@ -173,10 +153,8 @@ View contract:
                                 $inputId = 'qty-'.preg_replace('/[^A-Za-z0-9\-_]/', '-', $lineKey);
                                 $available = $item['available_qty'];
                                 $inStock = $available === null || (int) $available > 0;
-                                $lineSavings = (float) $item['unit_savings'];
-                                $linePct = ($item['silver_unit_price'] > 0 && $lineSavings > 0)
-                                    ? (int) round($lineSavings / $item['silver_unit_price'] * 100)
-                                    : 0;
+                                $lineSavings = (float) $item['line_savings'];
+                                $showGoldLinePricing = $goldPricingApplied && (float) $item['silver_unit_price'] > (float) $item['unit_price'];
                             @endphp
                             <article
                                 class="cart-review-line"
@@ -187,7 +165,6 @@ View contract:
                                 data-vat-excluded="{{ $item['is_vat_excluded'] ? '1' : '0' }}"
                                 data-stock-limit="{{ $available ?? '' }}"
                             >
-                                {{-- Columna: Producto --}}
                                 <div class="flex min-w-0 items-start gap-3">
                                     <x-ui.product-thumb :product="$product" size="md" />
                                     <div class="min-w-0">
@@ -209,28 +186,20 @@ View contract:
                                     </div>
                                 </div>
 
-                                {{-- Columna: Precio unitario --}}
                                 <div class="min-w-0">
                                     <span class="cart-review-cell-label lg:hidden">Precio unitario</span>
+                                    @if($showGoldLinePricing)
+                                        <p class="text-xs text-slate-400 line-through">{{ $money($item['silver_unit_price']) }}</p>
+                                    @endif
                                     <p class="text-sm font-semibold text-slate-900">{{ $money($item['unit_price']) }}</p>
                                     <p class="text-[0.7rem] text-slate-400">{{ $item['vat_label'] }}</p>
-                                    @if($isGold && $goldPricingApplied && $linePct > 0)
+                                    @if($showGoldLinePricing && $lineSavings > 0.5)
                                         <span class="cart-review-oro-chip mt-1.5">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="currentColor"><path d="m5 16 -1.6 -8 4.6 3.5L12 5l3.9 6.5L20.6 8 19 16z"/></svg>
-                                            {{ $linePct }}% dto. Cliente ORO
-                                        </span>
-                                    @elseif($isGold && ! $goldPricingApplied && (float) $item['base_unit_price'] < (float) $item['unit_price'])
-                                        <span class="cart-review-oro-estimate-chip mt-1.5">
-                                            Precio Oro estimado: {{ $money($item['base_unit_price']) }}
-                                        </span>
-                                    @elseif(! $isGold && (float) $item['base_unit_price'] < (float) $item['unit_price'])
-                                        <span class="cart-review-oro-estimate-chip mt-1.5">
-                                            Precio Oro estimado: {{ $money($item['base_unit_price']) }}
+                                            Precio Oro aplicado
                                         </span>
                                     @endif
                                 </div>
 
-                                {{-- Columna: Cantidad --}}
                                 <div class="flex flex-col items-start gap-2 lg:items-center">
                                     <span class="cart-review-cell-label lg:hidden">Cantidad</span>
                                     <div class="cart-review-stepper">
@@ -259,7 +228,6 @@ View contract:
                                     </button>
                                 </div>
 
-                                {{-- Columna: Total --}}
                                 <div class="lg:text-right">
                                     <span class="cart-review-cell-label lg:hidden">Total</span>
                                     <p class="text-base font-bold text-slate-950" data-cart-subtotal-amount>{{ $money($item['subtotal']) }}</p>
@@ -281,68 +249,31 @@ View contract:
                     </div>
                 </x-ui.card>
 
-                {{-- Resumen del pedido --}}
                 <aside class="min-w-0 max-w-full space-y-4 lg:sticky lg:top-24 lg:h-fit">
                     <x-ui.card class="min-w-0 p-5">
                         <h2 class="text-base font-bold text-slate-900">Resumen del pedido</h2>
 
                         <dl class="mt-4 space-y-2.5 text-sm">
-                            @if($isGold && $hasSavings)
+                            <div class="flex items-center justify-between gap-3">
+                                <dt class="text-slate-500">Subtotal de productos</dt>
+                                <dd class="font-medium text-slate-700" data-sum-products-subtotal>{{ $money($productsSubtotal) }}</dd>
+                            </div>
+                            @if($hasGoldSavings)
                                 <div class="flex items-center justify-between gap-3">
-                                    <dt class="text-slate-500">Subtotal (precio Plata)</dt>
-                                    <dd class="font-medium text-slate-700" data-sum-list>{{ $money($listTotal) }}</dd>
-                                </div>
-                                <div class="flex items-center justify-between gap-3">
-                                    <dt class="font-medium text-amber-600">Descuento Cliente ORO (<span data-sum-savings-pct>{{ $savingsPct }}</span>%)</dt>
-                                    <dd class="font-semibold text-amber-600">− <span data-sum-savings>{{ $money($savingsTotal) }}</span></dd>
-                                </div>
-                                <div class="!mt-3 border-t border-dashed border-slate-200 pt-3"></div>
-                            @elseif(! $isGold)
-                                <div class="flex items-center justify-between gap-3">
-                                    <dt class="text-slate-500">Subtotal (antes de IVA)</dt>
-                                    <dd class="font-medium text-slate-700" data-sum-net>{{ $money($netTotal) }}</dd>
-                                </div>
-                                <div class="flex items-center justify-between gap-3">
-                                    <dt class="text-slate-500">IVA (13%)</dt>
-                                    <dd class="font-medium text-slate-700" data-sum-iva>{{ $money($ivaTotal) }}</dd>
-                                </div>
-                            @endif
-                            @if($isGold)
-                                <div class="flex items-center justify-between gap-3">
-                                    <dt class="text-slate-500">Base gravable</dt>
-                                    <dd class="font-medium text-slate-700" data-sum-net>{{ $money($netTotal) }}</dd>
-                                </div>
-                                <div class="flex items-center justify-between gap-3">
-                                    <dt class="text-slate-500">IVA (13%)</dt>
-                                    <dd class="font-medium text-slate-700" data-sum-iva>{{ $money($ivaTotal) }}</dd>
+                                    <dt class="font-medium text-amber-600">Ahorro Cliente Oro</dt>
+                                    <dd class="font-semibold text-amber-600">− {{ $money($goldSavings) }}</dd>
                                 </div>
                             @endif
                         </dl>
 
-                        <div class="cart-review-total {{ ($isGold && $goldPricingApplied) ? 'cart-review-total--gold' : 'cart-review-total--silver' }} mt-4">
-                            @if($isGold && $goldPricingApplied)
+                        <div class="cart-review-total {{ $goldPricingApplied ? 'cart-review-total--gold' : 'cart-review-total--silver' }} mt-4">
+                            @if($goldPricingApplied)
                                 <svg class="cart-review-crown" xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m5 16 -1.6 -8 4.6 3.5L12 5l3.9 6.5L20.6 8 19 16z"/></svg>
                             @endif
                             <p class="relative text-xs font-semibold uppercase tracking-wide text-slate-500">Total del pedido</p>
                             <p class="relative mt-1 break-words text-3xl font-bold tracking-tight text-slate-950" data-sum-total>{{ $money($grossTotal) }} <span class="text-base font-semibold text-slate-400">COP</span></p>
                             <p class="relative text-xs text-slate-500">IVA incluido</p>
                         </div>
-
-                        @if($showMinimumBlocked)
-                            <div class="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-950">
-                                <p class="font-semibold">
-                                    Pedido mínimo para {{ $tier->badgeLabel() }}: {{ $moneyFromCents($minAmountCents) }}.
-                                    Te faltan {{ $moneyFromCents($minMissingCents) }}.
-                                </p>
-                            </div>
-                        @elseif($showGoldThresholdHint)
-                            <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-                                <p class="font-semibold">Pedido mínimo alcanzado.</p>
-                                <p class="mt-1 text-amber-900/90">
-                                    Agrega {{ $moneyFromCents($goldThresholdMissingCents) }} más para activar tus precios Oro.
-                                </p>
-                            </div>
-                        @endif
 
                         @if(! $isGold && $hasPotentialSavings)
                             <div class="cart-review-oro-savings-box mt-4">
@@ -360,13 +291,7 @@ View contract:
                         @endif
 
                         <ul class="mt-4 space-y-2">
-                            @foreach($isGold ? [
-                                'Precios exclusivos por tu nivel ORO',
-                                'Envíos a todo el país',
-                                'Asesoría especializada',
-                                'Garantía y respaldo ICMTHERAPY',
-                            ] : [
-                                'Precios exclusivos por tu nivel Oro',
+                            @foreach([
                                 'Envíos a todo el país',
                                 'Asesoría especializada',
                                 'Garantía y respaldo ICMTHERAPY',
@@ -381,12 +306,12 @@ View contract:
                         <div class="mt-5 space-y-2">
                             @if($checkoutAllowed)
                                 <x-ui.button type="submit" variant="primary" class="w-full justify-center" data-loading-label="Procesando..." data-checkout-submit>
-                                    Continuar con mi pedido
+                                    Continuar al checkout
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
                                 </x-ui.button>
                             @else
                                 <x-ui.button type="button" variant="primary" class="w-full justify-center opacity-60" disabled>
-                                    Pedido mínimo no alcanzado
+                                    Completa el pedido mínimo
                                 </x-ui.button>
                             @endif
                             <button type="submit" class="w-full text-center text-xs font-semibold text-slate-500 transition hover:text-brand-dark" data-loading-label="Actualizando..." data-cart-update>
@@ -408,7 +333,6 @@ View contract:
                 </aside>
             </form>
 
-            {{-- Banner de asesoría --}}
             <div class="cart-review-advisor">
                 <div class="flex items-center gap-3">
                     <span class="inline-flex h-11 w-11 flex-none items-center justify-center rounded-full bg-white text-brand-dark shadow-sm" aria-hidden="true">
@@ -445,8 +369,8 @@ View contract:
                 return;
             }
 
-            const VAT_RATE = {{ $vatRate }};
             const IS_GOLD = {{ $isGold ? 'true' : 'false' }};
+            const GOLD_PRICING_APPLIED = {{ $goldPricingApplied ? 'true' : 'false' }};
 
             const parseQty = (value) => {
                 const parsed = Number(value);
@@ -469,11 +393,11 @@ View contract:
                 document.querySelectorAll(selector).forEach((el) => { el.textContent = text; });
             };
 
+            // Solo actualiza subtotales de línea y contadores. Totales comerciales y
+            // elegibilidad Oro/mínimo se confirman al actualizar cantidades (backend).
             const refreshCartSummary = () => {
                 let total = 0;
-                let listTotal = 0;
                 let goldTotal = 0;
-                let netTotal = 0;
                 let units = 0;
                 let products = 0;
 
@@ -491,15 +415,11 @@ View contract:
                     qtyInput.value = String(qty);
 
                     const unitPrice = Number(item.dataset.unitPrice || 0);
-                    const silverPrice = Number(item.dataset.silverPrice || 0);
                     const basePrice = Number(item.dataset.basePrice || 0);
-                    const vatExcluded = item.dataset.vatExcluded === '1';
                     const subtotal = qty * unitPrice;
 
                     total += subtotal;
-                    listTotal += qty * silverPrice;
                     goldTotal += qty * basePrice;
-                    netTotal += vatExcluded ? subtotal : subtotal / (1 + VAT_RATE);
                     units += qty;
                     if (qty > 0) {
                         products += 1;
@@ -511,23 +431,13 @@ View contract:
                     }
                 });
 
-                const savings = Math.max(0, listTotal - total);
                 const potentialSavings = Math.max(0, total - goldTotal);
-                const iva = Math.max(0, total - netTotal);
-                const savingsPct = listTotal > 0 ? Math.round((savings / listTotal) * 100) : 0;
                 const potentialSavingsPct = total > 0 ? Math.round((potentialSavings / total) * 100) : 0;
 
-                setText('[data-sum-total]', `${formatMoney(total)} COP`);
-                setText('[data-sum-net]', formatMoney(netTotal));
-                setText('[data-sum-iva]', formatMoney(iva));
                 setText('[data-cart-units-count]', formatNumber(units));
                 setText('[data-cart-products-count]', formatNumber(products));
 
-                if (IS_GOLD) {
-                    setText('[data-sum-list]', formatMoney(listTotal));
-                    setText('[data-sum-savings]', formatMoney(savings));
-                    setText('[data-sum-savings-pct]', String(savingsPct));
-                } else {
+                if (!IS_GOLD && !GOLD_PRICING_APPLIED) {
                     setText('[data-sum-potential-savings]', formatMoney(potentialSavings));
                     setText('[data-sum-potential-savings-pct]', String(potentialSavingsPct));
                 }
