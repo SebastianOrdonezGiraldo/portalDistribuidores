@@ -412,7 +412,7 @@ class CreateOrderActionTest extends TestCase
         $this->assertTrue($order->gold_pricing_threshold_enabled_snapshot);
         $this->assertSame(1_000_000, $order->gold_pricing_threshold_amount_snapshot);
         $this->assertSame('gold_candidate', $order->gold_pricing_threshold_basis_snapshot);
-        $this->assertSame('threshold_reached', $order->gold_pricing_decision_reason_snapshot);
+        $this->assertSame('always_applied', $order->gold_pricing_decision_reason_snapshot);
         $this->assertTrue($order->gold_pricing_applied);
         $this->assertSame('1050000.00', $order->gold_candidate_total);
         $this->assertSame('1050000.00', $order->total_amount);

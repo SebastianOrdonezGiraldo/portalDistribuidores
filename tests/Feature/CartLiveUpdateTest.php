@@ -132,10 +132,12 @@ class CartLiveUpdateTest extends TestCase
         $this->assertStringContainsString('Continuar al checkout', $cta);
     }
 
-    public function test_json_gold_crosses_threshold_updates_all_line_prices(): void
+    public function test_json_gold_always_applies_gold_prices_below_and_above_minimum(): void
     {
         $admin = User::factory()->admin()->create();
         $this->publishRules($admin, [
+            'goldMinOrderEnabled' => true,
+            'goldMinOrderAmount' => 500_000,
             'goldPricingThresholdEnabled' => true,
             'goldPricingThresholdAmount' => 500_000,
         ]);
@@ -151,38 +153,44 @@ class CartLiveUpdateTest extends TestCase
         $cart->add($productB, 1);
 
         $keys = $cart->items()->pluck('line_key')->map(fn ($k) => (string) $k)->all();
-        $quantities = array_fill_keys($keys, 2);
 
-        $below = $this->actingAs($user)
+        $belowMin = $this->actingAs($user)
             ->withHeaders(['Accept' => 'application/json'])
             ->patchJson(route('cart.update'), [
                 'quantities' => array_fill_keys($keys, 1),
             ]);
 
-        $below->assertOk()->assertJsonPath('pricing.gold_pricing_applied', false);
+        $belowMin->assertOk()
+            ->assertJsonPath('pricing.gold_pricing_applied', true)
+            ->assertJsonPath('pricing.checkout_allowed', false);
 
         foreach ($keys as $key) {
-            $this->assertSame(21_000_000, $below->json("lines.$key.unit_price_cents"));
+            $this->assertSame(20_000_000, $belowMin->json("lines.$key.unit_price_cents"));
+            $this->assertStringContainsString('Precio Oro aplicado', $belowMin->json("lines.$key.pricing_html"));
         }
 
-        $above = $this->actingAs($user)
+        $this->assertStringContainsString('para completar el pedido mínimo', $belowMin->json('html.commercial_status'));
+
+        $aboveMin = $this->actingAs($user)
             ->withHeaders(['Accept' => 'application/json'])
             ->patchJson(route('cart.update'), [
-                'quantities' => $quantities,
+                'quantities' => array_fill_keys($keys, 2),
             ]);
 
-        $above->assertOk()
-            ->assertJsonPath('pricing.gold_pricing_applied', true);
+        $aboveMin->assertOk()
+            ->assertJsonPath('pricing.gold_pricing_applied', true)
+            ->assertJsonPath('pricing.checkout_allowed', true);
 
-        $this->assertGreaterThan(0, (int) $above->json('pricing.gold_savings_cents'));
+        $this->assertGreaterThan(0, (int) $aboveMin->json('pricing.gold_savings_cents'));
+        $this->assertStringContainsString('Pedido mínimo alcanzado', $aboveMin->json('html.commercial_status'));
 
         foreach ($keys as $key) {
-            $this->assertSame(20_000_000, $above->json("lines.$key.unit_price_cents"));
-            $this->assertStringContainsString('Precio Oro aplicado', $above->json("lines.$key.pricing_html"));
+            $this->assertSame(20_000_000, $aboveMin->json("lines.$key.unit_price_cents"));
+            $this->assertStringContainsString('Precio Oro aplicado', $aboveMin->json("lines.$key.pricing_html"));
         }
     }
 
-    public function test_json_gold_loses_threshold_reverts_lines_to_silver(): void
+    public function test_json_gold_keeps_gold_prices_when_quantity_drops_below_former_threshold(): void
     {
         $admin = User::factory()->admin()->create();
         $this->publishRules($admin, [
@@ -209,8 +217,8 @@ class CartLiveUpdateTest extends TestCase
             ->withHeaders(['Accept' => 'application/json'])
             ->patchJson(route('cart.update'), ['quantities' => [$lineKey => 1]])
             ->assertOk()
-            ->assertJsonPath('pricing.gold_pricing_applied', false)
-            ->assertJsonPath("lines.$lineKey.unit_price_cents", 42_000_000);
+            ->assertJsonPath('pricing.gold_pricing_applied', true)
+            ->assertJsonPath("lines.$lineKey.unit_price_cents", 40_000_000);
     }
 
     public function test_stock_error_returns_422_with_canonical_state_without_partial_mutation(): void
