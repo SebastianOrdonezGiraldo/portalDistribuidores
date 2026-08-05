@@ -10,8 +10,16 @@ enum GoldThresholdBasis: string
     public function label(): string
     {
         return match ($this) {
-            self::GoldCandidate => 'Total candidato Oro',
-            self::SilverCandidate => 'Total candidato Plata',
+            self::GoldCandidate => 'Total calculado con precios Oro',
+            self::SilverCandidate => 'Total calculado con precios Plata',
+        };
+    }
+
+    public function historyLabel(): string
+    {
+        return match ($this) {
+            self::GoldCandidate => 'Candidato Oro',
+            self::SilverCandidate => 'Candidato Plata',
         };
     }
 }

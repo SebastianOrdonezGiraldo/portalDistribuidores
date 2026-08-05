@@ -13,22 +13,22 @@ View contract:
 
         $tier = $items->isNotEmpty() ? $items->first()['tier'] : \App\Modules\Shared\Enums\DistributorTier::Silver;
         $isGold = $tier === \App\Modules\Shared\Enums\DistributorTier::Gold;
-        $vatRate = \App\Modules\Orders\Support\OrderLineVat::DEFAULT_RATE;
 
-        $grossTotal = (float) $total;
-        $listTotal = (float) $items->sum(fn ($item) => (float) $item['silver_unit_price'] * (int) $item['qty']);
-        $savingsTotal = (float) $items->sum('line_savings');
-        $netTotal = (float) $items->sum(fn ($item) => $item['is_vat_excluded']
-            ? (float) $item['subtotal']
-            : (float) $item['subtotal'] / (1 + $vatRate));
-        $ivaTotal = max(0, $grossTotal - $netTotal);
-        $savingsPct = $listTotal > 0 ? (int) round($savingsTotal / $listTotal * 100) : 0;
-        $hasSavings = $savingsTotal > 0.5;
+        /** @var \App\Modules\Orders\Pricing\OrderPricingResult|null $pricing */
+        $pricing = $pricing ?? null;
+        $checkoutAllowed = $pricing?->checkoutAllowed() ?? true;
+        $goldPricingApplied = $pricing?->goldPricingApplied ?? false;
+        $goldSavings = $pricing !== null ? (float) $pricing->goldSavingsDecimal() : 0.0;
+        $hasGoldSavings = $goldPricingApplied && $goldSavings > 0.5;
+        $grossTotal = $pricing !== null ? (float) $pricing->effectiveTotalDecimal() : (float) $total;
+        $productsSubtotal = $hasGoldSavings
+            ? (float) $pricing->silverCandidateTotalDecimal()
+            : $grossTotal;
 
         $goldTotal = (float) $items->sum(fn ($item) => (float) $item['base_unit_price'] * (int) $item['qty']);
         $potentialSavings = max(0, $grossTotal - $goldTotal);
         $potentialSavingsPct = $grossTotal > 0 ? (int) round($potentialSavings / $grossTotal * 100) : 0;
-        $hasPotentialSavings = $potentialSavings > 0.5;
+        $hasPotentialSavings = ! $isGold && $potentialSavings > 0.5;
         $canOpenUpgradeModal = ! $isGold && auth()->user()?->distributor !== null;
 
         $visibleItems = 3;
@@ -218,46 +218,35 @@ View contract:
                 @endif
 
                 <dl class="mt-5 space-y-2.5 border-t border-slate-200 pt-4 text-sm">
-                    @if($isGold && $hasSavings)
+                    <div class="flex items-center justify-between gap-3">
+                        <dt class="text-slate-500">Subtotal de productos</dt>
+                        <dd class="font-medium text-slate-700">{{ $money($productsSubtotal) }}</dd>
+                    </div>
+                    @if($hasGoldSavings)
                         <div class="flex items-center justify-between gap-3">
-                            <dt class="text-slate-500">Subtotal (precio Plata)</dt>
-                            <dd class="font-medium text-slate-700">{{ $money($listTotal) }}</dd>
+                            <dt class="font-medium text-amber-600">Ahorro Cliente Oro</dt>
+                            <dd class="font-semibold text-amber-600">− {{ $money($goldSavings) }}</dd>
                         </div>
-                        <div class="flex items-center justify-between gap-3">
-                            <dt class="font-medium text-amber-600">Descuento Cliente ORO ({{ $savingsPct }}%)</dt>
-                            <dd class="font-semibold text-amber-600">− {{ $money($savingsTotal) }}</dd>
-                        </div>
-                        <div class="!mt-3 border-t border-dashed border-slate-200 pt-3"></div>
-                    @elseif(! $isGold)
-                        <div class="flex items-center justify-between gap-3">
-                            <dt class="text-slate-500">Subtotal (precio Plata)</dt>
-                            <dd class="font-medium text-slate-700">{{ $money($grossTotal) }}</dd>
-                        </div>
-                        @if($hasPotentialSavings)
-                            <div class="flex items-center justify-between gap-3">
-                                <dt class="checkout-savings-line font-medium text-amber-600">Ahorro si fueras Cliente ORO ({{ $potentialSavingsPct }}%)</dt>
-                                <dd class="font-semibold text-amber-600">− {{ $money($potentialSavings) }}</dd>
-                            </div>
-                        @endif
-                        <div class="!mt-3 border-t border-dashed border-slate-200 pt-3"></div>
                     @endif
-                    <div class="flex items-center justify-between gap-3">
-                        <dt class="text-slate-500">Base gravable</dt>
-                        <dd class="font-medium text-slate-700">{{ $money($netTotal) }}</dd>
-                    </div>
-                    <div class="flex items-center justify-between gap-3">
-                        <dt class="text-slate-500">IVA (13%)</dt>
-                        <dd class="font-medium text-slate-700">{{ $money($ivaTotal) }}</dd>
-                    </div>
+                    @if(! $isGold && $hasPotentialSavings)
+                        <div class="flex items-center justify-between gap-3">
+                            <dt class="checkout-savings-line font-medium text-amber-600">Ahorro si fueras Cliente ORO ({{ $potentialSavingsPct }}%)</dt>
+                            <dd class="font-semibold text-amber-600">− {{ $money($potentialSavings) }}</dd>
+                        </div>
+                    @endif
                 </dl>
 
-                <div class="cart-review-total {{ $isGold ? 'cart-review-total--gold' : 'cart-review-total--silver' }} mt-4">
-                    @if($isGold)
+                <div class="cart-review-total {{ $goldPricingApplied ? 'cart-review-total--gold' : 'cart-review-total--silver' }} mt-4">
+                    @if($goldPricingApplied)
                         <svg class="cart-review-crown" xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m5 16 -1.6 -8 4.6 3.5L12 5l3.9 6.5L20.6 8 19 16z"/></svg>
                     @endif
-                    <p class="relative text-xs font-semibold uppercase tracking-wide text-slate-500">Total estimado</p>
+                    <p class="relative text-xs font-semibold uppercase tracking-wide text-slate-500">Total del pedido</p>
                     <p class="relative mt-1 break-words text-3xl font-bold tracking-tight text-slate-950">{{ $money($grossTotal) }} <span class="text-base font-semibold text-slate-400">COP</span></p>
-                    <p class="relative text-xs text-slate-500">IVA incluido{{ $isGold ? ' · La disponibilidad final se confirma con el equipo comercial.' : '' }}</p>
+                    <p class="relative text-xs text-slate-500">IVA incluido</p>
+                </div>
+
+                <div class="mt-4">
+                    <x-commerce.order-commercial-status :pricing="$pricing" :tier="$tier" context="checkout" />
                 </div>
 
                 @if(! $isGold && $hasPotentialSavings)
@@ -312,66 +301,69 @@ View contract:
                     ])->all(),
                     'intent' => old('checkout_intent', 'quote'),
                     'method' => old('payment_method'),
+                    'checkoutAllowed' => $checkoutAllowed,
                 ]))">
                     <input type="hidden" name="checkout_intent" :value="intent">
                     <input type="hidden" name="payment_method" :value="method || ''">
 
-                    <div class="grid gap-2 sm:grid-cols-2">
-                        <button
-                            type="submit"
-                            class="btn btn-secondary w-full justify-center"
-                            data-loading-label="Enviando cotización..."
-                            @click="intent = 'quote'; method = null"
-                        >
-                            Solo cotizar
-                        </button>
-                        <button
-                            type="button"
-                            class="btn btn-primary w-full justify-center"
-                            @click="intent = 'pay'; showPay = true"
-                        >
-                            Pagar ahora
-                        </button>
-                    </div>
-
-                    <div x-show="showPay || intent === 'pay'" x-cloak class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <p class="text-sm font-semibold text-slate-900">Elige cómo pagar</p>
-                        <p class="mt-1 text-xs text-slate-500">Los datos de cuenta se mostrarán al seleccionar. El QR lo verás en el detalle del pedido.</p>
-
-                        <div class="mt-3 grid gap-2">
-                            <template x-for="(meta, key) in methods" :key="key">
-                                <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 hover:border-brand-primary/40">
-                                    <input type="radio" class="mt-1" name="payment_method_ui" :value="key" x-model="method">
-                                    <span>
-                                        <span class="block text-sm font-semibold text-slate-900" x-text="meta.label"></span>
-                                    </span>
-                                </label>
-                            </template>
+                    @if($checkoutAllowed)
+                        <div class="grid gap-2 sm:grid-cols-2">
+                            <button
+                                type="submit"
+                                class="btn btn-secondary w-full justify-center"
+                                data-loading-label="Enviando cotización..."
+                                @click="intent = 'quote'; method = null"
+                            >
+                                Solo cotizar
+                            </button>
+                            <button
+                                type="button"
+                                class="btn btn-primary w-full justify-center"
+                                @click="intent = 'pay'; showPay = true"
+                            >
+                                Pagar ahora
+                            </button>
                         </div>
 
-                        <div x-show="method" x-cloak class="mt-3 rounded-xl border border-dashed border-amber-200 bg-amber-50/60 px-3 py-3 text-sm text-slate-700">
-                            <p class="font-semibold text-amber-900" x-text="methods[method]?.label"></p>
-                            <ul class="mt-1 list-disc space-y-0.5 pl-4 text-xs text-slate-600">
-                                <template x-for="(line, idx) in (methods[method]?.lines || [])" :key="idx">
-                                    <li x-text="line"></li>
+                        <div x-show="showPay || intent === 'pay'" x-cloak class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <p class="text-sm font-semibold text-slate-900">Elige cómo pagar</p>
+                            <p class="mt-1 text-xs text-slate-500">Los datos de cuenta se mostrarán al seleccionar. El QR lo verás en el detalle del pedido.</p>
+
+                            <div class="mt-3 grid gap-2">
+                                <template x-for="(meta, key) in methods" :key="key">
+                                    <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 hover:border-brand-primary/40">
+                                        <input type="radio" class="mt-1" name="payment_method_ui" :value="key" x-model="method">
+                                        <span>
+                                            <span class="block text-sm font-semibold text-slate-900" x-text="meta.label"></span>
+                                        </span>
+                                    </label>
                                 </template>
-                            </ul>
+                            </div>
+
+                            <div x-show="method" x-cloak class="mt-3 rounded-xl border border-dashed border-amber-200 bg-amber-50/60 px-3 py-3 text-sm text-slate-700">
+                                <p class="font-semibold text-amber-900" x-text="methods[method]?.label"></p>
+                                <ul class="mt-1 list-disc space-y-0.5 pl-4 text-xs text-slate-600">
+                                    <template x-for="(line, idx) in (methods[method]?.lines || [])" :key="idx">
+                                        <li x-text="line"></li>
+                                    </template>
+                                </ul>
+                            </div>
+
+                            <x-input-error class="mt-2" :messages="$errors->get('payment_method')" />
+                            <x-input-error class="mt-2" :messages="$errors->get('checkout_intent')" />
+
+                            <button
+                                type="submit"
+                                class="btn btn-primary mt-4 w-full justify-center"
+                                data-loading-label="Registrando pedido..."
+                                @click="intent = 'pay'"
+                                :disabled="!method"
+                            >
+                                Confirmar y pagar
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                            </button>
                         </div>
-
-                        <x-input-error class="mt-2" :messages="$errors->get('payment_method')" />
-                        <x-input-error class="mt-2" :messages="$errors->get('checkout_intent')" />
-
-                        <button
-                            type="submit"
-                            class="btn btn-primary mt-4 w-full justify-center"
-                            data-loading-label="Registrando pedido..."
-                            @click="intent = 'pay'"
-                            :disabled="!method"
-                        >
-                            Confirmar y pagar
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-                        </button>
-                    </div>
+                    @endif
 
                     <a href="{{ route('cart.index') }}" class="btn btn-secondary w-full justify-center">Volver al carrito</a>
                 </div>
@@ -382,7 +374,8 @@ View contract:
                             methods: initial.methods || {},
                             intent: initial.intent || 'quote',
                             method: initial.method || null,
-                            showPay: (initial.intent || 'quote') === 'pay',
+                            checkoutAllowed: initial.checkoutAllowed !== false,
+                            showPay: (initial.intent || 'quote') === 'pay' && initial.checkoutAllowed !== false,
                         };
                     }
                 </script>

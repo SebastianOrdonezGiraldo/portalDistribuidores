@@ -2920,6 +2920,73 @@
         @apply flex items-start gap-2.5 rounded-2xl border border-brand-primary/20 bg-brand-primary/[0.06] px-4 py-3;
     }
 
+    /* ---- Estado comercial (pedido mínimo / precios Oro) ---- */
+    .commerce-status-panel {
+        @apply rounded-2xl border border-slate-200 bg-white p-4 shadow-sm;
+    }
+
+    .commerce-status-panel--compact {
+        @apply py-3;
+    }
+
+    .commerce-status-panel--blocked {
+        @apply border-amber-200 bg-amber-50/80;
+    }
+
+    .commerce-status-panel--notice {
+        @apply border-amber-200 bg-amber-50/70 px-4 py-3;
+    }
+
+    .commerce-status-compact {
+        @apply flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-2.5;
+    }
+
+    .commerce-status-compact--ok {
+        @apply border-emerald-200 bg-emerald-50/70;
+    }
+
+    .commerce-status-row__head {
+        @apply flex items-start gap-2.5;
+    }
+
+    .commerce-status-dot {
+        @apply mt-1.5 inline-flex h-2 w-2 flex-none rounded-full;
+    }
+
+    .commerce-status-dot--ok {
+        @apply bg-emerald-500;
+    }
+
+    .commerce-status-dot--warn {
+        @apply bg-amber-500;
+    }
+
+    .commerce-progress__track {
+        @apply h-1.5 overflow-hidden rounded-full bg-slate-100;
+    }
+
+    .commerce-progress__bar {
+        @apply h-full rounded-full bg-[#309EA7] transition-[width] duration-300;
+    }
+
+    .commerce-progress__meta {
+        @apply mt-1.5 flex items-center justify-between text-[0.7rem] font-medium text-slate-500;
+    }
+
+    .commerce-history-card {
+        @apply rounded-xl border border-slate-200 bg-white p-4;
+    }
+
+    .btn-commerce-save {
+        background-color: #309EA7;
+        border-color: #309EA7;
+    }
+
+    .btn-commerce-save:hover {
+        background-color: #2a8d95;
+        border-color: #2a8d95;
+    }
+
     /* ---- Vista de checkout (/checkout) ---- */
     .checkout-header {
         @apply flex items-start gap-3;

@@ -60,7 +60,7 @@ class CommerceSettingsAdminController extends Controller
         );
 
         $message = $result->changed
-            ? 'Reglas comerciales actualizadas. Los precios visibles y los carritos abiertos se recalcularán con la nueva configuración.'
+            ? 'Reglas comerciales actualizadas correctamente.'
             : 'No hubo cambios: la configuración enviada coincide con la regla vigente.';
 
         return redirect()
