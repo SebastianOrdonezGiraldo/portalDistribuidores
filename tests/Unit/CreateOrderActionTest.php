@@ -344,7 +344,7 @@ class CreateOrderActionTest extends TestCase
         ]);
     }
 
-    public function test_create_order_rejects_when_gold_minimum_not_reached(): void
+    public function test_create_order_below_gold_threshold_pays_silver_and_allows_checkout(): void
     {
         Event::fake([OrderPlaced::class]);
 
@@ -353,26 +353,38 @@ class CreateOrderActionTest extends TestCase
             silverMarkupBasisPoints: 500,
             silverRoundingMultiple: 1000,
             actor: $admin,
-            goldMinOrderEnabled: true,
-            goldMinOrderAmount: 800_000,
+            silverMinOrderEnabled: true,
+            silverMinOrderAmount: 800_000,
+            goldMinOrderEnabled: false,
             goldPricingThresholdEnabled: true,
             goldPricingThresholdAmount: 1_000_000,
         );
 
         $user = $this->makeDistributorUser();
-        $product = Product::factory()->create(['price' => 700_000, 'stock' => 10, 'is_active' => true]);
+        $product = Product::factory()->create(['price' => 96_000, 'stock' => 20, 'is_active' => true]);
 
         $statusService = $this->createMock(OrderStatusTransitionService::class);
-        $statusService->expects($this->never())->method('recordInitialStatus');
+        $statusService->expects($this->once())->method('recordInitialStatus');
         $inventoryService = $this->createMock(OrderInventoryService::class);
-        $inventoryService->expects($this->never())->method('decreaseForOrder');
+        $inventoryService->expects($this->once())->method('decreaseForOrder');
 
-        $this->expectException(DomainException::class);
-        $this->expectExceptionMessage('Pedido mínimo');
-
-        $this->makeAction($statusService, $inventoryService)->execute($user, $this->makeOrderData([
-            ['product_id' => $product->id, 'variant_id' => null, 'qty' => 1, 'unit_label' => 'unidades'],
+        $order = $this->makeAction($statusService, $inventoryService)->execute($user, $this->makeOrderData([
+            ['product_id' => $product->id, 'variant_id' => null, 'qty' => 7, 'unit_label' => 'unidades'],
         ]));
+
+        $this->assertFalse($order->gold_pricing_applied);
+        $this->assertSame('threshold_not_reached', $order->gold_pricing_decision_reason_snapshot);
+        $this->assertSame('minimum_not_required', $order->minimum_order_decision_reason_snapshot);
+        $this->assertSame('707000.00', $order->total_amount);
+        $this->assertDatabaseHas('order_items', [
+            'order_id' => $order->id,
+            'price_each' => 101000,
+            'base_unit_price' => 96000,
+            'silver_unit_price' => 101000,
+            'unit_savings' => 0,
+            'subtotal' => 707000,
+            'line_savings' => 0,
+        ]);
     }
 
     public function test_create_order_persists_pricing_snapshots_from_same_result(): void
@@ -384,8 +396,7 @@ class CreateOrderActionTest extends TestCase
             silverMarkupBasisPoints: 500,
             silverRoundingMultiple: 1000,
             actor: $admin,
-            goldMinOrderEnabled: true,
-            goldMinOrderAmount: 800_000,
+            goldMinOrderEnabled: false,
             goldPricingThresholdEnabled: true,
             goldPricingThresholdAmount: 1_000_000,
             goldPricingThresholdBasis: GoldThresholdBasis::GoldCandidate,
@@ -405,14 +416,12 @@ class CreateOrderActionTest extends TestCase
 
         $this->assertSame($publish->rule->id, $order->commerce_pricing_rule_id);
         $this->assertSame(DistributorTier::Gold, $order->distributor_tier_snapshot);
-        $this->assertTrue($order->minimum_order_enabled_snapshot);
-        $this->assertSame(800_000, $order->minimum_order_amount_snapshot);
-        $this->assertTrue($order->minimum_order_reached);
-        $this->assertSame('minimum_reached', $order->minimum_order_decision_reason_snapshot);
+        $this->assertFalse($order->minimum_order_enabled_snapshot);
+        $this->assertSame('minimum_not_required', $order->minimum_order_decision_reason_snapshot);
         $this->assertTrue($order->gold_pricing_threshold_enabled_snapshot);
         $this->assertSame(1_000_000, $order->gold_pricing_threshold_amount_snapshot);
         $this->assertSame('gold_candidate', $order->gold_pricing_threshold_basis_snapshot);
-        $this->assertSame('always_applied', $order->gold_pricing_decision_reason_snapshot);
+        $this->assertSame('threshold_reached', $order->gold_pricing_decision_reason_snapshot);
         $this->assertTrue($order->gold_pricing_applied);
         $this->assertSame('1050000.00', $order->gold_candidate_total);
         $this->assertSame('1050000.00', $order->total_amount);

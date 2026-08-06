@@ -1,8 +1,7 @@
 {{--
 Component contract:
 - Props: $pricing (OrderPricingResult|null), $tier (DistributorTier), optional $context (cart|checkout).
-- Combines minimum-order status using backend flags only.
-- Gold carts only surface the pedido mínimo (never a gold-threshold activation state).
+- Combines minimum-order (Plata) and gold-threshold (Oro) status using backend flags only.
 --}}
 @props([
     'pricing' => null,
@@ -19,8 +18,11 @@ Component contract:
     $moneyFromCents = fn (int $cents) => '$'.number_format(intdiv(max(0, $cents), 100), 0, ',', '.');
 
     $min = $pricing?->minimumOrderDecision;
+    $gold = $pricing?->goldPricingDecision;
     $checkoutAllowed = $pricing?->checkoutAllowed() ?? true;
+    $goldApplied = $pricing?->goldPricingApplied ?? false;
     $minEnabled = (bool) ($min?->enabled);
+    $goldEnabled = (bool) ($gold?->ruleEnabled);
     $minReached = (bool) ($min?->allowed);
 
     $showBlock = false;
@@ -28,12 +30,15 @@ Component contract:
 
     if ($pricing !== null) {
         if ($isGold) {
-            if ($minEnabled && ! $minReached) {
-                $mode = 'gold-min-pending';
+            if ($goldEnabled && $goldApplied) {
+                $mode = 'gold-threshold-ok';
                 $showBlock = true;
-            } elseif ($minEnabled && $minReached) {
-                $mode = 'gold-min-ok';
+            } elseif ($goldEnabled && ! $goldApplied) {
+                $mode = 'gold-threshold-pending';
                 $showBlock = true;
+            } elseif (! $goldEnabled) {
+                $mode = 'gold-free';
+                $showBlock = $context === 'cart';
             }
         } else {
             if ($minEnabled && ! $minReached) {
@@ -49,8 +54,11 @@ Component contract:
             if (! $checkoutAllowed) {
                 $mode = 'checkout-blocked';
                 $showBlock = true;
-            } elseif ($isGold && $minEnabled && $minReached) {
-                $mode = 'checkout-gold-min-ok';
+            } elseif ($isGold && $goldApplied) {
+                $mode = 'checkout-gold-applied';
+                $showBlock = true;
+            } elseif ($isGold && $goldEnabled && ! $goldApplied) {
+                $mode = 'checkout-gold-pays-silver';
                 $showBlock = true;
             } elseif (! $isGold && $minEnabled && $minReached) {
                 $mode = 'checkout-silver-ok';
@@ -62,7 +70,7 @@ Component contract:
     }
 @endphp
 
-@if($pricing !== null && $showBlock && $min !== null)
+@if($pricing !== null && $showBlock && $min !== null && $gold !== null)
     @if($context === 'checkout' && $mode === 'checkout-blocked')
         <div {{ $attributes->class('commerce-status-panel commerce-status-panel--blocked') }}>
             <p class="text-base font-semibold text-slate-900">Aún no puedes finalizar el pedido</p>
@@ -73,20 +81,35 @@ Component contract:
                 Volver al carrito
             </a>
         </div>
-    @elseif($context === 'checkout' && $mode === 'checkout-gold-min-ok')
-        <x-commerce.minimum-order-status :decision="$min" variant="checkout" />
+    @elseif($context === 'checkout' && $mode === 'checkout-gold-pays-silver')
+        <div {{ $attributes->class('commerce-status-panel commerce-status-panel--notice') }}>
+            <p class="text-sm text-amber-950">
+                Este pedido aún no alcanza el monto requerido para precios Oro. Se aplicarán precios Plata.
+            </p>
+        </div>
+    @elseif($context === 'checkout' && $mode === 'checkout-gold-applied')
+        <div {{ $attributes->class('commerce-status-compact commerce-status-compact--ok') }}>
+            <span class="commerce-status-dot commerce-status-dot--ok" aria-hidden="true"></span>
+            <p class="text-sm font-semibold text-emerald-800">Precios Oro aplicados.</p>
+        </div>
     @elseif($context === 'checkout' && $mode === 'checkout-silver-ok')
         <x-commerce.minimum-order-status :decision="$min" variant="checkout" />
-    @elseif($mode === 'gold-min-ok')
+    @elseif($mode === 'gold-free')
         <div {{ $attributes->class('commerce-status-panel commerce-status-panel--compact') }}>
-            <h2 class="sr-only">Estado de tu pedido</h2>
-            <x-commerce.minimum-order-status :decision="$min" variant="cart-gold" />
+            <p class="text-sm font-semibold text-emerald-800">Tus precios Oro están activos.</p>
         </div>
-    @elseif($mode === 'gold-min-pending')
+    @elseif($mode === 'gold-threshold-ok')
         <div {{ $attributes->class('commerce-status-panel') }}>
             <h2 class="text-sm font-bold text-slate-900">Estado de tu pedido</h2>
             <div class="mt-3">
-                <x-commerce.minimum-order-status :decision="$min" variant="cart-gold" />
+                <x-commerce.gold-pricing-status :decision="$gold" :gold-pricing-applied="true" />
+            </div>
+        </div>
+    @elseif($mode === 'gold-threshold-pending')
+        <div {{ $attributes->class('commerce-status-panel') }}>
+            <h2 class="text-sm font-bold text-slate-900">Estado de tu pedido</h2>
+            <div class="mt-3">
+                <x-commerce.gold-pricing-status :decision="$gold" :gold-pricing-applied="false" />
             </div>
         </div>
     @elseif($mode === 'silver-ok')

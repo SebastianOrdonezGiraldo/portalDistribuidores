@@ -251,7 +251,7 @@ class CartService
      * Stale rows for inactive products, mismatched variants or configurable
      * products without a chosen variant are filtered out instead of being
      * repaired here. Checkout and order creation consume this resolved shape.
-     * Effective prices come from OrderPricingCalculator (tier prices + minimums).
+     * Effective prices come from OrderPricingCalculator (gold threshold + minimums).
      *
      * @return Collection<int, array{
      *   line_key: string,
