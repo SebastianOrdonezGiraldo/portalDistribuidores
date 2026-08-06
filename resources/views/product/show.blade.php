@@ -626,42 +626,13 @@ View contract:
                         <div>
                             <p class="text-sm font-semibold text-slate-700">Sin descripción comercial</p>
                             <p class="mt-0.5 text-sm text-slate-500">
-                                Usa las especificaciones técnicas y los documentos adjuntos para validar la compra, o contacta a tu asesor comercial.
+                                Consulta los documentos adjuntos para validar la compra o contacta a tu asesor comercial.
                             </p>
                         </div>
                     </div>
                 @else
                     <div class="prose prose-sm prose-slate max-w-none">
                         <p class="whitespace-pre-line leading-relaxed text-slate-700">{{ $product->description }}</p>
-                    </div>
-                @endif
-            </div>
-        </section>
-
-        {{-- ──────────────────────────────────────────────────────────────
-             Sección: Especificaciones técnicas
-        ────────────────────────────────────────────────────────────────── --}}
-        <section id="product-panel-especificaciones" role="tabpanel" aria-labelledby="product-tab-especificaciones" data-tab-panel="especificaciones" class="card overflow-hidden" hidden>
-            <div class="border-b border-slate-100 px-6 py-4 sm:px-7">
-                <h2 class="text-lg font-bold text-slate-950">Especificaciones técnicas</h2>
-                <p class="mt-0.5 text-xs text-slate-500">Información comercial y de identificación del producto</p>
-            </div>
-            <div class="px-6 py-5 sm:px-7 sm:py-6">
-                @if(count($specRows) > 0)
-                    <dl class="divide-y divide-slate-100">
-                        @foreach($specRows as $index => $row)
-                            <div class="grid gap-1.5 py-3 sm:grid-cols-[200px_1fr] sm:items-baseline sm:gap-4 {{ $index === 0 ? 'pt-0' : '' }} {{ $index === count($specRows) - 1 ? 'pb-0' : '' }}">
-                                <dt class="text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">{{ $row['label'] }}</dt>
-                                <dd class="text-sm font-medium text-slate-800">{{ $row['value'] ?? '—' }}</dd>
-                            </div>
-                        @endforeach
-                    </dl>
-                @else
-                    <div class="flex items-start gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-5 py-4">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="mt-0.5 h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                        </svg>
-                        <p class="text-sm text-slate-500">No hay especificaciones cargadas para este producto.</p>
                     </div>
                 @endif
             </div>
