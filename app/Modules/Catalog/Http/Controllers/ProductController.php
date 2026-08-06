@@ -229,16 +229,10 @@ class ProductController extends Controller
             'calibration_document' => 'Documento de calibracion',
         ];
 
-        $specRows = [
-            ['label' => 'SKU',       'value' => $product->sku],
-            ['label' => 'Marca',     'value' => $brand],
-            ['label' => 'Categoría', 'value' => $categoryName],
-        ];
         $sections = [
-            ['id' => 'descripcion',     'label' => 'Descripción'],
-            ['id' => 'especificaciones', 'label' => 'Especificaciones'],
-            ['id' => 'documentos',       'label' => 'Documentos'],
-            ['id' => 'alternativas',     'label' => 'Alternativas'],
+            ['id' => 'descripcion', 'label' => 'Descripción'],
+            ['id' => 'documentos', 'label' => 'Documentos'],
+            ['id' => 'alternativas', 'label' => 'Alternativas'],
         ];
 
         return array_merge(compact(
@@ -251,7 +245,7 @@ class ProductController extends Controller
             'isLowStock', 'availability', 'stockLabel', 'documents',
             'stockSyncedAt', 'stockIsStale', 'stockFreshnessLabel',
             'manual', 'invima', 'quickGuide', 'calibrationDocument', 'productVideo', 'secondaryDocuments', 'documentTypeLabels',
-            'specRows', 'sections',
+            'sections',
         ), $pricing);
     }
 
