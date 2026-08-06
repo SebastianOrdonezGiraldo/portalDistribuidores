@@ -211,6 +211,7 @@ View contract:
                                         :vat-label="$item['vat_label']"
                                         :gold-pricing-applied="$goldPricingApplied"
                                         :line-savings="$item['line_savings']"
+                                        :is-gold="$isGold"
                                     />
                                 </div>
 

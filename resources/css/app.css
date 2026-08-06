@@ -2848,6 +2848,10 @@
         @apply inline-flex items-center gap-1 rounded-full border border-amber-300/70 bg-gradient-to-r from-amber-100 to-amber-50 px-2 py-0.5 text-[0.68rem] font-bold text-amber-700;
     }
 
+    .cart-review-plata-chip {
+        @apply inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[0.68rem] font-semibold text-slate-500;
+    }
+
     .cart-review-stepper {
         @apply inline-flex items-center rounded-xl border border-slate-300 bg-white p-1;
     }

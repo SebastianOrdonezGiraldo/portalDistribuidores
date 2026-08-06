@@ -101,6 +101,7 @@ final class CartLiveUpdatePresenter
                     'vatLabel' => $item['vat_label'],
                     'goldPricingApplied' => $goldPricingApplied,
                     'lineSavings' => (float) $pricedLine->lineSavingsDecimal(),
+                    'isGold' => $isGold,
                 ])->render(),
                 'subtotal_html' => view('components.cart.line-subtotal', [
                     'subtotal' => (float) $pricedLine->effectiveSubtotalDecimal(),

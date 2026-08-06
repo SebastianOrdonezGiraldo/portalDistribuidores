@@ -128,15 +128,14 @@ class CartServiceTierTest extends TestCase
         app(CartService::class)->add($product, 5);
     }
 
-    public function test_gold_cart_always_uses_gold_price_below_minimum(): void
+    public function test_gold_cart_pays_silver_when_pricing_threshold_not_met(): void
     {
         $admin = User::factory()->admin()->create();
         app(CommercePricingRulesService::class)->publish(
             silverMarkupBasisPoints: 500,
             silverRoundingMultiple: 1000,
             actor: $admin,
-            goldMinOrderEnabled: true,
-            goldMinOrderAmount: 1_000_000,
+            goldMinOrderEnabled: false,
             goldPricingThresholdEnabled: true,
             goldPricingThresholdAmount: 1_000_000,
             goldPricingThresholdBasis: GoldThresholdBasis::GoldCandidate,
@@ -153,36 +152,39 @@ class CartServiceTierTest extends TestCase
         $line = $cart->items()->firstOrFail();
         $pricing = $cart->pricingResult();
 
-        $this->assertSame(700000.0, $line['unit_price']);
-        $this->assertSame(35000.0, $line['line_savings']);
-        $this->assertTrue($pricing?->goldPricingApplied);
-        $this->assertFalse($pricing?->checkoutAllowed());
+        $this->assertSame(735000.0, $line['unit_price']);
+        $this->assertSame(0.0, $line['line_savings']);
+        $this->assertFalse($pricing?->goldPricingApplied);
+        $this->assertTrue($pricing?->checkoutAllowed());
+        $this->assertSame('minimum_not_required', $pricing?->minimumOrderDecision->reason);
     }
 
-    public function test_gold_cart_blocks_checkout_when_minimum_not_met(): void
+    public function test_gold_cart_allows_checkout_below_threshold_without_gold_minimum(): void
     {
         $admin = User::factory()->admin()->create();
         app(CommercePricingRulesService::class)->publish(
             silverMarkupBasisPoints: 500,
             silverRoundingMultiple: 1000,
             actor: $admin,
-            goldMinOrderEnabled: true,
-            goldMinOrderAmount: 800_000,
+            silverMinOrderEnabled: true,
+            silverMinOrderAmount: 800_000,
+            goldMinOrderEnabled: false,
             goldPricingThresholdEnabled: true,
             goldPricingThresholdAmount: 1_000_000,
         );
 
         $distributor = Distributor::factory()->gold()->create();
         $user = User::factory()->create(['distributor_id' => $distributor->id]);
-        $product = Product::factory()->create(['price' => 700_000, 'stock' => 10, 'is_active' => true]);
+        $product = Product::factory()->create(['price' => 96_000, 'stock' => 20, 'is_active' => true]);
 
         $this->actingAs($user);
         $cart = app(CartService::class);
-        $cart->add($product, 1);
+        $cart->add($product, 7);
 
         $pricing = $cart->pricingResult();
-        $this->assertFalse($pricing?->checkoutAllowed());
-        $this->assertTrue($pricing?->goldPricingApplied);
-        $this->assertSame(70_000_000, $pricing?->effectiveTotalCents);
+        $this->assertTrue($pricing?->checkoutAllowed());
+        $this->assertFalse($pricing?->goldPricingApplied);
+        $this->assertSame(70_700_000, $pricing?->effectiveTotalCents);
+        $this->assertSame(0, $pricing?->goldSavingsCents);
     }
 }

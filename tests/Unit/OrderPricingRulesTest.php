@@ -49,9 +49,9 @@ class OrderPricingRulesTest extends TestCase
     public function test_minimum_order_evaluator_blocks_below_threshold(): void
     {
         $decision = app(MinimumOrderEvaluator::class)->evaluate(
-            DistributorTier::Gold,
+            DistributorTier::Silver,
             73_500_000,
-            new TierMinimumOrderConfig(false, 100_000_000, true, 80_000_000, 1),
+            new TierMinimumOrderConfig(true, 80_000_000, false, 100_000_000, 1),
         );
 
         $this->assertFalse($decision->allowed);
@@ -59,15 +59,15 @@ class OrderPricingRulesTest extends TestCase
         $this->assertSame(6_500_000, $decision->missingAmountCents);
     }
 
-    public function test_order_pricing_calculator_gold_always_uses_gold_prices(): void
+    public function test_gold_below_threshold_pays_silver_and_checkout_allowed(): void
     {
         DB::table('commerce_pricing_rules')->delete();
         CommercePricingRule::query()->create([
             'silver_markup_basis_points' => 500,
             'silver_rounding_multiple' => 1000,
-            'silver_min_order_enabled' => false,
-            'silver_min_order_amount' => 1_000_000,
-            'gold_min_order_enabled' => true,
+            'silver_min_order_enabled' => true,
+            'silver_min_order_amount' => 800_000,
+            'gold_min_order_enabled' => false,
             'gold_min_order_amount' => 1_000_000,
             'gold_pricing_threshold_enabled' => true,
             'gold_pricing_threshold_amount' => 1_000_000,
@@ -76,29 +76,73 @@ class OrderPricingRulesTest extends TestCase
         ]);
 
         $calculator = app(OrderPricingCalculator::class);
-
-        // Example: Oro unitario 96k × 10 = 960k (< 1M) → precios Oro, checkout bloqueado
         $product = Product::factory()->create(['price' => 96_000, 'stock' => 20, 'is_active' => true]);
-        $resultLow = $calculator->calculate(DistributorTier::Gold, [
-            ['product' => $product, 'qty' => 10],
+
+        // 7 × 96k Oro = 672k → Plata, checkout permitido
+        $result7 = $calculator->calculate(DistributorTier::Gold, [
+            ['product' => $product, 'qty' => 7],
         ]);
-        $this->assertTrue($resultLow->goldPricingApplied);
-        $this->assertSame(96_000_000, $resultLow->effectiveTotalCents);
-        $this->assertSame('always_applied', $resultLow->goldPricingDecision->reason);
-        $this->assertFalse($resultLow->checkoutAllowed());
-        $this->assertSame(4_000_000, $resultLow->minimumOrderDecision->missingAmountCents);
-        $this->assertTrue($resultLow->lines->every(
-            fn ($line) => $line->effectiveUnitPriceCents === $line->goldUnitPriceCents
+        $this->assertFalse($result7->goldPricingApplied);
+        $this->assertSame(67_200_000, $result7->goldCandidateTotalCents);
+        $this->assertSame(70_700_000, $result7->effectiveTotalCents);
+        $this->assertSame(32_800_000, $result7->goldPricingDecision->missingAmountCents);
+        $this->assertTrue($result7->checkoutAllowed());
+        $this->assertSame('minimum_not_required', $result7->minimumOrderDecision->reason);
+        $this->assertSame(0, $result7->goldSavingsCents);
+        $this->assertTrue($result7->lines->every(
+            fn ($line) => $line->effectiveUnitPriceCents === $line->silverUnitPriceCents
         ));
 
-        // Al llegar a 1.05M Oro → checkout permitido, sigue en precios Oro
-        $productHigh = Product::factory()->create(['price' => 1_050_000, 'stock' => 10, 'is_active' => true]);
-        $resultHigh = $calculator->calculate(DistributorTier::Gold, [
-            ['product' => $productHigh, 'qty' => 1],
+        // 10 × 96k Oro = 960k → sigue Plata (base gold_candidate), total Plata 1.010.000
+        $result10 = $calculator->calculate(DistributorTier::Gold, [
+            ['product' => $product, 'qty' => 10],
         ]);
-        $this->assertTrue($resultHigh->goldPricingApplied);
-        $this->assertSame(105_000_000, $resultHigh->effectiveTotalCents);
-        $this->assertTrue($resultHigh->checkoutAllowed());
+        $this->assertFalse($result10->goldPricingApplied);
+        $this->assertSame(96_000_000, $result10->goldCandidateTotalCents);
+        $this->assertSame(101_000_000, $result10->effectiveTotalCents);
+        $this->assertSame(4_000_000, $result10->goldPricingDecision->missingAmountCents);
+        $this->assertTrue($result10->checkoutAllowed());
+        $this->assertSame(0, $result10->goldSavingsCents);
+
+        // 11 × 96k Oro = 1.056.000 → Oro aplicado
+        $result11 = $calculator->calculate(DistributorTier::Gold, [
+            ['product' => $product, 'qty' => 11],
+        ]);
+        $this->assertTrue($result11->goldPricingApplied);
+        $this->assertSame(105_600_000, $result11->effectiveTotalCents);
+        $this->assertTrue($result11->checkoutAllowed());
+        $this->assertSame(5_500_000, $result11->goldSavingsCents);
+        $this->assertTrue($result11->lines->every(
+            fn ($line) => $line->effectiveUnitPriceCents === $line->goldUnitPriceCents
+        ));
+    }
+
+    public function test_gold_exact_threshold_applies_gold_prices(): void
+    {
+        DB::table('commerce_pricing_rules')->delete();
+        CommercePricingRule::query()->create([
+            'silver_markup_basis_points' => 500,
+            'silver_rounding_multiple' => 1000,
+            'silver_min_order_enabled' => false,
+            'silver_min_order_amount' => 800_000,
+            'gold_min_order_enabled' => false,
+            'gold_min_order_amount' => 1_000_000,
+            'gold_pricing_threshold_enabled' => true,
+            'gold_pricing_threshold_amount' => 1_000_000,
+            'gold_pricing_threshold_basis' => 'gold_candidate',
+            'created_by_id' => null,
+        ]);
+
+        $product = Product::factory()->create(['price' => 100_000, 'stock' => 20, 'is_active' => true]);
+        $result = app(OrderPricingCalculator::class)->calculate(DistributorTier::Gold, [
+            ['product' => $product, 'qty' => 10],
+        ]);
+
+        $this->assertTrue($result->goldPricingApplied);
+        $this->assertSame(100_000_000, $result->effectiveTotalCents);
+        $this->assertSame(0, $result->goldPricingDecision->missingAmountCents);
+        $this->assertSame('threshold_reached', $result->goldPricingDecision->reason);
+        $this->assertTrue($result->checkoutAllowed());
     }
 
     public function test_silver_minimum_blocks_and_allows_at_exact_threshold(): void
@@ -108,17 +152,17 @@ class OrderPricingRulesTest extends TestCase
             'silver_markup_basis_points' => 500,
             'silver_rounding_multiple' => 1000,
             'silver_min_order_enabled' => true,
-            'silver_min_order_amount' => 200_000,
+            'silver_min_order_amount' => 800_000,
             'gold_min_order_enabled' => false,
             'gold_min_order_amount' => 1_000_000,
-            'gold_pricing_threshold_enabled' => false,
+            'gold_pricing_threshold_enabled' => true,
             'gold_pricing_threshold_amount' => 1_000_000,
             'gold_pricing_threshold_basis' => 'gold_candidate',
             'created_by_id' => null,
         ]);
 
         $calculator = app(OrderPricingCalculator::class);
-        $product = Product::factory()->create(['price' => 100_000, 'stock' => 10, 'is_active' => true]);
+        $product = Product::factory()->create(['price' => 100_000, 'stock' => 20, 'is_active' => true]);
 
         $blocked = $calculator->calculate(DistributorTier::Silver, [
             ['product' => $product, 'qty' => 1],
@@ -128,49 +172,42 @@ class OrderPricingRulesTest extends TestCase
         $this->assertFalse($blocked->goldPricingApplied);
 
         $allowed = $calculator->calculate(DistributorTier::Silver, [
-            ['product' => $product, 'qty' => 2],
+            ['product' => $product, 'qty' => 8],
         ]);
         $this->assertTrue($allowed->checkoutAllowed());
-        $this->assertSame(21_000_000, $allowed->effectiveTotalCents);
+        $this->assertSame(84_000_000, $allowed->effectiveTotalCents);
         $this->assertSame('minimum_reached', $allowed->minimumOrderDecision->reason);
     }
 
-    public function test_gold_pricing_applied_but_minimum_still_blocks_checkout(): void
+    public function test_evaluation_basis_switch_changes_gold_eligibility(): void
     {
+        $product = Product::factory()->create(['price' => 960_000, 'stock' => 10, 'is_active' => true]);
+
         DB::table('commerce_pricing_rules')->delete();
         CommercePricingRule::query()->create([
             'silver_markup_basis_points' => 500,
             'silver_rounding_multiple' => 1000,
             'silver_min_order_enabled' => false,
-            'silver_min_order_amount' => 1_000_000,
-            'gold_min_order_enabled' => true,
-            'gold_min_order_amount' => 2_000_000,
+            'silver_min_order_amount' => 800_000,
+            'gold_min_order_enabled' => false,
+            'gold_min_order_amount' => 1_000_000,
             'gold_pricing_threshold_enabled' => true,
-            'gold_pricing_threshold_amount' => 500_000,
+            'gold_pricing_threshold_amount' => 1_000_000,
             'gold_pricing_threshold_basis' => 'gold_candidate',
             'created_by_id' => null,
         ]);
 
-        $product = Product::factory()->create(['price' => 600_000, 'stock' => 10, 'is_active' => true]);
-        $result = app(OrderPricingCalculator::class)->calculate(DistributorTier::Gold, [
+        $byGold = app(OrderPricingCalculator::class)->calculate(DistributorTier::Gold, [
             ['product' => $product, 'qty' => 1],
         ]);
+        $this->assertFalse($byGold->goldPricingApplied);
 
-        $this->assertTrue($result->goldPricingApplied);
-        $this->assertSame(60_000_000, $result->effectiveTotalCents);
-        $this->assertFalse($result->checkoutAllowed());
-        $this->assertSame('minimum_not_reached', $result->minimumOrderDecision->reason);
-    }
-
-    public function test_gold_minimum_is_evaluated_against_gold_total_not_silver(): void
-    {
-        DB::table('commerce_pricing_rules')->delete();
         CommercePricingRule::query()->create([
             'silver_markup_basis_points' => 500,
             'silver_rounding_multiple' => 1000,
             'silver_min_order_enabled' => false,
-            'silver_min_order_amount' => 1_000_000,
-            'gold_min_order_enabled' => true,
+            'silver_min_order_amount' => 800_000,
+            'gold_min_order_enabled' => false,
             'gold_min_order_amount' => 1_000_000,
             'gold_pricing_threshold_enabled' => true,
             'gold_pricing_threshold_amount' => 1_000_000,
@@ -178,17 +215,11 @@ class OrderPricingRulesTest extends TestCase
             'created_by_id' => null,
         ]);
 
-        // Oro 960k / Plata ~1.008M: mínimo se evalúa sobre Oro → bloquea; no usa total Plata.
-        $product = Product::factory()->create(['price' => 960_000, 'stock' => 10, 'is_active' => true]);
-        $result = app(OrderPricingCalculator::class)->calculate(DistributorTier::Gold, [
+        $bySilver = app(OrderPricingCalculator::class)->calculate(DistributorTier::Gold, [
             ['product' => $product, 'qty' => 1],
         ]);
-
-        $this->assertTrue($result->goldPricingApplied);
-        $this->assertSame(96_000_000, $result->effectiveTotalCents);
-        $this->assertGreaterThan($result->effectiveTotalCents, $result->silverCandidateTotalCents);
-        $this->assertFalse($result->checkoutAllowed());
-        $this->assertSame(4_000_000, $result->minimumOrderDecision->missingAmountCents);
+        $this->assertTrue($bySilver->goldPricingApplied);
+        $this->assertNotSame($byGold->goldPricingApplied, $bySilver->goldPricingApplied);
     }
 
     public function test_missing_amounts_never_negative(): void

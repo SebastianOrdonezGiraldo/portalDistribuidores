@@ -151,13 +151,13 @@ class CommercialPricingCorrectionsTest extends TestCase
         ]);
 
         $this->assertSame($original->id, $updated->commerce_pricing_rule_id);
-        $this->assertTrue((bool) $updated->gold_pricing_applied);
-        $this->assertSame('always_applied', $updated->gold_pricing_decision_reason_snapshot);
+        $this->assertFalse((bool) $updated->gold_pricing_applied);
+        $this->assertSame('threshold_not_reached', $updated->gold_pricing_decision_reason_snapshot);
 
         $lines = $updated->items()->orderBy('id')->get();
         $this->assertCount(2, $lines);
-        $this->assertTrue($lines->every(fn (OrderItem $line) => (float) $line->price_each === (float) $line->base_unit_price));
-        $this->assertTrue($lines->every(fn (OrderItem $line) => (float) $line->unit_savings > 0.0));
+        $this->assertTrue($lines->every(fn (OrderItem $line) => (float) $line->price_each === (float) $line->silver_unit_price));
+        $this->assertTrue($lines->every(fn (OrderItem $line) => (float) $line->unit_savings === 0.0));
         // Original markup 5%, not the later 7%.
         $this->assertSame('105000.00', $lines->firstWhere('product_id', $productA->id)?->silver_unit_price);
         $this->assertSame('210000.00', $lines->firstWhere('product_id', $productB->id)?->silver_unit_price);

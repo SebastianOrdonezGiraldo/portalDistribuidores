@@ -10,8 +10,8 @@ use Illuminate\Support\Collection;
 /**
  * Central pricing engine for cart, order creation and order edits.
  *
- * Silver distributors always pay Silver prices. Gold distributors always pay
- * Gold prices. The tier minimum order is evaluated against that effective total.
+ * Computes Plata/Oro candidates, applies the gold pricing threshold, then
+ * evaluates the tier minimum order against the effective total.
  *
  * Pass $rules explicitly to price against a historical commerce snapshot;
  * omit it to use the currently published rules.
@@ -20,6 +20,7 @@ final class OrderPricingCalculator
 {
     public function __construct(
         private readonly CommercePricingRulesProvider $rulesProvider,
+        private readonly GoldPricingEligibilityEvaluator $goldPricingEvaluator,
         private readonly MinimumOrderEvaluator $minimumOrderEvaluator,
     ) {}
 
@@ -69,7 +70,16 @@ final class OrderPricingCalculator
         $silverCandidateTotal = array_sum(array_column($candidateLines, 'silver_subtotal'));
         $goldCandidateTotal = array_sum(array_column($candidateLines, 'gold_subtotal'));
 
-        $applyGold = $distributorTier === DistributorTier::Gold;
+        $pricingTier = $distributorTier ?? DistributorTier::Silver;
+
+        $goldDecision = $this->goldPricingEvaluator->evaluate(
+            $pricingTier,
+            $rules->goldPricingThresholdConfig(),
+            $silverCandidateTotal,
+            $goldCandidateTotal,
+        );
+
+        $applyGold = $distributorTier === DistributorTier::Gold && $goldDecision->eligible;
 
         $lines = collect($candidateLines)->map(function (array $row) use ($applyGold): OrderPricingLine {
             $effectiveUnit = $applyGold ? $row['gold_unit'] : $row['silver_unit'];
@@ -103,11 +113,7 @@ final class OrderPricingCalculator
 
         return new OrderPricingResult(
             lines: $lines->values(),
-            goldPricingDecision: $this->goldPricingDecision(
-                $distributorTier,
-                $rules->goldPricingThresholdConfig(),
-                $goldCandidateTotal,
-            ),
+            goldPricingDecision: $goldDecision,
             minimumOrderDecision: $minimumDecision,
             silverCandidateTotalCents: $silverCandidateTotal,
             goldCandidateTotalCents: $goldCandidateTotal,
@@ -115,40 +121,6 @@ final class OrderPricingCalculator
             goldPricingApplied: $applyGold,
             goldSavingsCents: $goldSavings,
             commercePricingRuleId: $rules->ruleId,
-        );
-    }
-
-    /**
-     * Snapshot metadata for orders. Gold prices are always applied for Gold
-     * distributors; threshold config is recorded but no longer gates pricing.
-     */
-    private function goldPricingDecision(
-        ?DistributorTier $distributorTier,
-        GoldPricingThresholdConfig $config,
-        int $goldCandidateTotalCents,
-    ): GoldPricingDecision {
-        if ($distributorTier !== DistributorTier::Gold) {
-            return new GoldPricingDecision(
-                eligible: false,
-                ruleEnabled: $config->enabled,
-                evaluationBasis: $config->basis,
-                thresholdAmountCents: $config->amountCents(),
-                evaluatedAmountCents: 0,
-                missingAmountCents: 0,
-                ruleId: $config->ruleId,
-                reason: 'not_gold_distributor',
-            );
-        }
-
-        return new GoldPricingDecision(
-            eligible: true,
-            ruleEnabled: $config->enabled,
-            evaluationBasis: $config->basis,
-            thresholdAmountCents: $config->amountCents(),
-            evaluatedAmountCents: $goldCandidateTotalCents,
-            missingAmountCents: 0,
-            ruleId: $config->ruleId,
-            reason: 'always_applied',
         );
     }
 }
