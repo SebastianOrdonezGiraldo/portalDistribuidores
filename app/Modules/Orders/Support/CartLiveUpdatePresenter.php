@@ -26,6 +26,13 @@ final class CartLiveUpdatePresenter
      *         effective_total_cents: int,
      *         gold_savings_cents: int
      *     },
+     *     minimum_order: array{
+     *         enabled: bool,
+     *         allowed: bool,
+     *         minimum_amount_cents: int,
+     *         evaluated_amount_cents: int,
+     *         missing_amount_cents: int
+     *     },
      *     lines: array<string, array{
      *         qty: int,
      *         unit_price_cents: int,
@@ -67,6 +74,7 @@ final class CartLiveUpdatePresenter
             return (int) ($item['qty'] ?? 0);
         });
         $productsCount = $items->count();
+        $minimum = $pricing->minimumOrderDecision;
 
         $linesPayload = [];
         $pricingLines = $pricing->lines->values();
@@ -114,6 +122,13 @@ final class CartLiveUpdatePresenter
                 'gold_pricing_applied' => $goldPricingApplied,
                 'effective_total_cents' => $pricing->effectiveTotalCents,
                 'gold_savings_cents' => $pricing->goldSavingsCents,
+            ],
+            'minimum_order' => [
+                'enabled' => $minimum->enabled,
+                'allowed' => $minimum->allowed,
+                'minimum_amount_cents' => $minimum->minimumAmountCents,
+                'evaluated_amount_cents' => $minimum->evaluatedAmountCents,
+                'missing_amount_cents' => $minimum->missingAmountCents,
             ],
             'lines' => $linesPayload,
             'html' => [

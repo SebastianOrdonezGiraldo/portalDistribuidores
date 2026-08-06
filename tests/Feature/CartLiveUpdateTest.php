@@ -162,14 +162,18 @@ class CartLiveUpdateTest extends TestCase
 
         $belowMin->assertOk()
             ->assertJsonPath('pricing.gold_pricing_applied', true)
-            ->assertJsonPath('pricing.checkout_allowed', false);
+            ->assertJsonPath('pricing.checkout_allowed', false)
+            ->assertJsonPath('minimum_order.enabled', true)
+            ->assertJsonPath('minimum_order.allowed', false);
 
         foreach ($keys as $key) {
             $this->assertSame(20_000_000, $belowMin->json("lines.$key.unit_price_cents"));
             $this->assertStringContainsString('Precio Oro aplicado', $belowMin->json("lines.$key.pricing_html"));
         }
 
-        $this->assertStringContainsString('para completar el pedido mínimo', $belowMin->json('html.commercial_status'));
+        $this->assertStringContainsString('Completa el pedido mínimo', $belowMin->json('html.commercial_status'));
+        $this->assertStringContainsString('commerce-progress', $belowMin->json('html.commercial_status'));
+        $this->assertStringContainsString('Completa el pedido mínimo', $belowMin->json('html.checkout_cta'));
 
         $aboveMin = $this->actingAs($user)
             ->withHeaders(['Accept' => 'application/json'])
@@ -179,15 +183,75 @@ class CartLiveUpdateTest extends TestCase
 
         $aboveMin->assertOk()
             ->assertJsonPath('pricing.gold_pricing_applied', true)
-            ->assertJsonPath('pricing.checkout_allowed', true);
+            ->assertJsonPath('pricing.checkout_allowed', true)
+            ->assertJsonPath('minimum_order.allowed', true);
 
         $this->assertGreaterThan(0, (int) $aboveMin->json('pricing.gold_savings_cents'));
         $this->assertStringContainsString('Pedido mínimo alcanzado', $aboveMin->json('html.commercial_status'));
+        $this->assertStringContainsString('Continuar al checkout', $aboveMin->json('html.checkout_cta'));
 
         foreach ($keys as $key) {
             $this->assertSame(20_000_000, $aboveMin->json("lines.$key.unit_price_cents"));
             $this->assertStringContainsString('Precio Oro aplicado', $aboveMin->json("lines.$key.pricing_html"));
         }
+    }
+
+    public function test_json_gold_864k_live_sync_exposes_minimum_order_and_progress(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->publishRules($admin, [
+            'silverMinOrderEnabled' => true,
+            'silverMinOrderAmount' => 800_000,
+            'goldMinOrderEnabled' => true,
+            'goldMinOrderAmount' => 1_000_000,
+            'goldPricingThresholdEnabled' => false,
+        ]);
+
+        $distributor = Distributor::factory()->gold()->create();
+        $user = User::factory()->create(['distributor_id' => $distributor->id]);
+        $product = Product::factory()->create(['price' => 96_000, 'stock' => 20, 'is_active' => true]);
+
+        $this->actingAs($user);
+        app(CartService::class)->add($product, 9);
+        $lineKey = (string) app(CartService::class)->items()->firstOrFail()['line_key'];
+
+        $response = $this->actingAs($user)
+            ->withHeaders(['Accept' => 'application/json'])
+            ->patchJson(route('cart.update'), [
+                'quantities' => [$lineKey => 9],
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('pricing.checkout_allowed', false)
+            ->assertJsonPath('pricing.effective_total_cents', 86_400_000)
+            ->assertJsonPath('pricing.gold_pricing_applied', true)
+            ->assertJsonPath('minimum_order.enabled', true)
+            ->assertJsonPath('minimum_order.allowed', false)
+            ->assertJsonPath('minimum_order.minimum_amount_cents', 100_000_000)
+            ->assertJsonPath('minimum_order.evaluated_amount_cents', 86_400_000)
+            ->assertJsonPath('minimum_order.missing_amount_cents', 13_600_000)
+            ->assertJsonStructure([
+                'html' => ['commercial_status', 'order_summary', 'checkout_cta'],
+            ]);
+
+        $this->assertStringContainsString('commerce-progress', $response->json('html.commercial_status'));
+        $this->assertStringContainsString('$136.000', $response->json('html.commercial_status'));
+        $this->assertStringContainsString('Completa el pedido mínimo', $response->json('html.checkout_cta'));
+
+        $raised = $this->actingAs($user)
+            ->withHeaders(['Accept' => 'application/json'])
+            ->patchJson(route('cart.update'), [
+                'quantities' => [$lineKey => 11],
+            ]);
+
+        $raised->assertOk()
+            ->assertJsonPath('pricing.checkout_allowed', true)
+            ->assertJsonPath('pricing.effective_total_cents', 105_600_000)
+            ->assertJsonPath('minimum_order.allowed', true)
+            ->assertJsonPath('minimum_order.missing_amount_cents', 0);
+
+        $this->assertStringContainsString('Pedido mínimo alcanzado', $raised->json('html.commercial_status'));
+        $this->assertStringContainsString('Continuar al checkout', $raised->json('html.checkout_cta'));
     }
 
     public function test_json_gold_keeps_gold_prices_when_quantity_drops_below_former_threshold(): void

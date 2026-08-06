@@ -43,9 +43,9 @@ Component contract:
             <span class="commerce-status-dot commerce-status-dot--warn" aria-hidden="true"></span>
             <div class="min-w-0 flex-1">
                 @if($variant === 'cart-gold')
-                    <p class="text-sm font-semibold text-slate-900">Pedido mínimo</p>
+                    <p class="text-sm font-semibold text-slate-900">Completa el pedido mínimo</p>
                     <p class="mt-1 text-sm font-bold text-amber-800">
-                        Te faltan {{ $moneyFromCents($missing) }} para completar el pedido mínimo.
+                        Te faltan {{ $moneyFromCents($missing) }} para poder continuar.
                     </p>
                 @elseif($variant === 'cart-silver')
                     <p class="text-sm font-semibold text-slate-900">Completa el pedido mínimo</p>

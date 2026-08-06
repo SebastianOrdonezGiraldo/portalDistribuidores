@@ -23,10 +23,10 @@ return [
         // Múltiplo de redondeo del precio Plata en pesos (fallback).
         'silver_rounding_multiple' => 1000,
 
-        // Pedido mínimo por nivel (fallback; desactivado = sin restricción).
-        'silver_min_order_enabled' => false,
-        'silver_min_order_amount' => 1_000_000,
-        'gold_min_order_enabled' => false,
+        // Pedido mínimo por nivel (fallback cuando aún no hay filas en DB).
+        'silver_min_order_enabled' => true,
+        'silver_min_order_amount' => 800_000,
+        'gold_min_order_enabled' => true,
         'gold_min_order_amount' => 1_000_000,
 
         // Umbral histórico de precios Oro (ya no condiciona el pricing; Oro siempre paga Oro).
