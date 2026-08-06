@@ -50,10 +50,17 @@ class CommerceSettingsAdminController extends Controller
             silverMarkupBasisPoints: $request->silverMarkupBasisPoints(),
             silverRoundingMultiple: $request->silverRoundingMultiple(),
             actor: $actor,
+            silverMinOrderEnabled: $request->silverMinOrderEnabled(),
+            silverMinOrderAmount: $request->silverMinOrderAmount(),
+            goldMinOrderEnabled: $request->goldMinOrderEnabled(),
+            goldMinOrderAmount: $request->goldMinOrderAmount(),
+            goldPricingThresholdEnabled: $request->goldPricingThresholdEnabled(),
+            goldPricingThresholdAmount: $request->goldPricingThresholdAmount(),
+            goldPricingThresholdBasis: $request->goldPricingThresholdBasis(),
         );
 
         $message = $result->changed
-            ? 'Reglas comerciales actualizadas. Los precios visibles y los carritos abiertos se recalcularán con la nueva configuración.'
+            ? 'Reglas comerciales actualizadas correctamente.'
             : 'No hubo cambios: la configuración enviada coincide con la regla vigente.';
 
         return redirect()

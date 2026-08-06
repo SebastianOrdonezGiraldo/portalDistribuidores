@@ -8,15 +8,14 @@ use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Orders\DTOs\CreateOrderData;
 use App\Modules\Orders\Events\OrderPlaced;
 use App\Modules\Orders\Models\Order;
-use App\Modules\Orders\Pricing\DistributorPriceCalculator;
 use App\Modules\Orders\Pricing\DistributorTierResolver;
-use App\Modules\Orders\Pricing\PricedOrderLine;
+use App\Modules\Orders\Pricing\OrderPricingCalculator;
+use App\Modules\Orders\Pricing\OrderPricingSnapshotMapper;
 use App\Modules\Orders\Pricing\TierPrice;
 use App\Modules\Orders\Services\OrderInventoryService;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Orders\Services\Payment\OrderPaymentService;
 use App\Modules\Orders\Support\OrderLineVat;
-use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Enums\PaymentStatus;
 use App\Modules\Shared\Exceptions\DomainException;
@@ -28,27 +27,24 @@ use Illuminate\Support\Str;
  * Creates the canonical order from checkout data.
  *
  * This action owns the order transaction: it resolves active products/variants,
- * prices each line once through the central pricing engine, snapshots line data
- * (including tier pricing), assigns the final OC number, decreases stock for
- * submitted orders and dispatches OrderPlaced only when no internal approval is
- * pending.
+ * prices each line once through OrderPricingCalculator, snapshots line data
+ * (including tier pricing and commercial rule decisions), assigns the final OC
+ * number, decreases stock for submitted orders and dispatches OrderPlaced only
+ * when no internal approval is pending.
  */
 class CreateOrderAction
 {
     public function __construct(
         private readonly OrderStatusTransitionService $orderStatusTransitionService,
         private readonly OrderInventoryService $orderInventoryService,
-        private readonly DistributorPriceCalculator $priceCalculator,
         private readonly DistributorTierResolver $tierResolver,
+        private readonly OrderPricingCalculator $orderPricingCalculator,
         private readonly OrderPaymentService $orderPaymentService,
+        private readonly OrderPricingSnapshotMapper $snapshotMapper,
     ) {}
 
     /**
      * Persist an order and its items from normalized checkout data.
-     *
-     * Invalid product or variant lines are skipped, but the action rejects the
-     * request if no valid line can produce a positive total. This keeps the
-     * controller free of catalog and inventory rules.
      *
      * @throws DomainException when the cart cannot become a valid order
      */
@@ -77,22 +73,36 @@ class CreateOrderAction
             throw new DomainException('No hay productos válidos en el pedido.');
         }
 
-        // Resolve the tier once and price every line a single time. These priced
-        // lines are the only source of truth for both the total and the items.
-        $tier = $this->tierResolver->resolve($user);
-        $pricedLines = $this->resolvePricedLines($data->items, $products, $variants, $tier);
+        // Null for guests/admins: priced as Plata, not subject to commercial minimums.
+        $distributorTier = $user?->distributor?->tier;
+        $pricingTier = $distributorTier ?? $this->tierResolver->resolve($user);
+        $calculatorInput = $this->buildCalculatorInput($data->items, $products, $variants);
 
-        $totalCents = $pricedLines->sum(fn (PricedOrderLine $line) => $line->subtotalCents());
-
-        if ($totalCents <= 0) {
+        if ($calculatorInput === []) {
             throw new DomainException('El carrito no puede generar una orden vacía.');
+        }
+
+        $pricing = $this->orderPricingCalculator->calculate($distributorTier, $calculatorInput);
+
+        if ($pricing->effectiveTotalCents <= 0) {
+            throw new DomainException('El carrito no puede generar una orden vacía.');
+        }
+
+        if (! $pricing->checkoutAllowed()) {
+            $missing = TierPrice::centsToDecimal($pricing->minimumOrderMissingAmountCents());
+            $minimum = TierPrice::centsToDecimal($pricing->minimumOrderAmountCents());
+            $tierLabel = ($pricing->minimumOrderDecision->tier ?? $pricingTier)->badgeLabel();
+
+            throw new DomainException(
+                "Pedido mínimo para {$tierLabel}: \${$this->formatPesosFromDecimal($minimum)}. Te faltan \${$this->formatPesosFromDecimal($missing)}."
+            );
         }
 
         if ($data->isPayIntent() && $data->paymentMethod === null) {
             throw new DomainException('Selecciona un método de pago para continuar.');
         }
 
-        $order = DB::transaction(function () use ($user, $data, $pricedLines, $tier, $totalCents) {
+        $order = DB::transaction(function () use ($user, $data, $pricing, $pricingTier) {
             $status = $data->requiresApproval
                 ? OrderStatus::PendingApproval
                 : OrderStatus::Submitted;
@@ -103,7 +113,7 @@ class CreateOrderAction
                 ? now()->addMinutes($this->orderPaymentService->reservationTtlMinutes())
                 : null;
 
-            $order = Order::create([
+            $order = Order::create(array_merge([
                 'distributor_id' => $user?->distributor_id,
                 'user_id' => $user?->id,
                 'oc_number' => Order::OC_PREFIX.'TMP-'.Str::upper(Str::random(8)),
@@ -120,11 +130,11 @@ class CreateOrderAction
                 'payment_status' => $paymentStatus,
                 'payment_method' => $isPay ? $data->paymentMethod : null,
                 'payment_reservation_expires_at' => $reservationExpiresAt,
-                'distributor_tier_snapshot' => $tier,
+                'distributor_tier_snapshot' => $pricingTier,
                 'total_amount' => 0,
-            ]);
+            ], $this->snapshotMapper->headerAttributes($pricing)));
 
-            foreach ($pricedLines as $line) {
+            foreach ($pricing->lines as $line) {
                 $order->items()->create(array_merge([
                     'product_id' => $line->product->id,
                     'product_variant_id' => $line->variant?->id,
@@ -134,17 +144,11 @@ class CreateOrderAction
                     'variant_value_snapshot' => $line->variant?->attributeValue?->value,
                     'qty' => $line->qty,
                     'unit_label' => $line->unitLabel,
-                    'price_each' => $line->price->effectivePriceDecimal(),
-                    'base_unit_price' => $line->price->basePriceDecimal(),
-                    'silver_unit_price' => $line->price->silverPriceDecimal(),
-                    'unit_savings' => $line->price->unitSavingsDecimal(),
-                    'subtotal' => $line->subtotalDecimal(),
-                    'line_savings' => $line->lineSavingsDecimal(),
-                ], OrderLineVat::snapshotAttributes($line->product)));
+                ], $this->snapshotMapper->linePriceAttributes($line), OrderLineVat::snapshotAttributes($line->product)));
             }
 
             $order->update([
-                'total_amount' => TierPrice::centsToDecimal($totalCents),
+                'total_amount' => $pricing->effectiveTotalDecimal(),
                 'oc_number' => sprintf(Order::OC_PREFIX.'%0'.Order::OC_PADDING.'d', $order->id),
             ]);
 
@@ -161,7 +165,6 @@ class CreateOrderAction
             'Estado inicial registrado al crear la cotización.'
         );
 
-        // Solo disparar el evento si la orden no requiere aprobación interna previa
         if (! $data->requiresApproval) {
             event(new OrderPlaced($order));
         }
@@ -170,24 +173,14 @@ class CreateOrderAction
     }
 
     /**
-     * Build the collection of valid, priced order lines.
-     *
-     * Applies the same product/variant eligibility rules used historically
-     * (inactive/foreign variants and configurable products without a chosen
-     * variant are skipped) and prices each line once with the central engine.
-     *
      * @param  array<int, array{product_id:int, variant_id?:int|null, qty:int, unit_label?:string}>  $items
      * @param  Collection<int, Product>  $products
      * @param  Collection<int, ProductVariant>  $variants
-     * @return Collection<int, PricedOrderLine>
+     * @return list<array{product: Product, variant: ProductVariant|null, qty: int, unit_label: string}>
      */
-    private function resolvePricedLines(
-        array $items,
-        Collection $products,
-        Collection $variants,
-        DistributorTier $tier,
-    ): Collection {
-        $lines = collect();
+    private function buildCalculatorInput(array $items, Collection $products, Collection $variants): array
+    {
+        $input = [];
 
         foreach ($items as $item) {
             $product = $products->get((int) $item['product_id']);
@@ -198,7 +191,6 @@ class CreateOrderAction
 
             $variantId = isset($item['variant_id']) ? (int) $item['variant_id'] : null;
             $variant = null;
-            $basePrice = $product->price;
 
             if ($variantId > 0) {
                 $variant = $variants->get($variantId);
@@ -206,22 +198,25 @@ class CreateOrderAction
                 if (! $variant || (int) $variant->product_id !== (int) $product->id) {
                     continue;
                 }
-
-                $basePrice = $variant->price;
             } elseif ((int) ($product->active_variants_count ?? 0) > 0) {
-                // Prevent creating a line without a chosen variant when product requires one.
                 continue;
             }
 
-            $lines->push(new PricedOrderLine(
-                product: $product,
-                variant: $variant,
-                qty: max(1, (int) $item['qty']),
-                unitLabel: $item['unit_label'] ?? 'unidades',
-                price: $this->priceCalculator->calculateFromDecimal((string) $basePrice, $tier),
-            ));
+            $input[] = [
+                'product' => $product,
+                'variant' => $variant,
+                'qty' => max(1, (int) $item['qty']),
+                'unit_label' => $item['unit_label'] ?? 'unidades',
+            ];
         }
 
-        return $lines;
+        return $input;
+    }
+
+    private function formatPesosFromDecimal(string $decimal): string
+    {
+        [$whole] = array_pad(explode('.', $decimal, 2), 2, '0');
+
+        return number_format((int) $whole, 0, ',', '.');
     }
 }

@@ -7,7 +7,12 @@ use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\OrderItem;
-use App\Modules\Orders\Pricing\DistributorPriceCalculator;
+use App\Modules\Orders\Pricing\CommercePricingRules;
+use App\Modules\Orders\Pricing\CommercePricingRulesProvider;
+use App\Modules\Orders\Pricing\OrderPricingCalculator;
+use App\Modules\Orders\Pricing\OrderPricingLine;
+use App\Modules\Orders\Pricing\OrderPricingResult;
+use App\Modules\Orders\Pricing\OrderPricingSnapshotMapper;
 use App\Modules\Orders\Pricing\TierPrice;
 use App\Modules\Orders\Services\OrderInventoryService;
 use App\Modules\Orders\Support\OrderLineVat;
@@ -17,11 +22,18 @@ use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Updates an existing quotation/order and fully reprices every final line through
+ * OrderPricingCalculator using the commercial rule originally associated to the
+ * order (or the current rule for historical orders without a FK).
+ */
 class UpdateOrderAction
 {
     public function __construct(
         private readonly OrderInventoryService $orderInventoryService,
-        private readonly DistributorPriceCalculator $priceCalculator,
+        private readonly OrderPricingCalculator $orderPricingCalculator,
+        private readonly CommercePricingRulesProvider $rulesProvider,
+        private readonly OrderPricingSnapshotMapper $snapshotMapper,
     ) {}
 
     /**
@@ -33,22 +45,30 @@ class UpdateOrderAction
         ?User $actor = null,
         bool $allowSubmittedEdit = false,
     ): Order {
-        // Resolve the tier from the order snapshot; only fall back to the
-        // distributor (Plata by default) for historical orders without snapshot.
-        $tier = $this->resolveOrderTier($order);
-
-        $preparedItems = $this->prepareItems(
+        $tier = $this->resolveCommercialTier($order);
+        $pricingTier = $tier ?? DistributorTier::Silver;
+        $lineSpecs = $this->resolveFinalLineSpecs(
             $order,
-            $tier,
             $payload['items'] ?? [],
             $payload['new_items'] ?? [],
         );
 
-        $totalCents = collect($preparedItems)
-            ->sum(fn (array $item): int => $this->priceCalculator->decimalToCents((string) $item['subtotal']));
-        $total = TierPrice::centsToDecimal($totalCents);
+        $rules = $this->resolveRulesForOrder($order);
+        $pricing = $this->orderPricingCalculator->calculate(
+            $tier,
+            $this->toCalculatorInput($lineSpecs),
+            $rules,
+        );
 
-        return DB::transaction(function () use ($order, $payload, $preparedItems, $total, $tier, $actor, $allowSubmittedEdit): Order {
+        if ($pricing->effectiveTotalCents <= 0) {
+            throw new DomainException('La cotización debe conservar al menos un ítem con cantidad mayor a cero.');
+        }
+
+        $this->assertMinimumOrderAllowsUpdate($order, $pricing);
+
+        $preparedItems = $this->mapPricedLines($lineSpecs, $pricing);
+
+        return DB::transaction(function () use ($order, $payload, $preparedItems, $pricing, $pricingTier, $actor, $allowSubmittedEdit): Order {
             /** @var Order $lockedOrder */
             $lockedOrder = Order::query()
                 ->whereKey($order->id)
@@ -66,7 +86,6 @@ class UpdateOrderAction
             $statusConsumesInventory = $this->statusConsumesInventory($lockedOrder->status);
 
             if ($statusConsumesInventory) {
-                // Devuelve stock de la versión actual para recalcular con los nuevos ítems.
                 $this->orderInventoryService->increaseForOrder($lockedOrder);
             }
 
@@ -76,7 +95,7 @@ class UpdateOrderAction
                 $lockedOrder->items()->create($itemData);
             }
 
-            $lockedOrder->update([
+            $lockedOrder->update(array_merge([
                 'contact_name' => $payload['contact_name'],
                 'contact_email' => $payload['contact_email'],
                 'phone' => $payload['phone'],
@@ -86,12 +105,10 @@ class UpdateOrderAction
                 'city' => $payload['city'],
                 'department' => $payload['department'],
                 'notes' => $payload['notes'] ?? null,
-                // Persist the resolved tier so historical orders keep it fixed.
-                'distributor_tier_snapshot' => $tier,
-                'total_amount' => $total,
-                // Invalida el archivo actual para forzar regeneración con datos nuevos.
+                'distributor_tier_snapshot' => $pricingTier,
+                'total_amount' => $pricing->effectiveTotalDecimal(),
                 'pdf_path' => null,
-            ]);
+            ], $this->snapshotMapper->headerAttributes($pricing)));
 
             $lockedOrder->statusHistory()->create([
                 'from_status' => $lockedOrder->status->value,
@@ -107,7 +124,6 @@ class UpdateOrderAction
             ]);
 
             if ($statusConsumesInventory) {
-                // Aplica consumo con los ítems actualizados.
                 $this->orderInventoryService->decreaseForOrder($lockedOrder);
             }
 
@@ -116,23 +132,67 @@ class UpdateOrderAction
     }
 
     /**
-     * Resolve the tier that must be used to price this edit.
-     *
-     * A stored snapshot always wins so a later company tier change never alters
-     * an existing order. Historical orders without snapshot resolve their
-     * distributor tier once (Plata as fallback) and the caller persists it.
+     * Commercial tier subject to minimums: only when the order belongs to a distributor.
+     * Guests/admin orders (no distributor_id) are priced as Plata but not subject to minimums.
      */
-    private function resolveOrderTier(Order $order): DistributorTier
+    private function resolveCommercialTier(Order $order): ?DistributorTier
     {
+        if ($order->distributor_id === null) {
+            return null;
+        }
+
         return $order->distributor_tier_snapshot
             ?? $order->distributor?->tier
             ?? DistributorTier::Silver;
     }
 
+    private function resolveRulesForOrder(Order $order): CommercePricingRules
+    {
+        if ($order->commerce_pricing_rule_id !== null) {
+            return $this->rulesProvider->forId((int) $order->commerce_pricing_rule_id);
+        }
+
+        return $this->rulesProvider->current();
+    }
+
+    private function assertMinimumOrderAllowsUpdate(Order $order, OrderPricingResult $pricing): void
+    {
+        if ($pricing->checkoutAllowed()) {
+            return;
+        }
+
+        // Drafts may remain incomplete; submission/approval paths enforce the minimum later.
+        if ($order->status === OrderStatus::Draft) {
+            return;
+        }
+
+        $missing = TierPrice::centsToDecimal($pricing->minimumOrderMissingAmountCents());
+        $minimum = TierPrice::centsToDecimal($pricing->minimumOrderAmountCents());
+        $tierLabel = ($pricing->minimumOrderDecision->tier ?? DistributorTier::Silver)->badgeLabel();
+        [$missingWhole] = array_pad(explode('.', $missing, 2), 2, '0');
+        [$minimumWhole] = array_pad(explode('.', $minimum, 2), 2, '0');
+
+        throw new DomainException(
+            "Pedido mínimo para {$tierLabel}: \$".number_format((int) $minimumWhole, 0, ',', '.')
+            .'. Te faltan \$'.number_format((int) $missingWhole, 0, ',', '.').'.'
+        );
+    }
+
     /**
-     * @return array<int, array<string, mixed>>
+     * @return list<array{
+     *   product: Product,
+     *   variant: ProductVariant|null,
+     *   qty: int,
+     *   unit_label: string,
+     *   product_name_snapshot: string,
+     *   sku_snapshot: string,
+     *   variant_attribute_snapshot: string|null,
+     *   variant_value_snapshot: string|null,
+     *   is_vat_excluded_snapshot: bool,
+     *   vat_rate_snapshot: float
+     * }>
      */
-    private function prepareItems(Order $order, DistributorTier $tier, mixed $rawItems, mixed $rawNewItems = []): array
+    private function resolveFinalLineSpecs(Order $order, mixed $rawItems, mixed $rawNewItems): array
     {
         if (! is_array($rawItems) || $rawItems === []) {
             throw new DomainException('Debes enviar los ítems de la cotización.');
@@ -140,10 +200,9 @@ class UpdateOrderAction
 
         /** @var Collection<int, OrderItem> $existingItems */
         $existingItems = $order->items()->get()->keyBy('id');
-
-        /** @var array<int, array{existing: OrderItem, qty: int, unit_label: string}> $keptRows */
-        $keptRows = [];
+        $kept = [];
         $seen = [];
+        $productIds = [];
 
         foreach ($rawItems as $row) {
             if (! is_array($row)) {
@@ -159,8 +218,6 @@ class UpdateOrderAction
             }
 
             $seen[$itemId] = true;
-
-            /** @var OrderItem|null $existing */
             $existing = $existingItems->get($itemId);
 
             if (! $existing) {
@@ -171,46 +228,78 @@ class UpdateOrderAction
                 continue;
             }
 
-            $keptRows[] = [
+            $productIds[] = (int) $existing->product_id;
+            $kept[] = [
                 'existing' => $existing,
                 'qty' => $qty,
                 'unit_label' => $unitLabel === '' ? 'unidades' : $unitLabel,
             ];
         }
 
-        $prepared = [];
+        $products = Product::query()
+            ->whereIn('id', array_values(array_unique($productIds)))
+            ->get()
+            ->keyBy('id');
 
-        foreach ($keptRows as $keptRow) {
+        $variants = ProductVariant::query()
+            ->whereIn('id', $existingItems->pluck('product_variant_id')->filter()->unique()->all())
+            ->with('attributeValue.attribute')
+            ->get()
+            ->keyBy('id');
+
+        $specs = [];
+
+        foreach ($kept as $keptRow) {
+            /** @var OrderItem $existing */
             $existing = $keptRow['existing'];
-            $qty = $keptRow['qty'];
+            $product = $products->get((int) $existing->product_id);
 
-            $prepared[] = array_merge([
-                'product_id' => $existing->product_id,
-                'product_variant_id' => $existing->product_variant_id,
+            if (! $product) {
+                throw new DomainException('Uno de los productos de la cotización ya no está disponible.');
+            }
+
+            $variant = $existing->product_variant_id
+                ? $variants->get((int) $existing->product_variant_id)
+                : null;
+
+            $specs[] = [
+                'product' => $product,
+                'variant' => $variant,
+                'qty' => $keptRow['qty'],
+                'unit_label' => $keptRow['unit_label'],
                 'product_name_snapshot' => $existing->product_name_snapshot,
                 'sku_snapshot' => $existing->sku_snapshot,
                 'variant_attribute_snapshot' => $existing->variant_attribute_snapshot,
                 'variant_value_snapshot' => $existing->variant_value_snapshot,
-                'qty' => $qty,
-                'unit_label' => $keptRow['unit_label'],
                 'is_vat_excluded_snapshot' => (bool) ($existing->is_vat_excluded_snapshot ?? false),
                 'vat_rate_snapshot' => (float) ($existing->vat_rate_snapshot ?? OrderLineVat::DEFAULT_RATE),
-            ], $this->keptLineFields($existing, $tier, $qty));
+            ];
         }
 
-        $prepared = [...$prepared, ...$this->prepareNewItems($rawNewItems, $tier)];
+        $specs = [...$specs, ...$this->resolveNewLineSpecs($rawNewItems)];
 
-        if ($prepared === []) {
+        if ($specs === []) {
             throw new DomainException('La cotización debe conservar al menos un ítem con cantidad mayor a cero.');
         }
 
-        return $prepared;
+        return $specs;
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * @return list<array{
+     *   product: Product,
+     *   variant: ProductVariant|null,
+     *   qty: int,
+     *   unit_label: string,
+     *   product_name_snapshot: string,
+     *   sku_snapshot: string,
+     *   variant_attribute_snapshot: string|null,
+     *   variant_value_snapshot: string|null,
+     *   is_vat_excluded_snapshot: bool,
+     *   vat_rate_snapshot: float
+     * }>
      */
-    private function prepareNewItems(mixed $rawNewItems, DistributorTier $tier): array
+    private function resolveNewLineSpecs(mixed $rawNewItems): array
     {
         if (! is_array($rawNewItems) || $rawNewItems === []) {
             return [];
@@ -272,11 +361,11 @@ class UpdateOrderAction
             ->active()
             ->whereIn('id', array_values(array_unique($variantIds)))
             ->whereHas('product', fn ($query) => $query->where('is_active', true))
-            ->with('product:id,name,sku,price,is_vat_excluded', 'attributeValue.attribute')
+            ->with('product', 'attributeValue.attribute')
             ->get()
             ->keyBy('id');
 
-        $prepared = [];
+        $specs = [];
 
         foreach ($rows as $row) {
             if ($row['type'] === 'product') {
@@ -291,16 +380,19 @@ class UpdateOrderAction
                     throw new DomainException("El producto {$product->sku} requiere seleccionar una variante.");
                 }
 
-                $prepared[] = array_merge([
-                    'product_id' => $product->id,
-                    'product_variant_id' => null,
+                $vat = OrderLineVat::snapshotAttributes($product);
+                $specs[] = [
+                    'product' => $product,
+                    'variant' => null,
+                    'qty' => $row['qty'],
+                    'unit_label' => $row['unit_label'],
                     'product_name_snapshot' => $product->name,
                     'sku_snapshot' => $product->sku,
                     'variant_attribute_snapshot' => null,
                     'variant_value_snapshot' => null,
-                    'qty' => $row['qty'],
-                    'unit_label' => $row['unit_label'],
-                ], $this->priceFields((string) $product->price, $tier, $row['qty']), OrderLineVat::snapshotAttributes($product));
+                    'is_vat_excluded_snapshot' => $vat['is_vat_excluded_snapshot'],
+                    'vat_rate_snapshot' => $vat['vat_rate_snapshot'],
+                ];
 
                 continue;
             }
@@ -319,75 +411,68 @@ class UpdateOrderAction
                 throw new DomainException('No fue posible resolver el producto de la variante seleccionada.');
             }
 
-            $prepared[] = array_merge([
-                'product_id' => $product->id,
-                'product_variant_id' => $variant->id,
+            $vat = OrderLineVat::snapshotAttributes($product);
+            $specs[] = [
+                'product' => $product,
+                'variant' => $variant,
+                'qty' => $row['qty'],
+                'unit_label' => $row['unit_label'],
                 'product_name_snapshot' => $product->name,
                 'sku_snapshot' => $product->sku,
                 'variant_attribute_snapshot' => $variant->attributeValue?->attribute?->name,
                 'variant_value_snapshot' => $variant->attributeValue?->value,
-                'qty' => $row['qty'],
-                'unit_label' => $row['unit_label'],
-            ], $this->priceFields((string) $variant->price, $tier, $row['qty']), OrderLineVat::snapshotAttributes($product));
+                'is_vat_excluded_snapshot' => $vat['is_vat_excluded_snapshot'],
+                'vat_rate_snapshot' => $vat['vat_rate_snapshot'],
+            ];
+        }
+
+        return $specs;
+    }
+
+    /**
+     * @param  list<array{product: Product, variant: ProductVariant|null, qty: int, unit_label: string}>  $specs
+     * @return list<array{product: Product, variant: ProductVariant|null, qty: int, unit_label: string}>
+     */
+    private function toCalculatorInput(array $specs): array
+    {
+        return array_map(fn (array $spec): array => [
+            'product' => $spec['product'],
+            'variant' => $spec['variant'],
+            'qty' => $spec['qty'],
+            'unit_label' => $spec['unit_label'],
+        ], $specs);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $specs
+     * @return list<array<string, mixed>>
+     */
+    private function mapPricedLines(array $specs, OrderPricingResult $pricing): array
+    {
+        if ($pricing->lines->count() !== count($specs)) {
+            throw new DomainException('No fue posible recalcular los precios de la cotización.');
+        }
+
+        $prepared = [];
+
+        foreach ($pricing->lines->values() as $index => $line) {
+            /** @var OrderPricingLine $line */
+            $spec = $specs[$index];
+            $prepared[] = array_merge([
+                'product_id' => $line->product->id,
+                'product_variant_id' => $line->variant?->id,
+                'product_name_snapshot' => $spec['product_name_snapshot'],
+                'sku_snapshot' => $spec['sku_snapshot'],
+                'variant_attribute_snapshot' => $spec['variant_attribute_snapshot'],
+                'variant_value_snapshot' => $spec['variant_value_snapshot'],
+                'qty' => $line->qty,
+                'unit_label' => $line->unitLabel,
+                'is_vat_excluded_snapshot' => $spec['is_vat_excluded_snapshot'],
+                'vat_rate_snapshot' => $spec['vat_rate_snapshot'],
+            ], $this->snapshotMapper->linePriceAttributes($line));
         }
 
         return $prepared;
-    }
-
-    /**
-     * Build the tier pricing fields for a NEW line from a base price + quantity.
-     *
-     * @return array<string, string>
-     */
-    private function priceFields(int|string $baseAmount, DistributorTier $tier, int $qty): array
-    {
-        $price = $this->priceCalculator->calculateFromDecimal($baseAmount, $tier);
-
-        return [
-            'price_each' => $price->effectivePriceDecimal(),
-            'base_unit_price' => $price->basePriceDecimal(),
-            'silver_unit_price' => $price->silverPriceDecimal(),
-            'unit_savings' => $price->unitSavingsDecimal(),
-            'subtotal' => TierPrice::centsToDecimal($price->effectivePriceCents * $qty),
-            'line_savings' => TierPrice::centsToDecimal($price->unitSavingsCents * $qty),
-        ];
-    }
-
-    /**
-     * Build the tier pricing fields for an existing (kept) line.
-     *
-     * The effective price is always preserved so editing quantities never
-     * reprices an already-placed line. Snapshot columns are reused when present
-     * (feature-priced lines) or backfilled for legacy lines: a Gold line's
-     * effective is its base, a Silver line's effective is its own silver price.
-     *
-     * @return array<string, string>
-     */
-    private function keptLineFields(OrderItem $existing, DistributorTier $tier, int $qty): array
-    {
-        $effectiveCents = $this->priceCalculator->decimalToCents((string) $existing->price_each);
-
-        if ($existing->base_unit_price !== null && $existing->silver_unit_price !== null) {
-            $baseCents = $this->priceCalculator->decimalToCents((string) $existing->base_unit_price);
-            $silverCents = $this->priceCalculator->decimalToCents((string) $existing->silver_unit_price);
-        } elseif ($tier === DistributorTier::Gold) {
-            $baseCents = $effectiveCents;
-            $silverCents = $this->priceCalculator->calculate($baseCents, DistributorTier::Silver)->silverPriceCents;
-        } else {
-            $baseCents = $effectiveCents;
-            $silverCents = $effectiveCents;
-        }
-
-        $unitSavingsCents = $silverCents - $effectiveCents;
-
-        return [
-            'price_each' => TierPrice::centsToDecimal($effectiveCents),
-            'base_unit_price' => TierPrice::centsToDecimal($baseCents),
-            'silver_unit_price' => TierPrice::centsToDecimal($silverCents),
-            'unit_savings' => TierPrice::centsToDecimal($unitSavingsCents),
-            'subtotal' => TierPrice::centsToDecimal($effectiveCents * $qty),
-            'line_savings' => TierPrice::centsToDecimal($unitSavingsCents * $qty),
-        ];
     }
 
     /**

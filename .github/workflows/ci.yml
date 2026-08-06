@@ -102,9 +102,7 @@ jobs:
             sleep $((attempt * 5))
           done
       - name: Audit Node.js dependencies
-        run: |
-          npm ci
-          npm audit --audit-level=high
+        run: bash .github/scripts/npm-audit-project.sh
       - name: Install actionlint with checksum verification
         run: |
           mkdir -p "$RUNNER_TEMP/actionlint"

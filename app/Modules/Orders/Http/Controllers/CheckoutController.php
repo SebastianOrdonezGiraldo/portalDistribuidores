@@ -38,6 +38,8 @@ class CheckoutController extends Controller
             return redirect()->route('catalog.index')->withErrors('Tu carrito está vacío.');
         }
 
+        $pricing = $cartService->pricingResult();
+
         $distributor = $user?->distributor;
         $branches = $distributor
             ? $distributor->branches()->orderByDesc('is_default')->orderBy('name')->get()
@@ -46,6 +48,7 @@ class CheckoutController extends Controller
         return view('orders.checkout', [
             'items' => $items,
             'total' => $cartService->total(),
+            'pricing' => $pricing,
             'distributor' => $distributor,
             'branches' => $branches,
             'departments' => config('locations.colombia_departments', []),

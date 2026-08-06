@@ -6,8 +6,9 @@ use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Orders\Models\Cart;
 use App\Modules\Orders\Models\CartItem;
-use App\Modules\Orders\Pricing\DistributorPriceCalculator;
-use App\Modules\Orders\Pricing\DistributorTierResolver;
+use App\Modules\Orders\Pricing\OrderPricingCalculator;
+use App\Modules\Orders\Pricing\OrderPricingLine;
+use App\Modules\Orders\Pricing\OrderPricingResult;
 use App\Modules\Orders\Support\OrderLineVat;
 use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Exceptions\DomainException;
@@ -32,9 +33,10 @@ class CartService
 
     private ?Collection $resolvedItems = null;
 
+    private ?OrderPricingResult $pricingResult = null;
+
     public function __construct(
-        private readonly DistributorPriceCalculator $priceCalculator,
-        private readonly DistributorTierResolver $tierResolver,
+        private readonly OrderPricingCalculator $orderPricingCalculator,
     ) {}
 
     /**
@@ -76,7 +78,7 @@ class CartService
         $items[$lineKey]['unit_label'] = $unitLabel;
 
         Session::put(self::SESSION_KEY, $items);
-        $this->resolvedItems = null;
+        $this->forgetResolved();
     }
 
     /**
@@ -111,7 +113,7 @@ class CartService
                 $this->markCartMutated($lockedCart);
             });
 
-            $this->resolvedItems = null;
+            $this->forgetResolved();
 
             return;
         }
@@ -119,7 +121,7 @@ class CartService
         $items = $this->applyQuantities($this->rawItems(), $quantities);
 
         Session::put(self::SESSION_KEY, $items);
-        $this->resolvedItems = null;
+        $this->forgetResolved();
     }
 
     /**
@@ -220,7 +222,7 @@ class CartService
                 });
             }
 
-            $this->resolvedItems = null;
+            $this->forgetResolved();
 
             return;
         }
@@ -228,7 +230,7 @@ class CartService
         $items = $this->rawItems();
         unset($items[$lineKey]);
         Session::put(self::SESSION_KEY, $items);
-        $this->resolvedItems = null;
+        $this->forgetResolved();
     }
 
     public function clear(): void
@@ -240,7 +242,7 @@ class CartService
         }
 
         Session::forget(self::SESSION_KEY);
-        $this->resolvedItems = null;
+        $this->forgetResolved();
     }
 
     /**
@@ -249,6 +251,7 @@ class CartService
      * Stale rows for inactive products, mismatched variants or configurable
      * products without a chosen variant are filtered out instead of being
      * repaired here. Checkout and order creation consume this resolved shape.
+     * Effective prices come from OrderPricingCalculator (gold threshold + minimums).
      *
      * @return Collection<int, array{
      *   line_key: string,
@@ -279,6 +282,7 @@ class CartService
 
         if ($raw === []) {
             $this->resolvedItems = collect();
+            $this->pricingResult = null;
 
             return $this->resolvedItems;
         }
@@ -289,15 +293,10 @@ class CartService
             ->unique()
             ->values()
             ->all();
-        $variantIds = collect($raw)
-            ->map(fn (array $item) => isset($item['variant_id']) ? (int) $item['variant_id'] : null)
-            ->filter(fn (?int $id) => $id !== null && $id > 0)
-            ->unique()
-            ->values()
-            ->all();
 
         if ($ids === []) {
             $this->resolvedItems = collect();
+            $this->pricingResult = null;
 
             return $this->resolvedItems;
         }
@@ -315,77 +314,115 @@ class CartService
             ->keyBy('id');
 
         $variants = $products->flatMap->variants->keyBy('id');
+        $user = Auth::user();
+        $distributorTier = $user?->distributor?->tier;
+        $displayTier = $distributorTier ?? DistributorTier::Silver;
 
-        // Resolve the commercial tier once per items() execution to avoid N+1.
-        $tier = $this->tierResolver->resolve(Auth::user());
+        $calculatorInput = [];
+        $metaByIndex = [];
 
-        $this->resolvedItems = collect($raw)
-            ->map(function (array $item, string $lineKey) use ($products, $variants, $tier) {
-                $product = $products->get((int) $item['product_id']);
+        foreach ($raw as $lineKey => $item) {
+            $product = $products->get((int) $item['product_id']);
 
-                if (! $product) {
-                    return null;
+            if (! $product) {
+                continue;
+            }
+
+            $variantId = isset($item['variant_id']) ? (int) $item['variant_id'] : null;
+            $variant = null;
+
+            if ($variantId !== null) {
+                $variant = $variants->get($variantId);
+
+                if (! $variant || (int) $variant->product_id !== (int) $product->id) {
+                    continue;
                 }
+            } elseif ($product->hasConfigurableVariants()) {
+                continue;
+            }
 
-                $variantId = isset($item['variant_id']) ? (int) $item['variant_id'] : null;
-                $variant = null;
-                $basePrice = $product->price;
+            $metaByIndex[] = [
+                'line_key' => (string) $lineKey,
+                'unit_label' => $item['unit_label'] ?? 'unidades',
+                'available_qty' => $this->resolveStockLimit($product, $variant),
+            ];
+            $calculatorInput[] = [
+                'product' => $product,
+                'variant' => $variant,
+                'qty' => (int) $item['qty'],
+                'unit_label' => $item['unit_label'] ?? 'unidades',
+            ];
+        }
 
-                if ($variantId !== null) {
-                    $variant = $variants->get($variantId);
+        if ($calculatorInput === []) {
+            $this->resolvedItems = collect();
+            $this->pricingResult = null;
 
-                    if (! $variant || (int) $variant->product_id !== (int) $product->id) {
-                        return null;
-                    }
+            return $this->resolvedItems;
+        }
 
-                    $basePrice = $variant->price;
-                } elseif ($product->hasConfigurableVariants()) {
-                    return null;
-                }
+        $this->pricingResult = $this->orderPricingCalculator->calculate($distributorTier, $calculatorInput);
 
-                $tierPrice = $this->priceCalculator->calculateFromDecimal($basePrice, $tier);
-                $baseUnitPrice = (float) $tierPrice->basePriceDecimal();
-                $silverUnitPrice = (float) $tierPrice->silverPriceDecimal();
-                $unitPrice = (float) $tierPrice->effectivePriceDecimal();
-                $unitSavings = (float) $tierPrice->unitSavingsDecimal();
-
-                $qty = (int) $item['qty'];
+        $this->resolvedItems = $this->pricingResult->lines
+            ->values()
+            ->map(function (OrderPricingLine $line, int $index) use ($metaByIndex, $displayTier) {
+                $meta = $metaByIndex[$index];
+                $product = $line->product;
+                $variant = $line->variant;
                 $attributeName = $variant?->attributeValue?->attribute?->name;
                 $valueName = $variant?->attributeValue?->value;
                 $variantLabel = ($attributeName && $valueName)
                     ? $attributeName.': '.$valueName
                     : $valueName;
-                $availableQty = $this->resolveStockLimit($product, $variant);
                 $isVatExcluded = (bool) $product->is_vat_excluded;
+                $unitPrice = (float) $line->effectiveUnitPriceDecimal();
+                $unitSavings = (float) $line->unitSavingsDecimal();
 
                 return [
-                    'line_key' => $lineKey,
+                    'line_key' => $meta['line_key'],
                     'product' => $product,
                     'variant' => $variant,
                     'variant_label' => $variantLabel,
-                    'qty' => $qty,
-                    'unit_label' => $item['unit_label'] ?? 'unidades',
-                    'tier' => $tier,
-                    'base_unit_price' => $baseUnitPrice,
-                    'silver_unit_price' => $silverUnitPrice,
+                    'qty' => $line->qty,
+                    'unit_label' => $line->unitLabel,
+                    'tier' => $displayTier,
+                    'base_unit_price' => (float) $line->goldUnitPriceDecimal(),
+                    'silver_unit_price' => (float) $line->silverUnitPriceDecimal(),
                     'unit_price' => $unitPrice,
                     'unit_savings' => $unitSavings,
                     'vat_label' => OrderLineVat::label($isVatExcluded),
                     'is_vat_excluded' => $isVatExcluded,
-                    'subtotal' => $qty * $unitPrice,
-                    'line_savings' => $qty * $unitSavings,
-                    'available_qty' => $availableQty,
+                    'subtotal' => (float) $line->effectiveSubtotalDecimal(),
+                    'line_savings' => (float) $line->lineSavingsDecimal(),
+                    'available_qty' => $meta['available_qty'],
                 ];
-            })
-            ->filter()
-            ->values();
+            });
 
         return $this->resolvedItems;
     }
 
+    public function pricingResult(): ?OrderPricingResult
+    {
+        $this->items();
+
+        return $this->pricingResult;
+    }
+
     public function total(): float
     {
+        $pricing = $this->pricingResult();
+
+        if ($pricing !== null) {
+            return (float) $pricing->effectiveTotalDecimal();
+        }
+
         return (float) $this->items()->sum('subtotal');
+    }
+
+    private function forgetResolved(): void
+    {
+        $this->resolvedItems = null;
+        $this->pricingResult = null;
     }
 
     public function count(): int
@@ -511,7 +548,7 @@ class CartService
         });
 
         Session::forget(self::SESSION_KEY);
-        $this->resolvedItems = null;
+        $this->forgetResolved();
     }
 
     /**

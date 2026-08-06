@@ -22,6 +22,17 @@ return [
 
         // Múltiplo de redondeo del precio Plata en pesos (fallback).
         'silver_rounding_multiple' => 1000,
+
+        // Pedido mínimo por nivel (fallback cuando aún no hay filas en DB).
+        'silver_min_order_enabled' => true,
+        'silver_min_order_amount' => 800_000,
+        'gold_min_order_enabled' => false,
+        'gold_min_order_amount' => 1_000_000,
+
+        // Umbral para activar precios Oro (fallback).
+        'gold_pricing_threshold_enabled' => true,
+        'gold_pricing_threshold_amount' => 1_000_000,
+        'gold_pricing_threshold_basis' => 'gold_candidate',
     ],
 
     /*
