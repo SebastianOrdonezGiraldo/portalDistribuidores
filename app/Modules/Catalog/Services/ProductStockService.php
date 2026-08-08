@@ -39,8 +39,9 @@ class ProductStockService
             }
 
             $previousStock = (float) ($lockedProduct->stock ?? 0);
-            $lockedProduct->stock = $this->normalizeStock($stock);
-            $lockedProduct->save();
+            $lockedProduct->forceFill([
+                'stock' => $this->normalizeStock($stock),
+            ])->save();
 
             StockMovement::record(
                 product: $lockedProduct,
@@ -111,8 +112,9 @@ class ProductStockService
                 ? (float) round($stockValues->filter(fn (?float $value): bool => $value !== null)->sum(), 2)
                 : null;
 
-            $lockedProduct->stock = $totalStock;
-            $lockedProduct->save();
+            $lockedProduct->forceFill([
+                'stock' => $totalStock,
+            ])->save();
 
             return true;
         });

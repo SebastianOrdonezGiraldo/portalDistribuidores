@@ -88,7 +88,56 @@ View contract:
                     </x-ui.alert>
                 </div>
             @endif
+
+            @if($order->inventory_reconciliation_status === 'failed')
+                <div class="mt-4">
+                    <x-ui.alert variant="warning" title="Inventario pendiente de sincronización con ContaPyme">
+                        El pedido continúa <strong>Registrado</strong> y el HOLD permanece activo para evitar sobreventa.
+                        Puedes reintentar de forma segura con <strong>Marcar como vendido</strong>.
+                        @if($order->inventory_reconciliation_error)
+                            <span class="mt-1 block text-xs">Detalle: {{ $order->inventory_reconciliation_error }}</span>
+                        @endif
+                    </x-ui.alert>
+                </div>
+            @elseif($order->inventory_reconciliation_status === 'pending')
+                <div class="mt-4">
+                    <x-ui.alert variant="info" title="Reconciliación de inventario en curso">
+                        El HOLD sigue activo hasta confirmar el stock base leído desde ContaPyme.
+                    </x-ui.alert>
+                </div>
+            @endif
+
+            @php
+                $activeHoldQuantity = $order->inventoryHolds
+                    ->where('status', \App\Modules\Inventory\Models\InventoryHold::STATUS_ACTIVE)
+                    ->sum('quantity');
+            @endphp
+            @if($activeHoldQuantity > 0)
+                <p class="mt-3 text-xs font-medium text-slate-600">
+                    HOLD local activo: {{ $formatQuantity($activeHoldQuantity) }} unidad(es). No modifica ContaPyme.
+                </p>
+            @endif
         </x-ui.card>
+
+            <x-ui.card>
+                <h2 class="card-title">Asesor comercial asignado</h2>
+                <p class="mt-1 text-sm text-slate-600">Snapshot guardado al crear el pedido; no se recalcula con cambios posteriores.</p>
+
+                <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <dt class="text-xs uppercase tracking-wide text-slate-500">Nombre</dt>
+                        <dd class="mt-1 font-semibold text-slate-900">{{ $order->advisor_name_snapshot ?: 'No registrado' }}</dd>
+                    </div>
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <dt class="text-xs uppercase tracking-wide text-slate-500">WhatsApp</dt>
+                        <dd class="mt-1 font-semibold text-slate-900">{{ $order->advisor_whatsapp_snapshot ?: 'No registrado' }}</dd>
+                    </div>
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <dt class="text-xs uppercase tracking-wide text-slate-500">Correo</dt>
+                        <dd class="mt-1 break-all font-semibold text-slate-900">{{ $order->advisor_email_snapshot ?: 'No registrado' }}</dd>
+                    </div>
+                </dl>
+            </x-ui.card>
 
             <x-ui.card>
             <h2 class="card-title">Cliente y contacto</h2>
@@ -317,6 +366,11 @@ View contract:
                             @endforeach
                         </x-ui.select>
                         <p id="order-status-next-help" class="mt-1 text-xs text-slate-500">Te sugerimos: {{ is_array($recommendedAction) ? $recommendedAction['label'] : 'elige una transición permitida' }}.</p>
+                        @if($nextStatuses->contains('value', \App\Modules\Shared\Enums\OrderStatus::Sold->value))
+                            <p class="mt-2 rounded-lg border border-sky-200 bg-sky-50 p-2 text-xs text-sky-800">
+                                <strong>Marcar como vendido</strong> confirma que un funcionario ya registró este pedido en ContaPyme. El Portal sincronizará los SKU antes de retirar el HOLD.
+                            </p>
+                        @endif
                         <x-input-error id="order-status-next-error" :messages="$errors->get('status')" />
                     </div>
 

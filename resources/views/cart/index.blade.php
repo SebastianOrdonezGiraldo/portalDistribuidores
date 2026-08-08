@@ -33,11 +33,14 @@ View contract:
         $silverTier = \App\Modules\Shared\Enums\DistributorTier::Silver;
         $upgradeMessage = (string) ($silverTier->upgrade()['whatsapp_message'] ?? '');
         $upgradeWhatsappUrl = (! $isGold && filled($upgradeMessage))
-            ? 'https://wa.me/'.config('commerce.support.whatsapp_number', '573117479607').'?text='.rawurlencode($upgradeMessage)
+            ? (($currentAdvisor ?? null)?->whatsappUrl($upgradeMessage)
+                ?? (($supportWhatsappNumber ?? null) ? 'https://wa.me/'.$supportWhatsappNumber.'?text='.rawurlencode($upgradeMessage) : null))
             : null;
         $canOpenUpgradeModal = ! $isGold && auth()->user()?->distributor !== null;
 
-        $advisorUrl = 'https://wa.me/573117479607?text='.rawurlencode('Hola, tengo dudas con mi pedido en el portal ICMTHERAPY.');
+        $advisorUrl = ($currentAdvisor ?? null)?->whatsappUrl('Hola, tengo dudas con mi pedido en el portal ICMTHERAPY.')
+            ?? $supportWhatsappUrl
+            ?? '#';
     @endphp
 
     <x-slot name="header">

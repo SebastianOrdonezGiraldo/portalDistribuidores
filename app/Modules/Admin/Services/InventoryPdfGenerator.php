@@ -80,7 +80,7 @@ class InventoryPdfGenerator
                         array_merge($baseRow, [
                             'variant_value' => null,
                             'price' => $this->normalizeDecimal($product->price),
-                            'stock' => $this->normalizeDecimal($product->stock),
+                            'stock' => $this->normalizeDecimal($product->available_stock),
                         ]),
                     ];
                 }
@@ -89,7 +89,7 @@ class InventoryPdfGenerator
                     ->map(fn (ProductVariant $variant): array => array_merge($baseRow, [
                         'variant_value' => $variant->attributeValue?->value,
                         'price' => $this->normalizeDecimal($variant->price),
-                        'stock' => $this->normalizeDecimal($variant->stock),
+                        'stock' => $this->normalizeDecimal($variant->available_stock),
                     ]))
                     ->all();
             })

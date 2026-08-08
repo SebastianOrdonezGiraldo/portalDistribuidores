@@ -449,7 +449,7 @@ View contract:
                                             $variantEffective = (float) ($variantPrices['effective'] ?? $variant->price);
                                             $variantGold = (float) ($variantPrices['gold'] ?? $variant->price);
                                             $variantSilver = (float) ($variantPrices['silver'] ?? $variant->price);
-                                            $variantStock = $variant->stock;
+                                            $variantStock = $variant->available_stock;
                                             $variantValue = $variant->attributeValue?->value ?? 'Valor';
                                             $variantStockLabel = is_null($variantStock)
                                                 ? 'Stock a confirmar'

@@ -10,7 +10,7 @@ estados, inventario asociado, PDF de cotizacion y notificaciones por correo.
 - Mantener el carrito en sesion.
 - Crear pedidos desde checkout con snapshots de producto/variante.
 - Validar y aplicar transiciones de estado.
-- Descontar o restaurar inventario al cruzar estados que consumen stock.
+- Crear, ajustar y liberar HOLDs locales sin mutar el stock base sincronizado.
 - Generar PDFs privados de cotizacion.
 - Enviar correos mediante jobs en cola.
 - Exponer detalle, confirmacion y descarga de PDF de pedido.
@@ -57,16 +57,17 @@ estados, inventario asociado, PDF de cotizacion y notificaciones por correo.
   `SendOrderNotificationEmailJob`; no hay listener separado de email.
 - El flujo normal no requiere aprobacion interna de empresa.
 
-## Pago manual (auditorias previas)
+## Pago manual e inventario
 
 - `order_status` y `payment_status` son ortogonales. Validar pago pone
-  `payment_status=validated` y auto-avanza a `sold` con nota de sistema.
+  `payment_status=validated` y mantiene el pedido en `submitted`.
   No se puede despachar si el pago no es `validated` o `not_applicable`.
-- Stock al crear: `lockForUpdate` + transaccion del caller (atomico en paths
-  actuales). Cancelar desde estados que consumen inventario restaura via
-  `OrderStatusTransitionService` + `increaseForOrder`.
-- ContaPyme reserva por `inventoryConsuming()` de `order_status`. Por eso al
-  expirar `pending_upload` se marca `expired` y se cancela el pedido (libera
-  stock y deja de contar como reserva).
+- `products.stock` y `product_variants.stock` son el stock base. La disponibilidad
+  es `stock - reserved_stock`, donde `reserved_stock` es una proyeccion atomica
+  y auditable de `inventory_holds` activos.
+- Solo `submitted` mantiene HOLD. Cancelar o expirar el pago libera el HOLD sin
+  aumentar el stock base.
+- `submitted -> sold` consulta ContaPyme en modo lectura, actualiza el stock base
+  y solo entonces libera el HOLD. Un fallo conserva `submitted` y el HOLD.
 - Detalle de pedido sin login: solo sesion `orders.guest_access`. El magic
   link de comprobante es la puerta publica cross-device (token hasheado).

@@ -45,10 +45,12 @@
                 <h2 class="text-sm font-semibold text-slate-900">&iquest;En qu&eacute; te podemos ayudar?</h2>
                 <ul class="mt-3 space-y-2 text-sm text-slate-600">
                     <li>
-                        <a href="https://wa.me/573117479607?text=Hola%20vengo%20desde%20la%20plataforma" target="_blank" rel="noopener noreferrer" class="transition hover:text-brand-primary">WhatsApp de asesor&iacute;a</a>
+                        <a href="{{ ($currentAdvisor ?? null)?->whatsappUrl('Hola, vengo desde la plataforma.') ?? ($supportWhatsappUrl ?? '#') }}" target="_blank" rel="noopener noreferrer" class="transition hover:text-brand-primary">WhatsApp de asesor&iacute;a</a>
                     </li>
                     <li>
-                        <a href="tel:+573117479607" class="transition hover:text-brand-primary">+57 311 7479607</a>
+                        @if($supportPhone)
+                            <a href="tel:{{ $supportPhone }}" class="transition hover:text-brand-primary">{{ $supportPhone }}</a>
+                        @endif
                     </li>
                     <li>
                         <a href="mailto:ventas@importcorporalmedical.com" class="transition hover:text-brand-primary">ventas@importcorporalmedical.com</a>

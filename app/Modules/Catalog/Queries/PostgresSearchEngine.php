@@ -292,7 +292,7 @@ class PostgresSearchEngine implements SearchEngineInterface
                 ->orderByDesc('products.id'),
             ProductSearchQuery::SORT_STOCK_DESC => $builder
                 ->orderByRaw('CASE WHEN products.stock IS NULL THEN 1 ELSE 0 END')
-                ->orderByDesc('products.stock')
+                ->orderByRaw('(products.stock - products.reserved_stock) DESC')
                 ->orderBy('products.name')
                 ->orderBy('products.id'),
             default => $builder
@@ -343,22 +343,22 @@ class PostgresSearchEngine implements SearchEngineInterface
 
     private function inStockSortValue(Product $product): int
     {
-        return is_numeric($product->stock) && (float) $product->stock > 0.0 ? 0 : 1;
+        return is_numeric($product->available_stock) && (float) $product->available_stock > 0.0 ? 0 : 1;
     }
 
     private function stockNullSortValue(Product $product): int
     {
-        return is_numeric($product->stock) ? 0 : 1;
+        return is_numeric($product->available_stock) ? 0 : 1;
     }
 
     private function stockSortValue(Product $product): float
     {
-        return is_numeric($product->stock) ? (float) $product->stock : -1.0;
+        return is_numeric($product->available_stock) ? (float) $product->available_stock : -1.0;
     }
 
     private function inStockFirstOrderExpression(): string
     {
-        return 'CASE WHEN products.stock > 0 THEN 0 ELSE 1 END';
+        return 'CASE WHEN (products.stock - products.reserved_stock) > 0 THEN 0 ELSE 1 END';
     }
 
     /**

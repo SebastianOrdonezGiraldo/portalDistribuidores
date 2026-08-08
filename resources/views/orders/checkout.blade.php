@@ -263,7 +263,8 @@ View contract:
                             @php
                                 $upgradeMessage = (string) (\App\Modules\Shared\Enums\DistributorTier::Silver->upgrade()['whatsapp_message'] ?? '');
                                 $upgradeUrl = filled($upgradeMessage)
-                                    ? 'https://wa.me/'.config('commerce.support.whatsapp_number', '573117479607').'?text='.rawurlencode($upgradeMessage)
+                                    ? (($currentAdvisor ?? null)?->whatsappUrl($upgradeMessage)
+                                        ?? (($supportWhatsappNumber ?? null) ? 'https://wa.me/'.$supportWhatsappNumber.'?text='.rawurlencode($upgradeMessage) : null))
                                     : null;
                             @endphp
                             @if($upgradeUrl)

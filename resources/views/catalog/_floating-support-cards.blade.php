@@ -1,7 +1,13 @@
 {{-- Acceso compacto a asesoría, visible sin invadir el contenido. --}}
 <aside class="catalog-support-bubbles {{ request()->routeIs('products.show') ? 'catalog-support-bubbles--product' : '' }}" aria-label="Ayuda por WhatsApp">
+    @php
+        $advisorMessage = 'Hola, vengo desde el portal.';
+        $advisorWhatsappUrl = ($currentAdvisor ?? null)?->whatsappUrl($advisorMessage)
+            ?? $supportWhatsappUrl
+            ?? '#';
+    @endphp
     <a
-        href="https://wa.me/573117479607?text=Hola%20vengo%20desde%20el%20portal"
+        href="{{ $advisorWhatsappUrl }}"
         target="_blank"
         rel="noopener noreferrer"
         class="catalog-support-bubble catalog-support-bubble--whatsapp"

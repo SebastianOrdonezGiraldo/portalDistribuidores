@@ -112,11 +112,10 @@ return [
                 'Atención prioritaria en pedidos',
                 'Acceso anticipado a lanzamientos',
                 'Condiciones comerciales preferentes',
-                'Tu asesora: Estefanía López',
             ],
             'upgrade' => [
                 'modal_title' => 'Como eres Cliente Oro',
-                'modal_body' => 'Ya tienes activo el Nivel Oro: mantienes el precio de 2025, atención prioritaria y beneficios exclusivos. Tu asesora es Estefanía López.',
+                'modal_body' => 'Ya tienes activo el Nivel Oro: mantienes el precio de 2025, atención prioritaria y beneficios exclusivos.',
                 'whatsapp_message' => null,
             ],
         ],

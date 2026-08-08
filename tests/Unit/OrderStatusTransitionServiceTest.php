@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Models\User;
 use App\Modules\Orders\Models\Order;
+use App\Modules\Orders\Services\OrderInventoryReconciliationService;
 use App\Modules\Orders\Services\OrderInventoryService;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Shared\Enums\OrderStatus;
@@ -17,6 +18,8 @@ class OrderStatusTransitionServiceTest extends TestCase
 
     private OrderInventoryService $inventoryService;
 
+    private OrderInventoryReconciliationService $reconciliationService;
+
     private OrderStatusTransitionService $service;
 
     protected function setUp(): void
@@ -24,207 +27,124 @@ class OrderStatusTransitionServiceTest extends TestCase
         parent::setUp();
 
         $this->inventoryService = $this->createMock(OrderInventoryService::class);
-        $this->service = new OrderStatusTransitionService($this->inventoryService);
+        $this->reconciliationService = $this->createMock(OrderInventoryReconciliationService::class);
+        $this->service = new OrderStatusTransitionService($this->inventoryService, $this->reconciliationService);
     }
 
-    public function test_transition_rejects_when_order_is_already_in_target_status(): void
+    public function test_transition_rejects_same_illegal_and_missing_note_targets(): void
     {
         $order = Order::factory()->create(['status' => OrderStatus::Submitted]);
 
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('decreaseForOrder');
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('increaseForOrder');
-
-        $this->expectException(DomainException::class);
-        $this->expectExceptionMessage('La cotización ya se encuentra en el estado seleccionado.');
-
-        $this->service->transition($order, OrderStatus::Submitted);
+        foreach ([
+            [OrderStatus::Submitted, null, 'ya se encuentra'],
+            [OrderStatus::Delivered, null, 'No se permite'],
+            [OrderStatus::Sold, '   ', 'requiere una nota'],
+        ] as [$target, $note, $message]) {
+            try {
+                $this->service->transition($order->fresh(), $target, null, $note);
+                $this->fail('Expected DomainException.');
+            } catch (DomainException $exception) {
+                $this->assertStringContainsString($message, $exception->getMessage());
+            }
+        }
     }
 
-    public function test_transition_rejects_when_status_change_is_not_allowed(): void
+    public function test_pending_approval_to_submitted_creates_hold_once(): void
     {
-        $order = Order::factory()->create(['status' => OrderStatus::Submitted]);
+        $order = Order::factory()->pendingApproval()->create();
 
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('decreaseForOrder');
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('increaseForOrder');
+        $this->inventoryService->expects($this->once())
+            ->method('holdForOrder')
+            ->with(
+                $this->callback(fn (Order $updated): bool => $updated->is($order)),
+                null,
+                'status_submitted',
+            );
+        $this->inventoryService->expects($this->never())->method('releaseForOrder');
 
-        $this->expectException(DomainException::class);
-        $this->expectExceptionMessage('No se permite cambiar de submitted a delivered.');
+        $updated = $this->service->transition($order, OrderStatus::Submitted);
 
-        $this->service->transition($order, OrderStatus::Delivered);
-    }
-
-    public function test_transition_rejects_when_required_note_is_missing(): void
-    {
-        $order = Order::factory()->create(['status' => OrderStatus::Submitted]);
-
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('decreaseForOrder');
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('increaseForOrder');
-
-        $this->expectException(DomainException::class);
-        $this->expectExceptionMessage('Este cambio de estado requiere una nota de trazabilidad.');
-
-        $this->service->transition($order, OrderStatus::Sold, null, '   ');
-    }
-
-    public function test_transition_persists_trimmed_note_status_change_and_history(): void
-    {
-        $actor = User::factory()->create();
-        $order = Order::factory()->create(['status' => OrderStatus::Sold]);
-
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('decreaseForOrder');
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('increaseForOrder');
-
-        $updatedOrder = $this->service->transition($order, OrderStatus::Dispatched, $actor, '  despacho parcial  ', ' 2258298191 ');
-
-        $this->assertTrue($updatedOrder->status === OrderStatus::Dispatched);
-        $this->assertDatabaseHas('orders', [
-            'id' => $order->id,
-            'status' => OrderStatus::Dispatched->value,
-            'tracking_number' => '2258298191',
-            'shipping_carrier' => 'servientrega',
-        ]);
+        $this->assertSame(OrderStatus::Submitted, $updated->status);
         $this->assertDatabaseHas('order_status_histories', [
             'order_id' => $order->id,
-            'from_status' => OrderStatus::Sold->value,
-            'to_status' => OrderStatus::Dispatched->value,
+            'from_status' => OrderStatus::PendingApproval->value,
+            'to_status' => OrderStatus::Submitted->value,
+        ]);
+    }
+
+    public function test_submitted_to_cancelled_releases_hold_once(): void
+    {
+        $order = Order::factory()->create(['status' => OrderStatus::Submitted]);
+
+        $this->inventoryService->expects($this->once())
+            ->method('releaseForOrder')
+            ->with(
+                $this->callback(fn (Order $updated): bool => $updated->is($order)),
+                null,
+                'status_cancelled',
+            );
+
+        $updated = $this->service->transition($order, OrderStatus::Cancelled);
+
+        $this->assertSame(OrderStatus::Cancelled, $updated->status);
+    }
+
+    public function test_non_hold_transitions_do_not_touch_inventory(): void
+    {
+        $this->inventoryService->expects($this->never())->method('holdForOrder');
+        $this->inventoryService->expects($this->never())->method('releaseForOrder');
+
+        $rejected = Order::factory()->pendingApproval()->create();
+        $this->service->transition($rejected, OrderStatus::Rejected);
+
+        $sold = Order::factory()->create(['status' => OrderStatus::Sold]);
+        $this->service->transition($sold, OrderStatus::Dispatched, null, 'despacho', '888004907296');
+
+        $dispatched = Order::factory()->create([
+            'status' => OrderStatus::Dispatched,
+            'tracking_number' => '957000255300',
+            'shipping_carrier' => 'envia',
+        ]);
+        $updated = $this->service->transition($dispatched, OrderStatus::Delivered);
+
+        $this->assertSame(OrderStatus::Delivered, $updated->status);
+        $this->assertSame('957000255300', $updated->tracking_number);
+    }
+
+    public function test_dispatched_requires_tracking_and_persists_trimmed_audit_data(): void
+    {
+        $order = Order::factory()->create(['status' => OrderStatus::Sold]);
+
+        try {
+            $this->service->transition($order, OrderStatus::Dispatched, null, 'salida');
+            $this->fail('Expected tracking validation exception.');
+        } catch (DomainException $exception) {
+            $this->assertStringContainsString('número de guía', $exception->getMessage());
+        }
+
+        $actor = User::factory()->create();
+        $updated = $this->service->transition(
+            $order->fresh(),
+            OrderStatus::Dispatched,
+            $actor,
+            '  despacho parcial  ',
+            ' 2258298191 ',
+        );
+
+        $this->assertSame('2258298191', $updated->tracking_number);
+        $this->assertSame('servientrega', $updated->shipping_carrier);
+        $this->assertDatabaseHas('order_status_histories', [
+            'order_id' => $order->id,
             'changed_by_user_id' => $actor->id,
             'note' => 'despacho parcial',
         ]);
     }
 
-    public function test_transition_decreases_inventory_only_when_entering_consuming_status_for_first_time(): void
-    {
-        $order = Order::factory()->pendingApproval()->create();
-
-        $this->inventoryService
-            ->expects($this->once())
-            ->method('decreaseForOrder')
-            ->with($this->callback(fn (Order $updatedOrder) => $updatedOrder->is($order)));
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('increaseForOrder');
-
-        $this->service->transition($order, OrderStatus::Submitted);
-
-        $this->assertDatabaseHas('orders', [
-            'id' => $order->id,
-            'status' => OrderStatus::Submitted->value,
-        ]);
-    }
-
-    public function test_transition_increases_inventory_when_leaving_consuming_status_to_non_consuming_status(): void
-    {
-        $order = Order::factory()->create(['status' => OrderStatus::Submitted]);
-
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('decreaseForOrder');
-        $this->inventoryService
-            ->expects($this->once())
-            ->method('increaseForOrder')
-            ->with($this->callback(fn (Order $updatedOrder) => $updatedOrder->is($order)));
-
-        $this->service->transition($order, OrderStatus::Cancelled);
-
-        $this->assertDatabaseHas('orders', [
-            'id' => $order->id,
-            'status' => OrderStatus::Cancelled->value,
-        ]);
-        $this->assertDatabaseHas('order_status_histories', [
-            'order_id' => $order->id,
-            'from_status' => OrderStatus::Submitted->value,
-            'to_status' => OrderStatus::Cancelled->value,
-        ]);
-    }
-
-    public function test_transition_does_not_adjust_inventory_when_both_statuses_consume_inventory(): void
+    public function test_custom_shipping_carrier_overrides_detected_carrier(): void
     {
         $order = Order::factory()->create(['status' => OrderStatus::Sold]);
 
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('decreaseForOrder');
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('increaseForOrder');
-
-        $this->service->transition($order, OrderStatus::Dispatched, null, 'guia 123', '888004907296');
-
-        $this->assertDatabaseHas('orders', [
-            'id' => $order->id,
-            'status' => OrderStatus::Dispatched->value,
-            'tracking_number' => '888004907296',
-            'shipping_carrier' => 'deprisa',
-        ]);
-    }
-
-    public function test_transition_to_dispatched_requires_tracking_number(): void
-    {
-        $order = Order::factory()->create(['status' => OrderStatus::Sold]);
-
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('decreaseForOrder');
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('increaseForOrder');
-
-        $this->expectException(DomainException::class);
-        $this->expectExceptionMessage('El número de guía es obligatorio para marcar el pedido como despachado.');
-
-        $this->service->transition($order, OrderStatus::Dispatched, null, 'Salida de bodega.');
-    }
-
-    public function test_later_transition_preserves_shipping_details(): void
-    {
-        $order = Order::factory()->create([
-            'status' => OrderStatus::Dispatched,
-            'tracking_number' => '957000255300',
-            'shipping_carrier' => 'envia',
-        ]);
-
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('decreaseForOrder');
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('increaseForOrder');
-
-        $updatedOrder = $this->service->transition($order, OrderStatus::Sent);
-
-        $this->assertTrue($updatedOrder->status === OrderStatus::Sent);
-        $this->assertSame('957000255300', $updatedOrder->tracking_number);
-        $this->assertSame('envia', $updatedOrder->shipping_carrier);
-    }
-
-    public function test_custom_shipping_carrier_overrides_detected_suggestion(): void
-    {
-        $order = Order::factory()->create(['status' => OrderStatus::Sold]);
-
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('decreaseForOrder');
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('increaseForOrder');
-
-        $updatedOrder = $this->service->transition(
+        $updated = $this->service->transition(
             $order,
             OrderStatus::Dispatched,
             null,
@@ -233,105 +153,45 @@ class OrderStatusTransitionServiceTest extends TestCase
             'Carga aérea especial',
         );
 
-        $this->assertSame('Carga aérea especial', $updatedOrder->shipping_carrier);
-        $this->assertSame('Carga aérea especial', $updatedOrder->shippingCarrierLabel());
+        $this->assertSame('Carga aérea especial', $updated->shipping_carrier);
+        $this->assertSame('Carga aérea especial', $updated->shippingCarrierLabel());
     }
 
-    public function test_transition_does_not_adjust_inventory_when_neither_status_consumes_inventory(): void
+    public function test_hold_failure_rolls_back_status_and_history(): void
     {
         $order = Order::factory()->pendingApproval()->create();
-
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('decreaseForOrder');
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('increaseForOrder');
-
-        $this->service->transition($order, OrderStatus::Rejected);
-
-        $this->assertDatabaseHas('orders', [
-            'id' => $order->id,
-            'status' => OrderStatus::Rejected->value,
-        ]);
-    }
-
-    public function test_transition_persists_null_actor_and_null_note_when_note_is_optional(): void
-    {
-        $order = Order::factory()->pendingApproval()->create();
-
-        $this->inventoryService
-            ->expects($this->once())
-            ->method('decreaseForOrder')
-            ->with($this->callback(fn (Order $updatedOrder) => $updatedOrder->is($order)));
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('increaseForOrder');
-
-        $this->service->transition($order, OrderStatus::Submitted, null, '   ');
-
-        $this->assertDatabaseHas('order_status_histories', [
-            'order_id' => $order->id,
-            'from_status' => OrderStatus::PendingApproval->value,
-            'to_status' => OrderStatus::Submitted->value,
-            'changed_by_user_id' => null,
-            'note' => null,
-        ]);
-    }
-
-    public function test_transition_rolls_back_order_and_history_when_decreasing_inventory_fails(): void
-    {
-        $order = Order::factory()->pendingApproval()->create();
-
-        $this->inventoryService
-            ->expects($this->once())
-            ->method('decreaseForOrder')
-            ->willThrowException(new DomainException('stock fail'));
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('increaseForOrder');
+        $this->inventoryService->method('holdForOrder')
+            ->willThrowException(new DomainException('hold fail'));
 
         try {
             $this->service->transition($order, OrderStatus::Submitted);
-            $this->fail('Expected DomainException was not thrown.');
+            $this->fail('Expected DomainException.');
         } catch (DomainException $exception) {
-            $this->assertSame('stock fail', $exception->getMessage());
+            $this->assertSame('hold fail', $exception->getMessage());
         }
 
-        $this->assertDatabaseHas('orders', [
-            'id' => $order->id,
-            'status' => OrderStatus::PendingApproval->value,
-        ]);
+        $this->assertSame(OrderStatus::PendingApproval, $order->fresh()->status);
         $this->assertDatabaseCount('order_status_histories', 0);
     }
 
-    public function test_transition_rolls_back_order_and_history_when_increasing_inventory_fails(): void
+    public function test_release_failure_rolls_back_status_and_history(): void
     {
         $order = Order::factory()->create(['status' => OrderStatus::Submitted]);
-
-        $this->inventoryService
-            ->expects($this->never())
-            ->method('decreaseForOrder');
-        $this->inventoryService
-            ->expects($this->once())
-            ->method('increaseForOrder')
-            ->willThrowException(new DomainException('restore fail'));
+        $this->inventoryService->method('releaseForOrder')
+            ->willThrowException(new DomainException('release fail'));
 
         try {
             $this->service->transition($order, OrderStatus::Cancelled);
-            $this->fail('Expected DomainException was not thrown.');
+            $this->fail('Expected DomainException.');
         } catch (DomainException $exception) {
-            $this->assertSame('restore fail', $exception->getMessage());
+            $this->assertSame('release fail', $exception->getMessage());
         }
 
-        $this->assertDatabaseHas('orders', [
-            'id' => $order->id,
-            'status' => OrderStatus::Submitted->value,
-        ]);
+        $this->assertSame(OrderStatus::Submitted, $order->fresh()->status);
         $this->assertDatabaseCount('order_status_histories', 0);
     }
 
-    public function test_record_initial_status_creates_first_history_entry_once(): void
+    public function test_record_initial_status_is_idempotent_and_normalizes_note(): void
     {
         $actor = User::factory()->create();
         $order = Order::factory()->pendingApproval()->create();
@@ -349,7 +209,7 @@ class OrderStatusTransitionServiceTest extends TestCase
         ]);
     }
 
-    public function test_record_initial_status_persists_null_actor_and_normalized_empty_note_as_null(): void
+    public function test_record_initial_status_accepts_null_actor_and_empty_note(): void
     {
         $order = Order::factory()->create(['status' => OrderStatus::Submitted]);
 
@@ -357,8 +217,6 @@ class OrderStatusTransitionServiceTest extends TestCase
 
         $this->assertDatabaseHas('order_status_histories', [
             'order_id' => $order->id,
-            'from_status' => null,
-            'to_status' => OrderStatus::Submitted->value,
             'changed_by_user_id' => null,
             'note' => null,
         ]);

@@ -100,6 +100,17 @@ enum OrderStatus: string
      */
     public static function inventoryConsuming(): array
     {
+        return [self::Submitted];
+    }
+
+    /**
+     * Statuses counted as completed commercial activity. This is intentionally
+     * separate from inventory HOLD ownership.
+     *
+     * @return array<int, self>
+     */
+    public static function commerciallyCounted(): array
+    {
         return [
             self::Submitted,
             self::Sold,

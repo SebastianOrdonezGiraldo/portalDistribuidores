@@ -5,11 +5,15 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Catalog\Models\Product;
+use App\Modules\Inventory\Services\ContaPymeInventoryService;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\OrderItem;
+use App\Modules\Orders\Services\OrderInventoryService;
 use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\OrderStatus;
+use App\Modules\Shared\ValueObjects\InventoryItemData;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Mockery\MockInterface;
 use Tests\TestCase;
 
 class AdminOrderShowTest extends TestCase
@@ -172,7 +176,9 @@ class AdminOrderShowTest extends TestCase
             'subtotal' => 252000,
         ]);
 
-        $this->assertEquals(1.0, (float) $product->fresh()->stock);
+        $product->refresh();
+        $this->assertEquals(5.0, (float) $product->stock);
+        $this->assertSame(1.0, $product->available_stock);
     }
 
     public function test_admin_can_remove_existing_item_and_add_new_product_on_submitted_order(): void
@@ -239,9 +245,9 @@ class AdminOrderShowTest extends TestCase
             'subtotal' => 144000,
         ]);
 
-        // El ítem anterior se devuelve a stock y el nuevo se descuenta.
-        $this->assertEquals(5.0, (float) $productA->fresh()->stock);
-        $this->assertEquals(2.0, (float) $productB->fresh()->stock);
+        // El stock base no cambia; el HOLD se mueve al nuevo producto.
+        $this->assertSame(5.0, $productA->fresh()->available_stock);
+        $this->assertSame(2.0, $productB->fresh()->available_stock);
     }
 
     public function test_admin_update_submitted_order_rolls_back_when_stock_is_insufficient(): void
@@ -288,13 +294,19 @@ class AdminOrderShowTest extends TestCase
             'subtotal' => $originalSubtotal,
         ]);
 
-        $this->assertEquals(0.0, (float) $product->fresh()->stock);
+        $this->assertSame(0.0, $product->fresh()->available_stock);
     }
 
     public function test_admin_can_transition_status_and_history_is_recorded(): void
     {
         $order = $this->createOrderWithItem();
         $admin = User::query()->findOrFail($order->user_id);
+        $this->mock(ContaPymeInventoryService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('getProductInfo')
+                ->once()
+                ->with('KIT-TEST-001')
+                ->andReturn(new InventoryItemData('KIT-TEST-001', stock: 8, externalId: 'KIT-TEST-001'));
+        });
 
         $this->actingAs($admin)
             ->patch(route('admin.orders.status', $order), [
@@ -336,7 +348,7 @@ class AdminOrderShowTest extends TestCase
         ]);
     }
 
-    public function test_admin_transition_from_pending_approval_to_submitted_decreases_stock(): void
+    public function test_admin_transition_from_pending_approval_to_submitted_creates_hold(): void
     {
         [$order, $product, $admin] = $this->createPendingApprovalOrderWithProductStock(5, 2);
 
@@ -350,7 +362,9 @@ class AdminOrderShowTest extends TestCase
             'id' => $order->id,
             'status' => OrderStatus::Submitted->value,
         ]);
-        $this->assertEquals(3.0, (float) $product->fresh()->stock);
+        $product->refresh();
+        $this->assertEquals(5.0, (float) $product->stock);
+        $this->assertSame(3.0, $product->available_stock);
     }
 
     public function test_admin_transition_from_pending_approval_to_submitted_fails_when_stock_is_insufficient(): void
@@ -372,7 +386,7 @@ class AdminOrderShowTest extends TestCase
         $this->assertEquals(1.0, (float) $product->fresh()->stock);
     }
 
-    public function test_admin_transition_from_submitted_to_cancelled_restores_stock(): void
+    public function test_admin_transition_from_submitted_to_cancelled_releases_hold(): void
     {
         [$order, $product, $admin] = $this->createSubmittedOrderWithProductStock(3, 2);
 
@@ -455,7 +469,7 @@ class AdminOrderShowTest extends TestCase
         ]);
         $product = Product::factory()->create([
             'price' => 60000,
-            'stock' => $stock,
+            'stock' => $stock + $qty,
             'is_active' => true,
         ]);
 
@@ -477,6 +491,8 @@ class AdminOrderShowTest extends TestCase
             'subtotal' => 60000 * $qty,
         ]);
 
+        app(OrderInventoryService::class)->holdForOrder($order);
+
         return [$order, $product, $admin];
     }
 
@@ -486,6 +502,12 @@ class AdminOrderShowTest extends TestCase
         $distributor = Distributor::create([
             'name' => 'Distribuidor Show Test',
             'status' => 'active',
+        ]);
+
+        $product = Product::factory()->create([
+            'sku' => 'KIT-TEST-001',
+            'stock' => 10,
+            'price' => 60000,
         ]);
 
         $order = Order::create([
@@ -507,7 +529,7 @@ class AdminOrderShowTest extends TestCase
 
         OrderItem::create([
             'order_id' => $order->id,
-            'product_id' => null,
+            'product_id' => $product->id,
             'product_name_snapshot' => 'Producto Show',
             'sku_snapshot' => 'KIT-TEST-001',
             'qty' => 2,
@@ -515,6 +537,8 @@ class AdminOrderShowTest extends TestCase
             'price_each' => 60000,
             'subtotal' => 120000,
         ]);
+
+        app(OrderInventoryService::class)->holdForOrder($order);
 
         return $order;
     }

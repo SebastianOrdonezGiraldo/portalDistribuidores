@@ -445,10 +445,11 @@ class ContaPymeInventoryService implements InventorySyncInterface
     }
 
     /**
-     * Persist portal stock from ContaPyme projected balance (disponible).
+     * Persist the unmodified ContaPyme balance as local base stock.
      *
-     * ContaPyme projected stock already nets undelivered orders; local order
-     * reservations are not subtracted again here.
+     * Local reservations live in reserved_stock/inventory_holds and are never
+     * folded into this value. The reservedStock argument remains only for source
+     * compatibility with older callers and is intentionally ignored.
      *
      * @return array{status:string, changed:bool, stock:float}
      */
@@ -458,16 +459,14 @@ class ContaPymeInventoryService implements InventorySyncInterface
         float $reservedStock = 0.0,
         string $syncStatus = 'synced',
     ): array {
-        $baseAvailableStock = round(max(0, $physicalStock - max(0, $reservedStock)), 2);
-        $expectedPreviousStock = is_numeric($product->stock) ? (float) $product->stock : null;
+        $baseStock = round(max(0, $physicalStock), 2);
         $previousStock = null;
-        $newStock = $baseAvailableStock;
+        $newStock = $baseStock;
         $changed = false;
 
         DB::transaction(function () use (
             $product,
-            $expectedPreviousStock,
-            $baseAvailableStock,
+            $baseStock,
             $syncStatus,
             &$previousStock,
             &$newStock,
@@ -480,12 +479,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
 
             $previousStock = is_numeric($lockedProduct->stock) ? (float) $lockedProduct->stock : null;
 
-            // An order can reserve or release stock after the bulk snapshot but before
-            // this row lock. Preserve that local delta instead of overwriting it.
-            $localStockDelta = $expectedPreviousStock !== null && $previousStock !== null
-                ? $previousStock - $expectedPreviousStock
-                : 0.0;
-            $newStock = round(max(0, $baseAvailableStock + $localStockDelta), 2);
+            $newStock = $baseStock;
             $changed = $previousStock === null || abs($previousStock - $newStock) > 0.00001;
 
             $lockedProduct->forceFill([

@@ -5,6 +5,7 @@ namespace App\Modules\Orders\Jobs;
 use App\Modules\Orders\Mail\OrderCreatedCustomerQuotationMail;
 use App\Modules\Orders\Mail\OrderCreatedNotificationMail;
 use App\Modules\Orders\Models\Order;
+use App\Modules\Orders\Services\OrderAdvisorResolver;
 use App\Modules\Orders\Services\OrderPdfGenerator;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -46,8 +47,10 @@ class SendOrderNotificationEmailJob implements ShouldQueue
     /**
      * Ensure the PDF exists, load it once and send both notification emails.
      */
-    public function handle(OrderPdfGenerator $pdfGenerator): void
-    {
+    public function handle(
+        OrderPdfGenerator $pdfGenerator,
+        OrderAdvisorResolver $advisorResolver,
+    ): void {
         $order = Order::query()->with(['items', 'distributor', 'user'])->find($this->orderId);
         $disk = Storage::disk(OrderPdfGenerator::diskName());
 
@@ -80,7 +83,7 @@ class SendOrderNotificationEmailJob implements ShouldQueue
         $internalFailed = null;
 
         try {
-            $this->sendInternalNotification($order, $pdfContents);
+            $this->sendInternalNotification($order, $pdfContents, $advisorResolver);
         } catch (\Throwable $exception) {
             $internalFailed = $exception;
             Log::error('order.email.internal.failed', [
@@ -115,11 +118,14 @@ class SendOrderNotificationEmailJob implements ShouldQueue
     /**
      * Send the configured internal sales/operations notification.
      */
-    private function sendInternalNotification(Order $order, string $pdfContents): void
-    {
-        $recipient = trim((string) config('mail.order_notification_to'));
+    private function sendInternalNotification(
+        Order $order,
+        string $pdfContents,
+        OrderAdvisorResolver $advisorResolver,
+    ): void {
+        $recipient = $advisorResolver->notificationEmail($order);
 
-        if ($recipient === '') {
+        if ($recipient === null) {
             Log::warning('order.email.internal.skipped.no_recipient', [
                 'order_id' => $order->id,
                 'oc_number' => $order->oc_number,

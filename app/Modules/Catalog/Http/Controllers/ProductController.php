@@ -388,7 +388,7 @@ class ProductController extends Controller
      */
     private function buildCommercialSnapshot(Product $product): array
     {
-        $stockRaw = data_get($product, 'stock');
+        $stockRaw = $product->available_stock;
         $stock = is_numeric($stockRaw) ? max(0, (float) $stockRaw) : null;
 
         $minMultipleRaw = data_get($product, 'min_multiple')

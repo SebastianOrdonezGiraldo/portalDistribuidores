@@ -45,6 +45,7 @@ class CreateOrderFeatureTest extends TestCase
             'description' => 'Producto test',
             'category_id' => $category->id,
             'price' => 10000,
+            'stock' => 10,
             'is_active' => true,
         ]);
 
@@ -68,6 +69,15 @@ class CreateOrderFeatureTest extends TestCase
         $response->assertRedirect(route('orders.submitted', ['order' => $order]));
         $this->assertDatabaseCount('orders', 1);
         $this->assertDatabaseCount('order_items', 1);
+        $this->assertDatabaseHas('inventory_holds', [
+            'order_id' => $order->id,
+            'product_id' => $product->id,
+            'quantity' => 2,
+            'status' => 'active',
+        ]);
+        $product->refresh();
+        $this->assertSame(10.0, (float) $product->stock);
+        $this->assertSame(8.0, $product->available_stock);
         $this->assertDatabaseHas('orders', [
             'contact_name' => 'Comprador Test',
             'company_name' => 'Empresa Test',
