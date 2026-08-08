@@ -4,8 +4,8 @@ namespace App\Modules\Admin\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Modules\Admin\Http\Requests\UpdateCommerceTierAdvisorsRequest;
 use App\Modules\Admin\Http\Requests\UpdateCommerceSettingsRequest;
+use App\Modules\Admin\Http\Requests\UpdateCommerceTierAdvisorsRequest;
 use App\Modules\Orders\Models\CommercePricingRule;
 use App\Modules\Orders\Pricing\CommercePricingRulesProvider;
 use App\Modules\Orders\Pricing\CommercePricingRulesService;
@@ -21,8 +21,7 @@ class CommerceSettingsAdminController extends Controller
     public function edit(
         CommercePricingRulesProvider $provider,
         CommerceTierAdvisorProvider $advisorProvider,
-    ): View
-    {
+    ): View {
         $current = $provider->current();
         $calculator = new DistributorPriceCalculator($current);
         $exampleGoldCents = 10_000_000; // $100.000

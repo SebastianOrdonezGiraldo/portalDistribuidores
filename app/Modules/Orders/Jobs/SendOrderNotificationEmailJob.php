@@ -5,8 +5,8 @@ namespace App\Modules\Orders\Jobs;
 use App\Modules\Orders\Mail\OrderCreatedCustomerQuotationMail;
 use App\Modules\Orders\Mail\OrderCreatedNotificationMail;
 use App\Modules\Orders\Models\Order;
-use App\Modules\Orders\Services\OrderPdfGenerator;
 use App\Modules\Orders\Services\OrderAdvisorResolver;
+use App\Modules\Orders\Services\OrderPdfGenerator;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -50,8 +50,7 @@ class SendOrderNotificationEmailJob implements ShouldQueue
     public function handle(
         OrderPdfGenerator $pdfGenerator,
         OrderAdvisorResolver $advisorResolver,
-    ): void
-    {
+    ): void {
         $order = Order::query()->with(['items', 'distributor', 'user'])->find($this->orderId);
         $disk = Storage::disk(OrderPdfGenerator::diskName());
 
@@ -123,8 +122,7 @@ class SendOrderNotificationEmailJob implements ShouldQueue
         Order $order,
         string $pdfContents,
         OrderAdvisorResolver $advisorResolver,
-    ): void
-    {
+    ): void {
         $recipient = $advisorResolver->notificationEmail($order);
 
         if ($recipient === null) {

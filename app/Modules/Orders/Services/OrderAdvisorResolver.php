@@ -2,6 +2,7 @@
 
 namespace App\Modules\Orders\Services;
 
+use App\Models\User;
 use App\Modules\Orders\DTOs\TierAdvisorData;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Shared\Enums\DistributorTier;
@@ -12,7 +13,7 @@ final class OrderAdvisorResolver
         private readonly CommerceTierAdvisorProvider $provider,
     ) {}
 
-    public function forUser(?\App\Models\User $user): ?TierAdvisorData
+    public function forUser(?User $user): ?TierAdvisorData
     {
         return $this->provider->forUser($user);
     }

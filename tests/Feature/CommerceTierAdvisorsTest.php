@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Orders\Models\CommercePricingRule;
-use App\Modules\Orders\Models\CommerceTierAdvisor;
 use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\UserRole;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;

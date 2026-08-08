@@ -76,9 +76,9 @@ final class CommerceTierAdvisorProvider
             return CommerceTierAdvisor::query()
                 ->get(['tier', 'advisor_name', 'advisor_email', 'advisor_whatsapp'])
                 ->mapWithKeys(function (CommerceTierAdvisor $advisor): array {
-                    $tier = $advisor->tier;
+                    $tier = DistributorTier::tryFrom((string) $advisor->getRawOriginal('tier'));
 
-                    if (! $tier instanceof DistributorTier) {
+                    if ($tier === null) {
                         return [];
                     }
 

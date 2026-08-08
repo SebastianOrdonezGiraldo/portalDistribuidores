@@ -9,7 +9,6 @@ use App\Modules\Orders\Actions\CreateOrderAction;
 use App\Modules\Orders\DTOs\CreateOrderData;
 use App\Modules\Orders\Events\OrderPlaced;
 use App\Modules\Orders\Models\CommerceTierAdvisor;
-use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Pricing\DistributorTierResolver;
 use App\Modules\Orders\Pricing\OrderPricingCalculator;
 use App\Modules\Orders\Pricing\OrderPricingSnapshotMapper;
