@@ -4,18 +4,24 @@ namespace App\Modules\Admin\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Modules\Admin\Http\Requests\UpdateCommerceTierAdvisorsRequest;
 use App\Modules\Admin\Http\Requests\UpdateCommerceSettingsRequest;
 use App\Modules\Orders\Models\CommercePricingRule;
 use App\Modules\Orders\Pricing\CommercePricingRulesProvider;
 use App\Modules\Orders\Pricing\CommercePricingRulesService;
 use App\Modules\Orders\Pricing\DistributorPriceCalculator;
+use App\Modules\Orders\Services\CommerceTierAdvisorProvider;
+use App\Modules\Orders\Services\CommerceTierAdvisorService;
 use App\Modules\Shared\Enums\DistributorTier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
 class CommerceSettingsAdminController extends Controller
 {
-    public function edit(CommercePricingRulesProvider $provider): View
+    public function edit(
+        CommercePricingRulesProvider $provider,
+        CommerceTierAdvisorProvider $advisorProvider,
+    ): View
     {
         $current = $provider->current();
         $calculator = new DistributorPriceCalculator($current);
@@ -36,6 +42,7 @@ class CommerceSettingsAdminController extends Controller
             'exampleSilverBeforeRounding' => $this->unroundedSilverDisplay($exampleGoldCents, $current->silverMarkupBasisPoints),
             'exampleSilverFinal' => $exampleSilver->silverPriceDecimal(),
             'exampleDifference' => $exampleSilver->unitSavingsDecimal(),
+            'advisors' => $advisorProvider->all(),
         ]);
     }
 
@@ -66,6 +73,19 @@ class CommerceSettingsAdminController extends Controller
         return redirect()
             ->route('admin.settings.commerce.edit')
             ->with('status', $message);
+    }
+
+    public function updateAdvisors(
+        UpdateCommerceTierAdvisorsRequest $request,
+        CommerceTierAdvisorService $service,
+    ): RedirectResponse {
+        /** @var array<string, array{advisor_name:string,advisor_email:string,advisor_whatsapp:string}> $advisors */
+        $advisors = $request->validated('advisors');
+        $service->update($advisors);
+
+        return redirect()
+            ->route('admin.settings.commerce.edit')
+            ->with('status', 'Asesores comerciales actualizados correctamente.');
     }
 
     /**

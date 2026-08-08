@@ -4,6 +4,7 @@ namespace App\Modules\Catalog\Models;
 
 use App\Modules\Categories\Models\Category;
 use App\Modules\Inventory\Models\ContaPymeInventoryMapping;
+use App\Modules\Inventory\Models\InventoryHold;
 use App\Modules\Orders\Models\CartItem;
 use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Shared\Support\TextNormalizer;
@@ -34,6 +35,9 @@ use Illuminate\Support\Facades\DB;
  * @property int $active_variants_count
  * @property CarbonInterface|null $stock_synced_at
  * @property string|null $stock_sync_status
+ * @property string|null $stock
+ * @property string $reserved_stock
+ * @property float|null $available_stock
  */
 class Product extends Model
 {
@@ -53,6 +57,7 @@ class Product extends Model
         'variant_attribute_id',
         'price',
         'stock',
+        'reserved_stock',
         'stock_synced_at',
         'stock_sync_status',
         'is_active',
@@ -70,6 +75,7 @@ class Product extends Model
             'is_vat_excluded' => 'boolean',
             'price' => 'decimal:2',
             'stock' => 'decimal:2',
+            'reserved_stock' => 'decimal:2',
             'stock_synced_at' => 'datetime',
         ];
     }
@@ -120,6 +126,21 @@ class Product extends Model
     public function orderItems(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    /** @return HasMany<InventoryHold, $this> */
+    public function inventoryHolds(): HasMany
+    {
+        return $this->hasMany(InventoryHold::class);
+    }
+
+    public function getAvailableStockAttribute(): ?float
+    {
+        if (! is_numeric($this->stock)) {
+            return null;
+        }
+
+        return round(max(0, (float) $this->stock - (float) ($this->reserved_stock ?? 0)), 2);
     }
 
     /** @return HasMany<CartItem, $this> */

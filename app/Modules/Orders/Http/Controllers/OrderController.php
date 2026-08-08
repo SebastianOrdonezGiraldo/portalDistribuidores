@@ -10,6 +10,7 @@ use App\Modules\Orders\DTOs\CreateOrderData;
 use App\Modules\Orders\Http\Requests\StoreOrderRequest;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\Cart\CartService;
+use App\Modules\Orders\Services\OrderAdvisorResolver;
 use App\Modules\Orders\Services\OrderPdfGenerator;
 use App\Modules\Orders\Services\Payment\OrderPaymentService;
 use App\Modules\Orders\Services\Payment\PaymentReceiptUploadService;
@@ -137,7 +138,7 @@ class OrderController extends Controller
      * @response 302 {"redirect":"login"}
      * @response 403 {"message":"No autorizado"}
      */
-    public function submitted(Order $order): View|RedirectResponse
+    public function submitted(Order $order, OrderAdvisorResolver $advisorResolver): View|RedirectResponse
     {
         if (! $this->canAccessOrder($order)) {
             return $this->unauthorizedOrderAccessResponse();
@@ -145,7 +146,11 @@ class OrderController extends Controller
 
         $order->loadMissing('items');
 
-        return view('orders.submitted', ['order' => $order]);
+        return view('orders.submitted', [
+            'order' => $order,
+            'advisorSnapshot' => $advisorResolver->snapshotFor($order),
+            'currentOrderAdvisor' => $advisorResolver->currentForOrder($order),
+        ]);
     }
 
     /**
@@ -161,7 +166,7 @@ class OrderController extends Controller
      * @response 302 {"redirect":"login"}
      * @response 403 {"message":"No autorizado"}
      */
-    public function show(Order $order): View|RedirectResponse
+    public function show(Order $order, OrderAdvisorResolver $advisorResolver): View|RedirectResponse
     {
         if (! $this->canAccessOrder($order)) {
             return $this->unauthorizedOrderAccessResponse();
@@ -188,6 +193,8 @@ class OrderController extends Controller
             'paymentUploadUrl' => $paymentUploadUrl,
             'paymentUploadToken' => $paymentUploadToken,
             'receiptMaxSizeLabel' => ProductUploadLimits::photoMaxSizeLabel(),
+            'advisorSnapshot' => $advisorResolver->snapshotFor($order),
+            'currentOrderAdvisor' => $advisorResolver->currentForOrder($order),
         ]);
     }
 

@@ -85,10 +85,6 @@ class UpdateOrderAction
 
             $statusConsumesInventory = $this->statusConsumesInventory($lockedOrder->status);
 
-            if ($statusConsumesInventory) {
-                $this->orderInventoryService->increaseForOrder($lockedOrder);
-            }
-
             $lockedOrder->items()->delete();
 
             foreach ($preparedItems as $itemData) {
@@ -124,7 +120,7 @@ class UpdateOrderAction
             ]);
 
             if ($statusConsumesInventory) {
-                $this->orderInventoryService->decreaseForOrder($lockedOrder);
+                $this->orderInventoryService->adjustForEditedOrder($lockedOrder, $actor);
             }
 
             return $lockedOrder->refresh();
@@ -492,6 +488,6 @@ class UpdateOrderAction
 
     private function statusConsumesInventory(OrderStatus $status): bool
     {
-        return in_array($status, OrderStatus::inventoryConsuming(), true);
+        return $status === OrderStatus::Submitted;
     }
 }

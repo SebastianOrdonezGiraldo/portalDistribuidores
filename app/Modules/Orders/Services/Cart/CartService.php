@@ -598,10 +598,10 @@ class CartService
     private function resolveStockLimit(?Product $product, ?ProductVariant $variant): ?int
     {
         if ($variant instanceof ProductVariant) {
-            return $this->normalizeStockLimit($variant->stock);
+            return $this->normalizeStockLimit($variant->available_stock);
         }
 
-        return $this->normalizeStockLimit($product?->stock);
+        return $this->normalizeStockLimit($product?->available_stock);
     }
 
     /**

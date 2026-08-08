@@ -12,6 +12,8 @@ use App\Modules\Orders\Pricing\DistributorTierResolver;
 use App\Modules\Orders\Pricing\OrderPricingCalculator;
 use App\Modules\Orders\Pricing\OrderPricingSnapshotMapper;
 use App\Modules\Orders\Pricing\TierPrice;
+use App\Modules\Orders\Services\CommerceTierAdvisorProvider;
+use App\Modules\Orders\Services\OrderAdvisorResolver;
 use App\Modules\Orders\Services\OrderInventoryService;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Orders\Services\Payment\OrderPaymentService;
@@ -29,7 +31,7 @@ use Illuminate\Support\Str;
  * This action owns the order transaction: it resolves active products/variants,
  * prices each line once through OrderPricingCalculator, snapshots line data
  * (including tier pricing and commercial rule decisions), assigns the final OC
- * number, decreases stock for submitted orders and dispatches OrderPlaced only
+ * number, creates local HOLDs for submitted orders and dispatches OrderPlaced only
  * when no internal approval is pending.
  */
 class CreateOrderAction
@@ -41,6 +43,8 @@ class CreateOrderAction
         private readonly OrderPricingCalculator $orderPricingCalculator,
         private readonly OrderPaymentService $orderPaymentService,
         private readonly OrderPricingSnapshotMapper $snapshotMapper,
+        private readonly CommerceTierAdvisorProvider $advisorProvider,
+        private readonly OrderAdvisorResolver $orderAdvisorResolver,
     ) {}
 
     /**
@@ -84,6 +88,13 @@ class CreateOrderAction
 
         $pricing = $this->orderPricingCalculator->calculate($distributorTier, $calculatorInput);
 
+        // Pricing fallback and advisor identity are intentionally independent.
+        // Guests/admins can be priced as Plata without having a real distributor tier.
+        $advisorTier = $user?->isDistributor() ? $user->distributor?->tier : null;
+        $advisor = $advisorTier !== null
+            ? $this->advisorProvider->forTier($advisorTier)
+            : null;
+
         if ($pricing->effectiveTotalCents <= 0) {
             throw new DomainException('El carrito no puede generar una orden vacía.');
         }
@@ -102,7 +113,7 @@ class CreateOrderAction
             throw new DomainException('Selecciona un método de pago para continuar.');
         }
 
-        $order = DB::transaction(function () use ($user, $data, $pricing, $pricingTier) {
+        $order = DB::transaction(function () use ($user, $data, $pricing, $pricingTier, $advisor) {
             $status = $data->requiresApproval
                 ? OrderStatus::PendingApproval
                 : OrderStatus::Submitted;
@@ -132,7 +143,7 @@ class CreateOrderAction
                 'payment_reservation_expires_at' => $reservationExpiresAt,
                 'distributor_tier_snapshot' => $pricingTier,
                 'total_amount' => 0,
-            ], $this->snapshotMapper->headerAttributes($pricing)));
+            ], $this->snapshotMapper->headerAttributes($pricing), $this->orderAdvisorResolver->snapshotAttributes($advisor)));
 
             foreach ($pricing->lines as $line) {
                 $order->items()->create(array_merge([
@@ -153,7 +164,7 @@ class CreateOrderAction
             ]);
 
             if ($status === OrderStatus::Submitted) {
-                $this->orderInventoryService->decreaseForOrder($order);
+                $this->orderInventoryService->holdForOrder($order, $user, 'checkout_submitted');
             }
 
             return $order->refresh();

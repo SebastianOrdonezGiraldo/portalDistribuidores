@@ -17,6 +17,8 @@ use App\Modules\Orders\Pricing\DistributorTierResolver;
 use App\Modules\Orders\Pricing\OrderPricingCalculator;
 use App\Modules\Orders\Pricing\OrderPricingSnapshotMapper;
 use App\Modules\Orders\Services\OrderInventoryService;
+use App\Modules\Orders\Services\CommerceTierAdvisorProvider;
+use App\Modules\Orders\Services\OrderAdvisorResolver;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Orders\Services\Payment\OrderPaymentService;
 use App\Modules\Shared\Enums\DistributorTier;
@@ -59,8 +61,12 @@ class CreateOrderActionTest extends TestCase
 
         $inventoryService = $this->createMock(OrderInventoryService::class);
         $inventoryService->expects($this->once())
-            ->method('decreaseForOrder')
-            ->with($this->callback(fn (Order $order) => $order->status === OrderStatus::Submitted));
+            ->method('holdForOrder')
+            ->with(
+                $this->callback(fn (Order $order) => $order->status === OrderStatus::Submitted),
+                $this->anything(),
+                'checkout_submitted',
+            );
 
         $action = $this->makeAction($statusService, $inventoryService);
 
@@ -105,7 +111,7 @@ class CreateOrderActionTest extends TestCase
         $statusService->expects($this->once())->method('recordInitialStatus');
 
         $inventoryService = $this->createMock(OrderInventoryService::class);
-        $inventoryService->expects($this->once())->method('decreaseForOrder');
+        $inventoryService->expects($this->once())->method('holdForOrder');
 
         $action = $this->makeAction($statusService, $inventoryService);
 
@@ -142,7 +148,7 @@ class CreateOrderActionTest extends TestCase
             );
 
         $inventoryService = $this->createMock(OrderInventoryService::class);
-        $inventoryService->expects($this->never())->method('decreaseForOrder');
+        $inventoryService->expects($this->never())->method('holdForOrder');
 
         $action = $this->makeAction($statusService, $inventoryService);
 
@@ -179,7 +185,7 @@ class CreateOrderActionTest extends TestCase
         $statusService->expects($this->once())->method('recordInitialStatus');
 
         $inventoryService = $this->createMock(OrderInventoryService::class);
-        $inventoryService->expects($this->once())->method('decreaseForOrder');
+        $inventoryService->expects($this->once())->method('holdForOrder');
 
         $action = $this->makeAction($statusService, $inventoryService);
 
@@ -229,7 +235,7 @@ class CreateOrderActionTest extends TestCase
         $statusService->expects($this->once())->method('recordInitialStatus');
 
         $inventoryService = $this->createMock(OrderInventoryService::class);
-        $inventoryService->expects($this->once())->method('decreaseForOrder');
+        $inventoryService->expects($this->once())->method('holdForOrder');
 
         $action = $this->makeAction($statusService, $inventoryService);
 
@@ -268,7 +274,7 @@ class CreateOrderActionTest extends TestCase
         $statusService->expects($this->never())->method('recordInitialStatus');
 
         $inventoryService = $this->createMock(OrderInventoryService::class);
-        $inventoryService->expects($this->never())->method('decreaseForOrder');
+        $inventoryService->expects($this->never())->method('holdForOrder');
 
         $action = $this->makeAction($statusService, $inventoryService);
 
@@ -295,7 +301,7 @@ class CreateOrderActionTest extends TestCase
 
         $inventoryService = $this->createMock(OrderInventoryService::class);
         $inventoryService->expects($this->once())
-            ->method('decreaseForOrder')
+            ->method('holdForOrder')
             ->willThrowException(new DomainException('stock error'));
 
         $action = $this->makeAction($statusService, $inventoryService);
@@ -324,7 +330,7 @@ class CreateOrderActionTest extends TestCase
         $statusService = $this->createMock(OrderStatusTransitionService::class);
         $statusService->expects($this->once())->method('recordInitialStatus');
         $inventoryService = $this->createMock(OrderInventoryService::class);
-        $inventoryService->expects($this->once())->method('decreaseForOrder');
+        $inventoryService->expects($this->once())->method('holdForOrder');
 
         $order = $this->makeAction($statusService, $inventoryService)->execute($user, $this->makeOrderData([
             ['product_id' => $product->id, 'variant_id' => null, 'qty' => 1, 'unit_label' => 'unidades'],
@@ -366,7 +372,7 @@ class CreateOrderActionTest extends TestCase
         $statusService = $this->createMock(OrderStatusTransitionService::class);
         $statusService->expects($this->once())->method('recordInitialStatus');
         $inventoryService = $this->createMock(OrderInventoryService::class);
-        $inventoryService->expects($this->once())->method('decreaseForOrder');
+        $inventoryService->expects($this->once())->method('holdForOrder');
 
         $order = $this->makeAction($statusService, $inventoryService)->execute($user, $this->makeOrderData([
             ['product_id' => $product->id, 'variant_id' => null, 'qty' => 7, 'unit_label' => 'unidades'],
@@ -408,7 +414,7 @@ class CreateOrderActionTest extends TestCase
         $statusService = $this->createMock(OrderStatusTransitionService::class);
         $statusService->expects($this->once())->method('recordInitialStatus');
         $inventoryService = $this->createMock(OrderInventoryService::class);
-        $inventoryService->expects($this->once())->method('decreaseForOrder');
+        $inventoryService->expects($this->once())->method('holdForOrder');
 
         $order = $this->makeAction($statusService, $inventoryService)->execute($user, $this->makeOrderData([
             ['product_id' => $product->id, 'variant_id' => null, 'qty' => 1, 'unit_label' => 'unidades'],
@@ -439,7 +445,7 @@ class CreateOrderActionTest extends TestCase
         $statusService = $this->createMock(OrderStatusTransitionService::class);
         $statusService->expects($this->once())->method('recordInitialStatus');
         $inventoryService = $this->createMock(OrderInventoryService::class);
-        $inventoryService->expects($this->once())->method('decreaseForOrder');
+        $inventoryService->expects($this->once())->method('holdForOrder');
 
         $order = $this->makeAction($statusService, $inventoryService)->execute($user, $this->makeOrderData([
             ['product_id' => $product->id, 'variant_id' => null, 'qty' => 2, 'unit_label' => 'unidades'],
@@ -469,7 +475,7 @@ class CreateOrderActionTest extends TestCase
         $statusService = $this->createMock(OrderStatusTransitionService::class);
         $statusService->expects($this->once())->method('recordInitialStatus');
         $inventoryService = $this->createMock(OrderInventoryService::class);
-        $inventoryService->expects($this->once())->method('decreaseForOrder');
+        $inventoryService->expects($this->once())->method('holdForOrder');
 
         $order = $this->makeAction($statusService, $inventoryService)->execute($user, $this->makeOrderData([
             ['product_id' => $product->id, 'variant_id' => null, 'qty' => 1, 'unit_label' => 'unidades'],
@@ -502,6 +508,8 @@ class CreateOrderActionTest extends TestCase
             app(OrderPricingCalculator::class),
             app(OrderPaymentService::class),
             app(OrderPricingSnapshotMapper::class),
+            app(CommerceTierAdvisorProvider::class),
+            app(OrderAdvisorResolver::class),
         );
     }
 

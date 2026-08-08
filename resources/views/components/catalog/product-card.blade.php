@@ -35,7 +35,7 @@ Component contract:
     $coverPhotoSrcset = null;
     $coverPhotoSizes = '(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, 50vw';
     $isLcpImage = (bool) $isLcpCandidate;
-    $hasStock = is_numeric($product->stock ?? null) && (float) $product->stock > 0;
+    $hasStock = is_numeric($product->available_stock) && (float) $product->available_stock > 0;
     $stockLabel = $hasStock ? 'En stock' : 'Agotado';
     $stockLabelClasses = $hasStock ? 'text-emerald-700' : 'text-red-700';
     $isCurrentlyNew = $product->isCurrentlyNew();

@@ -108,7 +108,7 @@ final class DistributorTierMetricsService
             ->whereBetween('created_at', [$from, $to])
             ->whereIn('status', array_map(
                 static fn (OrderStatus $status) => $status->value,
-                OrderStatus::inventoryConsuming(),
+                OrderStatus::commerciallyCounted(),
             ));
     }
 }

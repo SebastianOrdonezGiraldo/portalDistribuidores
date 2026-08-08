@@ -8,6 +8,7 @@ use App\Modules\Catalog\Models\Product;
 use App\Modules\Orders\Mail\PaymentReceiptAdminMail;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\PaymentUploadToken;
+use App\Modules\Orders\Services\OrderInventoryService;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Orders\Services\Payment\OrderPaymentService;
 use App\Modules\Orders\Services\Payment\PaymentReceiptUploadService;
@@ -175,7 +176,7 @@ class ManualPaymentFlowTest extends TestCase
         ]))->assertNotFound();
     }
 
-    public function test_admin_validate_payment_sets_validated_and_sold(): void
+    public function test_admin_validate_payment_keeps_submitted_order_and_active_hold(): void
     {
         Queue::fake();
         $admin = User::factory()->admin()->create();
@@ -186,6 +187,17 @@ class ManualPaymentFlowTest extends TestCase
             'payment_receipt_path' => 'orders/payment-receipts/1/file.jpg',
             'payment_receipt_uploaded_at' => now(),
         ]);
+        $product = Product::factory()->create(['stock' => 10]);
+        $order->items()->create([
+            'product_id' => $product->id,
+            'product_name_snapshot' => $product->name,
+            'sku_snapshot' => $product->sku,
+            'qty' => 2,
+            'unit_label' => 'unidades',
+            'price_each' => 5000,
+            'subtotal' => 10000,
+        ]);
+        app(OrderInventoryService::class)->holdForOrder($order);
 
         $this->actingAs($admin)
             ->post(route('admin.orders.payment.validate', $order))
@@ -193,7 +205,9 @@ class ManualPaymentFlowTest extends TestCase
 
         $order->refresh();
         $this->assertSame(PaymentStatus::Validated, $order->payment_status);
-        $this->assertSame(OrderStatus::Sold, $order->status);
+        $this->assertSame(OrderStatus::Submitted, $order->status);
+        $this->assertSame(2.0, (float) $product->fresh()->reserved_stock);
+        $this->assertTrue($order->activeInventoryHolds()->exists());
     }
 
     public function test_cannot_dispatch_while_payment_pending(): void
@@ -240,8 +254,7 @@ class ManualPaymentFlowTest extends TestCase
             'is_vat_excluded_snapshot' => false,
         ]);
 
-        // Simulate prior stock decrease (stock already reduced at create in real flow).
-        $product->forceFill(['stock' => 8])->save();
+        app(OrderInventoryService::class)->holdForOrder($order);
 
         $service = app(OrderPaymentService::class);
         $this->assertTrue($service->expirePendingUpload($order));
@@ -251,6 +264,7 @@ class ManualPaymentFlowTest extends TestCase
         $this->assertSame(PaymentStatus::Expired, $order->payment_status);
         $this->assertSame(OrderStatus::Cancelled, $order->status);
         $this->assertSame(10.0, (float) $product->stock);
+        $this->assertSame(0.0, (float) $product->reserved_stock);
 
         $this->assertFalse($service->expirePendingUpload($order->fresh()));
     }

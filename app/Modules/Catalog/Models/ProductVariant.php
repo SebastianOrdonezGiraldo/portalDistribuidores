@@ -3,6 +3,7 @@
 namespace App\Modules\Catalog\Models;
 
 use App\Modules\Inventory\Models\ContaPymeInventoryMapping;
+use App\Modules\Inventory\Models\InventoryHold;
 use App\Modules\Orders\Models\CartItem;
 use App\Modules\Orders\Models\OrderItem;
 use Database\Factories\ProductVariantFactory;
@@ -28,6 +29,7 @@ class ProductVariant extends Model
         'product_attribute_value_id',
         'price',
         'stock',
+        'reserved_stock',
         'stock_synced_at',
         'stock_sync_status',
         'is_active',
@@ -39,6 +41,7 @@ class ProductVariant extends Model
         return [
             'price' => 'decimal:2',
             'stock' => 'decimal:2',
+            'reserved_stock' => 'decimal:2',
             'stock_synced_at' => 'datetime',
             'is_active' => 'boolean',
         ];
@@ -60,6 +63,21 @@ class ProductVariant extends Model
     public function orderItems(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    /** @return HasMany<InventoryHold, $this> */
+    public function inventoryHolds(): HasMany
+    {
+        return $this->hasMany(InventoryHold::class, 'product_variant_id');
+    }
+
+    public function getAvailableStockAttribute(): ?float
+    {
+        if (! is_numeric($this->stock)) {
+            return null;
+        }
+
+        return round(max(0, (float) $this->stock - (float) ($this->reserved_stock ?? 0)), 2);
     }
 
     /** @return HasMany<CartItem, $this> */

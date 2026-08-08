@@ -24,6 +24,8 @@ use App\Modules\Orders\Pricing\CommercePricingRulesProvider;
 use App\Modules\Orders\Pricing\DistributorPriceCalculator;
 use App\Modules\Orders\Pricing\DistributorTierResolver;
 use App\Modules\Orders\Services\Cart\CartService;
+use App\Modules\Orders\Services\CommerceTierAdvisorProvider;
+use App\Modules\Orders\Support\AdvisorWhatsappNormalizer;
 use App\Modules\Shared\Contracts\InventorySyncInterface;
 use App\Modules\Shared\Contracts\SearchEngineInterface;
 use App\Modules\Shared\Enums\OrderStatus;
@@ -172,6 +174,8 @@ class AppServiceProvider extends ServiceProvider
                 'headerQuickCategories' => $headerQuickCategories,
                 'pendingApprovalCount' => $pendingApprovalCount,
                 'distributorTier' => app(DistributorTierResolver::class)->resolve(auth()->user()),
+                'currentAdvisor' => app(CommerceTierAdvisorProvider::class)->forUser(auth()->user()),
+                ...$this->supportContactData(),
             ]);
         });
 
@@ -189,8 +193,29 @@ class AppServiceProvider extends ServiceProvider
                 $authBanners = collect();
             }
 
-            $view->with('authBanners', $authBanners);
+            $view->with([
+                'authBanners' => $authBanners,
+                ...$this->supportContactData(),
+            ]);
         });
+    }
+
+    /**
+     * General support remains the safe contact for guests and incomplete advisor configuration.
+     *
+     * @return array{supportWhatsappNumber:string|null,supportWhatsappUrl:string|null,supportPhone:string|null}
+     */
+    private function supportContactData(): array
+    {
+        $number = AdvisorWhatsappNormalizer::normalize((string) config('commerce.support.whatsapp_number'));
+
+        return [
+            'supportWhatsappNumber' => $number,
+            'supportWhatsappUrl' => $number === null
+                ? null
+                : 'https://wa.me/'.$number.'?text='.rawurlencode('Hola, vengo desde el portal.'),
+            'supportPhone' => $number === null ? null : '+'.$number,
+        ];
     }
 
     /**

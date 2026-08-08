@@ -3,8 +3,8 @@
 ## Proposito
 
 Registra movimientos de stock y conserva el adaptador de sincronizacion externa
-por contrato. ContaPyme es la fuente del stock disponible (proyectado); el portal
-conserva la disponibilidad local rapida en `products.stock` y nunca consulta
+por contrato. ContaPyme es la fuente del stock base sincronizado (proyectado); el portal
+calcula la disponibilidad local como `stock - reserved_stock` y nunca consulta
 ContaPyme durante una visita publica.
 
 ## Responsabilidades
@@ -24,7 +24,7 @@ ContaPyme durante una visita publica.
 ## No debe contener
 
 - El formulario administrativo de stock; eso vive en Catalog/Admin.
-- Descuentos/restauraciones por pedidos; eso vive en Orders.
+- HOLDs y reconciliacion de pedidos; eso vive en Orders.
 - Reglas de carrito o checkout.
 - Integraciones retiradas tratadas como activas.
 
@@ -38,16 +38,16 @@ ContaPyme durante una visita publica.
 ## Colabora con
 
 - `Catalog`: productos que exponen stock.
-- `Orders`: deducciones/restauraciones registradas como movimientos.
+- `Orders`: HOLDs locales y reconciliacion de ventas.
 - `Shared`: `InventorySyncInterface` e `InventoryItemData`.
 
 ## Notas actuales
 
-- Match: `products.sku` = ContaPyme `irecurso`. No se usa
-  `contapyme_inventory_mappings` en el sync.
+- Match full: `products.sku` = ContaPyme `irecurso`. La reconciliacion puntual
+  de variantes exige un `contapyme_inventory_mappings.irecurso` validado.
 - El sync usa inventario **proyectado** de ContaPyme (`qinvproyectado`), que
-  corresponde al disponible (contable menos pedidos sin entregar). El sync no
-  vuelve a restar reservas del portal.
+  se persiste sin descuentos locales en `stock`. Los HOLDs permanecen separados
+  en `reserved_stock`/`inventory_holds` y siempre se restan al mostrar disponibilidad.
 - El sync no filtra por bodega: suma el saldo proyectado de todas las filas
   devueltas.
 - Flujo full: `GetAuth` → `GetSaldosProductosEnBodegas` (proyectado) → por cada

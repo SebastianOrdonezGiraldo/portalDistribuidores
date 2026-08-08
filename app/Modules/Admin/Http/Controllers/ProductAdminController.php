@@ -93,7 +93,7 @@ class ProductAdminController extends Controller
             'inactive_products' => (clone $filteredQuery)->where('is_active', false)->count(),
             'with_photo' => (clone $filteredQuery)->whereHas('photos')->count(),
             'without_stock' => (clone $filteredQuery)->where(function ($query) {
-                $query->whereNull('stock')->orWhere('stock', '<=', 0);
+                $query->whereNull('stock')->orWhereRaw('(stock - reserved_stock) <= 0');
             })->count(),
         ];
 
@@ -859,8 +859,8 @@ class ProductAdminController extends Controller
             ->when($filters['media'] === 'without_photo', fn ($query) => $query->whereDoesntHave('photos'))
             ->when($filters['media'] === 'with_sheet', fn ($query) => $query->whereHas('documents', fn ($documents) => $documents->where('type', DocumentType::TechSheet)))
             ->when($filters['media'] === 'with_video', fn ($query) => $query->whereHas('videos'))
-            ->when($filters['stock'] === 'in_stock', fn ($query) => $query->whereNotNull('stock')->where('stock', '>', 0))
-            ->when($filters['stock'] === 'no_stock', fn ($query) => $query->whereNotNull('stock')->where('stock', '<=', 0))
+            ->when($filters['stock'] === 'in_stock', fn ($query) => $query->whereNotNull('stock')->whereRaw('(stock - reserved_stock) > 0'))
+            ->when($filters['stock'] === 'no_stock', fn ($query) => $query->whereNotNull('stock')->whereRaw('(stock - reserved_stock) <= 0'))
             ->when($filters['stock'] === 'unknown', fn ($query) => $query->whereNull('stock'));
     }
 
@@ -876,8 +876,8 @@ class ProductAdminController extends Controller
             'name_desc' => $query->orderByDesc('name'),
             'price_desc' => $query->orderByDesc('price')->orderBy('name'),
             'price_asc' => $query->orderBy('price')->orderBy('name'),
-            'stock_desc' => $query->orderByDesc('stock')->orderBy('name'),
-            'stock_asc' => $query->orderBy('stock')->orderBy('name'),
+            'stock_desc' => $query->orderByRaw('(stock - reserved_stock) DESC')->orderBy('name'),
+            'stock_asc' => $query->orderByRaw('(stock - reserved_stock) ASC')->orderBy('name'),
             default => $query->latest(),
         };
     }

@@ -1,5 +1,7 @@
 @php
-    $whatsappUrl = 'https://wa.me/573117479607?text=Hola%20vengo%20desde%20la%20plataforma';
+    $whatsappUrl = ($currentAdvisor ?? null)?->whatsappUrl('Hola, vengo desde la plataforma.')
+        ?? $supportWhatsappUrl
+        ?? '#';
     $isProductDetail = request()->routeIs('products.show');
     $bottomPositionClasses = $isProductDetail ? 'bottom-[42dvh] sm:bottom-6' : 'bottom-5 sm:bottom-6';
 @endphp

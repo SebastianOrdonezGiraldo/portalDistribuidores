@@ -534,7 +534,8 @@ View contract:
                                 @if(! $hasActiveVariants)
                                     @if($product->isStockManagedByContaPyme())
                                         <div class="space-y-1">
-                                            <p class="font-semibold text-slate-800">{{ $formatStock($product->stock) }}</p>
+                                            <p class="font-semibold text-slate-800">Disponible: {{ $formatStock($product->available_stock) }}</p>
+                                            <p class="text-xs text-slate-500">Base: {{ $formatStock($product->stock) }} · HOLD: {{ $formatStock($product->reserved_stock) }}</p>
                                             <p class="text-xs text-slate-500" title="Actualizado desde ContaPyme">
                                                 Gestionado por ContaPyme
                                             </p>
@@ -576,7 +577,9 @@ View contract:
                                                 </button>
                                             </div>
                                             <p class="text-xs text-slate-500">
-                                                Actual: <span class="font-semibold text-slate-700">{{ $formatStock($product->stock) }}</span>
+                                                Base: <span class="font-semibold text-slate-700">{{ $formatStock($product->stock) }}</span>
+                                                · HOLD: <span class="font-semibold text-slate-700">{{ $formatStock($product->reserved_stock) }}</span>
+                                                · Disponible: <span class="font-semibold text-slate-700">{{ $formatStock($product->available_stock) }}</span>
                                             </p>
                                         </form>
                                     @endif
@@ -588,7 +591,9 @@ View contract:
 
                                         <div class="mt-2 space-y-2">
                                             <p class="text-xs text-slate-500">
-                                                Total actual: <span class="font-semibold text-slate-700">{{ $formatStock($product->stock) }}</span>
+                                                Base total: <span class="font-semibold text-slate-700">{{ $formatStock($product->stock) }}</span>
+                                                · HOLD: <span class="font-semibold text-slate-700">{{ $formatStock($product->reserved_stock) }}</span>
+                                                · Disponible: <span class="font-semibold text-slate-700">{{ $formatStock($product->available_stock) }}</span>
                                             </p>
                                             <p class="text-xs text-slate-500">
                                                 Atributo: <span class="font-semibold text-slate-700">{{ $product->variantAttribute?->name ?? 'Variante' }}</span>

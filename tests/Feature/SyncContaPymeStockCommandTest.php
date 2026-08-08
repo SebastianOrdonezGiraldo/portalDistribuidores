@@ -6,6 +6,7 @@ use App\Modules\Catalog\Models\Product;
 use App\Modules\Inventory\Services\ContaPymeInventoryService;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\OrderItem;
+use App\Modules\Orders\Services\OrderInventoryService;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\ValueObjects\InventoryItemData;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -58,7 +59,7 @@ class SyncContaPymeStockCommandTest extends TestCase
         $this->assertSame(10.0, (float) $product->fresh()->stock);
     }
 
-    public function test_command_writes_contapyme_projected_stock_without_local_reservations(): void
+    public function test_command_updates_base_stock_and_preserves_local_holds(): void
     {
         $product = Product::factory()->create([
             'sku' => 'TENS7000',
@@ -72,6 +73,7 @@ class SyncContaPymeStockCommandTest extends TestCase
             'product_variant_id' => null,
             'qty' => 4,
         ]);
+        app(OrderInventoryService::class)->holdForOrder($order);
 
         $this->app->instance(ContaPymeInventoryService::class, $this->bulkService([
             'TENS7000' => 25.0,
@@ -81,7 +83,10 @@ class SyncContaPymeStockCommandTest extends TestCase
             ->expectsOutput('UPDATED TENS7000 stock=25')
             ->assertSuccessful();
 
-        $this->assertSame(25.0, (float) $product->fresh()->stock);
+        $product->refresh();
+        $this->assertSame(25.0, (float) $product->stock);
+        $this->assertSame(4.0, (float) $product->reserved_stock);
+        $this->assertSame(21.0, $product->available_stock);
     }
 
     public function test_command_keeps_existing_stock_when_the_bulk_api_fails(): void
