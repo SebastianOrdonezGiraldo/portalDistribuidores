@@ -44,9 +44,14 @@
             <section>
                 <h2 class="text-sm font-semibold text-slate-900">&iquest;En qu&eacute; te podemos ayudar?</h2>
                 <ul class="mt-3 space-y-2 text-sm text-slate-600">
-                    <li>
-                        <a href="{{ ($currentAdvisor ?? null)?->whatsappUrl('Hola, vengo desde la plataforma.') ?? ($supportWhatsappUrl ?? '#') }}" target="_blank" rel="noopener noreferrer" class="transition hover:text-brand-primary">WhatsApp de asesor&iacute;a</a>
-                    </li>
+                    @php
+                        $footerWhatsappUrl = ($currentAdvisor ?? null)?->whatsappUrl('Hola, vengo desde la plataforma.') ?? $supportWhatsappUrl;
+                    @endphp
+                    @if($footerWhatsappUrl)
+                        <li>
+                            <a href="{{ $footerWhatsappUrl }}" target="_blank" rel="noopener noreferrer" class="transition hover:text-brand-primary">WhatsApp de asesor&iacute;a</a>
+                        </li>
+                    @endif
                     <li>
                         @if($supportPhone)
                             <a href="tel:{{ $supportPhone }}" class="transition hover:text-brand-primary">{{ $supportPhone }}</a>

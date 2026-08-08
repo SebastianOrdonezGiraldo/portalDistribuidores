@@ -19,10 +19,11 @@ class AdvisorContactUiTest extends TestCase
         $user = $this->userForTier(DistributorTier::Gold);
         $this->createAdvisor(DistributorTier::Gold, 'Oro UI', 'oro-ui@example.test', '573111111111');
 
-        $this->actingAs($user)
-            ->get(route('catalog.index'))
-            ->assertOk()
+        $response = $this->actingAs($user)->get(route('catalog.index'));
+
+        $response->assertOk()
             ->assertSee('https://wa.me/573111111111', false)
+            ->assertSee('href="https://wa.me/573111111111?text=', false)
             ->assertDontSee('https://wa.me/573222222222', false);
     }
 
@@ -31,10 +32,11 @@ class AdvisorContactUiTest extends TestCase
         $user = $this->userForTier(DistributorTier::Silver);
         $this->createAdvisor(DistributorTier::Silver, 'Plata UI', 'plata-ui@example.test', '573222222222');
 
-        $this->actingAs($user)
-            ->get(route('catalog.index'))
-            ->assertOk()
+        $response = $this->actingAs($user)->get(route('catalog.index'));
+
+        $response->assertOk()
             ->assertSee('https://wa.me/573222222222', false)
+            ->assertSee('href="https://wa.me/573222222222?text=', false)
             ->assertDontSee('https://wa.me/573111111111', false);
     }
 
@@ -43,10 +45,22 @@ class AdvisorContactUiTest extends TestCase
         config(['commerce.support.whatsapp_number' => '573333333333']);
         $this->createAdvisor(DistributorTier::Gold, 'Oro UI', 'oro-ui@example.test', '573111111111');
 
-        $this->get(route('catalog.index'))
-            ->assertOk()
+        $response = $this->get(route('catalog.index'));
+
+        $response->assertOk()
             ->assertSee('https://wa.me/573333333333', false)
+            ->assertSee('href="https://wa.me/573333333333?text=', false)
             ->assertDontSee('https://wa.me/573111111111', false);
+    }
+
+    public function test_missing_support_number_does_not_render_internal_fallback_link(): void
+    {
+        $floatingBubble = view('layouts.partials.whatsapp-float', [
+            'currentAdvisor' => null,
+            'supportWhatsappUrl' => null,
+        ])->render();
+
+        $this->assertStringNotContainsString('catalog-support-bubble--whatsapp', $floatingBubble);
     }
 
     private function userForTier(DistributorTier $tier): User
