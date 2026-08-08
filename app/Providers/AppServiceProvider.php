@@ -198,6 +198,18 @@ class AppServiceProvider extends ServiceProvider
                 ...$this->supportContactData(),
             ]);
         });
+
+        View::composer([
+            'catalog.index',
+            'product.show',
+            'cart.index',
+            'orders.checkout',
+        ], function ($view): void {
+            $view->with([
+                'currentAdvisor' => app(CommerceTierAdvisorProvider::class)->forUser(auth()->user()),
+                ...$this->supportContactData(),
+            ]);
+        });
     }
 
     /**

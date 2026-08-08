@@ -150,10 +150,14 @@ View contract:
 
                 @unless($isCompact)
                 <div class="mt-2 grid grid-cols-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
-                    <a href="{{ $supportWhatsappUrl ?? '#' }}" target="_blank" rel="noopener noreferrer" class="flex gap-3 p-4 transition hover:bg-emerald-50/60 focus-ring">
+                    @if($supportWhatsappUrl)
+                    <a href="{{ $supportWhatsappUrl }}" target="_blank" rel="noopener noreferrer" class="flex gap-3 p-4 transition hover:bg-emerald-50/60 focus-ring">
                         <svg xmlns="http://www.w3.org/2000/svg" class="mt-0.5 h-6 w-6 shrink-0 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.5 11.7a8.5 8.5 0 0 1-12.56 7.5L3.5 20.5l1.3-4.2A8.5 8.5 0 1 1 20.5 11.7Z"/><path d="M8.1 7.8c.2-.5.5-.5.8-.5h.5c.2 0 .4.1.5.4l.7 1.7c.1.2.1.4 0 .6l-.5.7c-.1.2-.1.3 0 .5.6 1.1 1.5 2 2.6 2.6.2.1.3.1.5 0l.7-.5c.2-.1.4-.1.6 0l1.7.7c.3.1.4.3.4.5v.5c0 .3 0 .6-.5.8-.5.2-1.6.5-3-.1-1-.4-2.2-1.1-3.4-2.3-1-1-1.8-2.1-2.2-3.1-.6-1.4-.3-2.5-.1-3Z"/></svg>
                         <span><span class="block text-xs font-semibold text-slate-900">WhatsApp</span><span class="mt-0.5 block text-xs text-slate-500">Atención comercial inmediata</span></span>
                     </a>
+                    @else
+                    <span class="flex gap-3 p-4 text-slate-400">WhatsApp no configurado</span>
+                    @endif
                     <a href="mailto:comercial@importcorporal.com" class="flex gap-3 border-l border-slate-200 p-4 transition hover:bg-brand-primary/5 focus-ring">
                         <svg xmlns="http://www.w3.org/2000/svg" class="mt-0.5 h-6 w-6 shrink-0 text-brand-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
                         <span><span class="block text-xs font-semibold text-slate-900">Correo comercial</span><span class="mt-0.5 block text-xs text-slate-500">Resolvemos tus consultas</span></span>
@@ -162,7 +166,11 @@ View contract:
                 @else
                 <p class="mt-4 text-center text-xs text-slate-500">
                     ¿Necesitas ayuda?
-                    <a href="{{ $supportWhatsappUrl ?? '#' }}" target="_blank" rel="noopener noreferrer" class="font-semibold text-brand-primary hover:underline">WhatsApp</a>
+                    @if($supportWhatsappUrl)
+                        <a href="{{ $supportWhatsappUrl }}" target="_blank" rel="noopener noreferrer" class="font-semibold text-brand-primary hover:underline">WhatsApp</a>
+                    @else
+                        WhatsApp no configurado
+                    @endif
                 </p>
                 @endunless
             </div>
