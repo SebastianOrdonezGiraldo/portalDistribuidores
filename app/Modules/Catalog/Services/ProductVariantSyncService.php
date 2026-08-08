@@ -15,6 +15,7 @@ class ProductVariantSyncService
     public function sync(Product $product, array $payload): void
     {
         $hasVariants = filter_var($payload['has_variants'] ?? false, FILTER_VALIDATE_BOOL);
+        $preserveContaPymeStock = $product->isStockManagedByContaPyme();
 
         if (! $hasVariants) {
             $product->variants()->delete();
@@ -56,10 +57,13 @@ class ProductVariantSyncService
 
             $attributes = [
                 'price' => $row['price'],
-                'stock' => $row['stock'],
                 'is_active' => true,
                 'sort_order' => $index + 1,
             ];
+
+            if (! $preserveContaPymeStock) {
+                $attributes['stock'] = $row['stock'];
+            }
 
             $variant = ProductVariant::query()->updateOrCreate(
                 [
@@ -77,20 +81,20 @@ class ProductVariantSyncService
             ->delete();
 
         $minPrice = (float) ($rows->min('price') ?? 0);
-        $stockValues = ProductVariant::query()
-            ->whereIn('id', $keptVariantIds)
-            ->pluck('stock');
-        $hasAnyStock = $stockValues->contains(fn ($stock) => $stock !== null);
-        $totalStock = $hasAnyStock
-            ? (float) $stockValues->filter(fn ($stock) => $stock !== null)->sum()
-            : null;
-
         $productPayload = [
             'variant_attribute_id' => $attribute->id,
             'price' => $minPrice,
         ];
 
-        $productPayload['stock'] = $totalStock;
+        if (! $preserveContaPymeStock) {
+            $stockValues = ProductVariant::query()
+                ->whereIn('id', $keptVariantIds)
+                ->pluck('stock');
+            $hasAnyStock = $stockValues->contains(fn ($stock) => $stock !== null);
+            $productPayload['stock'] = $hasAnyStock
+                ? (float) $stockValues->filter(fn ($stock) => $stock !== null)->sum()
+                : null;
+        }
 
         $product->update($productPayload);
     }
@@ -114,7 +118,7 @@ class ProductVariantSyncService
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $rows
+     * @param  array<int, mixed>  $rows
      * @return Collection<int, array{value:string,value_slug:string,price:float,stock:float|null}>
      */
     private function normalizeRows(array $rows): Collection

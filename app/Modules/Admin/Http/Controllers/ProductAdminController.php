@@ -296,6 +296,10 @@ class ProductAdminController extends Controller
         $productPayload = $this->extractProductPayload($request);
         $validatedPayload = $request->validated();
 
+        if ($product->isStockManagedByContaPyme()) {
+            unset($productPayload['stock']);
+        }
+
         $product = DB::transaction(function () use ($updateAction, $variantSyncService, $product, $productPayload, $validatedPayload) {
             $updatedProduct = $updateAction->execute($product, $productPayload);
             $variantSyncService->sync($updatedProduct, $validatedPayload);
@@ -718,13 +722,33 @@ class ProductAdminController extends Controller
             return;
         }
 
-        if (! $request->has('stock') && ! $request->boolean('has_variants') && ! $request->has('variants')) {
+        $messages = [];
+
+        if ($request->has('stock')) {
+            $messages['stock'] = 'El stock de este producto es administrado por ContaPyme.';
+        }
+
+        $submittedVariantStocks = collect((array) $request->input('variants', []))
+            ->filter(function (mixed $row): bool {
+                if (! is_array($row) || ! array_key_exists('stock', $row)) {
+                    return false;
+                }
+
+                $stock = $row['stock'];
+
+                return $stock !== null && $stock !== '';
+            });
+
+        if ($submittedVariantStocks->isNotEmpty()) {
+            $messages['stock'] = 'El stock de este producto es administrado por ContaPyme.';
+            $messages['variants'] = 'El stock de las variantes es administrado por ContaPyme. Solo puedes editar precios y valores.';
+        }
+
+        if ($messages === []) {
             return;
         }
 
-        throw ValidationException::withMessages([
-            'stock' => 'El stock de este producto es administrado por ContaPyme.',
-        ]);
+        throw ValidationException::withMessages($messages);
     }
 
     /**

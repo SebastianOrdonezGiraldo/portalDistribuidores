@@ -1948,6 +1948,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
         };
 
+        const contapymeStockManaged = productForm.dataset.contapymeStockManaged === '1';
+
+        const applyContaPymeVariantStockLocks = () => {
+            if (!contapymeStockManaged || !variantRowsContainer) {
+                return;
+            }
+
+            variantRowsContainer
+                .querySelectorAll('[data-variant-stock-input], input[name$="[stock]"]')
+                .forEach((input) => {
+                    if (input instanceof HTMLInputElement) {
+                        input.disabled = true;
+                    }
+                });
+        };
+
         let variantIndex = 0;
         if (variantRowsContainer) {
             variantRowsContainer.querySelectorAll('input[name^="variants["]').forEach((input) => {
@@ -1979,6 +1995,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const variantsEnabled = variantToggle instanceof HTMLInputElement ? variantToggle.checked : false;
             setVariantRequiredRules(variantsEnabled);
+            applyContaPymeVariantStockLocks();
         };
 
         const refreshVariantSection = () => {
@@ -1993,6 +2010,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             setVariantRequiredRules(enabled);
+            applyContaPymeVariantStockLocks();
         };
 
         addVariantRowButton?.addEventListener('click', () => {
