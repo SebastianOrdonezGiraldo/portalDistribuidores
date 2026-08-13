@@ -62,6 +62,57 @@ class PublicProductPaginationTest extends TestCase
         );
     }
 
+    public function test_propiocepcion_category_exposes_accessible_server_side_next_link_when_it_spans_pages(): void
+    {
+        $category = $this->createCategory('Propiocepcion');
+
+        foreach (range(1, 21) as $number) {
+            $this->createProduct($category, sprintf('Propiocepcion Product %02d', $number), sprintf('PROP-%02d', $number));
+        }
+
+        $categoryPage = $this->get(route('catalog.index', ['category_id' => $category->id]));
+
+        $categoryPage->assertOk();
+        $categoryPage->assertSee('Propiocepcion Product 01');
+        $categoryPage->assertSee('Propiocepcion Product 20');
+        $categoryPage->assertDontSee('Propiocepcion Product 21');
+        $categoryPage->assertSee('<nav', false);
+        $categoryPage->assertSee('aria-label="Paginación"', false);
+        $nextUrl = e(route('catalog.index', ['category_id' => $category->id, 'page' => 2]));
+        $categoryPage->assertSee($nextUrl, false);
+        $categoryPage->assertSee('rel="next"', false);
+        $categoryPage->assertSee('aria-label="Siguiente"', false);
+        $categoryPage->assertSee('<span>Siguiente</span>', false);
+
+        $secondPage = $this->get(route('catalog.index', [
+            'category_id' => $category->id,
+            'page' => 2,
+        ]));
+
+        $secondPage->assertOk();
+        $secondPage->assertSee('Propiocepcion Product 21');
+        $secondPage->assertDontSee('Propiocepcion Product 20');
+        $previousUrl = e(route('catalog.index', ['category_id' => $category->id]));
+        $secondPage->assertSee($previousUrl, false);
+        $secondPage->assertSee('rel="prev"', false);
+    }
+
+    public function test_category_with_fewer_than_twenty_active_products_does_not_render_a_next_link(): void
+    {
+        $category = $this->createCategory('Propiocepcion');
+
+        foreach (range(1, 19) as $number) {
+            $this->createProduct($category, sprintf('Propiocepcion Product %02d', $number), sprintf('PROP-%02d', $number));
+        }
+
+        $response = $this->get(route('catalog.index', ['category_id' => $category->id]));
+
+        $response->assertOk();
+        $response->assertSee('19 productos disponibles', false);
+        $response->assertDontSee('rel="next"', false);
+        $response->assertDontSee('aria-label="Siguiente"', false);
+    }
+
     public function test_catalog_ajax_payload_supports_load_more(): void
     {
         $category = $this->createCategory();

@@ -7,12 +7,14 @@
     'listKey' => null,
     'pricingMode' => null,
     'tier' => null,
+    'showLoadMore' => true,
 ])
 
 {{--
 Component contract:
 - Props: id, optional title/subtitle, products paginator, emptyMessage, optional listKey,
-  optional pricingMode and tier for dual-price product cards.
+  optional pricingMode and tier for dual-price product cards, and showLoadMore to opt out of
+  the AJAX control when server-side pagination is the catalog's primary navigation.
 - Slots: none.
 - Use for: product lists that support AJAX pagination/load-more through data-product-list attributes.
 --}}
@@ -61,7 +63,10 @@ Component contract:
             </div>
 
             <div data-product-list-controls class="mt-6 space-y-4">
-                @include('catalog._product-list-controls', ['products' => $products])
+                @include('catalog._product-list-controls', [
+                    'products' => $products,
+                    'showLoadMore' => $showLoadMore,
+                ])
             </div>
         </div>
     @else

@@ -2,10 +2,12 @@
 View contract:
 - Source: CatalogController/ProductController AJAX payloads and product-grid-section component.
 - Expects: $products paginator with hasMorePages/hasPages.
-- Owns: load-more and pagination controls only.
+- Owns: optional load-more and server-side pagination controls only.
 - Notes: JavaScript reads data-product-load-more from the surrounding product list container.
 --}}
-@if($products->hasMorePages())
+@php($showLoadMore = $showLoadMore ?? true)
+
+@if($showLoadMore && $products->hasMorePages())
     <div class="flex justify-center">
         <button
             type="button"

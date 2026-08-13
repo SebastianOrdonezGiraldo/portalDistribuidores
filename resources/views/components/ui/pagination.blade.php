@@ -54,20 +54,22 @@ Component contract:
             {{-- Anterior --}}
             @if($paginator->onFirstPage())
                 <span
-                    class="inline-flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-300"
+                    class="inline-flex h-9 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-slate-300"
                     aria-disabled="true"
-                    aria-label="Página anterior"
+                    aria-label="Anterior"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+                    <span>Anterior</span>
                 </span>
             @else
                 <a
                     href="{{ $paginator->previousPageUrl() }}"
                     rel="prev"
-                    class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 focus-ring"
-                    aria-label="Página anterior"
+                    class="inline-flex h-9 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 focus-ring"
+                    aria-label="Anterior"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+                    <span>Anterior</span>
                 </a>
             @endif
 
@@ -101,18 +103,20 @@ Component contract:
                 <a
                     href="{{ $paginator->nextPageUrl() }}"
                     rel="next"
-                    class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 focus-ring"
-                    aria-label="Página siguiente"
+                    class="inline-flex h-9 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 focus-ring"
+                    aria-label="Siguiente"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                    <span>Siguiente</span>
                 </a>
             @else
                 <span
-                    class="inline-flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-300"
+                    class="inline-flex h-9 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-slate-300"
                     aria-disabled="true"
-                    aria-label="Página siguiente"
+                    aria-label="Siguiente"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                    <span>Siguiente</span>
                 </span>
             @endif
         </div>
