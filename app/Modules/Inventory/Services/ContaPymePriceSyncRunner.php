@@ -4,8 +4,6 @@ namespace App\Modules\Inventory\Services;
 
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
-use App\Modules\Inventory\Models\ContaPymeInventoryMapping;
-use App\Modules\Inventory\ValueObjects\ContaPymePriceLookup;
 use App\Modules\Inventory\ValueObjects\ContaPymePriceSyncReport;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -120,6 +118,7 @@ final class ContaPymePriceSyncRunner
 
             $stats[$status === 'missing_contapyme' ? 'missing_contapyme' : 'failed']++;
             $this->recordError($irecurso, $scope, $message);
+
             return;
         }
 
@@ -145,6 +144,7 @@ final class ContaPymePriceSyncRunner
                 'gold' => $goldValue,
                 'silver' => $silverValue,
             ]);
+
             return;
         }
 

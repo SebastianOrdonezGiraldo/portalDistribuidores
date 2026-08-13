@@ -6,6 +6,7 @@ use App\Modules\Inventory\Models\ContaPymeInventoryMapping;
 use App\Modules\Inventory\Models\InventoryHold;
 use App\Modules\Orders\Models\CartItem;
 use App\Modules\Orders\Models\OrderItem;
+use Carbon\CarbonInterface;
 use Database\Factories\ProductVariantFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -15,6 +16,24 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
+/**
+ * @property int $id
+ * @property int $product_id
+ * @property int $product_attribute_value_id
+ * @property float|string|null $price
+ * @property float|string|null $silver_price
+ * @property CarbonInterface|null $price_synced_at
+ * @property string|null $price_sync_status
+ * @property string|null $price_sync_error
+ * @property float|string|null $price_sync_observed_gold
+ * @property float|string|null $price_sync_observed_silver
+ * @property float|string|null $stock
+ * @property float|string|null $reserved_stock
+ * @property CarbonInterface|null $stock_synced_at
+ * @property string|null $stock_sync_status
+ * @property bool $is_active
+ * @property int $sort_order
+ */
 class ProductVariant extends Model
 {
     use HasFactory;

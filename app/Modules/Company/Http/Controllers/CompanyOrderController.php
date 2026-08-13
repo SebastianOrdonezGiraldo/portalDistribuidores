@@ -330,7 +330,7 @@ class CompanyOrderController extends Controller
                         'label' => "{$baseLabel} · {$attributeName}: {$attributeValue} · {$taxLabel}",
                         'price' => $effectivePrice((string) $variant->price, $variant->silver_price),
                     ];
-                });
+                })->all();
             })
             ->values()
             ->all();

@@ -56,6 +56,7 @@ class ContaPymePriceService
         }
 
         $raw = trim((string) $price);
+
         if (str_starts_with($raw, '-')) {
             return ContaPymePriceLookup::error('ContaPyme devolvio un precio negativo.');
         }
@@ -77,7 +78,6 @@ class ContaPymePriceService
         $normalized = mb_strtolower($message);
 
         return str_contains($normalized, 'no existe')
-            || str_contains($normalized, 'no encontrado')
             || str_contains($normalized, 'no encontrado')
             || str_contains($normalized, '240');
     }

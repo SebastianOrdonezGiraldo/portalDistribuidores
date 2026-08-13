@@ -65,7 +65,7 @@ View contract:
 
                 <div class="mt-5 grid gap-4 sm:grid-cols-2">
                     <div>
-                        <label class="form-label" for="silver_markup_percent">Incremento histórico (sin uso en precios)</label>
+                        <label class="form-label" for="silver_markup_percent">Incremento del precio Plata sobre el precio Oro (histórico)</label>
                         <div class="relative">
                             <x-ui.input
                                 id="silver_markup_percent"

@@ -15,10 +15,28 @@ final class DistributorPriceCalculator
     public function __construct(private readonly CommercePricingRules $rules) {}
 
     /**
-     * Calculate the tier price from a base price expressed in integer cents.
+     * Calculate a tier price from integer cents.
+     *
+     * The two-argument form is retained for callers that still calculate a
+     * Silver price from the published legacy rule. Runtime catalog/order code
+     * should pass the explicit ContaPyme Silver value as the second argument.
      */
-    public function calculate(int $goldCents, int $silverCents, DistributorTier $tier): TierPrice
-    {
+    public function calculate(
+        int $goldCents,
+        DistributorTier|int $silverCentsOrTier,
+        ?DistributorTier $tier = null,
+    ): TierPrice {
+        if ($silverCentsOrTier instanceof DistributorTier) {
+            $tier = $silverCentsOrTier;
+            $silverCents = $this->calculateLegacySilverCents($goldCents);
+        } else {
+            $silverCents = $silverCentsOrTier;
+        }
+
+        if (! $tier instanceof DistributorTier) {
+            throw new InvalidArgumentException('Debe indicar el nivel comercial del precio.');
+        }
+
         if ($goldCents < 0 || $silverCents < 0) {
             throw new InvalidArgumentException('Los precios Gold y Silver no pueden ser negativos.');
         }
@@ -28,7 +46,9 @@ final class DistributorPriceCalculator
         }
 
         $effectiveCents = $tier === DistributorTier::Gold ? $goldCents : $silverCents;
-        $unitSavingsCents = $silverCents - $goldCents;
+        $unitSavingsCents = $tier === DistributorTier::Gold
+            ? $silverCents - $goldCents
+            : 0;
 
         return new TierPrice(
             tier: $tier,
@@ -43,9 +63,18 @@ final class DistributorPriceCalculator
      * Calculate from a decimal base price (e.g. the decimal:2 cast string from
      * Eloquent). The value is parsed from string to cents without using float.
      */
-    public function calculateFromDecimal(int|string $goldPrice, int|string $silverPrice, DistributorTier $tier): TierPrice
-    {
-        return $this->calculate($this->decimalToCents($goldPrice), $this->decimalToCents($silverPrice), $tier);
+    public function calculateFromDecimal(
+        int|string $basePrice,
+        DistributorTier|int|string $silverPriceOrTier,
+        ?DistributorTier $tier = null,
+    ): TierPrice {
+        $goldCents = $this->decimalToCents($basePrice);
+
+        if ($silverPriceOrTier instanceof DistributorTier) {
+            return $this->calculate($goldCents, $silverPriceOrTier);
+        }
+
+        return $this->calculate($goldCents, $this->decimalToCents($silverPriceOrTier), $tier);
     }
 
     /**
@@ -76,4 +105,16 @@ final class DistributorPriceCalculator
         return $negative ? -$cents : $cents;
     }
 
+    private function calculateLegacySilverCents(int $goldCents): int
+    {
+        if ($goldCents < 0) {
+            throw new InvalidArgumentException('Los precios Gold y Silver no pueden ser negativos.');
+        }
+
+        $markup = intdiv($goldCents * $this->rules->silverMarkupBasisPoints, 10_000);
+        $candidate = $goldCents + $markup;
+        $rounding = $this->rules->silverRoundingMultiple * 100;
+
+        return intdiv($candidate + $rounding - 1, $rounding) * $rounding;
+    }
 }

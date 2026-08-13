@@ -4,7 +4,6 @@ namespace Tests\Unit;
 
 use App\Modules\Inventory\Services\ContaPymeInventoryService;
 use App\Modules\Inventory\Services\ContaPymePriceService;
-use App\Modules\Inventory\ValueObjects\ContaPymePriceLookup;
 use Tests\TestCase;
 
 class ContaPymePriceServiceTest extends TestCase

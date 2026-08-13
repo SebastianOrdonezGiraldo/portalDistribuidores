@@ -274,6 +274,7 @@ class ProductController extends Controller
      *   formattedGold: string,
      *   formattedSilver: string,
      *   formattedEffective: string,
+     *   silverAvailable: bool,
      *   variantPriceMap: array<int, array{gold: float, silver: float, effective: float}>
      * }
      */
