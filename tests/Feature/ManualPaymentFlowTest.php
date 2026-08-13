@@ -8,10 +8,12 @@ use App\Modules\Catalog\Models\Product;
 use App\Modules\Orders\Mail\PaymentReceiptAdminMail;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\PaymentUploadToken;
+use App\Modules\Orders\Services\OrderInventoryService;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Orders\Services\Payment\OrderPaymentService;
 use App\Modules\Orders\Services\Payment\PaymentReceiptUploadService;
 use App\Modules\Orders\Services\Payment\PaymentUploadTokenService;
+use App\Modules\Orders\Support\PaymentReceiptUploadLimits;
 use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Enums\PaymentMethod;
@@ -162,6 +164,78 @@ class ManualPaymentFlowTest extends TestCase
         );
     }
 
+    public function test_magic_link_accepts_receipt_at_the_10mb_limit(): void
+    {
+        Mail::fake();
+        $order = Order::factory()->create([
+            'status' => OrderStatus::Submitted,
+            'payment_status' => PaymentStatus::PendingUpload,
+            'payment_method' => PaymentMethod::Nequi,
+            'payment_reservation_expires_at' => now()->addMinutes(30),
+        ]);
+
+        $plain = app(PaymentUploadTokenService::class)->issue($order);
+        $pdfSize = PaymentReceiptUploadLimits::maxSizeKb() * 1024;
+        $file = UploadedFile::fake()->createWithContent(
+            'comprobante-10mb.pdf',
+            '%PDF-'.str_repeat('0', $pdfSize - 5),
+        );
+
+        $this->post(route('orders.payment-receipt.store', $order), [
+            'token' => $plain,
+            'receipt' => $file,
+        ])->assertRedirect();
+
+        $this->assertSame(PaymentStatus::Confirming, $order->fresh()->payment_status);
+    }
+
+    public function test_magic_link_rejects_receipt_above_the_configured_limit(): void
+    {
+        $order = Order::factory()->create([
+            'status' => OrderStatus::Submitted,
+            'payment_status' => PaymentStatus::PendingUpload,
+            'payment_method' => PaymentMethod::Nequi,
+            'payment_reservation_expires_at' => now()->addMinutes(30),
+        ]);
+
+        $plain = app(PaymentUploadTokenService::class)->issue($order);
+        $file = UploadedFile::fake()->create(
+            'comprobante-grande.pdf',
+            PaymentReceiptUploadLimits::maxSizeKb() + 1,
+            'application/pdf',
+        );
+
+        $this->post(route('orders.payment-receipt.store', $order), [
+            'token' => $plain,
+            'receipt' => $file,
+        ])->assertSessionHasErrors([
+            'receipt' => 'El comprobante no puede superar '.PaymentReceiptUploadLimits::maxSizeLabel().'.',
+        ]);
+
+        $this->assertSame(PaymentStatus::PendingUpload, $order->fresh()->payment_status);
+        $this->assertDatabaseHas('payment_upload_tokens', [
+            'order_id' => $order->id,
+            'consumed_at' => null,
+        ]);
+    }
+
+    public function test_magic_link_displays_the_payment_receipt_limit(): void
+    {
+        $order = Order::factory()->create([
+            'payment_status' => PaymentStatus::PendingUpload,
+            'payment_method' => PaymentMethod::Llave,
+        ]);
+
+        $plain = app(PaymentUploadTokenService::class)->issue($order);
+
+        $this->get(route('orders.payment-receipt.show', [
+            'order' => $order,
+            'token' => $plain,
+        ]))
+            ->assertOk()
+            ->assertSee('máximo '.PaymentReceiptUploadLimits::maxSizeLabel());
+    }
+
     public function test_magic_link_unknown_token_returns_404(): void
     {
         $order = Order::factory()->create([
@@ -175,7 +249,7 @@ class ManualPaymentFlowTest extends TestCase
         ]))->assertNotFound();
     }
 
-    public function test_admin_validate_payment_sets_validated_and_sold(): void
+    public function test_admin_validate_payment_keeps_submitted_order_and_active_hold(): void
     {
         Queue::fake();
         $admin = User::factory()->admin()->create();
@@ -186,6 +260,17 @@ class ManualPaymentFlowTest extends TestCase
             'payment_receipt_path' => 'orders/payment-receipts/1/file.jpg',
             'payment_receipt_uploaded_at' => now(),
         ]);
+        $product = Product::factory()->create(['stock' => 10]);
+        $order->items()->create([
+            'product_id' => $product->id,
+            'product_name_snapshot' => $product->name,
+            'sku_snapshot' => $product->sku,
+            'qty' => 2,
+            'unit_label' => 'unidades',
+            'price_each' => 5000,
+            'subtotal' => 10000,
+        ]);
+        app(OrderInventoryService::class)->holdForOrder($order);
 
         $this->actingAs($admin)
             ->post(route('admin.orders.payment.validate', $order))
@@ -193,7 +278,9 @@ class ManualPaymentFlowTest extends TestCase
 
         $order->refresh();
         $this->assertSame(PaymentStatus::Validated, $order->payment_status);
-        $this->assertSame(OrderStatus::Sold, $order->status);
+        $this->assertSame(OrderStatus::Submitted, $order->status);
+        $this->assertSame(2.0, (float) $product->fresh()->reserved_stock);
+        $this->assertTrue($order->activeInventoryHolds()->exists());
     }
 
     public function test_cannot_dispatch_while_payment_pending(): void
@@ -240,8 +327,7 @@ class ManualPaymentFlowTest extends TestCase
             'is_vat_excluded_snapshot' => false,
         ]);
 
-        // Simulate prior stock decrease (stock already reduced at create in real flow).
-        $product->forceFill(['stock' => 8])->save();
+        app(OrderInventoryService::class)->holdForOrder($order);
 
         $service = app(OrderPaymentService::class);
         $this->assertTrue($service->expirePendingUpload($order));
@@ -251,6 +337,7 @@ class ManualPaymentFlowTest extends TestCase
         $this->assertSame(PaymentStatus::Expired, $order->payment_status);
         $this->assertSame(OrderStatus::Cancelled, $order->status);
         $this->assertSame(10.0, (float) $product->stock);
+        $this->assertSame(0.0, (float) $product->reserved_stock);
 
         $this->assertFalse($service->expirePendingUpload($order->fresh()));
     }

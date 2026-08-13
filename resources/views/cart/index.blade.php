@@ -33,11 +33,13 @@ View contract:
         $silverTier = \App\Modules\Shared\Enums\DistributorTier::Silver;
         $upgradeMessage = (string) ($silverTier->upgrade()['whatsapp_message'] ?? '');
         $upgradeWhatsappUrl = (! $isGold && filled($upgradeMessage))
-            ? 'https://wa.me/'.config('commerce.support.whatsapp_number', '573117479607').'?text='.rawurlencode($upgradeMessage)
+            ? (($currentAdvisor ?? null)?->whatsappUrl($upgradeMessage)
+                ?? (($supportWhatsappNumber ?? null) ? 'https://wa.me/'.$supportWhatsappNumber.'?text='.rawurlencode($upgradeMessage) : null))
             : null;
         $canOpenUpgradeModal = ! $isGold && auth()->user()?->distributor !== null;
 
-        $advisorUrl = 'https://wa.me/573117479607?text='.rawurlencode('Hola, tengo dudas con mi pedido en el portal ICMTHERAPY.');
+        $advisorUrl = ($currentAdvisor ?? null)?->whatsappUrl('Hola, tengo dudas con mi pedido en el portal ICMTHERAPY.')
+            ?? ($supportWhatsappUrl ?? null);
     @endphp
 
     <x-slot name="header">
@@ -329,10 +331,12 @@ View contract:
                         <p class="text-xs text-slate-500">Nuestro equipo comercial está listo para ayudarte.</p>
                     </div>
                 </div>
+                @if($advisorUrl)
                 <a href="{{ $advisorUrl }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-emerald-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.6-.6-2.8-1.2-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.8s.7-2 .9-2.2c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 1.9c.1.2.1.4 0 .5l-.4.6c-.2.2-.3.4-.1.7.2.3.8 1.3 1.7 2 .9.7 1.5.9 1.8 1 .2.1.4.1.6-.1l.7-.9c.2-.2.4-.2.6-.1l1.8.9c.2.1.4.2.5.3.1.2.1.9-.1 1.6z"/></svg>
                     Contactar asesor
                 </a>
+                @endif
             </div>
 
             @if(! $isGold)

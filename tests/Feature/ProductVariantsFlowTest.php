@@ -154,7 +154,11 @@ class ProductVariantsFlowTest extends TestCase
         ]);
 
         $this->assertSame(0.0, (float) $order->items()->firstOrFail()->vat_rate_snapshot);
-        $this->assertEquals(1.0, (float) $variant->fresh()->stock);
+
+        $variant->refresh();
+        $this->assertEquals(3.0, (float) $variant->stock);
+        $this->assertEquals(2.0, (float) $variant->reserved_stock);
+        $this->assertEquals(1.0, (float) $variant->available_stock);
         Mail::assertSent(OrderCreatedNotificationMail::class);
         Mail::assertSent(OrderCreatedCustomerQuotationMail::class);
     }

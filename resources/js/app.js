@@ -2309,6 +2309,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? document.activeElement
                 : null;
             const dialog = modal.querySelector('[data-payment-success-dialog]');
+            const closeButton = modal.querySelector('[data-payment-success-close]');
             const label = modal.querySelector('[data-payment-success-label]');
             const previousOverflow = document.body.style.overflow;
 
@@ -2321,8 +2322,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 label.textContent = '';
                 label.textContent = 'Comprobante recibido';
             }
-
-            dialog?.focus({ preventScroll: true });
 
             let closed = false;
             const close = () => {
@@ -2337,6 +2336,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 celebrating = false;
                 document.removeEventListener('keydown', onKeydown);
 
+                modal.querySelectorAll('[data-payment-success-dismiss]').forEach((control) => {
+                    control.removeEventListener('click', close);
+                });
+
                 if (previousFocus && document.contains(previousFocus)) {
                     previousFocus.focus({ preventScroll: true });
                 }
@@ -2349,8 +2352,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             };
 
-            modal.querySelector('[data-payment-success-dismiss]')?.addEventListener('click', close, { once: true });
+            modal.querySelectorAll('[data-payment-success-dismiss]').forEach((control) => {
+                control.addEventListener('click', close, { once: true });
+            });
             document.addEventListener('keydown', onKeydown);
+            (closeButton || dialog)?.focus({ preventScroll: true });
         };
 
         const applyStatus = (payload) => {

@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Admin and system mutations of payment_status, including expiry + stock restore.
+ * Admin and system mutations of payment_status, including expiry + HOLD release.
  */
 class OrderPaymentService
 {
@@ -37,7 +37,7 @@ class OrderPaymentService
             throw new DomainException('Solo se pueden validar pedidos con comprobante en revisión.');
         }
 
-        $validated = DB::transaction(function () use ($order, $actor): Order {
+        $validated = DB::transaction(function () use ($order): Order {
             /** @var Order $locked */
             $locked = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
 
@@ -49,18 +49,7 @@ class OrderPaymentService
                 'payment_status' => PaymentStatus::Validated,
             ]);
 
-            if ($locked->status === OrderStatus::Submitted) {
-                $locked = $this->statusTransitionService->transition(
-                    $locked,
-                    OrderStatus::Sold,
-                    $actor,
-                    'Pago validado',
-                );
-            } else {
-                $locked = $locked->refresh();
-            }
-
-            return $locked;
+            return $locked->refresh();
         });
 
         $this->dispatchNotification($validated, 'validated');
@@ -103,7 +92,7 @@ class OrderPaymentService
     }
 
     /**
-     * Expire a single pending/rejected upload window: mark expired + cancel (restores stock).
+     * Expire a single pending/rejected upload window: mark expired + cancel (releases HOLD).
      * Idempotent: skips if payment_status is no longer in an expirable state.
      */
     public function expirePendingUpload(Order $order): bool

@@ -25,6 +25,10 @@ View contract:
         $goldThresholdBasis = old('gold_pricing_threshold_basis', $current->goldPricingThresholdBasis->value);
     @endphp
 
+    @php
+        $advisorByTier = $advisors ?? [];
+    @endphp
+
     <div
         class="grid gap-4 lg:grid-cols-[1.6fr_1fr]"
         x-data="commercePricingPreview({
@@ -37,13 +41,14 @@ View contract:
             goldThresholdBasis: '{{ $goldThresholdBasis }}'
         })"
     >
-        <form
-            action="{{ route('admin.settings.commerce.update') }}"
-            method="POST"
-            data-loading-form
-            data-confirm="¿Actualizar las reglas comerciales? Los precios visibles y los carritos abiertos se recalcularán con la nueva configuración."
-            class="space-y-4"
-        >
+        <div class="space-y-4">
+            <form
+                action="{{ route('admin.settings.commerce.update') }}"
+                method="POST"
+                data-loading-form
+                data-confirm="¿Actualizar las reglas comerciales? Los precios visibles y los carritos abiertos se recalcularán con la nueva configuración."
+                class="space-y-4"
+            >
             @csrf
             @method('PATCH')
 
@@ -249,7 +254,87 @@ View contract:
                     </x-ui.button>
                 </div>
             </x-ui.card>
-        </form>
+            </form>
+
+            <form
+                action="{{ route('admin.settings.commerce.advisors.update') }}"
+                method="POST"
+                data-loading-form
+                class="space-y-4"
+            >
+                @csrf
+                @method('PATCH')
+
+                <x-ui.card class="p-5">
+                    <h2 class="card-title">Asesores comerciales</h2>
+                    <p class="mt-1 text-sm text-slate-600">
+                        Define el contacto comercial que corresponde a cada nivel. Estos cambios no crean una nueva versión de pricing.
+                    </p>
+
+                    <div class="mt-5 grid gap-4 sm:grid-cols-2">
+                        @foreach(\App\Modules\Shared\Enums\DistributorTier::cases() as $tier)
+                            @php
+                                $advisor = $advisorByTier[$tier->value] ?? null;
+                                $name = old('advisors.'.$tier->value.'.advisor_name', $advisor?->name ?? '');
+                                $email = old('advisors.'.$tier->value.'.advisor_email', $advisor?->email ?? '');
+                                $whatsapp = old('advisors.'.$tier->value.'.advisor_whatsapp', $advisor?->whatsapp ?? '');
+                            @endphp
+
+                            <div class="space-y-3 rounded-xl border border-slate-200 p-4">
+                                <h3 class="text-sm font-semibold text-slate-900">{{ $tier->label() }}</h3>
+
+                                <div>
+                                    <label class="form-label" for="advisor-{{ $tier->value }}-name">Nombre</label>
+                                    <x-ui.input
+                                        id="advisor-{{ $tier->value }}-name"
+                                        name="advisors[{{ $tier->value }}][advisor_name]"
+                                        value="{{ $name }}"
+                                        maxlength="120"
+                                        required
+                                    />
+                                    <x-input-error :messages="$errors->get('advisors.'.$tier->value.'.advisor_name')" />
+                                </div>
+
+                                <div>
+                                    <label class="form-label" for="advisor-{{ $tier->value }}-email">Correo para recibir pedidos</label>
+                                    <x-ui.input
+                                        id="advisor-{{ $tier->value }}-email"
+                                        name="advisors[{{ $tier->value }}][advisor_email]"
+                                        type="email"
+                                        value="{{ $email }}"
+                                        maxlength="120"
+                                        required
+                                    />
+                                    <x-input-error :messages="$errors->get('advisors.'.$tier->value.'.advisor_email')" />
+                                </div>
+
+                                <div>
+                                    <label class="form-label" for="advisor-{{ $tier->value }}-whatsapp">WhatsApp</label>
+                                    <x-ui.input
+                                        id="advisor-{{ $tier->value }}-whatsapp"
+                                        name="advisors[{{ $tier->value }}][advisor_whatsapp]"
+                                        type="tel"
+                                        inputmode="tel"
+                                        value="{{ $whatsapp }}"
+                                        maxlength="30"
+                                        placeholder="+57 300 123 4567"
+                                        required
+                                    />
+                                    <p class="form-help">Se guarda normalizado para enlaces de WhatsApp.</p>
+                                    <x-input-error :messages="$errors->get('advisors.'.$tier->value.'.advisor_whatsapp')" />
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <div class="mt-5 flex justify-end">
+                        <x-ui.button type="submit" variant="primary" data-loading-label="Guardando...">
+                            Guardar asesores
+                        </x-ui.button>
+                    </div>
+                </x-ui.card>
+            </form>
+        </div>
 
         <aside class="space-y-4">
             <x-ui.card class="p-5">

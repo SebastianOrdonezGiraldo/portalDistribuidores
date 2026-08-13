@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Categories\Models\Category;
+use App\Modules\Orders\Models\CommerceTierAdvisor;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Orders\Pricing\DistributorPriceCalculator;
@@ -187,6 +188,13 @@ class CatalogTierExperienceTest extends TestCase
         $distributor = Distributor::factory()->create([
             'tier' => $tier,
             'status' => 'active',
+        ]);
+
+        CommerceTierAdvisor::query()->create([
+            'tier' => $tier,
+            'advisor_name' => $tier === DistributorTier::Gold ? 'Estefanía López' : 'Asesor Plata',
+            'advisor_email' => $tier === DistributorTier::Gold ? 'oro@example.test' : 'plata@example.test',
+            'advisor_whatsapp' => $tier === DistributorTier::Gold ? '573117479607' : '573001112233',
         ]);
 
         return User::factory()->create([

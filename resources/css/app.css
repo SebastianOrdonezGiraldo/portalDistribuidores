@@ -376,13 +376,31 @@
     }
 
     .payment-success-modal__dialog {
-        @apply relative z-10 flex w-full max-w-xs flex-col items-center rounded-3xl border border-emerald-200/80 bg-white px-6 py-8 text-center shadow-panel;
+        @apply relative z-10 flex w-full max-w-sm flex-col items-center rounded-3xl border border-emerald-200/80 bg-white px-7 pb-7 pt-10 text-center shadow-panel;
         opacity: 0;
         transform: translateY(8px);
     }
 
     .payment-success-modal.is-active .payment-success-modal__dialog {
         animation: payment-success-dialog-in 0.4s ease both;
+    }
+
+    .payment-success-close {
+        @apply absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-400 transition-colors;
+    }
+
+    .payment-success-close:hover {
+        @apply bg-slate-100 text-slate-700;
+    }
+
+    .payment-success-close:focus-visible,
+    .payment-success-continue:focus-visible {
+        @apply outline-none ring-2 ring-emerald-500 ring-offset-2;
+    }
+
+    .payment-success-close svg {
+        width: 1.15rem;
+        height: 1.15rem;
     }
 
     .payment-success-circle {
@@ -418,18 +436,42 @@
         animation: payment-success-label-in 0.4s ease forwards 1s;
     }
 
+    .payment-success-description {
+        @apply mt-2 max-w-[17rem] text-sm leading-6 text-slate-600;
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    .payment-success-modal.is-active .payment-success-description {
+        animation: payment-success-label-in 0.4s ease forwards 1.1s;
+    }
+
+    .payment-success-continue {
+        @apply mt-5 inline-flex min-h-10 items-center justify-center rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800;
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    .payment-success-modal.is-active .payment-success-continue {
+        animation: payment-success-label-in 0.4s ease forwards 1.2s;
+    }
+
     @media (prefers-reduced-motion: reduce) {
         .payment-success-modal.is-active .payment-success-modal__backdrop,
         .payment-success-modal.is-active .payment-success-modal__dialog,
         .payment-success-modal.is-active .payment-success-circle,
         .payment-success-modal.is-active .payment-success-check,
-        .payment-success-modal.is-active .payment-success-label {
+        .payment-success-modal.is-active .payment-success-label,
+        .payment-success-modal.is-active .payment-success-description,
+        .payment-success-modal.is-active .payment-success-continue {
             animation: none !important;
         }
 
         .payment-success-modal.is-active .payment-success-modal__backdrop,
         .payment-success-modal.is-active .payment-success-modal__dialog,
-        .payment-success-modal.is-active .payment-success-label {
+        .payment-success-modal.is-active .payment-success-label,
+        .payment-success-modal.is-active .payment-success-description,
+        .payment-success-modal.is-active .payment-success-continue {
             opacity: 1;
             transform: none;
         }

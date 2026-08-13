@@ -111,7 +111,7 @@ class OrderControllerTest extends TestCase
         $this->assertCount(0, $cartItems);
     }
 
-    public function test_order_creation_decreases_product_stock_when_submitted(): void
+    public function test_order_creation_holds_product_stock_when_submitted(): void
     {
         Mail::fake();
 
@@ -127,7 +127,11 @@ class OrderControllerTest extends TestCase
             ->post(route('orders.store'), $this->validPayload)
             ->assertRedirect();
 
-        $this->assertEquals(3.0, (float) $product->fresh()->stock);
+        $product->refresh();
+
+        $this->assertEquals(5.0, (float) $product->stock);
+        $this->assertEquals(2.0, (float) $product->reserved_stock);
+        $this->assertEquals(3.0, (float) $product->available_stock);
     }
 
     public function test_order_is_created_with_submitted_status(): void

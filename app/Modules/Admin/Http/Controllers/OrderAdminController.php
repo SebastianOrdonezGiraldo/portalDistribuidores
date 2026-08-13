@@ -12,6 +12,7 @@ use App\Modules\Orders\Actions\UpdateOrderAction;
 use App\Modules\Orders\Jobs\GenerateOrderPdfJob;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Pricing\DistributorPriceCalculator;
+use App\Modules\Orders\Services\OrderInventoryService;
 use App\Modules\Orders\Services\OrderPdfGenerator;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Orders\Services\Payment\OrderPaymentService;
@@ -25,6 +26,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -172,7 +174,7 @@ class OrderAdminController extends Controller
     {
         $this->authorize('view', $order);
 
-        $order->load('items', 'distributor', 'user', 'statusHistory.actor');
+        $order->load('items', 'distributor', 'user', 'statusHistory.actor', 'inventoryHolds');
 
         $items = $order->items;
 
@@ -592,7 +594,7 @@ class OrderAdminController extends Controller
      * @response 404 {"message":"Pedido no encontrado"}
      * @response 422 {"message":"No se pudo eliminar por relaciones existentes"}
      */
-    public function destroy(Order $order): RedirectResponse
+    public function destroy(Order $order, OrderInventoryService $inventoryService): RedirectResponse
     {
         $this->authorize('delete', $order);
 
@@ -604,7 +606,10 @@ class OrderAdminController extends Controller
         $orderNumber = $order->oc_number;
 
         try {
-            $order->delete();
+            DB::transaction(function () use ($order, $inventoryService): void {
+                $inventoryService->releaseForOrder($order, auth()->user(), 'order_deleted');
+                $order->delete();
+            });
         } catch (QueryException $exception) {
             $sqlState = (string) ($exception->errorInfo[0] ?? '');
 

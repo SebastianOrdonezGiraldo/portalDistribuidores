@@ -50,6 +50,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])
 
         Route::get('settings/commerce', [CommerceSettingsAdminController::class, 'edit'])->name('settings.commerce.edit');
         Route::patch('settings/commerce', [CommerceSettingsAdminController::class, 'update'])->name('settings.commerce.update');
+        Route::patch('settings/commerce/advisors', [CommerceSettingsAdminController::class, 'updateAdvisors'])->name('settings.commerce.advisors.update');
 
         Route::get('orders', [OrderAdminController::class, 'index'])->name('orders.index');
         Route::get('orders/{order}/edit', [OrderAdminController::class, 'edit'])->name('orders.edit');

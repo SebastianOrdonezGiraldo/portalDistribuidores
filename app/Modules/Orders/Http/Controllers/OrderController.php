@@ -4,16 +4,17 @@ namespace App\Modules\Orders\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Modules\Catalog\Support\ProductUploadLimits;
 use App\Modules\Orders\Actions\CreateOrderAction;
 use App\Modules\Orders\DTOs\CreateOrderData;
 use App\Modules\Orders\Http\Requests\StoreOrderRequest;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\Cart\CartService;
+use App\Modules\Orders\Services\OrderAdvisorResolver;
 use App\Modules\Orders\Services\OrderPdfGenerator;
 use App\Modules\Orders\Services\Payment\OrderPaymentService;
 use App\Modules\Orders\Services\Payment\PaymentReceiptUploadService;
 use App\Modules\Orders\Services\Payment\PaymentUploadTokenService;
+use App\Modules\Orders\Support\PaymentReceiptUploadLimits;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\JsonResponse;
@@ -137,7 +138,7 @@ class OrderController extends Controller
      * @response 302 {"redirect":"login"}
      * @response 403 {"message":"No autorizado"}
      */
-    public function submitted(Order $order): View|RedirectResponse
+    public function submitted(Order $order, OrderAdvisorResolver $advisorResolver): View|RedirectResponse
     {
         if (! $this->canAccessOrder($order)) {
             return $this->unauthorizedOrderAccessResponse();
@@ -145,7 +146,11 @@ class OrderController extends Controller
 
         $order->loadMissing('items');
 
-        return view('orders.submitted', ['order' => $order]);
+        return view('orders.submitted', [
+            'order' => $order,
+            'advisorSnapshot' => $advisorResolver->snapshotFor($order),
+            'currentOrderAdvisor' => $advisorResolver->currentForOrder($order),
+        ]);
     }
 
     /**
@@ -161,7 +166,7 @@ class OrderController extends Controller
      * @response 302 {"redirect":"login"}
      * @response 403 {"message":"No autorizado"}
      */
-    public function show(Order $order): View|RedirectResponse
+    public function show(Order $order, OrderAdvisorResolver $advisorResolver): View|RedirectResponse
     {
         if (! $this->canAccessOrder($order)) {
             return $this->unauthorizedOrderAccessResponse();
@@ -187,7 +192,9 @@ class OrderController extends Controller
             'order' => $order,
             'paymentUploadUrl' => $paymentUploadUrl,
             'paymentUploadToken' => $paymentUploadToken,
-            'receiptMaxSizeLabel' => ProductUploadLimits::photoMaxSizeLabel(),
+            'receiptMaxSizeLabel' => PaymentReceiptUploadLimits::maxSizeLabel(),
+            'advisorSnapshot' => $advisorResolver->snapshotFor($order),
+            'currentOrderAdvisor' => $advisorResolver->currentForOrder($order),
         ]);
     }
 
@@ -223,13 +230,13 @@ class OrderController extends Controller
             'receipt' => [
                 'required',
                 'file',
-                'max:'.ProductUploadLimits::photoMaxSizeKb(),
+                'max:'.PaymentReceiptUploadLimits::maxSizeKb(),
                 'mimes:jpg,jpeg,png,gif,webp,pdf',
             ],
         ], [
             'receipt.required' => 'Adjunta el comprobante de pago.',
             'receipt.mimes' => 'El comprobante debe ser imagen (JPG, PNG, WEBP) o PDF.',
-            'receipt.max' => 'El comprobante no puede superar '.ProductUploadLimits::photoMaxSizeLabel().'.',
+            'receipt.max' => 'El comprobante no puede superar '.PaymentReceiptUploadLimits::maxSizeLabel().'.',
         ]);
 
         try {

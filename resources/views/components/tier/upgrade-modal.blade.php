@@ -1,5 +1,6 @@
 @props([
     'tier',
+    'currentAdvisor' => null,
 ])
 
 {{--
@@ -17,9 +18,10 @@ Component contract:
     $message = filled($upgrade['whatsapp_message'] ?? null)
         ? (string) $upgrade['whatsapp_message']
         : null;
-    $number = (string) config('commerce.support.whatsapp_number', '573117479607');
+    $advisor = $currentAdvisor ?? null;
+    $advisorName = $advisor?->validName();
     $whatsappUrl = $message
-        ? 'https://wa.me/'.$number.'?text='.rawurlencode($message)
+        ? ($advisor?->whatsappUrl($message) ?? (($supportWhatsappNumber ?? null) ? 'https://wa.me/'.$supportWhatsappNumber.'?text='.rawurlencode($message) : null))
         : null;
     $benefits = $tier->benefits();
     $dismissLabel = $isUpgradePitch ? 'Ahora no' : 'Entendido';
@@ -41,6 +43,12 @@ Component contract:
 
             @if(filled($body))
                 <p class="mt-3 text-sm leading-relaxed text-slate-600">{{ $body }}</p>
+            @endif
+
+            @if($advisorName)
+                <p class="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                    Tu asesor comercial: <span class="font-semibold text-slate-900">{{ $advisorName }}</span>
+                </p>
             @endif
 
             @if($benefits !== [])

@@ -8,9 +8,15 @@ View contract:
 <x-app-layout>
     {{-- Advisor link is presentation-only; the order lifecycle remains in the Orders module. --}}
     @php
-        $whatsappNumber = '573117479607';
         $advisorMessage = 'Hola, quiero hablar con un asesor sobre la cotización '.$order->oc_number.'.';
-        $whatsappUrl = 'https://wa.me/'.$whatsappNumber.'?text='.rawurlencode($advisorMessage);
+        $hasSnapshot = $advisorSnapshot !== null;
+        $displayAdvisor = $advisorSnapshot ?? $currentOrderAdvisor;
+        $advisorName = $hasSnapshot
+            ? $advisorSnapshot?->validName()
+            : $currentOrderAdvisor?->validName();
+        $whatsappUrl = $hasSnapshot
+            ? $advisorSnapshot?->whatsappUrl($advisorMessage)
+            : ($currentOrderAdvisor?->whatsappUrl($advisorMessage) ?? (($supportWhatsappNumber ?? null) !== null ? 'https://wa.me/'.$supportWhatsappNumber.'?text='.rawurlencode($advisorMessage) : null));
     @endphp
 
     <x-slot name="header">
@@ -46,13 +52,26 @@ View contract:
                     Numero de solicitud: <span class="font-semibold text-slate-900">{{ $order->oc_number }}</span>
                 </div>
 
+                @if($advisorName || $whatsappUrl)
+                    <div class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $hasSnapshot ? 'Asesor comercial' : 'Contacto comercial actual' }}</p>
+                        @if($advisorName)
+                            <p class="mt-1 font-semibold text-slate-900">{{ $advisorName }}</p>
+                        @endif
+                    </div>
+                @endif
+
                 <div class="grid gap-3 sm:grid-cols-2">
                     <a href="{{ route('orders.show', $order) }}" class="btn btn-primary w-full justify-center">
                         {{ $order->requiresManualPayment() ? 'Subir comprobante / ver detalle' : 'Ver detalles del pedido' }}
                     </a>
-                    <a href="{{ $whatsappUrl }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary w-full justify-center shadow-soft ring-2 ring-brand-primary/20">
+                    @if($whatsappUrl)
+                        <a href="{{ $whatsappUrl }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary w-full justify-center shadow-soft ring-2 ring-brand-primary/20">
                         Hablar con un asesor
-                    </a>
+                        </a>
+                    @else
+                        <span class="btn btn-secondary w-full justify-center opacity-60">Asesor no configurado</span>
+                    @endif
                 </div>
 
                 <p class="text-xs text-slate-500">

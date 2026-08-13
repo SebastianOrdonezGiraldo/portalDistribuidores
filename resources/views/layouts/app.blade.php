@@ -561,7 +561,7 @@ View contract:
 @endguest
 
 @if($isDistributor && ($distributorTier ?? null) instanceof \App\Modules\Shared\Enums\DistributorTier)
-    <x-tier.upgrade-modal :tier="$distributorTier" />
+    <x-tier.upgrade-modal :tier="$distributorTier" :current-advisor="$currentAdvisor ?? null" />
 @endif
 
 @if(!$isAdmin && !request()->routeIs('catalog.*', 'products.show') && view()->exists('layouts.partials.whatsapp-float'))

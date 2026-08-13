@@ -4,6 +4,7 @@ namespace App\Modules\Orders\Models;
 
 use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
+use App\Modules\Inventory\Models\InventoryHold;
 use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Enums\PaymentMethod;
@@ -26,6 +27,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property Carbon|null $payment_receipt_uploaded_at
  * @property Carbon|null $payment_reservation_expires_at
  * @property DistributorTier|null $distributor_tier_snapshot
+ * @property string|null $advisor_name_snapshot
+ * @property string|null $advisor_email_snapshot
+ * @property string|null $advisor_whatsapp_snapshot
  * @property float $total_amount
  * @property string|null $pdf_path
  * @property string|null $oc_number
@@ -35,6 +39,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property float|null $revenue
  * @property int|null $orders
  * @property float|null $total
+ * @property string|null $inventory_reconciliation_status
+ * @property string|null $inventory_reconciliation_error
  */
 class Order extends Model
 {
@@ -71,6 +77,9 @@ class Order extends Model
         'payment_receipt_uploaded_at',
         'payment_reservation_expires_at',
         'distributor_tier_snapshot',
+        'advisor_name_snapshot',
+        'advisor_email_snapshot',
+        'advisor_whatsapp_snapshot',
         'commerce_pricing_rule_id',
         'minimum_order_tier_snapshot',
         'minimum_order_enabled_snapshot',
@@ -90,6 +99,10 @@ class Order extends Model
         'shipping_carrier',
         'total_amount',
         'pdf_path',
+        'inventory_reconciliation_status',
+        'inventory_reconciliation_attempted_at',
+        'inventory_reconciled_at',
+        'inventory_reconciliation_error',
     ];
 
     protected function casts(): array
@@ -112,6 +125,8 @@ class Order extends Model
             'gold_candidate_total' => 'decimal:2',
             'gold_savings_total' => 'decimal:2',
             'total_amount' => 'decimal:2',
+            'inventory_reconciliation_attempted_at' => 'datetime',
+            'inventory_reconciled_at' => 'datetime',
         ];
     }
 
@@ -163,6 +178,18 @@ class Order extends Model
     public function statusHistory(): HasMany
     {
         return $this->hasMany(OrderStatusHistory::class)->latest('created_at');
+    }
+
+    /** @return HasMany<InventoryHold, $this> */
+    public function inventoryHolds(): HasMany
+    {
+        return $this->hasMany(InventoryHold::class);
+    }
+
+    /** @return HasMany<InventoryHold, $this> */
+    public function activeInventoryHolds(): HasMany
+    {
+        return $this->inventoryHolds()->where('status', InventoryHold::STATUS_ACTIVE);
     }
 
     /** @return HasMany<PaymentUploadToken, $this> */
