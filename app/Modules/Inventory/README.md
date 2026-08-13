@@ -59,3 +59,14 @@ ContaPyme durante una visita publica.
 - `php artisan contapyme:diagnose --json` valida `GetAuth` y `Test` sin modificar
   inventario ni mostrar `keyagente`.
 - Un timeout o respuesta HTTP/JSON/DataSnap invalida no escribe stock local.
+
+### Precios comerciales
+
+`contapyme:sync-prices` consulta `TCatElemInv::GetPrecioCalculado` únicamente
+para productos activos con SKU local. La lista 1 se guarda como Gold en
+`products.price` y la lista 3 como `silver_price`; catálogo, carrito y checkout
+solo leen esos valores locales. Admite `--sku`, `--limit`, `--dry-run` y
+`--force`. No se agrega al scheduler por defecto: la frecuencia debe ser una
+decisión operativa explícita. Errores, ausencias y anomalías (`silver < gold`)
+conservan el último precio válido y registran estado y diagnóstico. Las
+variantes solo se procesan cuando tienen `contapyme_inventory_mappings.irecurso`.

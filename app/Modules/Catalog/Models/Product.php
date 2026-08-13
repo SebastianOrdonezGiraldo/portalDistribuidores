@@ -38,6 +38,9 @@ use Illuminate\Support\Facades\DB;
  * @property string|null $stock
  * @property string $reserved_stock
  * @property float|null $available_stock
+ * @property string|null $silver_price
+ * @property CarbonInterface|null $price_synced_at
+ * @property string|null $price_sync_status
  */
 class Product extends Model
 {
@@ -56,6 +59,12 @@ class Product extends Model
         'category_id',
         'variant_attribute_id',
         'price',
+        'silver_price',
+        'price_synced_at',
+        'price_sync_status',
+        'price_sync_error',
+        'price_sync_observed_gold',
+        'price_sync_observed_silver',
         'stock',
         'reserved_stock',
         'stock_synced_at',
@@ -74,6 +83,10 @@ class Product extends Model
             'new_until' => 'date',
             'is_vat_excluded' => 'boolean',
             'price' => 'decimal:2',
+            'silver_price' => 'decimal:2',
+            'price_synced_at' => 'datetime',
+            'price_sync_observed_gold' => 'decimal:2',
+            'price_sync_observed_silver' => 'decimal:2',
             'stock' => 'decimal:2',
             'reserved_stock' => 'decimal:2',
             'stock_synced_at' => 'datetime',

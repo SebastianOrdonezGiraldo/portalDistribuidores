@@ -39,6 +39,10 @@ class DuplicateProductAction
                     'category_id' => $product->category_id,
                     'variant_attribute_id' => $product->variant_attribute_id,
                     'price' => $product->price,
+                    // A duplicate receives a new SKU and must be synchronized
+                    // independently; never copy external price metadata.
+                    'silver_price' => null,
+                    'price_sync_status' => 'never_synced',
                     'stock' => $product->stock,
                     'is_active' => false,
                     'is_new' => $product->is_new,
@@ -50,6 +54,8 @@ class DuplicateProductAction
                     $duplicate->variants()->create([
                         'product_attribute_value_id' => $variant->product_attribute_value_id,
                         'price' => $variant->price,
+                        'silver_price' => null,
+                        'price_sync_status' => 'never_synced',
                         'stock' => $variant->stock,
                         'is_active' => $variant->is_active,
                         'sort_order' => $variant->sort_order,

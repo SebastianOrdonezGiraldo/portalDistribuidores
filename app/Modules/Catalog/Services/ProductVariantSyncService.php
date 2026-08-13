@@ -57,6 +57,8 @@ class ProductVariantSyncService
 
             $attributes = [
                 'price' => $row['price'],
+                'silver_price' => null,
+                'price_sync_status' => 'never_synced',
                 'is_active' => true,
                 'sort_order' => $index + 1,
             ];
@@ -84,6 +86,8 @@ class ProductVariantSyncService
         $productPayload = [
             'variant_attribute_id' => $attribute->id,
             'price' => $minPrice,
+            'silver_price' => null,
+            'price_sync_status' => 'never_synced',
         ];
 
         if (! $preserveContaPymeStock) {

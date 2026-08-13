@@ -28,6 +28,12 @@ class ProductVariant extends Model
         'product_id',
         'product_attribute_value_id',
         'price',
+        'silver_price',
+        'price_synced_at',
+        'price_sync_status',
+        'price_sync_error',
+        'price_sync_observed_gold',
+        'price_sync_observed_silver',
         'stock',
         'reserved_stock',
         'stock_synced_at',
@@ -40,6 +46,10 @@ class ProductVariant extends Model
     {
         return [
             'price' => 'decimal:2',
+            'silver_price' => 'decimal:2',
+            'price_synced_at' => 'datetime',
+            'price_sync_observed_gold' => 'decimal:2',
+            'price_sync_observed_silver' => 'decimal:2',
             'stock' => 'decimal:2',
             'reserved_stock' => 'decimal:2',
             'stock_synced_at' => 'datetime',

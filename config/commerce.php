@@ -201,6 +201,7 @@ return [
     'payment' => [
         'manual_reservation_ttl_minutes' => (int) env('PAYMENT_MANUAL_RESERVATION_TTL_MINUTES', 45),
         'upload_token_ttl_minutes' => (int) env('PAYMENT_UPLOAD_TOKEN_TTL_MINUTES', 20),
+        'receipt_max_size_kb' => (int) env('PAYMENT_RECEIPT_MAX_SIZE_KB', 10240),
         'methods' => [
             'bancolombia' => [
                 'label' => 'Bancolombia',

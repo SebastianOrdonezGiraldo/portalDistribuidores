@@ -6,6 +6,7 @@ use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Shared\Enums\DistributorTier;
 use Illuminate\Support\Collection;
+use App\Modules\Shared\Exceptions\DomainException;
 
 /**
  * Central pricing engine for cart, order creation and order edits.
@@ -39,7 +40,8 @@ final class OrderPricingCalculator
         ?CommercePricingRules $rules = null,
     ): OrderPricingResult {
         $rules ??= $this->rulesProvider->current();
-        // Historical edits must use the snapshot's markup, not the container binding.
+        // The rules snapshot still controls thresholds/minimums; prices come
+        // exclusively from the product cache synchronized with ContaPyme.
         $priceCalculator = new DistributorPriceCalculator($rules);
         $candidateLines = [];
 
@@ -49,9 +51,17 @@ final class OrderPricingCalculator
             $variant = $item['variant'] ?? null;
             $qty = max(1, (int) $item['qty']);
             $unitLabel = $item['unit_label'] ?? 'unidades';
-            $basePrice = $variant?->price ?? $product->price;
+            $goldPrice = $variant instanceof ProductVariant ? $variant->price : $product->price;
+            // Variants have independent prices. Without a mapped/synchronized
+            // Silver value they must fail closed instead of inheriting a parent
+            // price that may refer to a different ContaPyme resource.
+            $silverPrice = $variant instanceof ProductVariant ? $variant->silver_price : $product->silver_price;
 
-            $priced = $priceCalculator->calculateFromDecimal((string) $basePrice, DistributorTier::Gold);
+            if ($goldPrice === null || $silverPrice === null || (string) $silverPrice === '') {
+                throw new DomainException('El precio Silver de un producto no está sincronizado; no se puede crear el pedido.');
+            }
+
+            $priced = $priceCalculator->calculateFromDecimal((string) $goldPrice, (string) $silverPrice, DistributorTier::Gold);
             $goldUnit = $priced->basePriceCents;
             $silverUnit = $priced->silverPriceCents;
 
