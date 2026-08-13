@@ -4,7 +4,6 @@ namespace App\Modules\Orders\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Modules\Catalog\Support\ProductUploadLimits;
 use App\Modules\Orders\Actions\CreateOrderAction;
 use App\Modules\Orders\DTOs\CreateOrderData;
 use App\Modules\Orders\Http\Requests\StoreOrderRequest;
@@ -15,6 +14,7 @@ use App\Modules\Orders\Services\OrderPdfGenerator;
 use App\Modules\Orders\Services\Payment\OrderPaymentService;
 use App\Modules\Orders\Services\Payment\PaymentReceiptUploadService;
 use App\Modules\Orders\Services\Payment\PaymentUploadTokenService;
+use App\Modules\Orders\Support\PaymentReceiptUploadLimits;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\JsonResponse;
@@ -192,7 +192,7 @@ class OrderController extends Controller
             'order' => $order,
             'paymentUploadUrl' => $paymentUploadUrl,
             'paymentUploadToken' => $paymentUploadToken,
-            'receiptMaxSizeLabel' => ProductUploadLimits::photoMaxSizeLabel(),
+            'receiptMaxSizeLabel' => PaymentReceiptUploadLimits::maxSizeLabel(),
             'advisorSnapshot' => $advisorResolver->snapshotFor($order),
             'currentOrderAdvisor' => $advisorResolver->currentForOrder($order),
         ]);
@@ -230,13 +230,13 @@ class OrderController extends Controller
             'receipt' => [
                 'required',
                 'file',
-                'max:'.ProductUploadLimits::photoMaxSizeKb(),
+                'max:'.PaymentReceiptUploadLimits::maxSizeKb(),
                 'mimes:jpg,jpeg,png,gif,webp,pdf',
             ],
         ], [
             'receipt.required' => 'Adjunta el comprobante de pago.',
             'receipt.mimes' => 'El comprobante debe ser imagen (JPG, PNG, WEBP) o PDF.',
-            'receipt.max' => 'El comprobante no puede superar '.ProductUploadLimits::photoMaxSizeLabel().'.',
+            'receipt.max' => 'El comprobante no puede superar '.PaymentReceiptUploadLimits::maxSizeLabel().'.',
         ]);
 
         try {

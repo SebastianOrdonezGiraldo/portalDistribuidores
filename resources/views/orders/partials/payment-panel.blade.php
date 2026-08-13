@@ -5,7 +5,7 @@ Expects: $order, optional $paymentUploadUrl, $paymentUploadToken, $receiptMaxSiz
 @php
     $paymentUploadUrl = $paymentUploadUrl ?? null;
     $paymentUploadToken = $paymentUploadToken ?? session('payment_upload_token');
-    $receiptMaxSizeLabel = $receiptMaxSizeLabel ?? \App\Modules\Catalog\Support\ProductUploadLimits::photoMaxSizeLabel();
+    $receiptMaxSizeLabel = $receiptMaxSizeLabel ?? \App\Modules\Orders\Support\PaymentReceiptUploadLimits::maxSizeLabel();
     $allowsUpload = $order->payment_status->allowsReceiptUpload();
     $methodLines = $order->payment_method?->instructionLines() ?? [];
     $methodImageUrl = $order->payment_method?->instructionImageUrl();

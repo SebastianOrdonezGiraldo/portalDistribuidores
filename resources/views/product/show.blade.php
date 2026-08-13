@@ -31,7 +31,7 @@ View contract:
         $savingsTemplate = $savingsTemplate ?? 'Ahorras :amount';
         $savingsText = $savingsText ?? '';
         $formattedGold = $formattedGold ?? $formattedPrice;
-        $formattedSilver = $formattedSilver ?? $formattedPrice;
+        $formattedSilver = $formattedSilver ?? 'Precio pendiente';
         $priceBadge = $priceBadge ?? 'Precio Oro';
         $standardLabel = $standardLabel ?? 'Precio estándar';
         $tierPriceLabel = $tierPriceLabel ?? 'Precio Oro';
@@ -446,9 +446,9 @@ View contract:
                                     @foreach($activeVariants as $variant)
                                         @php
                                             $variantPrices = $variantPriceMap[(int) $variant->id] ?? null;
-                                            $variantEffective = (float) ($variantPrices['effective'] ?? $variant->price);
-                                            $variantGold = (float) ($variantPrices['gold'] ?? $variant->price);
-                                            $variantSilver = (float) ($variantPrices['silver'] ?? $variant->price);
+                                            $variantEffective = $variantPrices['effective'] ?? null;
+                                            $variantGold = $variantPrices['gold'] ?? null;
+                                            $variantSilver = $variantPrices['silver'] ?? null;
                                             $variantStock = $variant->available_stock;
                                             $variantValue = $variant->attributeValue?->value ?? 'Valor';
                                             $variantStockLabel = is_null($variantStock)
@@ -464,7 +464,7 @@ View contract:
                                             data-stock-max="{{ is_null($variantStock) ? '' : max(0, (int) floor((float) $variantStock)) }}"
                                             @selected((string) old('variant_id') === (string) $variant->id)
                                         >
-                                            {{ $variantValue }} — ${{ number_format($variantEffective, 0, ',', '.') }} · {{ $variantStockLabel }}
+                                            {{ $variantValue }} — {{ $variantEffective === null ? 'Precio pendiente' : '$'.number_format($variantEffective, 0, ',', '.') }} · {{ $variantStockLabel }}
                                         </option>
                                     @endforeach
                                 </x-ui.select>

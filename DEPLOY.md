@@ -92,7 +92,7 @@ systemctl enable --now postgresql
 
 ```bash
 # Ajustar parámetros en /etc/php/8.3/fpm/php.ini
-sed -i 's/upload_max_filesize = .*/upload_max_filesize = 6M/' /etc/php/8.3/fpm/php.ini
+sed -i 's/upload_max_filesize = .*/upload_max_filesize = 16M/' /etc/php/8.3/fpm/php.ini
 sed -i 's/post_max_size = .*/post_max_size = 45M/' /etc/php/8.3/fpm/php.ini
 sed -i 's/max_execution_time = .*/max_execution_time = 300/' /etc/php/8.3/fpm/php.ini
 sed -i 's/memory_limit = .*/memory_limit = 256M/' /etc/php/8.3/fpm/php.ini
@@ -102,7 +102,7 @@ sed -i 's/;opcache.memory_consumption=.*/opcache.memory_consumption=128/' /etc/p
 systemctl restart php8.3-fpm
 ```
 
-> La aplicacion valida hasta **3 MB por foto**, **5 MB por PDF** y **40 MB** de carga total.
+> La aplicacion valida hasta **3 MB por foto**, **5 MB por PDF de producto**, **10 MB por comprobante de pago** y **40 MB** de carga total.
 > Deja `upload_max_filesize`, `post_max_size` y `client_max_body_size` por encima de esos limites
 > para evitar `500` o `413` inconsistentes.
 
@@ -445,6 +445,7 @@ ls -la /var/www/portal-distribuidores/bootstrap/cache/
 - [ ] Los PDFs de pedidos y fichas técnicas ya no quedan expuestos en el bucket público
 - [ ] Una foto > 3 MB muestra un mensaje claro en el formulario
 - [ ] Un PDF > 5 MB muestra un mensaje claro en el formulario
+- [ ] Un comprobante de pago > 10 MB muestra un mensaje claro en el formulario
 - [ ] Una carga total excesiva muestra un mensaje claro o la pagina 413 amigable
 - [ ] Se puede generar un PDF de pedido (DomPDF)
 - [ ] Se envía correo de notificación (SMTP Hostinger)

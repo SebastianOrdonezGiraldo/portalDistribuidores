@@ -13,6 +13,7 @@ use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Orders\Services\Payment\OrderPaymentService;
 use App\Modules\Orders\Services\Payment\PaymentReceiptUploadService;
 use App\Modules\Orders\Services\Payment\PaymentUploadTokenService;
+use App\Modules\Orders\Support\PaymentReceiptUploadLimits;
 use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Enums\PaymentMethod;
@@ -161,6 +162,78 @@ class ManualPaymentFlowTest extends TestCase
         $this->assertTrue(
             PaymentUploadToken::query()->where('order_id', $order->id)->whereNotNull('consumed_at')->exists()
         );
+    }
+
+    public function test_magic_link_accepts_receipt_at_the_10mb_limit(): void
+    {
+        Mail::fake();
+        $order = Order::factory()->create([
+            'status' => OrderStatus::Submitted,
+            'payment_status' => PaymentStatus::PendingUpload,
+            'payment_method' => PaymentMethod::Nequi,
+            'payment_reservation_expires_at' => now()->addMinutes(30),
+        ]);
+
+        $plain = app(PaymentUploadTokenService::class)->issue($order);
+        $pdfSize = PaymentReceiptUploadLimits::maxSizeKb() * 1024;
+        $file = UploadedFile::fake()->createWithContent(
+            'comprobante-10mb.pdf',
+            '%PDF-'.str_repeat('0', $pdfSize - 5),
+        );
+
+        $this->post(route('orders.payment-receipt.store', $order), [
+            'token' => $plain,
+            'receipt' => $file,
+        ])->assertRedirect();
+
+        $this->assertSame(PaymentStatus::Confirming, $order->fresh()->payment_status);
+    }
+
+    public function test_magic_link_rejects_receipt_above_the_configured_limit(): void
+    {
+        $order = Order::factory()->create([
+            'status' => OrderStatus::Submitted,
+            'payment_status' => PaymentStatus::PendingUpload,
+            'payment_method' => PaymentMethod::Nequi,
+            'payment_reservation_expires_at' => now()->addMinutes(30),
+        ]);
+
+        $plain = app(PaymentUploadTokenService::class)->issue($order);
+        $file = UploadedFile::fake()->create(
+            'comprobante-grande.pdf',
+            PaymentReceiptUploadLimits::maxSizeKb() + 1,
+            'application/pdf',
+        );
+
+        $this->post(route('orders.payment-receipt.store', $order), [
+            'token' => $plain,
+            'receipt' => $file,
+        ])->assertSessionHasErrors([
+            'receipt' => 'El comprobante no puede superar '.PaymentReceiptUploadLimits::maxSizeLabel().'.',
+        ]);
+
+        $this->assertSame(PaymentStatus::PendingUpload, $order->fresh()->payment_status);
+        $this->assertDatabaseHas('payment_upload_tokens', [
+            'order_id' => $order->id,
+            'consumed_at' => null,
+        ]);
+    }
+
+    public function test_magic_link_displays_the_payment_receipt_limit(): void
+    {
+        $order = Order::factory()->create([
+            'payment_status' => PaymentStatus::PendingUpload,
+            'payment_method' => PaymentMethod::Llave,
+        ]);
+
+        $plain = app(PaymentUploadTokenService::class)->issue($order);
+
+        $this->get(route('orders.payment-receipt.show', [
+            'order' => $order,
+            'token' => $plain,
+        ]))
+            ->assertOk()
+            ->assertSee('máximo '.PaymentReceiptUploadLimits::maxSizeLabel());
     }
 
     public function test_magic_link_unknown_token_returns_404(): void

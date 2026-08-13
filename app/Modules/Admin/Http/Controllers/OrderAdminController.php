@@ -463,11 +463,15 @@ class OrderAdminController extends Controller
                     ->orderBy('id'),
             ])
             ->orderBy('name')
-            ->get(['id', 'name', 'sku', 'price', 'is_vat_excluded']);
+            ->get(['id', 'name', 'sku', 'price', 'silver_price', 'is_vat_excluded']);
 
-        $effectivePrice = fn (int|string $basePrice): float => (float) $priceCalculator
-            ->calculateFromDecimal($basePrice, $tier)
-            ->effectivePriceDecimal();
+        $effectivePrice = function (int|string $goldPrice, int|string|null $silverPrice) use ($priceCalculator, $tier): ?float {
+            if ($silverPrice === null || (string) $silverPrice === '') {
+                return null;
+            }
+
+            return (float) $priceCalculator->calculateFromDecimal($goldPrice, (string) $silverPrice, $tier)->effectivePriceDecimal();
+        };
 
         return $products
             ->flatMap(function (Product $product) use ($effectivePrice) {
@@ -478,7 +482,7 @@ class OrderAdminController extends Controller
                     return [[
                         'ref' => 'p:'.$product->id,
                         'label' => "{$baseLabel} · {$taxLabel}",
-                        'price' => $effectivePrice((string) $product->price),
+                        'price' => $effectivePrice((string) $product->price, $product->silver_price),
                     ]];
                 }
 
@@ -489,9 +493,9 @@ class OrderAdminController extends Controller
                     return [
                         'ref' => 'v:'.$variant->id,
                         'label' => "{$baseLabel} · {$attributeName}: {$attributeValue} · {$taxLabel}",
-                        'price' => $effectivePrice((string) $variant->price),
+                        'price' => $effectivePrice((string) $variant->price, $variant->silver_price),
                     ];
-                });
+                })->all();
             })
             ->values()
             ->all();
