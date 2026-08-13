@@ -169,16 +169,13 @@ class ProductController extends Controller
         $maxVariantPrice = $pricing['maxEffective'];
         $price = $pricing['minEffective'];
         $isRangePrice = $pricing['isRangePrice'];
-        $formattedPrice = ($pricing['silverAvailable'] ?? false)
-            ? $pricing['formattedEffective']
-            : 'Precio pendiente';
+        $formattedPrice = $pricing['formattedEffective'];
         $vatLabel = OrderLineVat::label((bool) $product->is_vat_excluded);
 
         $stock = $hasVariants ? null : ($commercial['stock'] ?? null);
         $canBuy = $hasVariants
-            ? $activeVariants->isNotEmpty() && (bool) ($pricing['silverAvailable'] ?? false)
-            : ! in_array($commercial['availability']['key'] ?? '', ['out', 'inactive'], true)
-                && (bool) ($pricing['silverAvailable'] ?? false);
+            ? $activeVariants->isNotEmpty()
+            : ! in_array($commercial['availability']['key'] ?? '', ['out', 'inactive'], true);
         $isLowStock = ! $hasVariants && in_array($commercial['availability']['key'] ?? '', ['low', 'out'], true);
 
         // Resolve final availability: override to "requires selection" when product has variants.
@@ -274,7 +271,6 @@ class ProductController extends Controller
      *   formattedGold: string,
      *   formattedSilver: string,
      *   formattedEffective: string,
-     *   silverAvailable: bool,
      *   variantPriceMap: array<int, array{gold: float, silver: float, effective: float}>
      * }
      */
@@ -287,18 +283,18 @@ class ProductController extends Controller
         DistributorPriceCalculator $priceCalculator,
         callable $formatMoney,
     ): array {
-        $pricePairs = $hasVariants
-            ? $activeVariants->map(fn ($variant) => [(string) $variant->price, $variant->silver_price])->all()
-            : [[(string) $product->price, $product->silver_price]];
+        $basePrices = $hasVariants
+            ? $activeVariants->map(fn ($variant) => (string) $variant->price)->all()
+            : [(string) $product->price];
 
-        $priced = collect($pricePairs)
-            ->filter(fn (array $pair): bool => $pair[1] !== null && (string) $pair[1] !== '')
-            ->map(fn (array $pair) => $priceCalculator->calculateFromDecimal($pair[0], (string) $pair[1], $tier));
+        $priced = collect($basePrices)->map(
+            fn (string $base) => $priceCalculator->calculateFromDecimal($base, $tier)
+        );
 
-        $minGold = $priced->isEmpty() ? 0 : (float) $priced->min(fn ($p) => (float) $p->basePriceDecimal());
-        $maxGold = $priced->isEmpty() ? 0 : (float) $priced->max(fn ($p) => (float) $p->basePriceDecimal());
-        $minSilver = $priced->isEmpty() ? 0 : (float) $priced->min(fn ($p) => (float) $p->silverPriceDecimal());
-        $maxSilver = $priced->isEmpty() ? 0 : (float) $priced->max(fn ($p) => (float) $p->silverPriceDecimal());
+        $minGold = (float) $priced->min(fn ($p) => (float) $p->basePriceDecimal());
+        $maxGold = (float) $priced->max(fn ($p) => (float) $p->basePriceDecimal());
+        $minSilver = (float) $priced->min(fn ($p) => (float) $p->silverPriceDecimal());
+        $maxSilver = (float) $priced->max(fn ($p) => (float) $p->silverPriceDecimal());
 
         if ($isDistributor) {
             $minEffective = (float) $priced->min(fn ($p) => (float) $p->effectivePriceDecimal());
@@ -336,11 +332,7 @@ class ProductController extends Controller
 
         if ($hasVariants) {
             foreach ($activeVariants as $variant) {
-                if ($variant->silver_price === null || (string) $variant->silver_price === '') {
-                    continue;
-                }
-
-                $tierPrice = $priceCalculator->calculateFromDecimal((string) $variant->price, (string) $variant->silver_price, $tier);
+                $tierPrice = $priceCalculator->calculateFromDecimal((string) $variant->price, $tier);
                 $gold = (float) $tierPrice->basePriceDecimal();
                 $silver = (float) $tierPrice->silverPriceDecimal();
                 $effective = $isDistributor
@@ -375,7 +367,6 @@ class ProductController extends Controller
             'formattedSilver' => $formatRange($minSilver, $maxSilver),
             'formattedEffective' => $formatRange($minEffective, $maxEffective),
             'variantPriceMap' => $variantPriceMap,
-            'silverAvailable' => count($pricePairs) === $priced->count(),
         ];
     }
 

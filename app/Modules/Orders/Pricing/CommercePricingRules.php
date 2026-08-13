@@ -6,13 +6,11 @@ use App\Modules\Shared\Enums\GoldThresholdBasis;
 use InvalidArgumentException;
 
 /**
- * Immutable snapshot of checkout thresholds/minimums used by the price calculator.
+ * Immutable snapshot of the commercial pricing rules used by the price calculator.
  *
  * Values are stored as integer basis points (500 = 5.00%), peso multiples and
  * whole-COP amounts for minimum-order / gold-threshold rules.
- * Legacy Silver markup fields remain persisted for audit compatibility only;
- * callers must supply ContaPyme's cached Silver price and this DTO does not
- * invent amounts.
+ * Callers must supply resolved values (from DB or config); this DTO does not invent amounts.
  */
 final readonly class CommercePricingRules
 {

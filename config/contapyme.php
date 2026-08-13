@@ -11,15 +11,6 @@ return [
     'timeout' => env('CONTAPYME_TIMEOUT', 10),
     'stock_stale_after' => (int) env('CONTAPYME_STOCK_STALE_AFTER', 900),
 
-    'prices' => [
-        'enabled' => (bool) env('CONTAPYME_PRICE_SYNC_ENABLED', false),
-        'method' => (string) env('CONTAPYME_PRICE_METHOD', '1'),
-        'lists' => [
-            'gold' => (string) env('CONTAPYME_PRICE_LIST_GOLD', '1'),
-            'silver' => (string) env('CONTAPYME_PRICE_LIST_SILVER', '3'),
-        ],
-    ],
-
     // Legacy keys kept so existing .env values do not break config lookups.
     // The sync no longer filters by warehouse or reconciles via GetListaElemInv.
     'warehouse' => env('CONTAPYME_BODEGA_ID', env('CONTAPYME_WAREHOUSE', '1')),

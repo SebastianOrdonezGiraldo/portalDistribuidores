@@ -5,7 +5,6 @@ namespace App\Modules\Orders\Pricing;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Shared\Enums\DistributorTier;
-use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Support\Collection;
 
 /**
@@ -40,8 +39,7 @@ final class OrderPricingCalculator
         ?CommercePricingRules $rules = null,
     ): OrderPricingResult {
         $rules ??= $this->rulesProvider->current();
-        // The rules snapshot still controls thresholds/minimums; prices come
-        // exclusively from the product cache synchronized with ContaPyme.
+        // Historical edits must use the snapshot's markup, not the container binding.
         $priceCalculator = new DistributorPriceCalculator($rules);
         $candidateLines = [];
 
@@ -51,36 +49,9 @@ final class OrderPricingCalculator
             $variant = $item['variant'] ?? null;
             $qty = max(1, (int) $item['qty']);
             $unitLabel = $item['unit_label'] ?? 'unidades';
-            $goldPrice = $variant instanceof ProductVariant ? $variant->price : $product->price;
+            $basePrice = $variant?->price ?? $product->price;
 
-            if ($goldPrice === null) {
-                throw new DomainException('El precio Silver de un producto no está sincronizado; no se puede crear el pedido.');
-            }
-
-            $priceSyncStatus = $variant instanceof ProductVariant
-                ? $variant->price_sync_status
-                : $product->price_sync_status;
-            $priceSyncedAt = $variant instanceof ProductVariant
-                ? $variant->price_synced_at
-                : $product->price_synced_at;
-            $cachedSilverPrice = $variant instanceof ProductVariant
-                ? $variant->silver_price
-                : $product->silver_price;
-
-            // ContaPyme is the source of truth only after a successful price
-            // synchronization. Before that point, manual/legacy catalog rows
-            // are priced from the selected commerce-rules snapshot. This also
-            // prevents a stale Silver value from becoming lower than a newly
-            // edited Gold price.
-            $silverPrice = $this->isPriceSynchronized($priceSyncStatus, $priceSyncedAt)
-                ? $cachedSilverPrice
-                : $priceCalculator->calculateFromDecimal((string) $goldPrice, DistributorTier::Silver)->silverPriceDecimal();
-
-            if ((string) $silverPrice === '') {
-                throw new DomainException('El precio Silver de un producto no está sincronizado; no se puede crear el pedido.');
-            }
-
-            $priced = $priceCalculator->calculateFromDecimal((string) $goldPrice, (string) $silverPrice, DistributorTier::Gold);
+            $priced = $priceCalculator->calculateFromDecimal((string) $basePrice, DistributorTier::Gold);
             $goldUnit = $priced->basePriceCents;
             $silverUnit = $priced->silverPriceCents;
 
@@ -151,10 +122,5 @@ final class OrderPricingCalculator
             goldSavingsCents: $goldSavings,
             commercePricingRuleId: $rules->ruleId,
         );
-    }
-
-    private function isPriceSynchronized(?string $status, mixed $syncedAt): bool
-    {
-        return $status === 'synced' && $syncedAt !== null;
     }
 }
