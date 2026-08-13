@@ -15,11 +15,11 @@ use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 /**
- * ContaPyme DataSnap adapter for inventory integrations.
+ * ContaPyme DataSnap adapter for stock-only synchronization.
  *
- * Stock synchronization remains the responsibility of this service. The
- * read-only DataSnap call is also exposed for the dedicated price adapter so
- * web/catalog requests never contact ContaPyme.
+ * The portal owns prices and catalog data. ContaPyme only feeds the local stock
+ * field so cart and quotation validation can stay fast and isolated from the
+ * external API.
  */
 class ContaPymeInventoryService implements InventorySyncInterface
 {
@@ -85,23 +85,6 @@ class ContaPymeInventoryService implements InventorySyncInterface
     public function lastError(): ?string
     {
         return $this->lastError;
-    }
-
-    /**
-     * Execute an authenticated, retried, read-only DataSnap call.
-     * Price-specific response interpretation lives in ContaPymePriceService.
-     */
-    public function callReadOnly(string $serverClass, string $function, array $dataJson, bool $withResponse = false): mixed
-    {
-        $this->lastError = null;
-
-        try {
-            return $this->callWithRetry($serverClass, $function, $dataJson, $withResponse);
-        } catch (RuntimeException $e) {
-            $this->lastError = $this->diagnosticError($e->getMessage());
-
-            throw $e;
-        }
     }
 
     /**

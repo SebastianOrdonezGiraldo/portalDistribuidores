@@ -12,7 +12,7 @@ Component contract:
   optional DistributorTier tier (resolved from auth when omitted).
 - Slots: none.
 - Use for: catalog grids and product-list partials where product relations are eager loaded.
-- Notes: dual pricing uses the locally synchronized Gold/Silver pair.
+- Notes: dual pricing uses DistributorPriceCalculator; no hardcoded second price.
 --}}
 @php
     use App\Modules\Orders\Pricing\DistributorPriceCalculator;
@@ -50,19 +50,18 @@ Component contract:
         ?? ($isDistributorViewer ? $resolvedTier->pricingMode() : 'single');
 
     $calculator = app(DistributorPriceCalculator::class);
-    $pricePairs = $hasVariants
-        ? $activeVariants->map(fn ($variant) => [(string) $variant->price, $variant->silver_price])->all()
-        : [[(string) $product->price, $product->silver_price]];
+    $basePrices = $hasVariants
+        ? $activeVariants->map(fn ($variant) => (string) $variant->price)->all()
+        : [(string) $product->price];
 
-    $priced = collect($pricePairs)
-        ->filter(fn (array $pair): bool => $pair[1] !== null && (string) $pair[1] !== '')
-        ->map(fn (array $pair) => $calculator->calculateFromDecimal($pair[0], (string) $pair[1], $resolvedTier));
-    $silverAvailable = count($pricePairs) === $priced->count();
+    $priced = collect($basePrices)->map(
+        fn (string $base) => $calculator->calculateFromDecimal($base, $resolvedTier)
+    );
 
-    $minGold = $priced->isEmpty() ? 0 : (float) $priced->min(fn ($p) => (float) $p->basePriceDecimal());
-    $maxGold = $priced->isEmpty() ? 0 : (float) $priced->max(fn ($p) => (float) $p->basePriceDecimal());
-    $minSilver = $priced->isEmpty() ? 0 : (float) $priced->min(fn ($p) => (float) $p->silverPriceDecimal());
-    $maxSilver = $priced->isEmpty() ? 0 : (float) $priced->max(fn ($p) => (float) $p->silverPriceDecimal());
+    $minGold = (float) $priced->min(fn ($p) => (float) $p->basePriceDecimal());
+    $maxGold = (float) $priced->max(fn ($p) => (float) $p->basePriceDecimal());
+    $minSilver = (float) $priced->min(fn ($p) => (float) $p->silverPriceDecimal());
+    $maxSilver = (float) $priced->max(fn ($p) => (float) $p->silverPriceDecimal());
 
     if ($isDistributorViewer) {
         $minEffective = (float) $priced->min(fn ($p) => (float) $p->effectivePriceDecimal());
@@ -250,9 +249,9 @@ Component contract:
                     <a href="{{ $detailUrl }}" class="relative z-10 inline-flex h-10 items-center justify-center rounded-lg border border-brand-primary bg-brand-primary px-3 text-xs font-semibold text-white transition hover:bg-brand-hover focus-ring">
                         Elegir
                     </a>
-                @elseif(! $hasStock || ! $silverAvailable)
+                @elseif(! $hasStock)
                     <span class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-3 text-xs font-semibold text-slate-500">
-                        {{ $silverAvailable ? 'No disponible' : 'Precio pendiente' }}
+                        No disponible
                     </span>
                 @else
                     <form action="{{ route('cart.store') }}" method="POST" class="cart-qty-form relative z-10">

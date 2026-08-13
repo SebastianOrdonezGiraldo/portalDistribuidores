@@ -3,10 +3,7 @@
 namespace App\Modules\Orders\Pricing;
 
 use App\Models\User;
-use App\Modules\Catalog\Models\Product;
-use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Orders\Models\CommercePricingRule;
-use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\GoldThresholdBasis;
 use Illuminate\Support\Facades\DB;
 
@@ -105,56 +102,8 @@ final class CommercePricingRulesService
 
         if ($result->changed) {
             $this->provider->forgetCache();
-            $this->refreshLegacySilverPrices($result->rule);
         }
 
         return $result;
-    }
-
-    /**
-     * Keep pre-ContaPyme catalog rows usable while they are being migrated.
-     * Explicitly synchronized rows are never overwritten by an admin rule.
-     */
-    private function refreshLegacySilverPrices(CommercePricingRule $rule): void
-    {
-        $rules = new CommercePricingRules(
-            silverMarkupBasisPoints: (int) $rule->silver_markup_basis_points,
-            silverRoundingMultiple: (int) $rule->silver_rounding_multiple,
-            silverMinOrderEnabled: (bool) $rule->silver_min_order_enabled,
-            silverMinOrderAmount: (int) $rule->silver_min_order_amount,
-            goldMinOrderEnabled: (bool) $rule->gold_min_order_enabled,
-            goldMinOrderAmount: (int) $rule->gold_min_order_amount,
-            goldPricingThresholdEnabled: (bool) $rule->gold_pricing_threshold_enabled,
-            goldPricingThresholdAmount: (int) $rule->gold_pricing_threshold_amount,
-            goldPricingThresholdBasis: GoldThresholdBasis::from((string) $rule->gold_pricing_threshold_basis),
-            ruleId: (int) $rule->id,
-        );
-        $calculator = new DistributorPriceCalculator($rules);
-
-        Product::query()
-            ->whereNull('price_synced_at')
-            ->whereNotNull('silver_price')
-            ->chunkById(100, function ($products) use ($calculator): void {
-                foreach ($products as $product) {
-                    $product->forceFill([
-                        'silver_price' => $calculator
-                            ->calculateFromDecimal((string) $product->price, DistributorTier::Silver)
-                            ->silverPriceDecimal(),
-                    ])->saveQuietly();
-                }
-            });
-
-        ProductVariant::query()
-            ->whereNull('price_synced_at')
-            ->whereNotNull('silver_price')
-            ->chunkById(100, function ($variants) use ($calculator): void {
-                foreach ($variants as $variant) {
-                    $variant->forceFill([
-                        'silver_price' => $calculator
-                            ->calculateFromDecimal((string) $variant->price, DistributorTier::Silver)
-                            ->silverPriceDecimal(),
-                    ])->saveQuietly();
-                }
-            });
     }
 }
