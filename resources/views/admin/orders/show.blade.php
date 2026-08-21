@@ -20,16 +20,6 @@ View contract:
         $selectedStatus = old('status', $recommendedAction['value'] ?? '');
         $selectedStatusOption = $nextStatuses->firstWhere('value', $selectedStatus);
         $selectedRequiresNote = is_array($selectedStatusOption) ? (bool) ($selectedStatusOption['requires_note'] ?? false) : false;
-        $selectedTrackingNumber = old('tracking_number', $order->tracking_number ?? '');
-        $shippingCarrierPrefixes = \App\Modules\Shared\Enums\ShippingCarrier::prefixLabels();
-        $selectedIsDispatched = $selectedStatus === \App\Modules\Shared\Enums\OrderStatus::Dispatched->value;
-        $detectedCarrierLabel = \App\Modules\Shared\Enums\ShippingCarrier::detect($selectedTrackingNumber)?->label();
-        $selectedCarrier = old('shipping_carrier', $detectedCarrierLabel ?? '');
-        $shippingCanBeEdited = in_array($order->status, [
-            \App\Modules\Shared\Enums\OrderStatus::Dispatched,
-            \App\Modules\Shared\Enums\OrderStatus::Sent,
-            \App\Modules\Shared\Enums\OrderStatus::Delivered,
-        ], true);
         $primaryCtaLabel = is_array($recommendedAction) ? ($recommendedAction['cta'] ?? 'Actualizar estado') : 'Actualizar estado';
     @endphp
 
@@ -356,16 +346,6 @@ View contract:
                         <x-input-error id="order-status-next-error" :messages="$errors->get('status')" />
                     </div>
 
-                    @if($nextStatuses->contains('value', \App\Modules\Shared\Enums\OrderStatus::Dispatched->value))
-                        <x-orders.shipping-fields
-                            :tracking-number="$selectedTrackingNumber"
-                            :shipping-carrier="$selectedCarrier"
-                            :carrier-prefixes="$shippingCarrierPrefixes"
-                            :visible="$selectedIsDispatched"
-                            :manually-edited="old('shipping_carrier') !== null && old('shipping_carrier') !== $detectedCarrierLabel"
-                        />
-                    @endif
-
                     <div>
                         <label class="form-label" for="order-status-note">Nota de trazabilidad</label>
                         <x-ui.textarea
@@ -403,28 +383,6 @@ View contract:
             @endif
         </x-ui.card>
         </div>
-
-        @if($shippingCanBeEdited)
-            <x-ui.card>
-                <h2 class="card-title">Gestión del envío</h2>
-                <p class="mt-1 text-xs text-slate-500">Corrige la guía o transportadora sin modificar el estado actual del pedido.</p>
-
-                <form action="{{ route('admin.orders.shipping', $order) }}" method="POST" class="mt-4 space-y-3" data-shipping-form>
-                    @csrf
-                    @method('PATCH')
-                    <x-orders.shipping-fields
-                        id-prefix="shipping-update"
-                        :tracking-number="old('tracking_number', $order->tracking_number)"
-                        :shipping-carrier="old('shipping_carrier', $order->shippingCarrierLabel())"
-                        :carrier-prefixes="$shippingCarrierPrefixes"
-                        :manually-edited="true"
-                    />
-                    <x-ui.button type="submit" variant="secondary" class="w-full justify-center">
-                        Guardar información de envío
-                    </x-ui.button>
-                </form>
-            </x-ui.card>
-        @endif
 
         <x-ui.card>
             <h2 class="card-title">Historial de estados</h2>

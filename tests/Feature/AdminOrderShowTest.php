@@ -49,6 +49,9 @@ class AdminOrderShowTest extends TestCase
         $response->assertSee('Ítems del Pedido');
         $response->assertSee('KIT-TEST-001');
         $response->assertSee('Checklist Operativo');
+        $response->assertDontSee('Gestión del envío');
+        $response->assertDontSee('Número de guía');
+        $response->assertDontSee('Transportadora');
     }
 
     public function test_admin_can_open_edit_form_for_editable_status(): void
