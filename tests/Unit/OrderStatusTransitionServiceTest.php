@@ -4,7 +4,6 @@ namespace Tests\Unit;
 
 use App\Models\User;
 use App\Modules\Orders\Models\Order;
-use App\Modules\Orders\Services\OrderInventoryReconciliationService;
 use App\Modules\Orders\Services\OrderInventoryService;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Shared\Enums\OrderStatus;
@@ -18,8 +17,6 @@ class OrderStatusTransitionServiceTest extends TestCase
 
     private OrderInventoryService $inventoryService;
 
-    private OrderInventoryReconciliationService $reconciliationService;
-
     private OrderStatusTransitionService $service;
 
     protected function setUp(): void
@@ -27,8 +24,7 @@ class OrderStatusTransitionServiceTest extends TestCase
         parent::setUp();
 
         $this->inventoryService = $this->createMock(OrderInventoryService::class);
-        $this->reconciliationService = $this->createMock(OrderInventoryReconciliationService::class);
-        $this->service = new OrderStatusTransitionService($this->inventoryService, $this->reconciliationService);
+        $this->service = new OrderStatusTransitionService($this->inventoryService);
     }
 
     public function test_transition_rejects_same_illegal_and_missing_note_targets(): void
@@ -87,6 +83,33 @@ class OrderStatusTransitionServiceTest extends TestCase
         $updated = $this->service->transition($order, OrderStatus::Cancelled);
 
         $this->assertSame(OrderStatus::Cancelled, $updated->status);
+    }
+
+    public function test_submitted_to_sold_releases_hold_without_external_reconciliation(): void
+    {
+        $order = Order::factory()->create(['status' => OrderStatus::Submitted]);
+
+        $this->inventoryService->expects($this->once())
+            ->method('hasActiveHold')
+            ->with($this->callback(fn (Order $locked): bool => $locked->is($order)))
+            ->willReturn(true);
+        $this->inventoryService->expects($this->once())
+            ->method('releaseForOrder')
+            ->with(
+                $this->callback(fn (Order $locked): bool => $locked->is($order)),
+                null,
+                'status_sold',
+            );
+
+        $updated = $this->service->transition($order, OrderStatus::Sold, null, 'FVE creada.');
+
+        $this->assertSame(OrderStatus::Sold, $updated->status);
+        $this->assertDatabaseHas('order_status_histories', [
+            'order_id' => $order->id,
+            'from_status' => OrderStatus::Submitted->value,
+            'to_status' => OrderStatus::Sold->value,
+            'note' => 'FVE creada.',
+        ]);
     }
 
     public function test_non_hold_transitions_do_not_touch_inventory(): void
