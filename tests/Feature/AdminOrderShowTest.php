@@ -5,15 +5,12 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Catalog\Models\Product;
-use App\Modules\Inventory\Services\ContaPymeInventoryService;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Orders\Services\OrderInventoryService;
 use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\OrderStatus;
-use App\Modules\Shared\ValueObjects\InventoryItemData;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Mockery\MockInterface;
 use Tests\TestCase;
 
 class AdminOrderShowTest extends TestCase
@@ -52,6 +49,9 @@ class AdminOrderShowTest extends TestCase
         $response->assertSee('Ítems del Pedido');
         $response->assertSee('KIT-TEST-001');
         $response->assertSee('Checklist Operativo');
+        $response->assertDontSee('Gestión del envío');
+        $response->assertDontSee('Número de guía');
+        $response->assertDontSee('Transportadora');
     }
 
     public function test_admin_can_open_edit_form_for_editable_status(): void
@@ -301,12 +301,6 @@ class AdminOrderShowTest extends TestCase
     {
         $order = $this->createOrderWithItem();
         $admin = User::query()->findOrFail($order->user_id);
-        $this->mock(ContaPymeInventoryService::class, function (MockInterface $mock): void {
-            $mock->shouldReceive('getProductInfo')
-                ->once()
-                ->with('KIT-TEST-001')
-                ->andReturn(new InventoryItemData('KIT-TEST-001', stock: 8, externalId: 'KIT-TEST-001'));
-        });
 
         $this->actingAs($admin)
             ->patch(route('admin.orders.status', $order), [
@@ -326,6 +320,11 @@ class AdminOrderShowTest extends TestCase
             'to_status' => OrderStatus::Sold->value,
             'changed_by_user_id' => $admin->id,
             'note' => 'Venta confirmada por telefono.',
+        ]);
+        $this->assertDatabaseHas('inventory_holds', [
+            'order_id' => $order->id,
+            'status' => 'released',
+            'release_reason' => 'status_sold',
         ]);
     }
 

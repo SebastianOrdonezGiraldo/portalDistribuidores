@@ -4,7 +4,6 @@ namespace Tests\Unit;
 
 use App\Models\User;
 use App\Modules\Orders\Models\Order;
-use App\Modules\Orders\Services\OrderInventoryReconciliationService;
 use App\Modules\Orders\Services\OrderInventoryService;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Shared\Enums\OrderStatus;
@@ -18,8 +17,6 @@ class OrderStatusTransitionServiceTest extends TestCase
 
     private OrderInventoryService $inventoryService;
 
-    private OrderInventoryReconciliationService $reconciliationService;
-
     private OrderStatusTransitionService $service;
 
     protected function setUp(): void
@@ -27,8 +24,7 @@ class OrderStatusTransitionServiceTest extends TestCase
         parent::setUp();
 
         $this->inventoryService = $this->createMock(OrderInventoryService::class);
-        $this->reconciliationService = $this->createMock(OrderInventoryReconciliationService::class);
-        $this->service = new OrderStatusTransitionService($this->inventoryService, $this->reconciliationService);
+        $this->service = new OrderStatusTransitionService($this->inventoryService);
     }
 
     public function test_transition_rejects_same_illegal_and_missing_note_targets(): void
@@ -89,6 +85,33 @@ class OrderStatusTransitionServiceTest extends TestCase
         $this->assertSame(OrderStatus::Cancelled, $updated->status);
     }
 
+    public function test_submitted_to_sold_releases_hold_without_external_reconciliation(): void
+    {
+        $order = Order::factory()->create(['status' => OrderStatus::Submitted]);
+
+        $this->inventoryService->expects($this->once())
+            ->method('hasActiveHold')
+            ->with($this->callback(fn (Order $locked): bool => $locked->is($order)))
+            ->willReturn(true);
+        $this->inventoryService->expects($this->once())
+            ->method('releaseForOrder')
+            ->with(
+                $this->callback(fn (Order $locked): bool => $locked->is($order)),
+                null,
+                'status_sold',
+            );
+
+        $updated = $this->service->transition($order, OrderStatus::Sold, null, 'FVE creada.');
+
+        $this->assertSame(OrderStatus::Sold, $updated->status);
+        $this->assertDatabaseHas('order_status_histories', [
+            'order_id' => $order->id,
+            'from_status' => OrderStatus::Submitted->value,
+            'to_status' => OrderStatus::Sold->value,
+            'note' => 'FVE creada.',
+        ]);
+    }
+
     public function test_non_hold_transitions_do_not_touch_inventory(): void
     {
         $this->inventoryService->expects($this->never())->method('holdForOrder');
@@ -98,7 +121,7 @@ class OrderStatusTransitionServiceTest extends TestCase
         $this->service->transition($rejected, OrderStatus::Rejected);
 
         $sold = Order::factory()->create(['status' => OrderStatus::Sold]);
-        $this->service->transition($sold, OrderStatus::Dispatched, null, 'despacho', '888004907296');
+        $this->service->transition($sold, OrderStatus::Dispatched, null, 'despacho');
 
         $dispatched = Order::factory()->create([
             'status' => OrderStatus::Dispatched,
@@ -111,16 +134,9 @@ class OrderStatusTransitionServiceTest extends TestCase
         $this->assertSame('957000255300', $updated->tracking_number);
     }
 
-    public function test_dispatched_requires_tracking_and_persists_trimmed_audit_data(): void
+    public function test_dispatched_does_not_require_admin_shipping_data(): void
     {
         $order = Order::factory()->create(['status' => OrderStatus::Sold]);
-
-        try {
-            $this->service->transition($order, OrderStatus::Dispatched, null, 'salida');
-            $this->fail('Expected tracking validation exception.');
-        } catch (DomainException $exception) {
-            $this->assertStringContainsString('número de guía', $exception->getMessage());
-        }
 
         $actor = User::factory()->create();
         $updated = $this->service->transition(
@@ -128,33 +144,16 @@ class OrderStatusTransitionServiceTest extends TestCase
             OrderStatus::Dispatched,
             $actor,
             '  despacho parcial  ',
-            ' 2258298191 ',
         );
 
-        $this->assertSame('2258298191', $updated->tracking_number);
-        $this->assertSame('servientrega', $updated->shipping_carrier);
+        $this->assertSame(OrderStatus::Dispatched, $updated->status);
+        $this->assertNull($updated->tracking_number);
+        $this->assertNull($updated->shipping_carrier);
         $this->assertDatabaseHas('order_status_histories', [
             'order_id' => $order->id,
             'changed_by_user_id' => $actor->id,
             'note' => 'despacho parcial',
         ]);
-    }
-
-    public function test_custom_shipping_carrier_overrides_detected_carrier(): void
-    {
-        $order = Order::factory()->create(['status' => OrderStatus::Sold]);
-
-        $updated = $this->service->transition(
-            $order,
-            OrderStatus::Dispatched,
-            null,
-            'Envío especial.',
-            '2258298191',
-            'Carga aérea especial',
-        );
-
-        $this->assertSame('Carga aérea especial', $updated->shipping_carrier);
-        $this->assertSame('Carga aérea especial', $updated->shippingCarrierLabel());
     }
 
     public function test_hold_failure_rolls_back_status_and_history(): void

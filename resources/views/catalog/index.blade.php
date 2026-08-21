@@ -516,6 +516,7 @@ View contract:
                         list-key="catalog"
                         :pricing-mode="$tierPricingMode"
                         :tier="$distributorTier"
+                        :show-load-more="false"
                     />
                 @endif
 
