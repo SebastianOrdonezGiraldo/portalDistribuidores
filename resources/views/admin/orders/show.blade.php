@@ -89,24 +89,6 @@ View contract:
                 </div>
             @endif
 
-            @if($order->inventory_reconciliation_status === 'failed')
-                <div class="mt-4">
-                    <x-ui.alert variant="warning" title="Inventario pendiente de sincronización con ContaPyme">
-                        El pedido continúa <strong>Registrado</strong> y el HOLD permanece activo para evitar sobreventa.
-                        Puedes reintentar de forma segura con <strong>Marcar como vendido</strong>.
-                        @if($order->inventory_reconciliation_error)
-                            <span class="mt-1 block text-xs">Detalle: {{ $order->inventory_reconciliation_error }}</span>
-                        @endif
-                    </x-ui.alert>
-                </div>
-            @elseif($order->inventory_reconciliation_status === 'pending')
-                <div class="mt-4">
-                    <x-ui.alert variant="info" title="Reconciliación de inventario en curso">
-                        El HOLD sigue activo hasta confirmar el stock base leído desde ContaPyme.
-                    </x-ui.alert>
-                </div>
-            @endif
-
             @php
                 $activeHoldQuantity = $order->inventoryHolds
                     ->where('status', \App\Modules\Inventory\Models\InventoryHold::STATUS_ACTIVE)
@@ -368,7 +350,7 @@ View contract:
                         <p id="order-status-next-help" class="mt-1 text-xs text-slate-500">Te sugerimos: {{ is_array($recommendedAction) ? $recommendedAction['label'] : 'elige una transición permitida' }}.</p>
                         @if($nextStatuses->contains('value', \App\Modules\Shared\Enums\OrderStatus::Sold->value))
                             <p class="mt-2 rounded-lg border border-sky-200 bg-sky-50 p-2 text-xs text-sky-800">
-                                <strong>Marcar como vendido</strong> confirma que un funcionario ya registró este pedido en ContaPyme. El Portal sincronizará los SKU antes de retirar el HOLD.
+                                <strong>Marcar como vendido</strong> confirma que un funcionario ya registró este pedido en ContaPyme. El Portal liberará el HOLD local sin consultar el inventario externo.
                             </p>
                         @endif
                         <x-input-error id="order-status-next-error" :messages="$errors->get('status')" />

@@ -67,7 +67,7 @@ estados, inventario asociado, PDF de cotizacion y notificaciones por correo.
   y auditable de `inventory_holds` activos.
 - Solo `submitted` mantiene HOLD. Cancelar o expirar el pago libera el HOLD sin
   aumentar el stock base.
-- `submitted -> sold` consulta ContaPyme en modo lectura, actualiza el stock base
-  y solo entonces libera el HOLD. Un fallo conserva `submitted` y el HOLD.
+- `submitted -> sold` confirma que la FVE ya fue registrada, libera el HOLD local
+  y no consulta ContaPyme. La sincronización de stock es independiente.
 - Detalle de pedido sin login: solo sesion `orders.guest_access`. El magic
   link de comprobante es la puerta publica cross-device (token hasheado).

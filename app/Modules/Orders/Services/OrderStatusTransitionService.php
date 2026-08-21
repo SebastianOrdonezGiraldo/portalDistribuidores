@@ -8,22 +8,20 @@ use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Enums\ShippingCarrier;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
-use Throwable;
 
 /**
  * Centralizes legal order status transitions and their inventory side effects.
  *
  * Callers should not update order.status directly when a transition may change
  * stock or requires status history. This service validates the enum transition,
- * records audit history and reconciles inventory when crossing the set of
- * statuses that consume stock.
+ * records audit history and applies local HOLD side effects when crossing the
+ * set of statuses that consume stock. ContaPyme stock synchronization is an
+ * independent process and must not block a status transition.
  */
 class OrderStatusTransitionService
 {
     public function __construct(
         private readonly OrderInventoryService $orderInventoryService,
-        private readonly OrderInventoryReconciliationService $reconciliationService,
     ) {}
 
     /**
@@ -94,6 +92,16 @@ class OrderStatusTransitionService
                 $updates['shipping_carrier'] = $normalizedShippingCarrier;
             }
 
+            if ($toStatus === OrderStatus::Sold) {
+                // A sale only releases the local HOLD. Any stale legacy
+                // reconciliation state must not continue to describe the order
+                // as blocked by ContaPyme.
+                $updates['inventory_reconciliation_status'] = null;
+                $updates['inventory_reconciliation_attempted_at'] = null;
+                $updates['inventory_reconciled_at'] = null;
+                $updates['inventory_reconciliation_error'] = null;
+            }
+
             $lockedOrder->update($updates);
 
             $lockedOrder->statusHistory()->create([
@@ -159,83 +167,36 @@ class OrderStatusTransitionService
         ?User $actor,
         ?string $note,
     ): Order {
-        DB::transaction(function () use ($order): void {
+        return DB::transaction(function () use ($order, $actor, $note): Order {
             /** @var Order $locked */
             $locked = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
 
             if ($locked->status !== OrderStatus::Submitted) {
-                throw new DomainException('Solo un pedido Registrado puede reconciliarse como Vendido.');
+                throw new DomainException('Solo un pedido Registrado puede marcarse como Vendido.');
             }
 
             if (! $this->orderInventoryService->hasActiveHold($locked)) {
                 throw new DomainException('El pedido Registrado no tiene un HOLD activo. Corrige la reserva antes de vender.');
             }
 
+            $this->orderInventoryService->releaseForOrder($locked, $actor, 'status_sold');
+
             $locked->update([
-                'inventory_reconciliation_status' => 'pending',
-                'inventory_reconciliation_attempted_at' => now(),
+                'status' => OrderStatus::Sold,
+                'inventory_reconciliation_status' => null,
+                'inventory_reconciliation_attempted_at' => null,
+                'inventory_reconciled_at' => null,
                 'inventory_reconciliation_error' => null,
             ]);
+
+            $locked->statusHistory()->create([
+                'from_status' => OrderStatus::Submitted->value,
+                'to_status' => OrderStatus::Sold->value,
+                'changed_by_user_id' => $actor?->id,
+                'note' => $note,
+            ]);
+
+            return $locked->refresh();
         });
-
-        try {
-            $this->reconciliationService->reconcile($order->refresh());
-
-            return DB::transaction(function () use ($order, $actor, $note): Order {
-                /** @var Order $locked */
-                $locked = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
-
-                if ($locked->status !== OrderStatus::Submitted) {
-                    throw new DomainException('El pedido cambió de estado durante la reconciliación. El HOLD no se liberó.');
-                }
-
-                $this->orderInventoryService->releaseForOrder(
-                    $locked,
-                    $actor,
-                    'sold_after_contapyme_reconciliation',
-                );
-
-                $locked->update([
-                    'status' => OrderStatus::Sold,
-                    'inventory_reconciliation_status' => 'synced',
-                    'inventory_reconciled_at' => now(),
-                    'inventory_reconciliation_error' => null,
-                ]);
-
-                $locked->statusHistory()->create([
-                    'from_status' => OrderStatus::Submitted->value,
-                    'to_status' => OrderStatus::Sold->value,
-                    'changed_by_user_id' => $actor?->id,
-                    'note' => $note,
-                    'metadata' => [
-                        'inventory_reconciliation' => 'synced',
-                    ],
-                ]);
-
-                return $locked->refresh();
-            });
-        } catch (Throwable $exception) {
-            DB::transaction(function () use ($order, $exception): void {
-                /** @var Order|null $locked */
-                $locked = Order::query()->whereKey($order->id)->lockForUpdate()->first();
-
-                if ($locked?->status !== OrderStatus::Submitted) {
-                    return;
-                }
-
-                $locked->update([
-                    'inventory_reconciliation_status' => 'failed',
-                    'inventory_reconciliation_error' => Str::limit($exception->getMessage(), 5000, ''),
-                ]);
-            });
-
-            if ($exception instanceof DomainException) {
-                throw $exception;
-            }
-
-            throw new DomainException(
-                'No fue posible sincronizar el inventario con ContaPyme. El pedido sigue Registrado y el HOLD permanece activo.'
-            );
-        }
     }
 }
