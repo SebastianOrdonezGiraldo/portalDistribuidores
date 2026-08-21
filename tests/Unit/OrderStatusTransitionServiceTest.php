@@ -121,7 +121,7 @@ class OrderStatusTransitionServiceTest extends TestCase
         $this->service->transition($rejected, OrderStatus::Rejected);
 
         $sold = Order::factory()->create(['status' => OrderStatus::Sold]);
-        $this->service->transition($sold, OrderStatus::Dispatched, null, 'despacho', '888004907296');
+        $this->service->transition($sold, OrderStatus::Dispatched, null, 'despacho');
 
         $dispatched = Order::factory()->create([
             'status' => OrderStatus::Dispatched,
@@ -134,16 +134,9 @@ class OrderStatusTransitionServiceTest extends TestCase
         $this->assertSame('957000255300', $updated->tracking_number);
     }
 
-    public function test_dispatched_requires_tracking_and_persists_trimmed_audit_data(): void
+    public function test_dispatched_does_not_require_admin_shipping_data(): void
     {
         $order = Order::factory()->create(['status' => OrderStatus::Sold]);
-
-        try {
-            $this->service->transition($order, OrderStatus::Dispatched, null, 'salida');
-            $this->fail('Expected tracking validation exception.');
-        } catch (DomainException $exception) {
-            $this->assertStringContainsString('número de guía', $exception->getMessage());
-        }
 
         $actor = User::factory()->create();
         $updated = $this->service->transition(
@@ -151,33 +144,16 @@ class OrderStatusTransitionServiceTest extends TestCase
             OrderStatus::Dispatched,
             $actor,
             '  despacho parcial  ',
-            ' 2258298191 ',
         );
 
-        $this->assertSame('2258298191', $updated->tracking_number);
-        $this->assertSame('servientrega', $updated->shipping_carrier);
+        $this->assertSame(OrderStatus::Dispatched, $updated->status);
+        $this->assertNull($updated->tracking_number);
+        $this->assertNull($updated->shipping_carrier);
         $this->assertDatabaseHas('order_status_histories', [
             'order_id' => $order->id,
             'changed_by_user_id' => $actor->id,
             'note' => 'despacho parcial',
         ]);
-    }
-
-    public function test_custom_shipping_carrier_overrides_detected_carrier(): void
-    {
-        $order = Order::factory()->create(['status' => OrderStatus::Sold]);
-
-        $updated = $this->service->transition(
-            $order,
-            OrderStatus::Dispatched,
-            null,
-            'Envío especial.',
-            '2258298191',
-            'Carga aérea especial',
-        );
-
-        $this->assertSame('Carga aérea especial', $updated->shipping_carrier);
-        $this->assertSame('Carga aérea especial', $updated->shippingCarrierLabel());
     }
 
     public function test_hold_failure_rolls_back_status_and_history(): void

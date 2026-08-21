@@ -5,7 +5,6 @@ namespace App\Modules\Orders\Services;
 use App\Models\User;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Shared\Enums\OrderStatus;
-use App\Modules\Shared\Enums\ShippingCarrier;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Support\Facades\DB;
 
@@ -34,8 +33,6 @@ class OrderStatusTransitionService
         OrderStatus $toStatus,
         ?User $actor = null,
         ?string $note = null,
-        ?string $trackingNumber = null,
-        ?string $shippingCarrier = null,
     ): Order {
         $fromStatus = $order->status;
 
@@ -53,29 +50,17 @@ class OrderStatusTransitionService
             throw new DomainException('Este cambio de estado requiere una nota de trazabilidad.');
         }
 
-        $normalizedTrackingNumber = $this->normalizeTrackingNumber($trackingNumber);
-
-        if ($toStatus === OrderStatus::Dispatched && $normalizedTrackingNumber === null) {
-            throw new DomainException('El número de guía es obligatorio para marcar el pedido como despachado.');
-        }
-
         if ($toStatus === OrderStatus::Dispatched && ! $order->canDispatchRegardingPayment()) {
             throw new DomainException(
                 'No se puede despachar este pedido hasta validar el pago (o marcar la cotización sin pago). Estado de pago: '.$order->payment_status->label().'.'
             );
         }
 
-        $normalizedShippingCarrier = ShippingCarrier::resolveValue($shippingCarrier, $normalizedTrackingNumber);
-
-        if ($toStatus === OrderStatus::Dispatched && $normalizedShippingCarrier === null) {
-            throw new DomainException('La transportadora es obligatoria para marcar el pedido como despachado.');
-        }
-
         if ($fromStatus === OrderStatus::Submitted && $toStatus === OrderStatus::Sold) {
             return $this->transitionSubmittedToSold($order, $actor, $normalizedNote);
         }
 
-        return DB::transaction(function () use ($order, $fromStatus, $toStatus, $actor, $normalizedNote, $normalizedTrackingNumber, $normalizedShippingCarrier): Order {
+        return DB::transaction(function () use ($order, $fromStatus, $toStatus, $actor, $normalizedNote): Order {
             /** @var Order $lockedOrder */
             $lockedOrder = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
 
@@ -86,11 +71,6 @@ class OrderStatusTransitionService
             $updates = [
                 'status' => $toStatus,
             ];
-
-            if ($toStatus === OrderStatus::Dispatched) {
-                $updates['tracking_number'] = $normalizedTrackingNumber;
-                $updates['shipping_carrier'] = $normalizedShippingCarrier;
-            }
 
             if ($toStatus === OrderStatus::Sold) {
                 // A sale only releases the local HOLD. Any stale legacy
@@ -143,13 +123,6 @@ class OrderStatusTransitionService
     private function normalizeNote(?string $note): ?string
     {
         $trimmed = trim((string) $note);
-
-        return $trimmed !== '' ? $trimmed : null;
-    }
-
-    private function normalizeTrackingNumber(?string $trackingNumber): ?string
-    {
-        $trimmed = trim((string) $trackingNumber);
 
         return $trimmed !== '' ? $trimmed : null;
     }
