@@ -159,12 +159,20 @@ class CompanyOrderControllerTest extends TestCase
         $this->actingAs($userA)
             ->get(route('empresa.orders.edit', $order))
             ->assertOk()
-            ->assertViewIs('empresa.orders.edit');
+            ->assertViewIs('empresa.orders.edit')
+            ->assertSee('Stock disponible')
+            ->assertSee('data-new-line-stock', false)
+            ->assertSee('stockEl.textContent', false);
     }
 
     public function test_edit_price_hints_respect_order_tier(): void
     {
-        $product = Product::factory()->create(['price' => 100000, 'is_active' => true]);
+        $product = Product::factory()->create([
+            'price' => 100000,
+            'stock' => 14,
+            'reserved_stock' => 5,
+            'is_active' => true,
+        ]);
 
         $goldDistributor = Distributor::factory()->gold()->create();
         $goldUser = User::factory()->create(['distributor_id' => $goldDistributor->id]);
@@ -177,6 +185,7 @@ class CompanyOrderControllerTest extends TestCase
             ->viewData('catalogOptions');
 
         $this->assertSame(100000.0, $this->hintPriceFor($goldOptions, 'p:'.$product->id));
+        $this->assertSame(9, $this->hintStockFor($goldOptions, 'p:'.$product->id));
 
         $silverDistributor = Distributor::factory()->silver()->create();
         $silverUser = User::factory()->create(['distributor_id' => $silverDistributor->id]);
@@ -189,16 +198,53 @@ class CompanyOrderControllerTest extends TestCase
             ->viewData('catalogOptions');
 
         $this->assertSame(105000.0, $this->hintPriceFor($silverOptions, 'p:'.$product->id));
+        $this->assertSame(9, $this->hintStockFor($silverOptions, 'p:'.$product->id));
+    }
+
+    public function test_edit_uses_the_effective_available_stock_for_a_variant(): void
+    {
+        [$distributor, $user] = $this->makeDistributorWithUser();
+        $product = Product::factory()->create([
+            'stock' => 10,
+            'reserved_stock' => 4,
+            'is_active' => true,
+        ]);
+        $variant = ProductVariant::factory()->forProduct($product)->create([
+            'stock' => 8,
+            'reserved_stock' => 1,
+            'is_active' => true,
+        ]);
+        $order = Order::factory()->forDistributor($distributor)->pendingApproval()->create();
+
+        $options = $this->actingAs($user)
+            ->get(route('empresa.orders.edit', $order))
+            ->viewData('catalogOptions');
+
+        $this->assertSame(6, $this->hintStockFor($options, 'v:'.$variant->id));
     }
 
     /**
-     * @param  iterable<int, array{ref:string,label:string,price:float}>  $options
+     * @param  iterable<int, array{ref:string,label:string,price:float,stock:int|null}>  $options
      */
     private function hintPriceFor(iterable $options, string $ref): float
     {
         foreach ($options as $option) {
             if ($option['ref'] === $ref) {
                 return (float) $option['price'];
+            }
+        }
+
+        $this->fail("No se encontró la opción de catálogo {$ref}.");
+    }
+
+    /**
+     * @param  iterable<int, array{ref:string,label:string,price:float,stock:int|null}>  $options
+     */
+    private function hintStockFor(iterable $options, string $ref): ?int
+    {
+        foreach ($options as $option) {
+            if ($option['ref'] === $ref) {
+                return $option['stock'];
             }
         }
 
