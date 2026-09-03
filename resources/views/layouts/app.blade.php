@@ -573,5 +573,7 @@ View contract:
 @endif
 
 @include('layouts.partials.cookie-banner')
+
+@stack('scripts')
 </body>
 </html>

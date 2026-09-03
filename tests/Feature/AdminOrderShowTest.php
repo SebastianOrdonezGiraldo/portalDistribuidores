@@ -63,7 +63,9 @@ class AdminOrderShowTest extends TestCase
             ->get(route('admin.orders.edit', $order))
             ->assertOk()
             ->assertViewIs('admin.orders.edit')
-            ->assertSee('Editar Pedido '.$order->oc_number);
+            ->assertSee('Editar Pedido '.$order->oc_number)
+            ->assertSee('add-new-item-btn')
+            ->assertSee('addNewItemBtn.addEventListener');
     }
 
     public function test_admin_edit_price_hints_respect_order_tier(): void
