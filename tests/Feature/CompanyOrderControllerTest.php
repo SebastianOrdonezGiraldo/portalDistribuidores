@@ -159,7 +159,9 @@ class CompanyOrderControllerTest extends TestCase
         $this->actingAs($userA)
             ->get(route('empresa.orders.edit', $order))
             ->assertOk()
-            ->assertViewIs('empresa.orders.edit');
+            ->assertViewIs('empresa.orders.edit')
+            ->assertSee('add-new-item-btn')
+            ->assertSee('addNewItemBtn.addEventListener');
     }
 
     public function test_edit_price_hints_respect_order_tier(): void
