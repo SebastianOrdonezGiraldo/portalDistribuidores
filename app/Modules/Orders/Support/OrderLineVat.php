@@ -7,7 +7,7 @@ use App\Modules\Orders\Models\OrderItem;
 
 class OrderLineVat
 {
-    public const DEFAULT_RATE = 0.13;
+    public const DEFAULT_RATE = 0.19;
 
     /**
      * @return array{is_vat_excluded_snapshot: bool, vat_rate_snapshot: float}

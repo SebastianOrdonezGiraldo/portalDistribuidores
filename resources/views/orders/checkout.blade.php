@@ -13,6 +13,7 @@ View contract:
 
         $tier = $items->isNotEmpty() ? $items->first()['tier'] : \App\Modules\Shared\Enums\DistributorTier::Silver;
         $isGold = $tier === \App\Modules\Shared\Enums\DistributorTier::Gold;
+        $vatRate = \App\Modules\Orders\Support\OrderLineVat::DEFAULT_RATE;
 
         /** @var \App\Modules\Orders\Pricing\OrderPricingResult|null $pricing */
         $pricing = $pricing ?? null;
@@ -242,7 +243,7 @@ View contract:
                     @endif
                     <p class="relative text-xs font-semibold uppercase tracking-wide text-slate-500">Total del pedido</p>
                     <p class="relative mt-1 break-words text-3xl font-bold tracking-tight text-slate-950">{{ $money($grossTotal) }} <span class="text-base font-semibold text-slate-400">COP</span></p>
-                    <p class="relative text-xs text-slate-500">IVA incluido</p>
+                    <p class="relative text-xs text-slate-500">IVA incluido ({{ number_format($vatRate * 100, 0) }}% en productos gravados)</p>
                 </div>
 
                 <div class="mt-4">
