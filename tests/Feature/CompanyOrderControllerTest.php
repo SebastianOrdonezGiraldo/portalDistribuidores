@@ -160,6 +160,8 @@ class CompanyOrderControllerTest extends TestCase
             ->get(route('empresa.orders.edit', $order))
             ->assertOk()
             ->assertViewIs('empresa.orders.edit')
+            ->assertSee('add-new-item-btn')
+            ->assertSee('addNewItemBtn.addEventListener')
             ->assertSee('Stock disponible')
             ->assertSee('data-new-line-stock', false)
             ->assertSee('stockEl.textContent', false);

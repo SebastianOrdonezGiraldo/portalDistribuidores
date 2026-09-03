@@ -3,11 +3,11 @@
 namespace App\Modules\Orders\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Modules\Catalog\Support\ProductUploadLimits;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\Payment\OrderPaymentService;
 use App\Modules\Orders\Services\Payment\PaymentReceiptUploadService;
 use App\Modules\Orders\Services\Payment\PaymentUploadTokenService;
+use App\Modules\Orders\Support\PaymentReceiptUploadLimits;
 use App\Modules\Shared\Enums\PaymentStatus;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Http\RedirectResponse;
@@ -45,7 +45,7 @@ class PaymentReceiptController extends Controller
                 'state' => 'token_expired',
                 'plainToken' => null,
                 'canRegenerate' => Auth::check() || $this->hasGuestAccess($order),
-                'maxSizeLabel' => ProductUploadLimits::photoMaxSizeLabel(),
+                'maxSizeLabel' => PaymentReceiptUploadLimits::maxSizeLabel(),
             ]);
         }
 
@@ -55,7 +55,7 @@ class PaymentReceiptController extends Controller
                 'state' => 'token_consumed_or_closed',
                 'plainToken' => null,
                 'canRegenerate' => false,
-                'maxSizeLabel' => ProductUploadLimits::photoMaxSizeLabel(),
+                'maxSizeLabel' => PaymentReceiptUploadLimits::maxSizeLabel(),
             ]);
         }
 
@@ -64,7 +64,7 @@ class PaymentReceiptController extends Controller
             'state' => 'ready',
             'plainToken' => $plainToken,
             'canRegenerate' => false,
-            'maxSizeLabel' => ProductUploadLimits::photoMaxSizeLabel(),
+            'maxSizeLabel' => PaymentReceiptUploadLimits::maxSizeLabel(),
         ]);
     }
 
@@ -100,13 +100,13 @@ class PaymentReceiptController extends Controller
             'receipt' => [
                 'required',
                 'file',
-                'max:'.ProductUploadLimits::photoMaxSizeKb(),
+                'max:'.PaymentReceiptUploadLimits::maxSizeKb(),
                 'mimes:jpg,jpeg,png,gif,webp,pdf',
             ],
         ], [
             'receipt.required' => 'Adjunta el comprobante de pago.',
             'receipt.mimes' => 'El comprobante debe ser imagen (JPG, PNG, WEBP) o PDF.',
-            'receipt.max' => 'El comprobante no puede superar '.ProductUploadLimits::photoMaxSizeLabel().'.',
+            'receipt.max' => 'El comprobante no puede superar '.PaymentReceiptUploadLimits::maxSizeLabel().'.',
         ]);
 
         try {

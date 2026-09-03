@@ -3,10 +3,10 @@
 namespace App\Modules\Orders\Services\Payment;
 
 use App\Modules\Catalog\Security\SafeUploadValidator;
-use App\Modules\Catalog\Support\ProductUploadLimits;
 use App\Modules\Orders\Jobs\SendGoldPaymentReceiptAdminNotificationJob;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\PaymentUploadToken;
+use App\Modules\Orders\Support\PaymentReceiptUploadLimits;
 use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\PaymentStatus;
 use App\Modules\Shared\Exceptions\DomainException;
@@ -166,11 +166,11 @@ class PaymentReceiptUploadService
     private function assertAllowedFile(UploadedFile $file): void
     {
         $mime = Str::lower((string) $file->getMimeType());
-        $maxKb = ProductUploadLimits::photoMaxSizeKb();
+        $maxKb = PaymentReceiptUploadLimits::maxSizeKb();
 
         if ($file->getSize() > $maxKb * 1024) {
             throw new DomainException(
-                'El comprobante no puede superar '.ProductUploadLimits::photoMaxSizeLabel().'.'
+                'El comprobante no puede superar '.PaymentReceiptUploadLimits::maxSizeLabel().'.'
             );
         }
 

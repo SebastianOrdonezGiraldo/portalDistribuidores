@@ -65,6 +65,8 @@ class AdminOrderShowTest extends TestCase
             ->assertOk()
             ->assertViewIs('admin.orders.edit')
             ->assertSee('Editar Pedido '.$order->oc_number)
+            ->assertSee('add-new-item-btn')
+            ->assertSee('addNewItemBtn.addEventListener')
             ->assertSee('Stock disponible')
             ->assertSee('data-new-line-stock', false)
             ->assertSee('stockEl.textContent', false);
