@@ -90,7 +90,7 @@ class CreateOrderActionTest extends TestCase
             'is_vat_excluded_snapshot' => false,
         ]);
 
-        $this->assertSame(0.13, (float) $order->items()->firstOrFail()->vat_rate_snapshot);
+        $this->assertSame(0.19, (float) $order->items()->firstOrFail()->vat_rate_snapshot);
 
         Event::assertDispatched(OrderPlaced::class, fn (OrderPlaced $event) => $event->order->is($order));
     }
