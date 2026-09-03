@@ -16,6 +16,7 @@ Component contract:
 
 @php
     $money = fn ($value) => '$'.number_format((float) $value, 0, ',', '.');
+    $vatRate = \App\Modules\Orders\Support\OrderLineVat::DEFAULT_RATE;
     $hasGoldSavings = $goldPricingApplied && (float) $goldSavings > 0.5;
 @endphp
 
@@ -40,7 +41,7 @@ Component contract:
     @endif
     <p class="relative text-xs font-semibold uppercase tracking-wide text-slate-500">Total del pedido</p>
     <p class="relative mt-1 break-words text-3xl font-bold tracking-tight text-slate-950" data-sum-total>{{ $money($grossTotal) }} <span class="text-base font-semibold text-slate-400">COP</span></p>
-    <p class="relative text-xs text-slate-500">IVA incluido</p>
+    <p class="relative text-xs text-slate-500">IVA incluido ({{ number_format($vatRate * 100, 0) }}% en productos gravados)</p>
 </div>
 
 @if(! $isGold && $hasPotentialSavings)
