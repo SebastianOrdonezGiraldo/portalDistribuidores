@@ -345,7 +345,10 @@ class CommerceRulesUiTest extends TestCase
             ->get(route('cart.index'))
             ->assertOk()
             ->assertSee('Completa el pedido mínimo')
-            ->assertDontSee('Continuar al checkout');
+            ->assertDontSee('Continuar al checkout')
+            ->assertDontSee('Sube a Nivel Oro')
+            ->assertDontSee('Ahorrarías', false)
+            ->assertDontSee('Solicitar ascenso a Oro');
     }
 
     public function test_checkout_blocks_visually_when_not_allowed(): void
@@ -369,7 +372,10 @@ class CommerceRulesUiTest extends TestCase
             ->assertSee('Aún no puedes finalizar el pedido')
             ->assertSee('Volver al carrito')
             ->assertDontSee('Solo cotizar')
-            ->assertDontSee('Pagar ahora');
+            ->assertDontSee('Pagar ahora')
+            ->assertDontSee('Sube a Nivel Oro')
+            ->assertDontSee('Ahorrarías', false)
+            ->assertDontSee('Solicitar ascenso a Oro');
     }
 
     public function test_checkout_warns_when_gold_pays_silver(): void
