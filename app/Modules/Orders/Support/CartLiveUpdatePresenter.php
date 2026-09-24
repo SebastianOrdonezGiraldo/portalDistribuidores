@@ -64,11 +64,6 @@ final class CartLiveUpdatePresenter
             ? (float) $pricing->silverCandidateTotalDecimal()
             : $grossTotal;
 
-        $goldCandidatePesos = (float) $pricing->goldCandidateTotalDecimal();
-        $potentialSavings = ! $isGold ? max(0, $grossTotal - $goldCandidatePesos) : 0.0;
-        $potentialSavingsPct = $grossTotal > 0 ? (int) round(($potentialSavings / $grossTotal) * 100) : 0;
-        $hasPotentialSavings = ! $isGold && $potentialSavings > 0.5;
-
         $unitsCount = (int) $items->sum(function (mixed $item): int {
             /** @var array<string, mixed> $item */
             return (int) ($item['qty'] ?? 0);
@@ -144,9 +139,6 @@ final class CartLiveUpdatePresenter
                     'goldPricingApplied' => $goldPricingApplied,
                     'goldSavings' => $goldSavings,
                     'isGold' => $isGold,
-                    'hasPotentialSavings' => $hasPotentialSavings,
-                    'potentialSavings' => $potentialSavings,
-                    'potentialSavingsPct' => $potentialSavingsPct,
                 ])->render(),
                 'checkout_cta' => view('components.cart.checkout-cta', [
                     'checkoutAllowed' => $pricing->checkoutAllowed(),

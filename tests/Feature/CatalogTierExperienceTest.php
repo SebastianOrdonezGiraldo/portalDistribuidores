@@ -56,21 +56,26 @@ class CatalogTierExperienceTest extends TestCase
         $response->assertDontSee('promociones activas', false);
     }
 
-    public function test_silver_catalog_shows_locked_discount_and_upgrade_modal(): void
+    public function test_silver_catalog_shows_only_silver_experience(): void
     {
         $user = $this->distributorUser(DistributorTier::Silver);
-        $this->seedCatalogProduct();
+        $product = $this->seedCatalogProduct();
+        [, $formattedSilver] = $this->formattedTierPrices($product);
 
         $response = $this->actingAs($user)->get(route('catalog.index'));
 
         $response->assertOk();
-        $response->assertSee('Ahorro potencial este mes');
-        $response->assertSee('Precio 2025');
-        $response->assertSee('Sube a Nivel Oro');
-        $response->assertSee('tier-upgrade', false);
-        $response->assertSee('Ahorrarías', false);
+        $response->assertSee('Tu nivel Plata está activo');
+        $response->assertSee($formattedSilver);
         $response->assertSee('Nivel Plata');
         $response->assertSee('images/tiers/banner-plata.jpg', false);
+        $response->assertDontSee('Ahorro potencial este mes');
+        $response->assertDontSee('Precio 2025');
+        $response->assertDontSee('Sube a Nivel Oro');
+        $response->assertDontSee('tier-upgrade', false);
+        $response->assertDontSee('Ahorrarías', false);
+        $response->assertDontSee('Conocer beneficios ORO');
+        $response->assertDontSee('Solicitar ascenso a Oro');
         $response->assertDontSee('Ver precios Oro');
         $response->assertDontSee('Estefanía López');
     }
@@ -90,18 +95,22 @@ class CatalogTierExperienceTest extends TestCase
         $response->assertDontSee('Ver precios Oro');
     }
 
-    public function test_silver_product_detail_shows_locked_dual_pricing(): void
+    public function test_silver_product_detail_shows_only_effective_price(): void
     {
         $user = $this->distributorUser(DistributorTier::Silver);
         $product = $this->seedCatalogProduct();
+        [$formattedGold, $formattedSilver] = $this->formattedTierPrices($product);
 
         $response = $this->actingAs($user)->get(route('products.show', $product));
 
         $response->assertOk();
-        $response->assertSee('Tu precio');
-        $response->assertSee('Con Oro');
-        $response->assertSee('Ahorrarías', false);
-        $response->assertSee('product-detail-price__nudge', false);
+        $response->assertSee('Precio');
+        $response->assertSee($formattedSilver);
+        $response->assertDontSee($formattedGold);
+        $response->assertDontSee('Con Oro');
+        $response->assertDontSee('Ahorrarías', false);
+        $response->assertDontSee('Precio Oro');
+        $response->assertDontSee('product-detail-price__nudge', false);
         $response->assertDontSee('product-detail-price__hero--gold', false);
     }
 

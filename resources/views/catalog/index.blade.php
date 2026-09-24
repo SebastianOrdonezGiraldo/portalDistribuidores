@@ -390,7 +390,9 @@ View contract:
                         ? '$'.number_format((float) $tierMetrics->savingsDecimal(), 0, ',', '.')
                         : null"
                 />
-                <x-tier.metrics-grid :tier="$distributorTier" :metrics="$tierMetrics" />
+                @if($distributorTier === \App\Modules\Shared\Enums\DistributorTier::Gold)
+                    <x-tier.metrics-grid :tier="$distributorTier" :metrics="$tierMetrics" />
+                @endif
             </div>
         @endif
 

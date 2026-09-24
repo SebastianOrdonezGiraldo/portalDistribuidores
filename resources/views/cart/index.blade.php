@@ -25,19 +25,6 @@ View contract:
             ? (float) $pricing->silverCandidateTotalDecimal()
             : $grossTotal;
 
-        $goldTotal = (float) $items->sum(fn ($item) => (float) $item['base_unit_price'] * (int) $item['qty']);
-        $potentialSavings = max(0, $grossTotal - $goldTotal);
-        $potentialSavingsPct = $grossTotal > 0 ? (int) round($potentialSavings / $grossTotal * 100) : 0;
-        $hasPotentialSavings = ! $isGold && $potentialSavings > 0.5;
-
-        $silverTier = \App\Modules\Shared\Enums\DistributorTier::Silver;
-        $upgradeMessage = (string) ($silverTier->upgrade()['whatsapp_message'] ?? '');
-        $upgradeWhatsappUrl = (! $isGold && filled($upgradeMessage))
-            ? (($currentAdvisor ?? null)?->whatsappUrl($upgradeMessage)
-                ?? (($supportWhatsappNumber ?? null) ? 'https://wa.me/'.$supportWhatsappNumber.'?text='.rawurlencode($upgradeMessage) : null))
-            : null;
-        $canOpenUpgradeModal = ! $isGold && auth()->user()?->distributor !== null;
-
         $advisorUrl = ($currentAdvisor ?? null)?->whatsappUrl('Hola, tengo dudas con mi pedido en el portal ICMTHERAPY.')
             ?? ($supportWhatsappUrl ?? null);
     @endphp
@@ -114,35 +101,6 @@ View contract:
                         <p class="cart-review-feature-text">Garantía y respaldo ICMTHERAPY</p>
                     </div>
                 </div>
-            @elseif($hasPotentialSavings)
-                <div class="cart-review-oro-upsell" data-oro-upsell>
-                    <div class="flex min-w-0 flex-1 items-start gap-3">
-                        <span class="cart-review-oro-upsell-icon" aria-hidden="true">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="m5 16 -1.6 -8 4.6 3.5L12 5l3.9 6.5L20.6 8 19 16z"/></svg>
-                        </span>
-                        <div class="min-w-0">
-                            <p class="text-sm font-semibold text-slate-900">
-                                Con nivel <span class="text-amber-700">Oro</span> te habrías ahorrado
-                                <span class="text-amber-700" data-sum-potential-savings>{{ $money($potentialSavings) }}</span>
-                                en este pedido
-                            </p>
-                            <p class="mt-0.5 text-xs text-slate-500">
-                                Descuento estimado nivel Oro: <span data-sum-potential-savings-pct>{{ $potentialSavingsPct }}</span>%
-                            </p>
-                        </div>
-                    </div>
-                    @if($canOpenUpgradeModal)
-                        <button type="button" class="cart-review-oro-upsell-cta" @click="$dispatch('open-modal', 'tier-upgrade')">
-                            Solicitar ascenso a Oro
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-                        </button>
-                    @elseif($upgradeWhatsappUrl)
-                        <a href="{{ $upgradeWhatsappUrl }}" target="_blank" rel="noopener noreferrer" class="cart-review-oro-upsell-cta">
-                            Solicitar ascenso a Oro
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-                        </a>
-                    @endif
-                </div>
             @endif
 
             <form
@@ -180,7 +138,6 @@ View contract:
                                 data-cart-item
                                 data-line-key="{{ $lineKey }}"
                                 data-unit-price="{{ (float) $item['unit_price'] }}"
-                                data-base-price="{{ (float) $item['base_unit_price'] }}"
                                 data-silver-price="{{ (float) $item['silver_unit_price'] }}"
                                 data-vat-excluded="{{ $item['is_vat_excluded'] ? '1' : '0' }}"
                                 data-stock-limit="{{ $available ?? '' }}"
@@ -273,9 +230,6 @@ View contract:
                                 :gold-pricing-applied="$goldPricingApplied"
                                 :gold-savings="$goldSavings"
                                 :is-gold="$isGold"
-                                :has-potential-savings="$hasPotentialSavings"
-                                :potential-savings="$potentialSavings"
-                                :potential-savings-pct="$potentialSavingsPct"
                             />
                         </div>
 
@@ -359,7 +313,6 @@ View contract:
                 return;
             }
 
-            const IS_GOLD = {{ $isGold ? 'true' : 'false' }};
             const DEBOUNCE_MS = 400;
             const NETWORK_ERROR_MESSAGE = 'No pudimos confirmar los cambios del carrito. Actualiza las cantidades manualmente para continuar.';
             const UPDATING_CTA_HTML = `
@@ -459,9 +412,6 @@ View contract:
             const refreshLocalLineSubtotals = () => {
                 let units = 0;
                 let products = 0;
-                let total = 0;
-                let goldTotal = 0;
-
                 cartForm.querySelectorAll('[data-cart-item]').forEach((item) => {
                     const qtyInput = item.querySelector('[data-cart-qty]');
                     if (!qtyInput || qtyInput.value === '') {
@@ -475,10 +425,7 @@ View contract:
                     }
 
                     const unitPrice = Number(item.dataset.unitPrice || 0);
-                    const basePrice = Number(item.dataset.basePrice || 0);
                     const subtotal = qty * unitPrice;
-                    total += subtotal;
-                    goldTotal += qty * basePrice;
                     units += qty;
                     if (qty > 0) {
                         products += 1;
@@ -493,12 +440,6 @@ View contract:
                 setText('[data-cart-units-count]', formatNumber(units));
                 setText('[data-cart-products-count]', formatNumber(products));
 
-                if (!IS_GOLD) {
-                    const potentialSavings = Math.max(0, total - goldTotal);
-                    const potentialSavingsPct = total > 0 ? Math.round((potentialSavings / total) * 100) : 0;
-                    setText('[data-sum-potential-savings]', formatMoney(potentialSavings));
-                    setText('[data-sum-potential-savings-pct]', String(potentialSavingsPct));
-                }
             };
 
             const applyCanonicalState = (payload, { preserveLocalQty = false } = {}) => {
@@ -524,7 +465,6 @@ View contract:
 
                     item.dataset.unitPrice = String(centsToPesos(line.unit_price_cents));
                     item.dataset.silverPrice = String(centsToPesos(line.silver_unit_price_cents));
-                    item.dataset.basePrice = String(centsToPesos(line.base_unit_price_cents));
 
                     const pricingRoot = item.querySelector('[data-line-pricing]');
                     if (pricingRoot && typeof line.pricing_html === 'string') {

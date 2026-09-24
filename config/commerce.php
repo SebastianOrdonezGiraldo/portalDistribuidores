@@ -47,6 +47,7 @@ return [
     | pricing_mode:
     |   - active-discount: precio dual con descuento aplicado
     |   - locked-discount: precio dual con descuento potencial bloqueado
+    |   - single: solo el precio efectivo del nivel actual
     |
     | benefits:
     |   PLACEHOLDER hasta que exista un módulo real de promociones. El KPI debe
@@ -124,7 +125,7 @@ return [
             'badge_label' => 'Cliente Plata',
             'topbar_label' => 'Nivel Plata',
             'accent' => 'silver',
-            'pricing_mode' => 'locked-discount',
+            'pricing_mode' => 'single',
             'price_toggle' => [
                 'interactive' => false,
                 'label_on' => null,
@@ -133,24 +134,24 @@ return [
             ],
             'banner' => [
                 'greeting' => 'Hola, :name',
-                'headline' => 'Sube a Nivel Oro y mantén el precio de 2025',
-                'subtext' => 'Accede al precio Oro en todo el catálogo, atención prioritaria y beneficios exclusivos para tu operación.',
-                'show_upgrade_cta' => true,
-                'cta_label' => 'Sube a Nivel Oro',
-                'missed_savings_template' => 'Este mes podrías haber ahorrado :amount con Nivel Oro',
+                'headline' => 'Tu nivel Plata está activo',
+                'subtext' => 'Compra con tu precio comercial Plata y las condiciones vigentes para tu operación.',
+                'show_upgrade_cta' => false,
+                'cta_label' => null,
+                'missed_savings_template' => null,
                 'background_image' => 'images/tiers/banner-plata.jpg',
             ],
             'kpis' => [
                 'savings' => [
-                    'label' => 'Ahorro potencial este mes',
-                    'value_suffix' => 'con Nivel Oro',
-                    'empty_hint' => 'Haz un pedido este mes para ver cuánto podrías ahorrar',
+                    'label' => 'Ahorro',
+                    'value_suffix' => null,
+                    'empty_hint' => null,
                 ],
                 'discount' => [
-                    'label' => 'Precio Oro',
-                    'value_template' => 'Precio 2025',
-                    'hint' => 'Disponible al subir a Oro',
-                    'locked' => true,
+                    'label' => 'Tu precio Plata',
+                    'value_template' => 'Precio Plata',
+                    'hint' => 'Tu precio comercial vigente',
+                    'locked' => false,
                 ],
                 'orders' => [
                     'label' => 'Pedidos realizados',
@@ -159,30 +160,20 @@ return [
                     'empty_hint' => 'Aún no tienes pedidos este mes',
                 ],
                 'benefits' => [
-                    'label' => 'Con Nivel Oro obtienes',
-                    'value_suffix' => 'beneficios exclusivos',
-                    'hint' => 'Disponibles al subir a Oro',
-                    'cta_label' => 'Quiero subir a Oro',
+                    'label' => 'Nivel comercial',
+                    'value_suffix' => 'nivel activo',
+                    'hint' => null,
+                    'cta_label' => null,
                 ],
             ],
             'product_card' => [
-                'price_badge' => 'Precio Oro',
-                'savings_template' => 'Ahorrarías :amount con Oro',
+                'price_badge' => null,
+                'savings_template' => null,
                 'standard_label' => 'Tu precio',
-                'tier_price_label' => 'Precio Oro',
+                'tier_price_label' => 'Precio Plata',
             ],
-            // PLACEHOLDER: beneficios del nivel Oro que se desbloquean al subir.
-            'benefits' => [
-                'Mantienes el precio de 2025 en todo el catálogo',
-                'Atención prioritaria en pedidos',
-                'Acceso anticipado a lanzamientos',
-                'Condiciones comerciales preferentes',
-            ],
-            'upgrade' => [
-                'modal_title' => 'Sube a Nivel Oro',
-                'modal_body' => 'El Nivel Oro te permite mantener el precio de 2025 en todos los productos del catálogo, con atención prioritaria y beneficios exclusivos. Escríbenos por WhatsApp para conocer los requisitos y activar tu upgrade.',
-                'whatsapp_message' => 'Hola, soy Cliente Plata en el portal y quiero conocer cómo subir a Nivel Oro.',
-            ],
+            'benefits' => [],
+            'upgrade' => [],
         ],
     ],
 
