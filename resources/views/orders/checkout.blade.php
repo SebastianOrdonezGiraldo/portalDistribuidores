@@ -26,12 +26,6 @@ View contract:
             ? (float) $pricing->silverCandidateTotalDecimal()
             : $grossTotal;
 
-        $goldTotal = (float) $items->sum(fn ($item) => (float) $item['base_unit_price'] * (int) $item['qty']);
-        $potentialSavings = max(0, $grossTotal - $goldTotal);
-        $potentialSavingsPct = $grossTotal > 0 ? (int) round($potentialSavings / $grossTotal * 100) : 0;
-        $hasPotentialSavings = ! $isGold && $potentialSavings > 0.5;
-        $canOpenUpgradeModal = ! $isGold && auth()->user()?->distributor !== null;
-
         $visibleItems = 3;
         $hiddenCount = max(0, $items->count() - $visibleItems);
     @endphp
@@ -229,12 +223,6 @@ View contract:
                             <dd class="font-semibold text-amber-600">− {{ $money($goldSavings) }}</dd>
                         </div>
                     @endif
-                    @if(! $isGold && $hasPotentialSavings)
-                        <div class="flex items-center justify-between gap-3">
-                            <dt class="checkout-savings-line font-medium text-amber-600">Ahorro si fueras Cliente ORO ({{ $potentialSavingsPct }}%)</dt>
-                            <dd class="font-semibold text-amber-600">− {{ $money($potentialSavings) }}</dd>
-                        </div>
-                    @endif
                 </dl>
 
                 <div class="cart-review-total {{ $goldPricingApplied ? 'cart-review-total--gold' : 'cart-review-total--silver' }} mt-4">
@@ -249,33 +237,6 @@ View contract:
                 <div class="mt-4">
                     <x-commerce.order-commercial-status :pricing="$pricing" :tier="$tier" context="checkout" />
                 </div>
-
-                @if(! $isGold && $hasPotentialSavings)
-                    <div class="checkout-oro-upsell mt-4">
-                        <p class="text-sm font-semibold text-slate-900">
-                            Con nivel <span class="text-brand-dark">ORO</span> ahorrarías
-                            <span class="text-brand-dark">{{ $money($potentialSavings) }}</span> en este pedido.
-                        </p>
-                        @if($canOpenUpgradeModal)
-                            <button type="button" class="checkout-oro-upsell-cta" @click="$dispatch('open-modal', 'tier-upgrade')">
-                                Conocer beneficios ORO
-                            </button>
-                        @else
-                            @php
-                                $upgradeMessage = (string) (\App\Modules\Shared\Enums\DistributorTier::Silver->upgrade()['whatsapp_message'] ?? '');
-                                $upgradeUrl = filled($upgradeMessage)
-                                    ? (($currentAdvisor ?? null)?->whatsappUrl($upgradeMessage)
-                                        ?? (($supportWhatsappNumber ?? null) ? 'https://wa.me/'.$supportWhatsappNumber.'?text='.rawurlencode($upgradeMessage) : null))
-                                    : null;
-                            @endphp
-                            @if($upgradeUrl)
-                                <a href="{{ $upgradeUrl }}" target="_blank" rel="noopener noreferrer" class="checkout-oro-upsell-cta">
-                                    Conocer beneficios ORO
-                                </a>
-                            @endif
-                        @endif
-                    </div>
-                @endif
 
                 @if($isGold)
                 <div class="checkout-trust-row mt-4">

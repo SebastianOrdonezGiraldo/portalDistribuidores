@@ -448,7 +448,7 @@ class OrderAdminController extends Controller
     }
 
     /**
-     * @return array<int, array{ref:string,label:string,price:float}>
+     * @return array<int, array{ref:string,label:string,price:float,stock:int|null}>
      */
     private function catalogOptions(DistributorPriceCalculator $priceCalculator, DistributorTier $tier): array
     {
@@ -463,7 +463,7 @@ class OrderAdminController extends Controller
                     ->orderBy('id'),
             ])
             ->orderBy('name')
-            ->get(['id', 'name', 'sku', 'price', 'is_vat_excluded']);
+            ->get(['id', 'name', 'sku', 'price', 'stock', 'reserved_stock', 'is_vat_excluded']);
 
         $effectivePrice = fn (int|string $basePrice): float => (float) $priceCalculator
             ->calculateFromDecimal($basePrice, $tier)
@@ -479,10 +479,11 @@ class OrderAdminController extends Controller
                         'ref' => 'p:'.$product->id,
                         'label' => "{$baseLabel} · {$taxLabel}",
                         'price' => $effectivePrice((string) $product->price),
+                        'stock' => $this->availableCatalogStock($product),
                     ]];
                 }
 
-                return $product->variants->map(function (ProductVariant $variant) use ($baseLabel, $taxLabel, $effectivePrice): array {
+                return $product->variants->map(function (ProductVariant $variant) use ($product, $baseLabel, $taxLabel, $effectivePrice): array {
                     $attributeName = $variant->attributeValue?->attribute?->name ?? 'Variante';
                     $attributeValue = $variant->attributeValue?->value ?? ('#'.$variant->id);
 
@@ -490,11 +491,23 @@ class OrderAdminController extends Controller
                         'ref' => 'v:'.$variant->id,
                         'label' => "{$baseLabel} · {$attributeName}: {$attributeValue} · {$taxLabel}",
                         'price' => $effectivePrice((string) $variant->price),
+                        'stock' => $this->availableCatalogStock($product, $variant),
                     ];
-                });
+                })->all();
             })
             ->values()
             ->all();
+    }
+
+    private function availableCatalogStock(Product $product, ?ProductVariant $variant = null): ?int
+    {
+        $available = collect([$variant?->available_stock, $product->available_stock])
+            ->filter(fn (mixed $stock): bool => is_numeric($stock))
+            ->map(fn (mixed $stock): float => max(0, (float) $stock));
+
+        return $available->isEmpty()
+            ? null
+            : max(0, (int) floor((float) $available->min()));
     }
 
     /**
