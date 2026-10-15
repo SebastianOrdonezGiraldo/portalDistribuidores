@@ -25,6 +25,9 @@
                     <li>
                         <a href="{{ route('login') }}" class="text-sm text-slate-600 transition hover:text-brand-primary">Iniciar sesion</a>
                     </li>
+                    <li>
+                        <a href="{{ route('legal.returns') }}" class="text-sm text-slate-600 transition hover:text-brand-primary">Política de devoluciones</a>
+                    </li>
                 </ul>
             </section>
 
