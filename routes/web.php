@@ -19,6 +19,9 @@ Route::get('/', CatalogController::class)
 
 Route::redirect('/catalog', '/', 301);
 
+Route::view('/politica-devoluciones', 'legal.returns')
+    ->name('legal.returns');
+
 Route::get('/dashboard', function () {
     if (auth()->user()->isAdmin()) {
         return redirect()->route('admin.dashboard');
