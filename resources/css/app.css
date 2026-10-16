@@ -2126,6 +2126,47 @@
     .modal-actions a {
         @apply w-full justify-center sm:w-auto;
     }
+
+    /* Catalog controls: keep the soft, rounded presentation used by the original catalog. */
+    .catalog-search-input,
+    .catalog-header-category select,
+    .catalog-sidebar-filter-form select {
+        border-radius: 1rem;
+        border-color: rgb(184 199 216);
+        background-color: rgb(255 255 255);
+        box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+    }
+
+    .catalog-search-input {
+        min-height: 2.75rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .catalog-search-input:focus,
+    .catalog-header-category select:focus,
+    .catalog-sidebar-filter-form select:focus {
+        border-color: rgb(54 177 187);
+        box-shadow: 0 0 0 3px rgb(54 177 187 / 0.14);
+    }
+
+    .catalog-sidebar-filter-form {
+        border-color: rgb(226 232 240);
+        border-radius: 1rem;
+        padding: 1rem 1.1rem 0.95rem;
+        box-shadow: 0 0.5rem 1.25rem rgb(15 23 42 / 0.055);
+    }
+
+    .catalog-sidebar-filter-form .form-label {
+        color: rgb(30 41 59);
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .catalog-sidebar-filter-form .btn {
+        border-radius: 0.9rem;
+        min-height: 2.5rem;
+    }
 }
 
 @layer utilities {
