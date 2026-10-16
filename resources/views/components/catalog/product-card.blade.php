@@ -143,10 +143,19 @@ Component contract:
                     srcset="{{ $coverPhotoSrcset }}"
                     sizes="{{ $coverPhotoSizes }}"
                 @endif
+                data-image-fallback
                 class="h-full w-full object-contain object-center transition duration-300 group-hover:scale-[1.03]"
             >
+            <div class="hidden h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-slate-50 to-slate-200 text-center text-xs font-medium text-slate-500" data-image-fallback-placeholder>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+                    <path d="m8 13 2.5-2.5 2.5 2.5 3-3 2 2"></path>
+                    <circle cx="9" cy="9" r="1.2"></circle>
+                </svg>
+                <span>Imagen no disponible</span>
+            </div>
         @else
-            <div class="pointer h-full w-full items-center justify-center bg-gradient-to-br from-slate-50 to-slate-200">
+            <div class="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-slate-50 to-slate-200 text-center text-xs font-medium text-slate-500">
                 <div class="rounded-full border border-slate-300 bg-white p-4 shadow-soft">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
                         <rect x="3" y="5" width="18" height="14" rx="2"></rect>
