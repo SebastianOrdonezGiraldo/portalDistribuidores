@@ -23,6 +23,14 @@ const closeModal = (modal) => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-image-fallback]').forEach((image) => {
+        image.addEventListener('error', () => {
+            image.classList.add('hidden');
+            image.nextElementSibling?.removeAttribute('hidden');
+            image.nextElementSibling?.classList.remove('hidden');
+        }, { once: true });
+    });
+
     const sidebar = document.querySelector('[data-sidebar]');
     const sidebarOverlay = document.querySelector('[data-sidebar-overlay]');
     const sidebarToggles = Array.from(document.querySelectorAll('[data-sidebar-toggle]'));
