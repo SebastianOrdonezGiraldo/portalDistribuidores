@@ -168,13 +168,13 @@
     </x-slot>
 
     <div class="mx-auto max-w-6xl pb-8">
-        <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-panel">
-            <div class="relative overflow-hidden border-b border-slate-200 bg-slate-950 px-5 py-8 text-white sm:px-8 lg:px-10">
-                <div class="absolute -right-20 -top-28 h-72 w-72 rounded-full bg-brand-primary/25 blur-3xl" aria-hidden="true"></div>
+        <div class="overflow-hidden rounded-3xl border border-brand-primary/15 bg-white shadow-panel">
+            <div class="relative overflow-hidden border-b border-brand-primary/20 bg-gradient-to-br from-brand-dark via-[#147d84] to-brand-primary px-5 py-8 text-white sm:px-8 lg:px-10">
+                <div class="absolute -right-20 -top-28 h-72 w-72 rounded-full bg-white/15 blur-3xl" aria-hidden="true"></div>
                 <div class="relative max-w-3xl">
-                    <p class="text-sm font-semibold uppercase tracking-[0.14em] text-cyan-200">Import Corporal Medical S.A.S.</p>
-                    <p class="mt-4 text-lg leading-relaxed text-slate-200">Atendemos solicitudes relacionadas con cambios, devoluciones, errores de despacho, daños durante el transporte y garantías de los productos adquiridos a través de nuestros canales oficiales.</p>
-                    <p class="mt-4 text-sm leading-relaxed text-slate-300">Ninguna disposición de esta política limita los derechos que la legislación colombiana reconoce al consumidor.</p>
+                    <p class="text-sm font-semibold uppercase tracking-[0.14em] text-cyan-50">Import Corporal Medical S.A.S.</p>
+                    <p class="mt-4 text-lg leading-relaxed text-white/95">Atendemos solicitudes relacionadas con cambios, devoluciones, errores de despacho, daños durante el transporte y garantías de los productos adquiridos a través de nuestros canales oficiales.</p>
+                    <p class="mt-4 text-sm leading-relaxed text-cyan-50/90">Ninguna disposición de esta política limita los derechos que la legislación colombiana reconoce al consumidor.</p>
                 </div>
             </div>
 

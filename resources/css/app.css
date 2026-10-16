@@ -2126,6 +2126,28 @@
     .modal-actions a {
         @apply w-full justify-center sm:w-auto;
     }
+
+    /* Catalog controls: preserve the rounded presentation of the reference UI. */
+    .catalog-search-input,
+    .catalog-header-category select,
+    .catalog-sidebar-filter-form select {
+        border-radius: 1rem !important;
+        border-color: rgb(184 199 216);
+        background-color: rgb(255 255 255);
+        box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+    }
+
+    .catalog-search-input:focus,
+    .catalog-header-category select:focus,
+    .catalog-sidebar-filter-form select:focus {
+        border-color: rgb(54 177 187);
+        box-shadow: 0 0 0 3px rgb(54 177 187 / 0.14);
+    }
+
+    .catalog-sidebar-filter-form .btn {
+        border-radius: 0.9rem;
+    }
+
 }
 
 @layer utilities {
