@@ -82,5 +82,4 @@ class CommerceSettingsAdminController extends Controller
             ->route('admin.settings.commerce.edit')
             ->with('status', 'Asesores comerciales actualizados correctamente.');
     }
-
 }
