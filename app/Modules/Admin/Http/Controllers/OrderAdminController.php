@@ -4,11 +4,11 @@ namespace App\Modules\Admin\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Modules\Admin\Http\Requests\UpdateAdminOrderRequest;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
 use App\Modules\Orders\Actions\UpdateOrderAction;
+use App\Modules\Orders\Http\Requests\UpdateOrderRequest;
 use App\Modules\Orders\Jobs\GenerateOrderPdfJob;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Pricing\DistributorPriceCalculator;
@@ -422,7 +422,7 @@ class OrderAdminController extends Controller
      * @response 422 {"message":"Datos invalidos"}
      */
     public function update(
-        UpdateAdminOrderRequest $request,
+        UpdateOrderRequest $request,
         Order $order,
         UpdateOrderAction $updateOrderAction,
     ): RedirectResponse {

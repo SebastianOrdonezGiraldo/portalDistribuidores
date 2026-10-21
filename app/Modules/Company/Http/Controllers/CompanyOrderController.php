@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
-use App\Modules\Company\Http\Requests\UpdateCompanyOrderRequest;
 use App\Modules\Orders\Actions\UpdateOrderAction;
+use App\Modules\Orders\Http\Requests\UpdateOrderRequest;
 use App\Modules\Orders\Jobs\GenerateOrderPdfJob;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Pricing\DistributorPriceCalculator;
@@ -234,7 +234,7 @@ class CompanyOrderController extends Controller
      * @response 422 {"message":"Datos invalidos"}
      */
     public function update(
-        UpdateCompanyOrderRequest $request,
+        UpdateOrderRequest $request,
         Order $order,
         UpdateOrderAction $updateOrderAction,
         OrderStatusTransitionService $transitionService,
