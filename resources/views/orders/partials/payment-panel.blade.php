@@ -38,12 +38,16 @@ Expects: $order, optional $paymentUploadUrl, $paymentUploadToken, $receiptMaxSiz
                     @endforeach
                 </ul>
                 @if($methodImageUrl)
-                    <div class="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-[#2a0a3d]">
-                        <img
-                            src="{{ $methodImageUrl }}"
-                            alt="QR de pago {{ $order->payment_method->label() }}"
-                            class="mx-auto block h-auto w-full max-w-sm object-contain"
-                        >
+                    <div class="mt-3">
+                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">QR para pagar</p>
+                        <div class="overflow-hidden rounded-xl border border-slate-200 bg-[#2a0a3d]">
+                            <img
+                                src="{{ $methodImageUrl }}"
+                                alt="QR para pagar con {{ $order->payment_method->label() }}"
+                                class="mx-auto block h-auto w-full max-w-sm object-contain"
+                            >
+                        </div>
+                        <p class="mt-2 text-xs text-slate-500">Escanea este código solo para realizar el pago. No sirve para subir el comprobante.</p>
                     </div>
                 @endif
             </div>
@@ -96,8 +100,11 @@ Expects: $order, optional $paymentUploadUrl, $paymentUploadToken, $receiptMaxSiz
                 </form>
 
                 <div class="mt-5 border-t border-slate-200 pt-4">
-                    <p class="text-sm font-semibold text-slate-900">¿Prefieres subir el comprobante desde tu celular?</p>
-                    <p class="mt-1 text-xs text-slate-500">Escanea este código o abre el enlace en tu teléfono.</p>
+                    <p class="text-sm font-semibold text-slate-900">QR para subir comprobante</p>
+                    <p class="mt-1 text-xs text-slate-500">
+                        Este código abre el formulario de carga en tu celular. Es distinto al QR de pago.
+                        Si el enlace caduca, genera uno nuevo aquí (sigue vigente la reserva del pedido).
+                    </p>
 
                     @if($paymentUploadUrl)
                         <div class="mt-3 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
@@ -106,7 +113,7 @@ Expects: $order, optional $paymentUploadUrl, $paymentUploadToken, $receiptMaxSiz
                                 width="160"
                                 height="160"
                                 class="mx-auto rounded-xl border border-slate-200 bg-white p-2 sm:mx-0"
-                                aria-label="Código QR para subir comprobante"
+                                aria-label="QR para subir comprobante desde el celular"
                             ></canvas>
                             <div class="min-w-0 space-y-2">
                                 <a href="{{ $paymentUploadUrl }}" class="block break-all text-xs font-medium text-brand-primary hover:underline">{{ $paymentUploadUrl }}</a>

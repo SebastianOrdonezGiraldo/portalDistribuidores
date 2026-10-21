@@ -51,6 +51,7 @@ class RegistrationTest extends TestCase
             'email' => 'registro-captcha@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'privacy_accepted' => '1',
         ])
             ->assertRedirect('/register')
             ->assertSessionHasErrors('cf-turnstile-response');
@@ -84,6 +85,7 @@ class RegistrationTest extends TestCase
             'email' => 'registro-ok-captcha@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'privacy_accepted' => '1',
             'cf-turnstile-response' => 'valid-token',
         ])->assertRedirect(route('register.verify-email', absolute: false));
 
@@ -105,6 +107,7 @@ class RegistrationTest extends TestCase
             'email' => 'notif-dist@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'privacy_accepted' => '1',
         ])->assertRedirect(route('register.verify-email', absolute: false));
 
         $verificationCode = null;
@@ -138,6 +141,7 @@ class RegistrationTest extends TestCase
             'email' => 'registro@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'privacy_accepted' => '1',
         ]);
 
         $this->assertGuest();
@@ -162,6 +166,8 @@ class RegistrationTest extends TestCase
         $this->assertSame(UserRole::Distributor, $user->role);
         $this->assertNotNull($user->distributor_id);
         $this->assertNotNull($user->email_verified_at);
+        $this->assertNotNull($user->privacy_accepted_at);
+        $this->assertSame((string) config('legal.privacy_policy_version'), $user->privacy_policy_version);
 
         $this->assertDatabaseHas('distributors', [
             'id' => $user->distributor_id,
@@ -188,6 +194,7 @@ class RegistrationTest extends TestCase
             'email' => 'registro-formato@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'privacy_accepted' => '1',
         ]);
 
         $response->assertRedirect('/register');
@@ -240,6 +247,7 @@ class RegistrationTest extends TestCase
             'email' => 'sin-verificar@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'privacy_accepted' => '1',
         ]);
 
         $this->post(route('register.verify-email.store'), [
@@ -249,6 +257,27 @@ class RegistrationTest extends TestCase
         $this->assertDatabaseMissing('users', ['email' => 'sin-verificar@example.com']);
         $this->assertDatabaseMissing('distributors', ['nit' => '9005554443']);
         Mail::assertNotSent(DistributorRegistrationNotificationMail::class);
+    }
+
+    public function test_registration_requires_privacy_acceptance(): void
+    {
+        Mail::fake();
+
+        $this->from('/register')->post('/register', [
+            'name' => 'Juan Pérez',
+            'company_name' => 'Distribuciones Privacidad SAS',
+            'nit' => '9001234501',
+            'city' => 'Bogotá',
+            'address' => 'Calle 1 # 2-3',
+            'phone' => '3001234567',
+            'email' => 'sin-privacidad@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ])
+            ->assertRedirect('/register')
+            ->assertSessionHasErrors('privacy_accepted');
+
+        Mail::assertNothingSent();
     }
 
     public function test_registration_can_be_disabled_by_configuration(): void
