@@ -2,10 +2,8 @@
 
 namespace Tests\Unit;
 
-use App\Modules\Orders\Pricing\CommercePricingRules;
 use App\Modules\Orders\Pricing\DistributorPriceCalculator;
 use App\Modules\Shared\Enums\DistributorTier;
-use App\Modules\Shared\Enums\GoldThresholdBasis;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
@@ -14,117 +12,67 @@ use ReflectionUnionType;
 
 class DistributorPriceCalculatorTest extends TestCase
 {
-    private function calculator(int $basisPoints = 500, int $rounding = 1000): DistributorPriceCalculator
+    private function calculator(): DistributorPriceCalculator
     {
-        return new DistributorPriceCalculator($this->rules($basisPoints, $rounding));
+        return new DistributorPriceCalculator;
     }
 
-    private function rules(int $basisPoints = 500, int $rounding = 1000): CommercePricingRules
+    public function test_gold_eligible_uses_manual_gold_price(): void
     {
-        return new CommercePricingRules(
-            silverMarkupBasisPoints: $basisPoints,
-            silverRoundingMultiple: $rounding,
-            silverMinOrderEnabled: false,
-            silverMinOrderAmount: 1_000_000,
-            goldMinOrderEnabled: false,
-            goldMinOrderAmount: 1_000_000,
-            goldPricingThresholdEnabled: false,
-            goldPricingThresholdAmount: 1_000_000,
-            goldPricingThresholdBasis: GoldThresholdBasis::GoldCandidate,
-        );
-    }
-
-    public function test_gold_uses_base_price(): void
-    {
-        $price = $this->calculator()->calculate(10_000_000, DistributorTier::Gold);
+        $price = $this->calculator()->calculate(10_000_000, 9_500_000, DistributorTier::Gold);
 
         $this->assertSame(10_000_000, $price->effectivePriceCents);
         $this->assertSame('100000.00', $price->effectivePriceDecimal());
         $this->assertSame('100000.00', $price->basePriceDecimal());
+        $this->assertSame('95000.00', $price->silverPriceDecimal());
     }
 
-    public function test_silver_uses_calculated_price_with_rounding_up(): void
+    public function test_silver_uses_manual_silver_price_without_markup_or_rounding(): void
     {
-        // 96.000 + 5% = 100.800 -> techo a 101.000
-        $price = $this->calculator()->calculate(9_600_000, DistributorTier::Silver);
+        $price = $this->calculator()->calculate(9_600_000, 10_012_300, DistributorTier::Silver);
 
-        $this->assertSame('101000.00', $price->silverPriceDecimal());
-        $this->assertSame('101000.00', $price->effectivePriceDecimal());
+        $this->assertSame('100123.00', $price->silverPriceDecimal());
+        $this->assertSame('100123.00', $price->effectivePriceDecimal());
+        $this->assertSame(0, $price->unitSavingsCents);
     }
 
-    public function test_exact_multiple_is_not_incremented(): void
+    public function test_manual_prices_are_not_changed_by_legacy_values(): void
     {
-        // 100.000 + 5% = 105.000 exacto -> no debe subir a 106.000
-        $price = $this->calculator()->calculate(10_000_000, DistributorTier::Silver);
+        $price = $this->calculator()->calculate(10_000_000, 10_512_345, DistributorTier::Silver);
 
-        $this->assertSame('105000.00', $price->silverPriceDecimal());
+        $this->assertSame(10_512_345, $price->silverPriceCents);
+        $this->assertSame('105123.45', $price->silverPriceDecimal());
     }
 
-    public function test_seven_percent_markup_calculates_correctly(): void
+    public function test_gold_price_is_selected_only_for_gold_tier(): void
     {
-        // 100.000 + 7% = 107.000 exacto
-        $price = $this->calculator(700, 1000)->calculate(10_000_000, DistributorTier::Silver);
+        $gold = $this->calculator()->calculate(10_000_000, 10_500_000, DistributorTier::Gold);
+        $silver = $this->calculator()->calculate(10_000_000, 10_500_000, DistributorTier::Silver);
 
-        $this->assertSame('107000.00', $price->silverPriceDecimal());
+        $this->assertSame(10_000_000, $gold->effectivePriceCents);
+        $this->assertSame(10_500_000, $silver->effectivePriceCents);
+        $this->assertSame(500_000, $gold->unitSavingsCents);
+        $this->assertSame('5000.00', $gold->unitSavingsDecimal());
+        $this->assertSame(0, $silver->unitSavingsCents);
     }
 
-    public function test_six_point_fifty_percent_via_basis_points(): void
+    public function test_decimal_prices_are_parsed_from_strings(): void
     {
-        // 100.000 + 6.50% = 106.500 -> techo a 107.000 con múltiplo 1000
-        $price = $this->calculator(650, 1000)->calculate(10_000_000, DistributorTier::Silver);
-
-        $this->assertSame('107000.00', $price->silverPriceDecimal());
-    }
-
-    public function test_rounding_to_100(): void
-    {
-        // 96.000 + 5% = 100.800 -> techo a 100.800 (ya múltiplo de 100)
-        $price = $this->calculator(500, 100)->calculate(9_600_000, DistributorTier::Silver);
-
-        $this->assertSame('100800.00', $price->silverPriceDecimal());
-    }
-
-    public function test_rounding_to_500(): void
-    {
-        // 96.000 + 5% = 100.800 -> techo a 101.000
-        $price = $this->calculator(500, 500)->calculate(9_600_000, DistributorTier::Silver);
-
-        $this->assertSame('101000.00', $price->silverPriceDecimal());
-    }
-
-    public function test_rounding_to_1000(): void
-    {
-        $price = $this->calculator(500, 1000)->calculate(9_600_000, DistributorTier::Silver);
-
-        $this->assertSame('101000.00', $price->silverPriceDecimal());
-    }
-
-    public function test_decimal_base_price_is_parsed_from_string(): void
-    {
-        $price = $this->calculator()->calculateFromDecimal('100000.00', DistributorTier::Silver);
+        $price = $this->calculator()->calculateFromDecimal('100000.00', '105123.45', DistributorTier::Silver);
 
         $this->assertSame(10_000_000, $price->basePriceCents);
-        $this->assertSame('105000.00', $price->silverPriceDecimal());
+        $this->assertSame(10_512_345, $price->silverPriceCents);
+        $this->assertSame('105123.45', $price->effectivePriceDecimal());
     }
 
-    public function test_zero_price_produces_zero_everywhere(): void
+    public function test_zero_prices_are_valid(): void
     {
-        $price = $this->calculator()->calculate(0, DistributorTier::Silver);
+        $price = $this->calculator()->calculate(0, 0, DistributorTier::Silver);
 
         $this->assertSame(0, $price->basePriceCents);
         $this->assertSame(0, $price->silverPriceCents);
         $this->assertSame(0, $price->effectivePriceCents);
         $this->assertSame(0, $price->unitSavingsCents);
-    }
-
-    public function test_savings_are_correct_for_each_tier(): void
-    {
-        $gold = $this->calculator()->calculate(10_000_000, DistributorTier::Gold);
-        $silver = $this->calculator()->calculate(10_000_000, DistributorTier::Silver);
-
-        $this->assertSame(500_000, $gold->unitSavingsCents);
-        $this->assertSame('5000.00', $gold->unitSavingsDecimal());
-        $this->assertSame(0, $silver->unitSavingsCents);
     }
 
     public function test_decimal_to_cents_avoids_float_drift(): void
@@ -137,37 +85,30 @@ class DistributorPriceCalculatorTest extends TestCase
         $this->assertSame(0, $calculator->decimalToCents('0.00'));
     }
 
-    public function test_negative_base_price_is_rejected(): void
+    public function test_negative_gold_price_is_rejected(): void
     {
         $this->expectException(InvalidArgumentException::class);
 
-        $this->calculator()->calculate(-100, DistributorTier::Silver);
+        $this->calculator()->calculate(-100, 200, DistributorTier::Silver);
     }
 
-    public function test_negative_markup_basis_points_are_rejected(): void
+    public function test_negative_silver_price_is_rejected(): void
     {
         $this->expectException(InvalidArgumentException::class);
 
-        new DistributorPriceCalculator($this->rules(-1, 1000));
-    }
-
-    public function test_invalid_rounding_multiple_is_rejected(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
-
-        new DistributorPriceCalculator($this->rules(500, 0));
+        $this->calculator()->calculate(100, -200, DistributorTier::Silver);
     }
 
     public function test_public_signatures_do_not_accept_float(): void
     {
-        $this->assertParameterDisallowsFloat('calculateFromDecimal', 'basePrice');
+        $this->assertParameterDisallowsFloat('calculateFromDecimal', 'goldPrice');
+        $this->assertParameterDisallowsFloat('calculateFromDecimal', 'silverPrice');
         $this->assertParameterDisallowsFloat('decimalToCents', 'value');
     }
 
     private function assertParameterDisallowsFloat(string $method, string $parameter): void
     {
         $reflection = new ReflectionMethod(DistributorPriceCalculator::class, $method);
-
         $target = null;
 
         foreach ($reflection->getParameters() as $param) {
@@ -177,7 +118,7 @@ class DistributorPriceCalculatorTest extends TestCase
             }
         }
 
-        $this->assertNotNull($target, "No se encontró el parámetro {$parameter} en {$method}.");
+        $this->assertNotNull($target, "No se encontro el parametro {$parameter} en {$method}.");
 
         $type = $target->getType();
         $names = [];

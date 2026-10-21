@@ -224,6 +224,7 @@ class CatalogTierExperienceTest extends TestCase
             'sku' => 'ADP-001',
             'brand' => 'Compass Health',
             'price' => 96000,
+            'silver_price' => 101000,
             'stock' => 10,
             'is_active' => true,
         ]);
@@ -235,7 +236,7 @@ class CatalogTierExperienceTest extends TestCase
     private function formattedTierPrices(Product $product): array
     {
         $tierPrice = app(DistributorPriceCalculator::class)
-            ->calculateFromDecimal((string) $product->price, DistributorTier::Silver);
+            ->calculateFromDecimal((string) $product->price, (string) $product->silver_price, DistributorTier::Silver);
 
         $formatMoney = static fn (string $amount): string => '$'.number_format((float) $amount, 0, ',', '.');
 

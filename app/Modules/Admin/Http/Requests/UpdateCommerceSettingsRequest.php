@@ -36,8 +36,10 @@ class UpdateCommerceSettingsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'silver_markup_percent' => ['required', 'numeric', 'min:0', 'max:100', 'decimal:0,2'],
-            'silver_rounding_multiple' => ['required', 'integer', 'in:100,500,1000'],
+            // Legacy fields are optional for old API clients. They are retained in
+            // the audit table, but no active price calculation uses them.
+            'silver_markup_percent' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100', 'decimal:0,2'],
+            'silver_rounding_multiple' => ['sometimes', 'nullable', 'integer', 'in:100,500,1000'],
             'silver_min_order_enabled' => ['required', 'boolean'],
             'silver_min_order_amount' => ['required', 'integer', 'min:1'],
             'gold_min_order_enabled' => ['required', 'boolean'],
@@ -74,9 +76,19 @@ class UpdateCommerceSettingsRequest extends FormRequest
      *
      * Examples: "5" -> 500, "5.00" -> 500, "6.50" -> 650, "7.25" -> 725.
      */
-    public function silverMarkupBasisPoints(): int
+    public function silverMarkupBasisPoints(?int $fallback = null): int
     {
-        $raw = (string) $this->validated('silver_markup_percent');
+        $value = $this->validated('silver_markup_percent');
+
+        if ($value === null || $value === '') {
+            if ($fallback !== null) {
+                return $fallback;
+            }
+
+            throw new InvalidArgumentException('Porcentaje de incremento inválido.');
+        }
+
+        $raw = (string) $value;
         $raw = trim($raw);
 
         if ($raw === '' || ! preg_match('/^\d+(\.\d{1,2})?$/', $raw)) {
@@ -94,9 +106,19 @@ class UpdateCommerceSettingsRequest extends FormRequest
         return ((int) $whole) * 100 + (int) $fraction;
     }
 
-    public function silverRoundingMultiple(): int
+    public function silverRoundingMultiple(?int $fallback = null): int
     {
-        return (int) $this->validated('silver_rounding_multiple');
+        $value = $this->validated('silver_rounding_multiple');
+
+        if ($value === null || $value === '') {
+            if ($fallback !== null) {
+                return $fallback;
+            }
+
+            throw new InvalidArgumentException('Múltiplo de redondeo inválido.');
+        }
+
+        return (int) $value;
     }
 
     public function silverMinOrderEnabled(): bool

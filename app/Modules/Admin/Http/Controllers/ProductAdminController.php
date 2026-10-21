@@ -194,7 +194,8 @@ class ProductAdminController extends Controller
      * @bodyParam sku string required SKU unico. Example: GUA-001
      * @bodyParam description string Descripcion. Example: Caja x 100 unidades
      * @bodyParam category_id integer required ID de categoria. Example: 3
-     * @bodyParam price number Precio si no tiene variantes. Example: 15000
+     * @bodyParam price number Precio Oro si no tiene variantes. Example: 15000
+     * @bodyParam silver_price number Precio Plata si no tiene variantes. Example: 15750
      * @bodyParam stock number Stock si no tiene variantes. Example: 100
      * @bodyParam has_variants boolean Indica variantes. Example: false
      * @bodyParam variants array Variantes cuando `has_variants=true`.
@@ -265,7 +266,8 @@ class ProductAdminController extends Controller
      * @bodyParam name string required Nombre. Example: Guante quirurgico
      * @bodyParam sku string required SKU unico. Example: GUA-001
      * @bodyParam category_id integer required ID de categoria. Example: 3
-     * @bodyParam price number Precio si no tiene variantes. Example: 15000
+     * @bodyParam price number Precio Oro si no tiene variantes. Example: 15000
+     * @bodyParam silver_price number Precio Plata si no tiene variantes. Example: 15750
      * @bodyParam stock number Stock si no tiene variantes. Example: 100
      * @bodyParam has_variants boolean Indica variantes. Example: false
      * @bodyParam variants array Variantes cuando `has_variants=true`.
@@ -710,6 +712,7 @@ class ProductAdminController extends Controller
 
         if ($request->boolean('has_variants')) {
             $payload['price'] = $this->resolveVariantBootstrapPrice((array) $request->input('variants', []));
+            $payload['silver_price'] = $this->resolveVariantBootstrapPrice((array) $request->input('variants', []), 'silver_price');
             $payload['stock'] = null;
         }
 
@@ -754,10 +757,10 @@ class ProductAdminController extends Controller
     /**
      * @param  array<int, array<string, mixed>>  $rows
      */
-    private function resolveVariantBootstrapPrice(array $rows): float
+    private function resolveVariantBootstrapPrice(array $rows, string $key = 'price'): float
     {
         $prices = collect($rows)
-            ->map(fn (mixed $row) => data_get($row, 'price'))
+            ->map(fn (mixed $row) => data_get($row, $key))
             ->filter(fn ($value) => is_numeric($value))
             ->map(fn ($value) => round((float) $value, 2));
 

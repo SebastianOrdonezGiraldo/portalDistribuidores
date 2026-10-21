@@ -22,6 +22,42 @@ class UpdateProductRequest extends FormRequest
             'new_until' => $this->filled('new_until') ? $this->input('new_until') : null,
         ]);
 
+        /** @var Product|null $product */
+        $product = $this->route('product');
+
+        // Keep legacy update clients working without allowing an existing manual
+        // price to be erased just because the old form did not send the field.
+        // Explicit empty values still reach validation and are rejected.
+        if (! $this->boolean('has_variants') && ! array_key_exists('silver_price', $this->all()) && $product) {
+            $this->merge([
+                'silver_price' => $product->silver_price ?? $product->price,
+            ]);
+        }
+
+        if ($this->boolean('has_variants') && $product && is_array($this->input('variants'))) {
+            $existingByValue = $product->variants()
+                ->with('attributeValue')
+                ->get()
+                ->keyBy(fn ($variant) => Str::slug(Str::lower((string) $variant->attributeValue?->value)));
+
+            $variants = collect($this->input('variants'))
+                ->map(function (mixed $row) use ($existingByValue): mixed {
+                    if (! is_array($row) || array_key_exists('silver_price', $row)) {
+                        return $row;
+                    }
+
+                    $valueKey = Str::slug(Str::lower(trim((string) ($row['value'] ?? ''))));
+                    $existing = $existingByValue->get($valueKey);
+
+                    $row['silver_price'] = $existing?->silver_price ?? $existing?->price;
+
+                    return $row;
+                })
+                ->all();
+
+            $this->merge(['variants' => $variants]);
+        }
+
         if (! $this->boolean('has_variants')) {
             $this->request->remove('variant_attribute_id');
             $this->request->remove('new_variant_attribute_name');
@@ -74,8 +110,21 @@ class UpdateProductRequest extends FormRequest
                 'min:0',
                 'max:9999999',
             ],
+            'variants.*.silver_price' => [
+                Rule::requiredIf(fn () => $this->boolean('has_variants')),
+                'numeric',
+                'min:0',
+                'max:9999999',
+            ],
             'variants.*.stock' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
             'price' => [
+                Rule::requiredIf(fn () => ! $this->boolean('has_variants')),
+                'nullable',
+                'numeric',
+                'min:0',
+                'max:9999999',
+            ],
+            'silver_price' => [
                 Rule::requiredIf(fn () => ! $this->boolean('has_variants')),
                 'nullable',
                 'numeric',
@@ -128,7 +177,7 @@ class UpdateProductRequest extends FormRequest
             ],
             'variants' => [
                 'description' => 'Lista completa de variantes del producto.',
-                'example' => [['value' => 'M', 'price' => 12000, 'stock' => 50]],
+                'example' => [['value' => 'M', 'price' => 12000, 'silver_price' => 12600, 'stock' => 50]],
             ],
             'variants.*.value' => [
                 'description' => 'Valor visible de la variante.',
@@ -138,13 +187,21 @@ class UpdateProductRequest extends FormRequest
                 'description' => 'Precio de la variante.',
                 'example' => 12000,
             ],
+            'variants.*.silver_price' => [
+                'description' => 'Precio Plata manual de la variante.',
+                'example' => 12600,
+            ],
             'variants.*.stock' => [
                 'description' => 'Stock disponible de la variante.',
                 'example' => 50,
             ],
             'price' => [
-                'description' => 'Precio del producto cuando no maneja variantes.',
+                'description' => 'Precio Oro del producto cuando no maneja variantes.',
                 'example' => 12000,
+            ],
+            'silver_price' => [
+                'description' => 'Precio Plata manual cuando el producto no maneja variantes.',
+                'example' => 12600,
             ],
             'stock' => [
                 'description' => 'Stock del producto cuando no maneja variantes.',

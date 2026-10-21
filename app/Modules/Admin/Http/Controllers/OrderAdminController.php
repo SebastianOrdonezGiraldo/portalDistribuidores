@@ -463,10 +463,10 @@ class OrderAdminController extends Controller
                     ->orderBy('id'),
             ])
             ->orderBy('name')
-            ->get(['id', 'name', 'sku', 'price', 'stock', 'reserved_stock', 'is_vat_excluded']);
+            ->get(['id', 'name', 'sku', 'price', 'silver_price', 'stock', 'reserved_stock', 'is_vat_excluded']);
 
-        $effectivePrice = fn (int|string $basePrice): float => (float) $priceCalculator
-            ->calculateFromDecimal($basePrice, $tier)
+        $effectivePrice = fn (int|string $goldPrice, int|string $silverPrice): float => (float) $priceCalculator
+            ->calculateFromDecimal($goldPrice, $silverPrice, $tier)
             ->effectivePriceDecimal();
 
         return $products
@@ -478,7 +478,7 @@ class OrderAdminController extends Controller
                     return [[
                         'ref' => 'p:'.$product->id,
                         'label' => "{$baseLabel} · {$taxLabel}",
-                        'price' => $effectivePrice((string) $product->price),
+                        'price' => $effectivePrice((string) $product->price, (string) $product->silver_price),
                         'stock' => $this->availableCatalogStock($product),
                     ]];
                 }
@@ -490,7 +490,7 @@ class OrderAdminController extends Controller
                     return [
                         'ref' => 'v:'.$variant->id,
                         'label' => "{$baseLabel} · {$attributeName}: {$attributeValue} · {$taxLabel}",
-                        'price' => $effectivePrice((string) $variant->price),
+                        'price' => $effectivePrice((string) $variant->price, (string) $variant->silver_price),
                         'stock' => $this->availableCatalogStock($product, $variant),
                     ];
                 })->all();

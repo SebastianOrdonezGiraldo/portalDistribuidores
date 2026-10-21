@@ -70,7 +70,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(
             DistributorPriceCalculator::class,
-            fn ($app) => new DistributorPriceCalculator($app->make(CommercePricingRules::class)),
+            fn () => new DistributorPriceCalculator,
         );
 
         if (! app()->environment(['local', 'testing'])) {

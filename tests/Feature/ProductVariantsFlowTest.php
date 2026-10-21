@@ -42,8 +42,8 @@ class ProductVariantsFlowTest extends TestCase
             'has_variants' => 1,
             'new_variant_attribute_name' => 'Color',
             'variants' => [
-                ['value' => 'Rojo', 'price' => 18000, 'stock' => 5],
-                ['value' => 'Azul', 'price' => 21000, 'stock' => 8],
+                ['value' => 'Rojo', 'price' => 18000, 'silver_price' => 19000, 'stock' => 5],
+                ['value' => 'Azul', 'price' => 21000, 'silver_price' => 22000, 'stock' => 8],
             ],
             'is_active' => 1,
         ]);
@@ -100,6 +100,7 @@ class ProductVariantsFlowTest extends TestCase
             'category_id' => $category->id,
             'variant_attribute_id' => $attribute->id,
             'price' => 15000,
+            'silver_price' => 16000,
             'is_vat_excluded' => true,
             'is_active' => true,
         ]);
@@ -108,6 +109,7 @@ class ProductVariantsFlowTest extends TestCase
             'product_id' => $product->id,
             'product_attribute_value_id' => $value->id,
             'price' => 15000,
+            'silver_price' => 16000,
             'stock' => 3,
             'is_active' => true,
             'sort_order' => 1,

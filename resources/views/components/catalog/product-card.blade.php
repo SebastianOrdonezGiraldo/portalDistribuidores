@@ -51,11 +51,17 @@ Component contract:
 
     $calculator = app(DistributorPriceCalculator::class);
     $basePrices = $hasVariants
-        ? $activeVariants->map(fn ($variant) => (string) $variant->price)->all()
-        : [(string) $product->price];
+        ? $activeVariants->map(fn ($variant) => [
+            'gold' => (string) $variant->price,
+            'silver' => (string) $variant->silver_price,
+        ])->all()
+        : [[
+            'gold' => (string) $product->price,
+            'silver' => (string) $product->silver_price,
+        ]];
 
     $priced = collect($basePrices)->map(
-        fn (string $base) => $calculator->calculateFromDecimal($base, $resolvedTier)
+        fn (array $prices) => $calculator->calculateFromDecimal($prices['gold'], $prices['silver'], $resolvedTier)
     );
 
     $minGold = (float) $priced->min(fn ($p) => (float) $p->basePriceDecimal());

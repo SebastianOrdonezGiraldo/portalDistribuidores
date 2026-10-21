@@ -13,14 +13,14 @@ return [
     | La fuente vigente en runtime es la última fila de commerce_pricing_rules.
     | No eliminar estas claves: permiten migrate/config:cache antes de migrar.
     |
-    | Fórmula: Precio Plata = techo(Precio Oro × (1 + incremento)) + redondeo.
+    | Los precios Oro y Plata se guardan en cada producto; estas claves antiguas solo se conservan por compatibilidad.
     |
     */
     'tiers' => [
-        // Incremento porcentual del precio Plata sobre el precio Oro (fallback).
+        // Campo legado conservado para historial y compatibilidad; no participa en precios nuevos.
         'silver_markup_percent' => 5,
 
-        // Múltiplo de redondeo del precio Plata en pesos (fallback).
+        // Campo legado conservado para historial y compatibilidad; no participa en precios nuevos.
         'silver_rounding_multiple' => 1000,
 
         // Pedido mínimo por nivel (fallback cuando aún no hay filas en DB).

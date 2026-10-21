@@ -39,6 +39,7 @@ class DuplicateProductAction
                     'category_id' => $product->category_id,
                     'variant_attribute_id' => $product->variant_attribute_id,
                     'price' => $product->price,
+                    'silver_price' => $product->silver_price,
                     'stock' => $product->stock,
                     'is_active' => false,
                     'is_new' => $product->is_new,
@@ -50,6 +51,7 @@ class DuplicateProductAction
                     $duplicate->variants()->create([
                         'product_attribute_value_id' => $variant->product_attribute_value_id,
                         'price' => $variant->price,
+                        'silver_price' => $variant->silver_price,
                         'stock' => $variant->stock,
                         'is_active' => $variant->is_active,
                         'sort_order' => $variant->sort_order,

@@ -96,21 +96,21 @@ class CommercePricingRulesServiceTest extends TestCase
         app(CommercePricingRulesService::class)->publish(500, 0, $admin);
     }
 
-    public function test_calculator_re_resolves_new_percentage_after_publish(): void
+    public function test_calculator_ignores_legacy_percentage_after_publish(): void
     {
         $admin = User::factory()->admin()->create();
 
         $before = app(DistributorPriceCalculator::class)
-            ->calculate(10_000_000, DistributorTier::Silver);
-        $this->assertSame('105000.00', $before->silverPriceDecimal());
+            ->calculate(10_000_000, 10_512_345, DistributorTier::Silver);
+        $this->assertSame('105123.45', $before->silverPriceDecimal());
 
         app(CommercePricingRulesService::class)->publish(700, 1000, $admin);
 
         // Fresh resolve from container (bind, not singleton).
         $after = app()->make(DistributorPriceCalculator::class)
-            ->calculate(10_000_000, DistributorTier::Silver);
+            ->calculate(10_000_000, 10_512_345, DistributorTier::Silver);
 
-        $this->assertSame('107000.00', $after->silverPriceDecimal());
+        $this->assertSame('105123.45', $after->silverPriceDecimal());
         $this->assertSame(700, app(CommercePricingRules::class)->silverMarkupBasisPoints);
     }
 }

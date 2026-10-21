@@ -1,21 +1,19 @@
 {{--
 View contract:
 - Source: App\Modules\Admin\Http\Controllers\CommerceSettingsAdminController::edit.
-- Expects: $current (CommercePricingRules), $history, $latestRule, example price fields.
+- Expects: $current (CommercePricingRules), $history, and $latestRule.
 - Owns: commercial pricing rules form, Alpine preview, audit history.
 --}}
 <x-app-layout>
     <x-slot name="header">
         <x-ui.page-header
             title="Reglas comerciales"
-            subtitle="Configura cómo se calcula el precio ICM Plata a partir del precio base ICM Oro."
+subtitle="Administra precios manuales Oro y Plata; aqui solo se configuran acceso y pedidos minimos."
         />
     </x-slot>
 
     @php
         $money = fn ($value) => '$'.number_format((float) $value, 0, ',', '.');
-        $displayPercent = old('silver_markup_percent', $current->silverMarkupPercentageDisplay());
-        $displayRounding = (int) old('silver_rounding_multiple', $current->silverRoundingMultiple);
         $silverMinEnabled = (bool) old('silver_min_order_enabled', $current->silverMinOrderEnabled);
         $silverMinAmount = (int) old('silver_min_order_amount', $current->silverMinOrderAmount);
         $goldMinEnabled = (bool) old('gold_min_order_enabled', $current->goldMinOrderEnabled);
@@ -32,8 +30,6 @@ View contract:
     <div
         class="grid gap-4 lg:grid-cols-[1.6fr_1fr]"
         x-data="commercePricingPreview({
-            percent: '{{ $displayPercent }}',
-            rounding: {{ $displayRounding }},
             goldPesos: 100000,
             silverMinEnabled: {{ $silverMinEnabled ? 'true' : 'false' }},
             goldMinEnabled: {{ $goldMinEnabled ? 'true' : 'false' }},
@@ -55,55 +51,24 @@ View contract:
             <x-ui.card class="p-5">
                 <h2 class="card-title">Precios por nivel</h2>
                 <p class="mt-1 text-sm text-slate-600">
-                    Fórmula vigente: Precio Plata = techo(Precio Oro × (1 + incremento)) y luego redondeo al múltiplo seleccionado.
+                    Los precios se administran manualmente por producto o variante. Esta configuracion conserva unicamente las reglas de acceso y pedidos minimos.
                 </p>
 
-                <div class="mt-5 grid gap-4 sm:grid-cols-2">
-                    <div>
-                        <label class="form-label" for="silver_markup_percent">Incremento del precio Plata sobre el precio Oro</label>
-                        <div class="relative">
-                            <x-ui.input
-                                id="silver_markup_percent"
-                                name="silver_markup_percent"
-                                inputmode="decimal"
-                                :value="$displayPercent"
-                                x-model="percent"
-                                required
-                            />
-                            <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-semibold text-slate-500">%</span>
-                        </div>
-                        <p class="form-help">Este porcentaje se suma al precio base Oro antes de aplicar el redondeo.</p>
-                        <x-input-error :messages="$errors->get('silver_markup_percent')" />
-                    </div>
-
-                    <div>
-                        <label class="form-label" for="silver_rounding_multiple">Redondear el precio Plata al siguiente múltiplo de</label>
-                        <x-ui.select id="silver_rounding_multiple" name="silver_rounding_multiple" x-model.number="rounding" required>
-                            <option value="100" @selected($displayRounding === 100)>$100</option>
-                            <option value="500" @selected($displayRounding === 500)>$500</option>
-                            <option value="1000" @selected($displayRounding === 1000)>$1.000</option>
-                        </x-ui.select>
-                        <x-input-error :messages="$errors->get('silver_rounding_multiple')" />
-                    </div>
-                </div>
-
                 <div class="mt-5 rounded-xl border border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-700">
-                    <p class="font-semibold text-slate-900">Qué cambia y qué no</p>
+                    <p class="font-semibold text-slate-900">Como funciona ahora</p>
                     <ul class="mt-2 list-disc space-y-1 pl-5">
-                        <li>El precio base de cada producto (Oro) en administración no se modifica: sigue siendo el valor guardado en el producto.</li>
-                        <li>Esta regla recalcula únicamente el precio Plata derivado a partir de ese precio Oro.</li>
-                        <li>Los clientes Plata verán el nuevo precio en catálogo, ficha de producto, carrito y checkout.</li>
-                        <li>Los clientes Oro siguen comprando al precio base; solo cambia el precio Plata de referencia que ven tachado.</li>
-                        <li>Si inicias sesión como administrador o invitado en el catálogo, verás el precio base Oro sin el incremento Plata.</li>
+                        <li>Precio Oro y Precio Plata se guardan de forma independiente en cada producto y variante.</li>
+                        <li>Los clientes Plata usan siempre el Precio Plata manual.</li>
+                        <li>Los clientes Oro elegibles usan el Precio Oro; si no alcanzan el umbral, usan Precio Plata.</li>
+                        <li>Los precios manuales se reflejan en catalogo, carrito, pedidos, cotizaciones y PDF.</li>
                     </ul>
                 </div>
 
                 <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-950">
-                    <p class="font-semibold">Al guardar, los precios visibles y los carritos abiertos se recalcularán con la nueva regla. Los pedidos confirmados conservarán sus precios históricos.</p>
-                    <p class="mt-2 text-amber-900/80">Las líneas existentes de pedidos editados conservan su precio. Las líneas nuevas usarán la regla vigente.</p>
+                    <p class="font-semibold">Los cambios de Precio Plata no modifican pedidos historicos ya guardados.</p>
+                    <p class="mt-2 text-amber-900/80">Al editar un pedido o cotizacion, las lineas nuevas usan los precios manuales vigentes.</p>
                 </div>
             </x-ui.card>
-
             <x-ui.card class="p-5">
                 <h2 class="card-title">Pedidos mínimos</h2>
                 <p class="mt-1 text-sm text-slate-600">
@@ -338,44 +303,24 @@ View contract:
 
         <aside class="space-y-4">
             <x-ui.card class="p-5">
-                <h2 class="card-title">Vista previa</h2>
-                <p class="mt-1 text-xs text-slate-500">Cálculo informativo en el navegador. La lógica definitiva permanece en el servidor.</p>
+                <h2 class="card-title">Precios manuales</h2>
+                <p class="mt-1 text-xs text-slate-500">Los valores definitivos se editan desde cada producto. El ejemplo solo muestra la forma en que se aplican por nivel.</p>
 
-                <dl class="mt-4 space-y-2 text-sm">
-                    <div class="flex items-center justify-between gap-3">
-                        <dt class="text-slate-500">Precio Oro</dt>
-                        <dd class="font-semibold text-slate-900" x-text="formatMoney(goldPesos)"></dd>
+                <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                    <div class="flex items-center justify-between gap-3 text-sm">
+                        <span class="text-slate-500">Precio Oro de ejemplo</span>
+                        <strong class="text-slate-900" x-text="formatMoney(goldPesos)"></strong>
                     </div>
-                    <div class="flex items-center justify-between gap-3">
-                        <dt class="text-slate-500">Incremento aplicado</dt>
-                        <dd class="font-semibold text-slate-900" x-text="percentLabel()"></dd>
+                    <div class="mt-2 flex items-center justify-between gap-3 text-sm">
+                        <span class="text-slate-500">Precio Plata de ejemplo</span>
+                        <strong class="text-brand-dark" x-text="formatMoney(silverPesos)"></strong>
                     </div>
-                    <div class="flex items-center justify-between gap-3">
-                        <dt class="text-slate-500">Precio Plata antes del redondeo</dt>
-                        <dd class="font-semibold text-slate-900" x-text="formatMoney(plataBeforeRounding())"></dd>
-                    </div>
-                    <div class="flex items-center justify-between gap-3">
-                        <dt class="text-slate-500">Precio Plata final</dt>
-                        <dd class="font-bold text-brand-dark" x-text="formatMoney(plataFinal())"></dd>
-                    </div>
-                    <div class="flex items-center justify-between gap-3 border-t border-slate-200 pt-2">
-                        <dt class="text-slate-500">Diferencia entre Plata y Oro</dt>
-                        <dd class="font-semibold text-amber-700" x-text="formatMoney(plataFinal() - goldPesos)"></dd>
-                    </div>
-                </dl>
+                    <p class="mt-3 text-xs text-slate-500">Oro elegible usa el primero; Plata y Oro no elegible usan el segundo.</p>
+                </div>
             </x-ui.card>
-
             <x-ui.card class="p-5">
                 <h2 class="card-title">Configuración vigente</h2>
                 <dl class="mt-4 space-y-3 text-sm">
-                    <div>
-                        <dt class="text-xs uppercase tracking-wide text-slate-500">Incremento</dt>
-                        <dd class="mt-1 font-semibold text-slate-900">{{ $current->silverMarkupPercentageDisplay() }}%</dd>
-                    </div>
-                    <div>
-                        <dt class="text-xs uppercase tracking-wide text-slate-500">Redondeo</dt>
-                        <dd class="mt-1 font-semibold text-slate-900">{{ $money($current->silverRoundingMultiple) }}</dd>
-                    </div>
                     <div>
                         <dt class="text-xs uppercase tracking-wide text-slate-500">Pedido mínimo Plata</dt>
                         <dd class="mt-1 font-semibold text-slate-900">
@@ -536,49 +481,17 @@ View contract:
     </x-ui.card>
 
     <script>
-        function commercePricingPreview({ percent, rounding, goldPesos, silverMinEnabled, goldMinEnabled, goldThresholdEnabled, goldThresholdBasis }) {
-            const toBasisPoints = (value) => {
-                const raw = String(value ?? '').trim().replace(',', '.');
-                if (!/^\d+(\.\d{0,2})?$/.test(raw) || raw === '') {
-                    return 0;
-                }
-                const [whole, fraction = ''] = raw.split('.');
-                return (Number(whole || '0') * 100) + Number((fraction + '00').slice(0, 2));
-            };
-
-            const ceilDiv = (numerator, denominator) => Math.floor((numerator + denominator - 1) / denominator);
-
+        function commercePricingPreview({ goldPesos, silverMinEnabled, goldMinEnabled, goldThresholdEnabled, goldThresholdBasis }) {
             return {
-                percent,
-                rounding,
                 goldPesos,
+                silverPesos: 95000,
                 silverMinEnabled: !!silverMinEnabled,
                 goldMinEnabled: !!goldMinEnabled,
                 goldThresholdEnabled: !!goldThresholdEnabled,
                 goldThresholdBasis: goldThresholdBasis || 'gold_candidate',
                 formatMoney(pesos) {
                     const safe = Math.max(0, Math.round(Number(pesos) || 0));
-                    return `$${safe.toLocaleString('es-CO')}`;
-                },
-                percentLabel() {
-                    const bp = toBasisPoints(this.percent);
-                    const whole = Math.floor(bp / 100);
-                    const fraction = String(bp % 100).padStart(2, '0');
-                    return `${whole}.${fraction}%`;
-                },
-                plataBeforeRounding() {
-                    const goldCents = this.goldPesos * 100;
-                    const factor = 10000 + toBasisPoints(this.percent);
-                    const unroundedCents = ceilDiv(goldCents * factor, 10000);
-                    return Math.floor(unroundedCents / 100);
-                },
-                plataFinal() {
-                    const goldCents = this.goldPesos * 100;
-                    const factor = 10000 + toBasisPoints(this.percent);
-                    const unroundedCents = ceilDiv(goldCents * factor, 10000);
-                    const multipleCents = Math.max(1, Number(this.rounding) || 1000) * 100;
-                    const roundedCents = ceilDiv(unroundedCents, multipleCents) * multipleCents;
-                    return Math.floor(roundedCents / 100);
+                    return '$' + safe.toLocaleString('es-CO');
                 },
             };
         }
