@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator as Paginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Normalizer;
 
 /**
  * Catalog search implementation backed by SQL filtering and PHP ranking.
@@ -70,27 +71,16 @@ class PostgresSearchEngine implements SearchEngineInterface
             return $paginator;
         }
 
-        // Pre-filtrar en SQL: solo traer productos que contengan al menos
-        // un token en nombre, marca, descripción, categoría o sinónimos.
+        // Pre-filtrar en SQL con las mismas reglas de elegibilidad que scoreMatch(),
+        // para no cargar productos que el ranking en PHP descartaría.
         // El scoring detallado (pesos, strong-match, etc.) se mantiene en PHP
         // pero solo se ejecuta sobre este subconjunto reducido de candidatos.
         $candidatesStartedAt = microtime(true);
         $candidates = $this
             ->baseQuery($query)
             ->leftJoin('categories as _fcat', 'products.category_id', '=', '_fcat.id')
-            ->leftJoin('category_synonyms as _fsyn', '_fcat.id', '=', '_fsyn.category_id')
-            ->where(function (Builder $q) use ($query): void {
-                foreach ($query->tokens() as $token) {
-                    $like = '%'.$token.'%';
-                    $q->orWhereRaw($this->ciExpr('products.name').' LIKE ?', [$like])
-                        ->orWhereRaw($this->ciExpr('coalesce(products.brand, \'\')').' LIKE ?', [$like])
-                        ->orWhereRaw($this->ciExpr('coalesce(products.description, \'\')').' LIKE ?', [$like])
-                        ->orWhereRaw($this->ciExpr('coalesce(_fcat.name, \'\')').' LIKE ?', [$like])
-                        ->orWhereRaw($this->ciExpr('coalesce(_fsyn.term, \'\')').' LIKE ?', [$like]);
-                }
-            })
+            ->where(fn (Builder $q) => $this->applyCandidateFilter($q, $query->tokens()))
             ->select('products.*')
-            ->distinct()
             // Para ranking solo se requiere categoria/sinonimos.
             // Las relaciones pesadas (fotos/variantes) se cargan solo para la pagina actual.
             ->with(['category.synonyms'])
@@ -168,6 +158,64 @@ class PostgresSearchEngine implements SearchEngineInterface
     }
 
     /**
+     * Restrict candidates to products scoreMatch() can accept: a single token
+     * may appear in any searchable field, while several tokens must all appear
+     * in the name, the brand or the category name.
+     *
+     * @param  list<string>  $tokens
+     */
+    private function applyCandidateFilter(Builder $builder, array $tokens): void
+    {
+        if (count($tokens) >= self::STRONG_MATCH_MIN_TOKENS) {
+            foreach (['products.name', "coalesce(products.brand, '')", "coalesce(_fcat.name, '')"] as $column) {
+                $builder->orWhere(function (Builder $q) use ($column, $tokens): void {
+                    foreach ($tokens as $token) {
+                        $q->whereRaw($this->likeExpr($column), [$this->likePattern($token)]);
+                    }
+                });
+            }
+
+            return;
+        }
+
+        $pattern = $this->likePattern($tokens[0]);
+
+        $builder
+            ->whereRaw($this->likeExpr('products.name'), [$pattern])
+            ->orWhereRaw($this->likeExpr("coalesce(products.brand, '')"), [$pattern])
+            ->orWhereRaw($this->likeExpr("coalesce(products.description, '')"), [$pattern])
+            ->orWhereRaw($this->likeExpr("coalesce(_fcat.name, '')"), [$pattern])
+            ->orWhereExists(function ($q) use ($pattern): void {
+                $q->selectRaw('1')
+                    ->from('category_synonyms as _fsyn')
+                    ->whereColumn('_fsyn.category_id', 'products.category_id')
+                    ->whereRaw($this->likeExpr('_fsyn.term'), [$pattern]);
+            });
+    }
+
+    private function likeExpr(string $column): string
+    {
+        return $this->ciExpr($column)." LIKE ? ESCAPE '\\'";
+    }
+
+    /**
+     * Build a literal "contains" pattern: user input must not act as a LIKE
+     * wildcard, and on PostgreSQL accents are stripped as unaccent() does so
+     * the SQL filter never rejects a product the PHP ranking would accept.
+     */
+    private function likePattern(string $token): string
+    {
+        if (DB::getDriverName() === 'pgsql' && class_exists(Normalizer::class)) {
+            $decomposed = Normalizer::normalize($token, Normalizer::FORM_D);
+            $token = is_string($decomposed)
+                ? (preg_replace('/\p{Mn}+/u', '', $decomposed) ?? $token)
+                : $token;
+        }
+
+        return '%'.addcslashes($token, '\\%_').'%';
+    }
+
+    /**
      * Apply the local score model to already-prefiltered products.
      */
     private function rank(Collection $products, ProductSearchQuery $query): Collection
@@ -190,7 +238,7 @@ class PostgresSearchEngine implements SearchEngineInterface
                     ? 1
                     : $this->scoreMatch($name, $brand, $category, $synonyms, $description, $term, $tokens, $requiresStrongMatch);
 
-                return ['product' => $product, 'score' => $score];
+                return ['product' => $product, 'score' => $score, 'name' => $name];
             })
             ->filter(fn (array $row) => $row['score'] > 0)
             ->pipe(fn (Collection $rows) => $this->sortRankedRows($rows, $query))
@@ -304,29 +352,54 @@ class PostgresSearchEngine implements SearchEngineInterface
 
     /**
      * Apply in-memory ordering after relevance scoring.
+     *
+     * Sort keys are computed once per row. Collection::sortBy() would call
+     * closures as two-argument comparators, not as key extractors.
      */
     private function sortRankedRows(Collection $rows, ProductSearchQuery $query): Collection
     {
+        $direction = $query->sort === ProductSearchQuery::SORT_NAME_DESC ? -1 : 1;
+        $keyed = $rows
+            ->map(fn (array $row): array => $row + ['keys' => $this->sortKeys($row, $query)])
+            ->all();
+
+        usort($keyed, static function (array $a, array $b) use ($direction): int {
+            foreach ($a['keys'] as $index => $key) {
+                $other = $b['keys'][$index];
+                $result = is_string($key) ? strcmp($key, $other) : $key <=> $other;
+
+                if ($result !== 0) {
+                    return $result * $direction;
+                }
+            }
+
+            return 0;
+        });
+
+        return collect($keyed);
+    }
+
+    /**
+     * Ascending sort keys for one ranked row, ending with the id for stable pages.
+     *
+     * @param  array{product: Product, score: int, name: string}  $row
+     * @return list<int|float|string>
+     */
+    private function sortKeys(array $row, ProductSearchQuery $query): array
+    {
+        $product = $row['product'];
+        $id = (int) $product->id;
+
         return match ($query->sort) {
-            ProductSearchQuery::SORT_NAME_ASC => $rows->sortBy([
-                [fn (array $row) => TextNormalizer::normalize($row['product']->name), 'asc'],
-                [fn (array $row) => $row['product']->id, 'asc'],
-            ]),
-            ProductSearchQuery::SORT_NAME_DESC => $rows->sortBy([
-                [fn (array $row) => TextNormalizer::normalize($row['product']->name), 'desc'],
-                [fn (array $row) => $row['product']->id, 'desc'],
-            ]),
-            ProductSearchQuery::SORT_STOCK_DESC => $rows->sortBy([
-                [fn (array $row) => $this->stockNullSortValue($row['product']), 'asc'],
-                [fn (array $row) => $this->stockSortValue($row['product']), 'desc'],
-                [fn (array $row) => TextNormalizer::normalize($row['product']->name), 'asc'],
-                [fn (array $row) => $row['product']->id, 'asc'],
-            ]),
-            default => $rows->sortBy([
-                ['score', 'desc'],
-                [fn (array $row) => $this->inStockSortValue($row['product']), 'asc'],
-                [fn (array $row) => TextNormalizer::normalize($row['product']->name), 'asc'],
-            ]),
+            ProductSearchQuery::SORT_NAME_ASC,
+            ProductSearchQuery::SORT_NAME_DESC => [$row['name'], $id],
+            ProductSearchQuery::SORT_STOCK_DESC => [
+                $this->stockNullSortValue($product),
+                -$this->stockSortValue($product),
+                $row['name'],
+                $id,
+            ],
+            default => [-$row['score'], $this->inStockSortValue($product), $row['name'], $id],
         };
     }
 
