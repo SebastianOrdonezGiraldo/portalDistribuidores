@@ -4,6 +4,7 @@ namespace App\Modules\Catalog\Services;
 
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Categories\Models\Category;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -155,6 +156,12 @@ class ProductBulkImportService
                     'is_vat_excluded' => (bool) ($rowPayload['is_vat_excluded'] ?? false),
                 ];
 
+                // Without a Silver value the fallback above only applies to new
+                // products; existing ones keep their manually set Silver price.
+                $updateAttributes = $rowPayload['silver_price'] !== null
+                    ? $attributes
+                    : Arr::except($attributes, 'silver_price');
+
                 if ($action === 'create') {
                     if ($existing) {
                         $report['ok'] = false;
@@ -173,12 +180,12 @@ class ProductBulkImportService
                         continue;
                     }
 
-                    $this->persistUpdate($existing, $attributes, $report);
+                    $this->persistUpdate($existing, $updateAttributes, $report);
                     continue;
                 }
 
                 if ($existing) {
-                    $this->persistUpdate($existing, $attributes, $report);
+                    $this->persistUpdate($existing, $updateAttributes, $report);
                     continue;
                 }
 

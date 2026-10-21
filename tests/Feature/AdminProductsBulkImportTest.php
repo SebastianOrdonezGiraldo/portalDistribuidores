@@ -24,7 +24,7 @@ class AdminProductsBulkImportTest extends TestCase
         $response->assertOk();
         $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
         $this->assertStringContainsString(
-            'action;sku;name;brand;description;category_id;price;stock;is_active;is_vat_excluded',
+            'action;sku;name;brand;description;category_id;price;silver_price;stock;is_active;is_vat_excluded',
             $response->streamedContent(),
         );
     }
@@ -138,6 +138,100 @@ class AdminProductsBulkImportTest extends TestCase
             'brand' => 'Marca Nueva',
             'price' => 99999,
             'stock' => 1,
+        ]);
+    }
+
+    public function test_bulk_import_without_silver_column_keeps_existing_silver_price(): void
+    {
+        $this->withoutMiddleware(ValidateCsrfToken::class);
+
+        $admin = User::factory()->admin()->create();
+        $category = Category::create([
+            'parent_id' => null,
+            'name' => 'Categoria Plata Legacy',
+            'slug' => 'categoria-plata-legacy',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        Product::create([
+            'name' => 'Producto Con Plata Manual',
+            'sku' => 'SKU-SILVER-KEEP',
+            'category_id' => $category->id,
+            'price' => 10000,
+            'silver_price' => 12345,
+            'stock' => 10,
+            'is_active' => true,
+        ]);
+
+        $csvContent = implode("\n", [
+            'action;sku;name;brand;description;category_id;price;stock;is_active',
+            "update;SKU-SILVER-KEEP;Producto Con Plata Manual;Marca;Desc;{$category->id};11000;10;1",
+            "upsert;SKU-SILVER-NEW;Producto Nuevo Legacy;Marca;Desc;{$category->id};20000;5;1",
+        ]);
+
+        $file = UploadedFile::fake()->createWithContent('products-import-legacy.csv', $csvContent);
+
+        $this->actingAs($admin)
+            ->post('/admin/products/import', [
+                'default_action' => 'upsert',
+                'file' => $file,
+            ])
+            ->assertRedirect('/admin/products');
+
+        $this->assertDatabaseHas('products', [
+            'sku' => 'SKU-SILVER-KEEP',
+            'price' => 11000,
+            'silver_price' => 12345,
+        ]);
+        $this->assertDatabaseHas('products', [
+            'sku' => 'SKU-SILVER-NEW',
+            'price' => 20000,
+            'silver_price' => 20000,
+        ]);
+    }
+
+    public function test_bulk_import_with_silver_column_updates_silver_price(): void
+    {
+        $this->withoutMiddleware(ValidateCsrfToken::class);
+
+        $admin = User::factory()->admin()->create();
+        $category = Category::create([
+            'parent_id' => null,
+            'name' => 'Categoria Plata Import',
+            'slug' => 'categoria-plata-import',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        Product::create([
+            'name' => 'Producto Plata Actualizable',
+            'sku' => 'SKU-SILVER-UPD',
+            'category_id' => $category->id,
+            'price' => 10000,
+            'silver_price' => 12345,
+            'stock' => 10,
+            'is_active' => true,
+        ]);
+
+        $csvContent = implode("\n", [
+            'action;sku;name;brand;description;category_id;price;silver_price;stock;is_active',
+            "update;SKU-SILVER-UPD;Producto Plata Actualizable;Marca;Desc;{$category->id};11000;13500;10;1",
+        ]);
+
+        $file = UploadedFile::fake()->createWithContent('products-import-silver.csv', $csvContent);
+
+        $this->actingAs($admin)
+            ->post('/admin/products/import', [
+                'default_action' => 'upsert',
+                'file' => $file,
+            ])
+            ->assertRedirect('/admin/products');
+
+        $this->assertDatabaseHas('products', [
+            'sku' => 'SKU-SILVER-UPD',
+            'price' => 11000,
+            'silver_price' => 13500,
         ]);
     }
 

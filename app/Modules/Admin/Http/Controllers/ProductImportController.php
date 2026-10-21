@@ -33,7 +33,7 @@ class ProductImportController extends Controller
             }
 
             fwrite($output, "\xEF\xBB\xBF");
-            fputcsv($output, ['action', 'sku', 'name', 'brand', 'description', 'category_id', 'price', 'stock', 'is_active', 'is_vat_excluded'], ';');
+            fputcsv($output, ['action', 'sku', 'name', 'brand', 'description', 'category_id', 'price', 'silver_price', 'stock', 'is_active', 'is_vat_excluded'], ';');
             fclose($output);
         }, 'plantilla_import_productos.csv', [
             'Content-Type' => 'text/csv; charset=UTF-8',
