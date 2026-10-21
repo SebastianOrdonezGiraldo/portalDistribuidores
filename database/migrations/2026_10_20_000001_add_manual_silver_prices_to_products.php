@@ -9,13 +9,17 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('products', function (Blueprint $table): void {
-            $table->decimal('silver_price', 12, 2)->nullable()->after('price');
-        });
+        if (! Schema::hasColumn('products', 'silver_price')) {
+            Schema::table('products', function (Blueprint $table): void {
+                $table->decimal('silver_price', 12, 2)->nullable()->after('price');
+            });
+        }
 
-        Schema::table('product_variants', function (Blueprint $table): void {
-            $table->decimal('silver_price', 12, 2)->nullable()->after('price');
-        });
+        if (! Schema::hasColumn('product_variants', 'silver_price')) {
+            Schema::table('product_variants', function (Blueprint $table): void {
+                $table->decimal('silver_price', 12, 2)->nullable()->after('price');
+            });
+        }
 
         [$markupBasisPoints, $roundingMultiple] = $this->currentLegacyPricingRule();
 
