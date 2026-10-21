@@ -14,6 +14,20 @@ class ProductVariantFactory extends Factory
 {
     protected $model = ProductVariant::class;
 
+    public function configure(): static
+    {
+        return $this->afterMaking(function (ProductVariant $variant): void {
+            if ($variant->silver_price !== null) {
+                return;
+            }
+
+            $priceCents = (int) round(((float) $variant->price) * 100);
+            $legacySilverCents = intdiv(($priceCents * 10_500) + 9_999, 10_000);
+            $legacySilverCents = intdiv($legacySilverCents + 99_999, 100_000) * 100_000;
+            $variant->silver_price = $legacySilverCents / 100;
+        });
+    }
+
     public function definition(): array
     {
         return [

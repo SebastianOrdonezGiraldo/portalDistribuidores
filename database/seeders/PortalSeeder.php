@@ -85,6 +85,7 @@ class PortalSeeder extends Seeder
                     'description' => $description,
                     'category_id' => $categories[$categoryKey]->id,
                     'price' => $price,
+                    'silver_price' => $price,
                     'is_active' => true,
                 ],
             );

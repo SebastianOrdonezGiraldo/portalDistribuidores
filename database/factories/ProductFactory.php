@@ -13,6 +13,20 @@ class ProductFactory extends Factory
 {
     protected $model = Product::class;
 
+    public function configure(): static
+    {
+        return $this->afterMaking(function (Product $product): void {
+            if ($product->silver_price !== null) {
+                return;
+            }
+
+            $priceCents = (int) round(((float) $product->price) * 100);
+            $legacySilverCents = intdiv(($priceCents * 10_500) + 9_999, 10_000);
+            $legacySilverCents = intdiv($legacySilverCents + 99_999, 100_000) * 100_000;
+            $product->silver_price = $legacySilverCents / 100;
+        });
+    }
+
     public function definition(): array
     {
         return [
@@ -37,7 +51,12 @@ class ProductFactory extends Factory
 
     public function withPrice(float $price): static
     {
-        return $this->state(fn () => ['price' => $price]);
+        return $this->state(fn () => ['price' => $price, 'silver_price' => $price]);
+    }
+
+    public function withSilverPrice(float $price): static
+    {
+        return $this->state(fn () => ['silver_price' => $price]);
     }
 
     public function markedAsNew(?string $until = null): static

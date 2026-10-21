@@ -45,6 +45,7 @@ class CreateOrderFeatureTest extends TestCase
             'description' => 'Producto test',
             'category_id' => $category->id,
             'price' => 10000,
+            'silver_price' => 10500,
             'stock' => 10,
             'is_active' => true,
         ]);
@@ -118,6 +119,7 @@ class CreateOrderFeatureTest extends TestCase
             'description' => 'Producto test',
             'category_id' => $category->id,
             'price' => 10000,
+            'silver_price' => 10500,
             'is_active' => true,
         ]);
 

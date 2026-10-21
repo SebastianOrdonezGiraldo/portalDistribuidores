@@ -39,8 +39,9 @@ final class OrderPricingCalculator
         ?CommercePricingRules $rules = null,
     ): OrderPricingResult {
         $rules ??= $this->rulesProvider->current();
-        // Historical edits must use the snapshot's markup, not the container binding.
-        $priceCalculator = new DistributorPriceCalculator($rules);
+        // Historical edits still use the selected commerce rule for eligibility and
+        // minimums; manual product prices are independent of that rule snapshot.
+        $priceCalculator = new DistributorPriceCalculator;
         $candidateLines = [];
 
         foreach ($items as $item) {
@@ -49,9 +50,18 @@ final class OrderPricingCalculator
             $variant = $item['variant'] ?? null;
             $qty = max(1, (int) $item['qty']);
             $unitLabel = $item['unit_label'] ?? 'unidades';
-            $basePrice = $variant?->price ?? $product->price;
+            $goldPrice = $variant?->price ?? $product->price;
+            $silverPrice = $variant?->silver_price ?? $product->silver_price;
 
-            $priced = $priceCalculator->calculateFromDecimal((string) $basePrice, DistributorTier::Gold);
+            if ($silverPrice === null) {
+                throw new \InvalidArgumentException('El producto no tiene Precio Plata configurado.');
+            }
+
+            $priced = $priceCalculator->calculateFromDecimal(
+                (string) $goldPrice,
+                (string) $silverPrice,
+                DistributorTier::Gold,
+            );
             $goldUnit = $priced->basePriceCents;
             $silverUnit = $priced->silverPriceCents;
 

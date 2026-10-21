@@ -386,6 +386,7 @@ class ProductNewFeatureTest extends TestCase
             'description' => 'Descripción de prueba',
             'category_id' => $category->id,
             'price' => 12500,
+            'silver_price' => 13125,
             'stock' => 25,
             'is_active' => 1,
             'is_vat_excluded' => 0,

@@ -31,6 +31,7 @@ View contract:
             ? $product->variants->map(fn ($variant) => [
                 'value' => $variant->attributeValue?->value,
                 'price' => $variant->price,
+                'silver_price' => $variant->silver_price,
                 'stock' => $variant->stock,
             ])->values()->all()
             : [];
@@ -38,7 +39,7 @@ View contract:
         $variantRows = is_array($variantRows) ? array_values($variantRows) : [];
         $hasVariantsChecked = filter_var(old('has_variants', $isEdit && $product->variants->isNotEmpty()), FILTER_VALIDATE_BOOLEAN);
         if ($hasVariantsChecked && $variantRows === []) {
-            $variantRows[] = ['value' => '', 'price' => '', 'stock' => ''];
+            $variantRows[] = ['value' => '', 'price' => '', 'silver_price' => '', 'stock' => ''];
         }
         $selectedVariantAttributeId = old('variant_attribute_id', $product->variant_attribute_id);
         $newVariantAttributeName = old('new_variant_attribute_name');
@@ -124,11 +125,11 @@ View contract:
                         <x-input-error :messages="$errors->get('category_id')" />
                     </div>
                     <div>
-                        <label class="form-label" for="price">Precio *</label>
-                        <x-ui.input id="price" name="price" type="number" min="0" step="0.01" :value="old('price', $product->price)" required data-live-price />
+                        <label class="form-label" for="price">Precio Oro *</label>
+                        <x-ui.input id="price" name="price" type="number" min="0" step="0.01" :value="old('price', $product->price)" required data-live-gold-price />
                         <p class="form-help">
                             Monto en moneda local, sin separador de miles.
-                            <span class="ml-1 font-semibold text-slate-700" data-live-price-output>$0</span>
+                            <span class="ml-1 font-semibold text-slate-700" data-live-gold-price-output>$0</span>
                         </p>
                         @if($hasVariantsChecked)
                             <p class="form-help text-amber-800">
@@ -136,6 +137,18 @@ View contract:
                             </p>
                         @endif
                         <x-input-error :messages="$errors->get('price')" />
+                    </div>
+                    <div>
+                        <label class="form-label" for="silver_price">Precio Plata *</label>
+                        <x-ui.input id="silver_price" name="silver_price" type="number" min="0" step="0.01" :value="old('silver_price', $product->silver_price)" required data-live-silver-price />
+                        <p class="form-help">
+                            Precio comercial manual para distribuidores Plata.
+                            <span class="ml-1 font-semibold text-slate-700" data-live-silver-price-output>$0</span>
+                        </p>
+                        @if($hasVariantsChecked)
+                            <p class="form-help text-amber-800">Si el producto tiene variantes, el precio que ven los clientes es el de cada variante.</p>
+                        @endif
+                        <x-input-error :messages="$errors->get('silver_price')" />
                         <x-input-error :messages="$errors->get('stock')" />
                     </div>
                     <div>
@@ -259,7 +272,7 @@ View contract:
 
                     <div>
                         <div class="flex flex-wrap items-center justify-between gap-2">
-                            <p class="text-sm font-semibold text-slate-700">Valores de variante (precio y stock por valor)</p>
+                            <p class="text-sm font-semibold text-slate-700">Valores de variante (precios por nivel y stock)</p>
                             <button type="button" class="btn btn-secondary" data-variant-add-row>Agregar valor</button>
                         </div>
                         @if($isContaPymeStockManaged)
@@ -268,7 +281,7 @@ View contract:
 
                         <div class="mt-3 space-y-2" data-variant-rows>
                             @foreach($variantRows as $index => $row)
-                                <div class="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-[1.4fr_1fr_1fr_auto]" data-variant-row>
+                                <div class="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-[1.3fr_1fr_1fr_1fr_auto]" data-variant-row>
                                     <div>
                                         <label class="form-label md:hidden" for="variant-value-{{ $index }}">Valor</label>
                                         <x-ui.input
@@ -280,7 +293,7 @@ View contract:
                                         <x-input-error :messages="$errors->get('variants.'.$index.'.value')" />
                                     </div>
                                     <div>
-                                        <label class="form-label md:hidden" for="variant-price-{{ $index }}">Precio</label>
+                                        <label class="form-label" for="variant-price-{{ $index }}">Precio Oro *</label>
                                         <x-ui.input
                                             id="variant-price-{{ $index }}"
                                             name="variants[{{ $index }}][price]"
@@ -291,6 +304,19 @@ View contract:
                                             placeholder="0.00"
                                         />
                                         <x-input-error :messages="$errors->get('variants.'.$index.'.price')" />
+                                    </div>
+                                    <div>
+                                        <label class="form-label" for="variant-silver-price-{{ $index }}">Precio Plata *</label>
+                                        <x-ui.input
+                                            id="variant-silver-price-{{ $index }}"
+                                            name="variants[{{ $index }}][silver_price]"
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            :value="data_get($row, 'silver_price')"
+                                            placeholder="0.00"
+                                        />
+                                        <x-input-error :messages="$errors->get('variants.'.$index.'.silver_price')" />
                                     </div>
                                     <div>
                                         <label class="form-label md:hidden" for="variant-stock-{{ $index }}">Stock</label>
@@ -320,7 +346,7 @@ View contract:
                 </div>
 
                 <template data-variant-template>
-                    <div class="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-[1.4fr_1fr_1fr_auto]" data-variant-row>
+                    <div class="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-[1.3fr_1fr_1fr_1fr_auto]" data-variant-row>
                         <div>
                             <input
                                 type="text"
@@ -336,6 +362,16 @@ View contract:
                                 min="0"
                                 step="0.01"
                                 placeholder="0.00"
+                                class="block w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+                            >
+                        </div>
+                        <div>
+                            <input
+                                type="number"
+                                name="variants[__INDEX__][silver_price]"
+                                min="0"
+                                step="0.01"
+                                placeholder="Precio Plata"
                                 class="block w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
                             >
                         </div>
@@ -581,7 +617,8 @@ View contract:
                     <div class="flex items-center justify-between"><span class="text-slate-500">Modo</span><span class="font-medium text-slate-900">{{ $isEdit ? 'Edición' : 'Creación' }}</span></div>
                     <div class="flex items-center justify-between"><span class="text-slate-500">Activo</span><x-ui.status-badge :status="($isActiveChecked ?? false) ? 'active' : 'inactive'" /></div>
                     <div class="flex items-center justify-between"><span class="text-slate-500">IVA</span><span class="font-medium text-slate-900">{{ ($isVatExcludedChecked ?? false) ? 'Excluido de IVA' : 'IVA incluido' }}</span></div>
-                    <div class="flex items-center justify-between"><span class="text-slate-500">Precio</span><span class="font-medium text-slate-900" data-live-price-output-sidebar>$0</span></div>
+                    <div class="flex items-center justify-between"><span class="text-slate-500">Precio Oro</span><span class="font-medium text-slate-900" data-live-gold-price-output-sidebar>$0</span></div>
+                    <div class="flex items-center justify-between"><span class="text-slate-500">Precio Plata</span><span class="font-medium text-slate-900" data-live-silver-price-output-sidebar>$0</span></div>
                     <div class="flex items-center justify-between"><span class="text-slate-500">Stock</span><span class="font-medium text-slate-900" data-live-stock-output-sidebar>Sin definir</span></div>
                     @if($isEdit)
                         <div class="flex items-center justify-between"><span class="text-slate-500">Última edición</span><span class="font-medium text-slate-900">{{ $product->updated_at?->format('d/m/Y H:i') }}</span></div>

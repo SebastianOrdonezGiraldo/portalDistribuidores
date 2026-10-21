@@ -57,6 +57,7 @@ class ProductVariantSyncService
 
             $attributes = [
                 'price' => $row['price'],
+                'silver_price' => $row['silver_price'],
                 'is_active' => true,
                 'sort_order' => $index + 1,
             ];
@@ -81,9 +82,11 @@ class ProductVariantSyncService
             ->delete();
 
         $minPrice = (float) ($rows->min('price') ?? 0);
+        $minSilverPrice = (float) ($rows->min('silver_price') ?? 0);
         $productPayload = [
             'variant_attribute_id' => $attribute->id,
             'price' => $minPrice,
+            'silver_price' => $minSilverPrice,
         ];
 
         if (! $preserveContaPymeStock) {
@@ -119,7 +122,7 @@ class ProductVariantSyncService
 
     /**
      * @param  array<int, mixed>  $rows
-     * @return Collection<int, array{value:string,value_slug:string,price:float,stock:float|null}>
+     * @return Collection<int, array{value:string,value_slug:string,price:float,silver_price:float,stock:float|null}>
      */
     private function normalizeRows(array $rows): Collection
     {
@@ -142,6 +145,7 @@ class ProductVariantSyncService
                     'value' => $value,
                     'value_slug' => $valueSlug,
                     'price' => max(0, $price),
+                    'silver_price' => max(0, round((float) data_get($row, 'silver_price', 0), 2)),
                     'stock' => $stock !== null ? max(0, $stock) : null,
                 ];
             })

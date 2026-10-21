@@ -18,8 +18,8 @@ enum DistributorTier: string
     public function description(): string
     {
         return match ($this) {
-            DistributorTier::Silver => 'Precio comercial Plata con redondeo al alza. Los carritos abiertos y pedidos nuevos utilizan este nivel hasta un cambio manual.',
-            DistributorTier::Gold => 'Precio base (Oro) con descuento respecto al precio Plata de lista. Los carritos abiertos y pedidos nuevos utilizan este nivel hasta un cambio manual.',
+            DistributorTier::Silver => 'Precio comercial Plata manual. Los carritos abiertos y pedidos nuevos utilizan este nivel hasta un cambio manual.',
+            DistributorTier::Gold => 'Precio Oro manual cuando el distribuidor cumple el umbral. Si no, utiliza Precio Plata.',
         };
     }
 
@@ -27,7 +27,7 @@ enum DistributorTier: string
     {
         return match ($this) {
             DistributorTier::Silver => 'Precio comercial Plata.',
-            DistributorTier::Gold => 'Precio base Oro con descuento respecto a Plata.',
+            DistributorTier::Gold => 'Precio Oro manual cuando es elegible; de lo contrario, Precio Plata.',
         };
     }
 

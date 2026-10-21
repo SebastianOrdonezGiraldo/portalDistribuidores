@@ -48,7 +48,7 @@ class AdminCommerceSettingsTest extends TestCase
             ->get(route('admin.settings.commerce.edit'))
             ->assertOk()
             ->assertSee('Reglas comerciales')
-            ->assertSee('Incremento del precio Plata sobre el precio Oro')
+            ->assertSee('Precio Oro y Precio Plata se guardan de forma independiente')
             ->assertSee('Historial reciente');
     }
 
@@ -70,7 +70,7 @@ class AdminCommerceSettingsTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.settings.commerce.edit'))
             ->assertOk()
-            ->assertSee('6.50')
+            ->assertSee('Precios manuales')
             ->assertSee($admin->name);
     }
 
@@ -100,6 +100,7 @@ class AdminCommerceSettingsTest extends TestCase
         Product::factory()->create([
             'name' => 'Producto prueba reglas',
             'price' => 96000,
+            'silver_price' => 103333,
             'stock' => 10,
             'is_active' => true,
         ]);
@@ -113,7 +114,7 @@ class AdminCommerceSettingsTest extends TestCase
         $this->actingAs($user)
             ->get(route('catalog.index', ['term' => 'Producto prueba reglas']))
             ->assertOk()
-            ->assertSee('$102.000', false);
+            ->assertSee('$103.333', false);
 
         $goldDistributor = Distributor::factory()->gold()->create();
         $goldUser = User::factory()->create(['distributor_id' => $goldDistributor->id]);
@@ -271,7 +272,7 @@ class AdminCommerceSettingsTest extends TestCase
             ->assertDontSee('Reglas comerciales');
     }
 
-    public function test_publishing_seven_percent_updates_silver_cart(): void
+    public function test_publishing_seven_percent_does_not_change_manual_silver_cart(): void
     {
         $admin = User::factory()->admin()->create();
         $distributor = Distributor::factory()->silver()->create();
@@ -285,7 +286,7 @@ class AdminCommerceSettingsTest extends TestCase
         app(CommercePricingRulesService::class)->publish(700, 1000, $admin);
 
         $this->actingAs($user->fresh());
-        $this->assertSame(107000.0, app(CartService::class)->items()->firstOrFail()['unit_price']);
+        $this->assertSame(105000.0, app(CartService::class)->items()->firstOrFail()['unit_price']);
     }
 
     public function test_gold_cart_keeps_base_after_rule_change(): void
@@ -304,6 +305,6 @@ class AdminCommerceSettingsTest extends TestCase
         $line = app(CartService::class)->items()->firstOrFail();
         $this->assertSame(DistributorTier::Gold, $line['tier']);
         $this->assertSame(100000.0, $line['unit_price']);
-        $this->assertSame(107000.0, $line['silver_unit_price']);
+        $this->assertSame(105000.0, $line['silver_unit_price']);
     }
 }

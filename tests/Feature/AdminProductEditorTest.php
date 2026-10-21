@@ -153,6 +153,7 @@ class AdminProductEditorTest extends TestCase
                 'description' => 'Precio editable',
                 'category_id' => $category->id,
                 'price' => 25000,
+                'silver_price' => 26000,
                 'is_active' => 1,
                 'has_variants' => 0,
             ])
@@ -161,6 +162,7 @@ class AdminProductEditorTest extends TestCase
 
         $product->refresh();
         $this->assertSame(25000.0, (float) $product->price);
+        $this->assertSame(26000.0, (float) $product->silver_price);
         $this->assertSame(1565.0, (float) $product->stock);
         $this->assertSame('synced', $product->stock_sync_status);
 
@@ -196,10 +198,12 @@ class AdminProductEditorTest extends TestCase
                 [
                     'value' => $variants[0]->attributeValue?->value,
                     'price' => 22000,
+                    'silver_price' => 24000,
                 ],
                 [
                     'value' => $variants[1]->attributeValue?->value,
                     'price' => 33000,
+                    'silver_price' => 35000,
                 ],
             ],
         ];
@@ -214,6 +218,8 @@ class AdminProductEditorTest extends TestCase
 
         $this->assertSame(22000.0, (float) $updatedVariants[0]->price);
         $this->assertSame(33000.0, (float) $updatedVariants[1]->price);
+        $this->assertSame(24000.0, (float) $updatedVariants[0]->silver_price);
+        $this->assertSame(35000.0, (float) $updatedVariants[1]->silver_price);
         $this->assertSame(10.0, (float) $updatedVariants[0]->stock);
         $this->assertSame(20.0, (float) $updatedVariants[1]->stock);
         $this->assertSame(22000.0, (float) $product->price);
@@ -1092,6 +1098,21 @@ class AdminProductEditorTest extends TestCase
         $this->assertSame(1, $product->fresh()->documents()->where('type', 'calibration_document')->count());
     }
 
+    public function test_new_active_product_requires_manual_silver_price(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $category = $this->createCategory();
+        $payload = $this->validProductPayload($category);
+        unset($payload['silver_price']);
+
+        $this->actingAs($admin)
+            ->post('/admin/products', $payload)
+            ->assertRedirect()
+            ->assertSessionHasErrors('silver_price');
+
+        $this->assertDatabaseMissing('products', ['sku' => $payload['sku']]);
+    }
+
     public function test_store_product_shows_clear_error_when_tech_sheet_exceeds_individual_limit(): void
     {
         $admin = User::factory()->admin()->create();
@@ -1396,6 +1417,7 @@ class AdminProductEditorTest extends TestCase
             'description' => 'Producto con media',
             'category_id' => $category->id,
             'price' => 15000,
+            'silver_price' => 16000,
             'stock' => 12,
             'is_active' => 1,
         ];

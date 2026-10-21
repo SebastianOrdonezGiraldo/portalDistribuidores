@@ -284,11 +284,17 @@ class ProductController extends Controller
         callable $formatMoney,
     ): array {
         $basePrices = $hasVariants
-            ? $activeVariants->map(fn ($variant) => (string) $variant->price)->all()
-            : [(string) $product->price];
+            ? $activeVariants->map(fn ($variant) => [
+                'gold' => (string) $variant->price,
+                'silver' => (string) $variant->silver_price,
+            ])->all()
+            : [[
+                'gold' => (string) $product->price,
+                'silver' => (string) $product->silver_price,
+            ]];
 
         $priced = collect($basePrices)->map(
-            fn (string $base) => $priceCalculator->calculateFromDecimal($base, $tier)
+            fn (array $prices) => $priceCalculator->calculateFromDecimal($prices['gold'], $prices['silver'], $tier)
         );
 
         $minGold = (float) $priced->min(fn ($p) => (float) $p->basePriceDecimal());
@@ -332,7 +338,11 @@ class ProductController extends Controller
 
         if ($hasVariants) {
             foreach ($activeVariants as $variant) {
-                $tierPrice = $priceCalculator->calculateFromDecimal((string) $variant->price, $tier);
+                $tierPrice = $priceCalculator->calculateFromDecimal(
+                    (string) $variant->price,
+                    (string) $variant->silver_price,
+                    $tier,
+                );
                 $gold = (float) $tierPrice->basePriceDecimal();
                 $silver = (float) $tierPrice->silverPriceDecimal();
                 $effective = $isDistributor

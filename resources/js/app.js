@@ -1680,9 +1680,11 @@ document.addEventListener('DOMContentLoaded', () => {
             })} MB`;
         };
 
-        const priceInput = productForm.querySelector('[data-live-price]');
+        const goldPriceInput = productForm.querySelector('[data-live-gold-price]');
+        const silverPriceInput = productForm.querySelector('[data-live-silver-price]');
         const stockInput = productForm.querySelector('[data-live-stock]');
-        const priceOutputs = productForm.querySelectorAll('[data-live-price-output], [data-live-price-output-sidebar]');
+        const goldPriceOutputs = productForm.querySelectorAll('[data-live-gold-price-output], [data-live-gold-price-output-sidebar]');
+        const silverPriceOutputs = productForm.querySelectorAll('[data-live-silver-price-output], [data-live-silver-price-output-sidebar]');
         const stockOutputs = productForm.querySelectorAll('[data-live-stock-output], [data-live-stock-output-sidebar]');
         const previewNameInput = productForm.querySelector('[data-preview-name]');
         const previewBrandInput = productForm.querySelector('[data-preview-brand]');
@@ -1808,7 +1810,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const refreshProductPreview = () => {
-            const currentPrice = priceInput?.value ?? '';
+            const currentGoldPrice = goldPriceInput?.value ?? '';
+            const currentSilverPrice = silverPriceInput?.value ?? '';
             const currentStock = stockInput?.value ?? '';
             const currentName = previewNameInput?.value?.trim() || 'Nombre del producto';
             const currentBrand = previewBrandInput?.value?.trim() || 'Sin marca';
@@ -1816,8 +1819,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentCategory = categoryOption?.textContent?.trim() || 'Sin categoría seleccionada';
             const currentDescription = previewDescriptionInput?.value?.trim() || 'Sin descripción comercial';
 
-            priceOutputs.forEach((output) => {
-                output.textContent = formatMoney(currentPrice);
+            goldPriceOutputs.forEach((output) => {
+                output.textContent = formatMoney(currentGoldPrice);
+            });
+
+            silverPriceOutputs.forEach((output) => {
+                output.textContent = formatMoney(currentSilverPrice);
             });
 
             stockOutputs.forEach((output) => {
@@ -1841,7 +1848,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        [priceInput, stockInput, previewNameInput, previewBrandInput, previewCategoryInput, previewDescriptionInput]
+        [goldPriceInput, silverPriceInput, stockInput, previewNameInput, previewBrandInput, previewCategoryInput, previewDescriptionInput]
             .filter(Boolean)
             .forEach((field) => {
                 field.addEventListener('input', refreshProductPreview);
@@ -1867,16 +1874,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const variantTemplate = productForm.querySelector('[data-variant-template]');
         const addVariantRowButton = productForm.querySelector('[data-variant-add-row]');
         const setVariantRequiredRules = (enabled) => {
-            if (priceInput instanceof HTMLInputElement) {
-                priceInput.required = !enabled;
-            }
+            [goldPriceInput, silverPriceInput].forEach((input) => {
+                if (input instanceof HTMLInputElement) {
+                    input.required = !enabled;
+                }
+            });
 
             if (!variantRowsContainer) {
                 return;
             }
 
             variantRowsContainer
-                .querySelectorAll('input[name$="[value]"], input[name$="[price]"]')
+                .querySelectorAll('input[name$="[value]"], input[name$="[price]"], input[name$="[silver_price]"]')
                 .forEach((input) => {
                     if (input instanceof HTMLInputElement) {
                         input.required = enabled;

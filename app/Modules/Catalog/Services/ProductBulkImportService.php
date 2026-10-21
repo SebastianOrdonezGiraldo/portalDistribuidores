@@ -145,6 +145,11 @@ class ProductBulkImportService
                     'description' => $rowPayload['description'] !== null ? (string) $rowPayload['description'] : null,
                     'category_id' => (int) $rowPayload['category_id'],
                     'price' => (float) $rowPayload['price'],
+                    // Legacy CSVs do not have a Silver column; keep them publishable
+                    // with an explicit value until the product is manually adjusted.
+                    'silver_price' => $rowPayload['silver_price'] !== null
+                        ? (float) $rowPayload['silver_price']
+                        : (float) $rowPayload['price'],
                     'stock' => $rowPayload['stock'] !== null ? (float) $rowPayload['stock'] : null,
                     'is_active' => (bool) ($rowPayload['is_active'] ?? true),
                     'is_vat_excluded' => (bool) ($rowPayload['is_vat_excluded'] ?? false),
@@ -203,6 +208,7 @@ class ProductBulkImportService
         $description = $this->normalizeNullableString($this->cell($row, $headerIndexes, 'description'));
         [$categoryId, $categoryInvalid] = $this->normalizeCategoryReference($this->cell($row, $headerIndexes, 'category_id'));
         $price = $this->normalizeNullableDecimal($this->cell($row, $headerIndexes, 'price'));
+        $silverPrice = $this->normalizeNullableDecimal($this->cell($row, $headerIndexes, 'silver_price'));
         $stock = $this->normalizeNullableDecimal($this->cell($row, $headerIndexes, 'stock'));
         [$isActive, $isActiveInvalid] = $this->normalizeNullableBoolean($this->cell($row, $headerIndexes, 'is_active'));
         [$isVatExcluded, $isVatExcludedInvalid] = $this->normalizeNullableBoolean($this->cell($row, $headerIndexes, 'is_vat_excluded'));
@@ -216,6 +222,7 @@ class ProductBulkImportService
             'category_id' => $categoryId,
             'category_invalid' => $categoryInvalid,
             'price' => $price,
+            'silver_price' => $silverPrice,
             'stock' => $stock,
             'is_active' => $isActive,
             'is_active_invalid' => $isActiveInvalid,
@@ -249,6 +256,7 @@ class ProductBulkImportService
             'description' => ['nullable', 'string', 'max:4000'],
             'category_id' => ['required', 'integer', Rule::in(array_map('intval', array_keys($this->categoryIds)))],
             'price' => ['required', 'numeric', 'min:0', 'max:9999999'],
+            'silver_price' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
             'stock' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
             'is_active' => ['nullable', 'boolean'],
             'is_vat_excluded' => ['nullable', 'boolean'],
