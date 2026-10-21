@@ -112,6 +112,29 @@
 
         <x-turnstile />
 
+        <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+            <label class="flex items-start gap-3 text-sm text-slate-700">
+                <input
+                    id="privacy_accepted"
+                    type="checkbox"
+                    name="privacy_accepted"
+                    value="1"
+                    class="mt-1 rounded border-slate-300 text-brand-primary focus:ring-brand-primary"
+                    @checked(old('privacy_accepted'))
+                    required
+                >
+                <span>
+                    Autorizo el tratamiento de mis datos personales conforme al
+                    <a href="{{ route('legal.treatment') }}" target="_blank" rel="noopener noreferrer" class="font-semibold text-brand-primary hover:underline">aviso de tratamiento</a>
+                    y la
+                    <a href="{{ route('legal.privacy') }}" target="_blank" rel="noopener noreferrer" class="font-semibold text-brand-primary hover:underline">política de privacidad</a>.
+                    También acepto los
+                    <a href="{{ route('legal.terms') }}" target="_blank" rel="noopener noreferrer" class="font-semibold text-brand-primary hover:underline">términos y condiciones</a>.
+                </span>
+            </label>
+            <x-input-error :messages="$errors->get('privacy_accepted')" class="mt-2" />
+        </div>
+
         <div class="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
             <a class="rounded text-sm font-medium text-slate-600 hover:text-brand-dark hover:underline focus-ring" href="{{ route('login') }}">
                 {{ __('¿Ya tienes cuenta? Inicia sesión') }}
