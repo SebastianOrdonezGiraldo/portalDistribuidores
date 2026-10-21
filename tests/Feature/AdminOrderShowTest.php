@@ -176,6 +176,56 @@ class AdminOrderShowTest extends TestCase
             ->assertSessionHasErrors();
     }
 
+    public function test_admin_update_is_rejected_for_non_editable_status(): void
+    {
+        $order = $this->createOrderWithItem();
+        $order->update(['status' => OrderStatus::Sold, 'contact_name' => 'Contacto Original']);
+        $admin = User::query()->findOrFail($order->user_id);
+        $item = $order->items()->firstOrFail();
+
+        $this->actingAs($admin)
+            ->put(route('admin.orders.update', $order), $this->adminUpdatePayload([
+                'contact_name' => 'Cambio Indebido',
+                'items' => [['id' => $item->id, 'qty' => 9, 'unit_label' => 'unidades']],
+            ]))
+            ->assertRedirect(route('admin.orders.show', $order))
+            ->assertSessionHasErrors();
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => OrderStatus::Sold->value,
+            'contact_name' => 'Contacto Original',
+        ]);
+        $this->assertDatabaseHas('order_items', ['id' => $item->id, 'qty' => $item->qty]);
+    }
+
+    public function test_admin_update_of_rejected_order_keeps_it_rejected(): void
+    {
+        $order = $this->createOrderWithItem();
+        $order->update(['status' => OrderStatus::Rejected, 'approval_note' => 'Falta presupuesto']);
+        $admin = User::query()->findOrFail($order->user_id);
+        $item = $order->items()->firstOrFail();
+
+        $this->actingAs($admin)
+            ->put(route('admin.orders.update', $order), $this->adminUpdatePayload([
+                'items' => [['id' => $item->id, 'qty' => 3, 'unit_label' => 'unidades']],
+            ]))
+            ->assertRedirect(route('admin.orders.show', $order))
+            ->assertSessionHas('status');
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => OrderStatus::Rejected->value,
+            'approval_note' => 'Falta presupuesto',
+        ]);
+        $this->assertDatabaseHas('order_status_histories', [
+            'order_id' => $order->id,
+            'from_status' => OrderStatus::Rejected->value,
+            'to_status' => OrderStatus::Rejected->value,
+            'note' => 'Cotización actualizada por administrador.',
+        ]);
+    }
+
     public function test_admin_can_update_submitted_order_and_rebalance_inventory(): void
     {
         [$order, $product, $admin] = $this->createSubmittedOrderWithProductStock(3, 2);
@@ -545,6 +595,26 @@ class AdminOrderShowTest extends TestCase
         app(OrderInventoryService::class)->holdForOrder($order);
 
         return [$order, $product, $admin];
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    private function adminUpdatePayload(array $overrides = []): array
+    {
+        return [
+            'contact_name' => 'Contacto Show',
+            'contact_email' => 'show@example.com',
+            'phone' => '3007770000',
+            'company_name' => 'Empresa Show',
+            'company_nit' => '900777000',
+            'company_address' => 'Carrera 50 # 10-20',
+            'city' => 'Bogota',
+            'department' => 'Antioquia',
+            'notes' => 'Nota de prueba',
+            ...$overrides,
+        ];
     }
 
     private function createOrderWithItem(): Order

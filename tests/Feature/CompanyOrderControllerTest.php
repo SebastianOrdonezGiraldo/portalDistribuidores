@@ -61,6 +61,26 @@ class CompanyOrderControllerTest extends TestCase
         return $order;
     }
 
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    private function updatePayload(Order $order, array $overrides = []): array
+    {
+        return [
+            'contact_name' => $order->contact_name,
+            'contact_email' => $order->contact_email,
+            'phone' => $order->phone ?? '3001112222',
+            'company_name' => $order->company_name,
+            'company_nit' => '9001234567',
+            'company_address' => $order->company_address ?? 'Calle 1',
+            'city' => $order->city ?? 'Bogotá',
+            'department' => 'Antioquia',
+            'notes' => $order->notes,
+            ...$overrides,
+        ];
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // index – listado de pedidos
     // ──────────────────────────────────────────────────────────────────────────
@@ -448,6 +468,56 @@ class CompanyOrderControllerTest extends TestCase
             'changed_by_user_id' => $userA->id,
             'note' => 'Cotización ajustada y reenviada para aprobación interna.',
         ]);
+    }
+
+    public function test_edit_and_update_are_forbidden_for_other_distributors_order(): void
+    {
+        [$distA] = $this->makeDistributorWithUser();
+        [, $userB] = $this->makeDistributorWithUser();
+        $order = $this->makeOrderWithItem($distA, [
+            'status' => OrderStatus::PendingApproval,
+            'contact_name' => 'Contacto Original',
+        ]);
+        $item = $order->items()->firstOrFail();
+
+        $this->actingAs($userB)
+            ->get(route('empresa.orders.edit', $order))
+            ->assertForbidden();
+
+        $this->actingAs($userB)
+            ->put(route('empresa.orders.update', $order), $this->updatePayload($order, [
+                'contact_name' => 'Intruso',
+                'items' => [['id' => $item->id, 'qty' => 9, 'unit_label' => 'unidades']],
+            ]))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('orders', ['id' => $order->id, 'contact_name' => 'Contacto Original']);
+        $this->assertDatabaseHas('order_items', ['id' => $item->id, 'qty' => 2]);
+    }
+
+    public function test_update_is_rejected_for_status_not_editable_by_company(): void
+    {
+        [$distA, $userA] = $this->makeDistributorWithUser();
+        $order = $this->makeOrderWithItem($distA, [
+            'status' => OrderStatus::Submitted,
+            'contact_name' => 'Contacto Original',
+        ]);
+        $item = $order->items()->firstOrFail();
+
+        $this->actingAs($userA)
+            ->put(route('empresa.orders.update', $order), $this->updatePayload($order, [
+                'contact_name' => 'Cambio Indebido',
+                'items' => [['id' => $item->id, 'qty' => 9, 'unit_label' => 'unidades']],
+            ]))
+            ->assertRedirect(route('empresa.orders.show', $order))
+            ->assertSessionHasErrors();
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => OrderStatus::Submitted->value,
+            'contact_name' => 'Contacto Original',
+        ]);
+        $this->assertDatabaseHas('order_items', ['id' => $item->id, 'qty' => 2]);
     }
 
     public function test_update_rejects_when_all_item_quantities_are_zero(): void
