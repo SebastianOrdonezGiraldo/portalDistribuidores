@@ -10,8 +10,10 @@ use App\Modules\Orders\Jobs\GenerateOrderPdfJob;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Orders\Services\OrderPdfGenerator;
+use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Shared\Enums\DistributorTier;
 use App\Modules\Shared\Enums\OrderStatus;
+use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -467,6 +469,42 @@ class CompanyOrderControllerTest extends TestCase
             'to_status' => OrderStatus::PendingApproval->value,
             'changed_by_user_id' => $userA->id,
             'note' => 'Cotización ajustada y reenviada para aprobación interna.',
+        ]);
+    }
+
+    public function test_failed_resubmission_of_rejected_order_does_not_keep_the_edit(): void
+    {
+        [$distA, $userA] = $this->makeDistributorWithUser();
+        $order = $this->makeOrderWithItem($distA, [
+            'status' => OrderStatus::Rejected,
+            'approval_note' => 'Falta presupuesto',
+            'contact_name' => 'Contacto Original',
+        ]);
+        $item = $order->items()->firstOrFail();
+
+        $this->mock(OrderStatusTransitionService::class)
+            ->shouldReceive('transition')
+            ->andThrow(new DomainException('El pedido cambió de estado mientras se procesaba la solicitud. Intenta de nuevo.'));
+
+        $this->actingAs($userA)
+            ->from(route('empresa.orders.edit', $order))
+            ->put(route('empresa.orders.update', $order), $this->updatePayload($order, [
+                'contact_name' => 'Contacto Nuevo',
+                'items' => [['id' => $item->id, 'qty' => 5, 'unit_label' => 'cajas']],
+            ]))
+            ->assertRedirect(route('empresa.orders.edit', $order))
+            ->assertSessionHasErrors();
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => OrderStatus::Rejected->value,
+            'approval_note' => 'Falta presupuesto',
+            'contact_name' => 'Contacto Original',
+        ]);
+        $this->assertDatabaseHas('order_items', ['id' => $item->id, 'qty' => 2]);
+        $this->assertDatabaseMissing('order_status_histories', [
+            'order_id' => $order->id,
+            'note' => 'Cotización actualizada por el cliente.',
         ]);
     }
 

@@ -15,6 +15,7 @@ use App\Modules\Orders\Services\OrderPdfGenerator;
 use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Orders\Services\Payment\OrderPaymentService;
 use App\Modules\Orders\Services\Payment\PaymentReceiptUploadService;
+use App\Modules\Shared\Enums\OrderEditor;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Enums\PaymentStatus;
 use App\Modules\Shared\Exceptions\DomainException;
@@ -424,7 +425,7 @@ class OrderAdminController extends Controller
         }
 
         try {
-            $order = $updateOrderAction->execute($order, $request->validated(), $request->user(), true);
+            $order = $updateOrderAction->execute($order, $request->validated(), $request->user(), OrderEditor::Admin);
         } catch (DomainException $exception) {
             return back()
                 ->withInput()

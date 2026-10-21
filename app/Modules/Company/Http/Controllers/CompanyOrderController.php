@@ -13,7 +13,7 @@ use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Queries\OrderEditCatalogOptionsQuery;
 use App\Modules\Orders\Services\Cart\CartService;
 use App\Modules\Orders\Services\OrderPdfGenerator;
-use App\Modules\Orders\Services\OrderStatusTransitionService;
+use App\Modules\Shared\Enums\OrderEditor;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Http\RedirectResponse;
@@ -228,7 +228,6 @@ class CompanyOrderController extends Controller
         UpdateOrderRequest $request,
         Order $order,
         UpdateOrderAction $updateOrderAction,
-        OrderStatusTransitionService $transitionService,
     ): RedirectResponse {
         $this->authorize('update', $order);
 
@@ -241,23 +240,8 @@ class CompanyOrderController extends Controller
         $wasRejected = $order->status->isRejected();
 
         try {
-            $order = $updateOrderAction->execute($order, $request->validated(), $request->user());
-
-            if ($wasRejected) {
-                /** @var User $actor */
-                $actor = $request->user();
-
-                $order = $transitionService->transition(
-                    $order,
-                    OrderStatus::PendingApproval,
-                    $actor,
-                    'Cotización ajustada y reenviada para aprobación interna.'
-                );
-
-                $order->update([
-                    'approval_note' => null,
-                ]);
-            }
+            // Resubmits a rejected quotation for approval in the same transaction.
+            $order = $updateOrderAction->execute($order, $request->validated(), $request->user(), OrderEditor::Company);
         } catch (DomainException $exception) {
             return back()
                 ->withInput()
