@@ -120,6 +120,17 @@ class CatalogSearchEngineTest extends TestCase
         $this->assertSame(['Alcohol 10% antiseptico'], $this->searchNames(['term' => '%']));
     }
 
+    public function test_escape_and_backslash_characters_in_the_term_are_matched_literally(): void
+    {
+        $this->product('Oferta! Gasa');
+        $this->product('Oferta Gasa');
+        $this->product('Tubo 1\\2 pulgada');
+
+        $this->assertSame(['Oferta! Gasa'], $this->searchNames(['term' => 'oferta!']));
+        $this->assertSame(['Tubo 1\\2 pulgada'], $this->searchNames(['term' => '1\\2']));
+        $this->assertSame(['Oferta! Gasa'], $this->searchNames(['term' => 'oferta! gasa']));
+    }
+
     public function test_pagination_returns_each_ranked_product_once(): void
     {
         foreach (range(1, 7) as $index) {

@@ -195,7 +195,9 @@ class PostgresSearchEngine implements SearchEngineInterface
 
     private function likeExpr(string $column): string
     {
-        return $this->ciExpr($column)." LIKE ? ESCAPE '\\'";
+        // Not a backslash: PDO's pgsql placeholder parser reads '\' as an
+        // escaped quote and loses track of the following bindings.
+        return $this->ciExpr($column)." LIKE ? ESCAPE '!'";
     }
 
     /**
@@ -212,7 +214,7 @@ class PostgresSearchEngine implements SearchEngineInterface
                 : $token;
         }
 
-        return '%'.addcslashes($token, '\\%_').'%';
+        return '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $token).'%';
     }
 
     /**
