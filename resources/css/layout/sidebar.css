@@ -1,0 +1,80 @@
+/* Sidebar navigation and collapsed desktop mode. */
+
+@layer components {
+    .sidebar-section-label {
+        @apply px-2 text-xs font-bold uppercase tracking-wide text-slate-400;
+    }
+
+    @media (min-width: 1024px) {
+        html.distributor-sidebar-collapsed [data-distributor-sidebar] {
+            width: 4.75rem;
+        }
+
+        html.distributor-sidebar-collapsed [data-app-content] {
+            padding-left: 4.75rem;
+        }
+
+        html.distributor-sidebar-collapsed [data-sidebar-brand] {
+            justify-content: center;
+            padding-inline: 0.75rem;
+        }
+
+        html.distributor-sidebar-collapsed [data-sidebar-brand-link] {
+            justify-content: center;
+        }
+
+        html.distributor-sidebar-collapsed [data-sidebar-logo-full],
+        html.distributor-sidebar-collapsed [data-sidebar-brand-copy],
+        html.distributor-sidebar-collapsed [data-sidebar-navigation] .sidebar-section-label,
+        html.distributor-sidebar-collapsed [data-sidebar-user-copy] {
+            display: none;
+        }
+
+        html.distributor-sidebar-collapsed [data-sidebar-logo-compact] {
+            display: block;
+        }
+
+        html.distributor-sidebar-collapsed [data-sidebar-navigation] {
+            padding-inline: 0.7rem;
+        }
+
+        html.distributor-sidebar-collapsed [data-sidebar-nav-link] {
+            justify-content: center;
+            padding-inline: 0.55rem;
+        }
+
+        html.distributor-sidebar-collapsed [data-sidebar-nav-link] > span {
+            gap: 0;
+            font-size: 0;
+        }
+
+        html.distributor-sidebar-collapsed [data-sidebar-nav-link] svg {
+            width: 1.25rem;
+            height: 1.25rem;
+        }
+
+        html.distributor-sidebar-collapsed [data-sidebar-nav-link] .badge {
+            display: none;
+        }
+
+        html.distributor-sidebar-collapsed [data-sidebar-footer] {
+            padding-inline: 0.65rem;
+        }
+
+        html.distributor-sidebar-collapsed [data-sidebar-user] {
+            justify-content: center;
+            padding-inline: 0;
+        }
+
+        html.distributor-sidebar-collapsed [data-sidebar-logout] {
+            min-width: 2.625rem;
+            padding-inline: 0.65rem;
+            font-size: 0;
+        }
+
+        html.distributor-sidebar-collapsed [data-sidebar-logout] svg {
+            width: 1.15rem;
+            height: 1.15rem;
+        }
+    }
+}
