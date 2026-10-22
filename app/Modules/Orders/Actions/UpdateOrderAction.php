@@ -15,8 +15,10 @@ use App\Modules\Orders\Pricing\OrderPricingResult;
 use App\Modules\Orders\Pricing\OrderPricingSnapshotMapper;
 use App\Modules\Orders\Pricing\TierPrice;
 use App\Modules\Orders\Services\OrderInventoryService;
+use App\Modules\Orders\Services\OrderStatusTransitionService;
 use App\Modules\Orders\Support\OrderLineVat;
 use App\Modules\Shared\Enums\DistributorTier;
+use App\Modules\Shared\Enums\OrderEditor;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Support\Collection;
@@ -34,6 +36,7 @@ class UpdateOrderAction
         private readonly OrderPricingCalculator $orderPricingCalculator,
         private readonly CommercePricingRulesProvider $rulesProvider,
         private readonly OrderPricingSnapshotMapper $snapshotMapper,
+        private readonly OrderStatusTransitionService $transitionService,
     ) {}
 
     /**
@@ -43,7 +46,7 @@ class UpdateOrderAction
         Order $order,
         array $payload,
         ?User $actor = null,
-        bool $allowSubmittedEdit = false,
+        OrderEditor $editor = OrderEditor::Company,
     ): Order {
         $tier = $this->resolveCommercialTier($order);
         $pricingTier = $tier ?? DistributorTier::Silver;
@@ -68,18 +71,14 @@ class UpdateOrderAction
 
         $preparedItems = $this->mapPricedLines($lineSpecs, $pricing);
 
-        return DB::transaction(function () use ($order, $payload, $preparedItems, $pricing, $pricingTier, $actor, $allowSubmittedEdit): Order {
+        return DB::transaction(function () use ($order, $payload, $preparedItems, $pricing, $pricingTier, $actor, $editor): Order {
             /** @var Order $lockedOrder */
             $lockedOrder = Order::query()
                 ->whereKey($order->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $isEditable = $allowSubmittedEdit
-                ? $lockedOrder->status->canBeEditedByAdmin()
-                : $lockedOrder->status->canBeEditedByCompany();
-
-            if (! $isEditable) {
+            if (! $editor->canEdit($lockedOrder->status)) {
                 throw new DomainException('Esta cotización no puede editarse en su estado actual.');
             }
 
@@ -110,17 +109,28 @@ class UpdateOrderAction
                 'from_status' => $lockedOrder->status->value,
                 'to_status' => $lockedOrder->status->value,
                 'changed_by_user_id' => $actor?->id,
-                'note' => $allowSubmittedEdit
-                    ? 'Cotización actualizada por administrador.'
-                    : 'Cotización actualizada por el cliente.',
+                'note' => $editor->historyNote(),
                 'metadata' => [
                     'type' => 'order_updated',
-                    'scope' => $allowSubmittedEdit ? 'admin' : 'company',
+                    'scope' => $editor->value,
                 ],
             ]);
 
             if ($statusConsumesInventory) {
                 $this->orderInventoryService->adjustForEditedOrder($lockedOrder, $actor);
+            }
+
+            // Inside the same transaction: if the resubmission fails, the edit
+            // is rolled back too instead of leaving a saved but rejected order.
+            if ($editor->resubmitsRejectedOrders() && $lockedOrder->status->isRejected()) {
+                $lockedOrder = $this->transitionService->transition(
+                    $lockedOrder,
+                    OrderStatus::PendingApproval,
+                    $actor,
+                    'Cotización ajustada y reenviada para aprobación interna.',
+                );
+
+                $lockedOrder->update(['approval_note' => null]);
             }
 
             return $lockedOrder->refresh();

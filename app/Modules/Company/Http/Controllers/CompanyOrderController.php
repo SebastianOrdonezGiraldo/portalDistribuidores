@@ -6,16 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductVariant;
-use App\Modules\Company\Http\Requests\UpdateCompanyOrderRequest;
 use App\Modules\Orders\Actions\UpdateOrderAction;
+use App\Modules\Orders\Http\Requests\UpdateOrderRequest;
 use App\Modules\Orders\Jobs\GenerateOrderPdfJob;
 use App\Modules\Orders\Models\Order;
-use App\Modules\Orders\Pricing\DistributorPriceCalculator;
+use App\Modules\Orders\Queries\OrderEditCatalogOptionsQuery;
 use App\Modules\Orders\Services\Cart\CartService;
 use App\Modules\Orders\Services\OrderPdfGenerator;
-use App\Modules\Orders\Services\OrderStatusTransitionService;
-use App\Modules\Orders\Support\OrderLineVat;
-use App\Modules\Shared\Enums\DistributorTier;
+use App\Modules\Shared\Enums\OrderEditor;
 use App\Modules\Shared\Enums\OrderStatus;
 use App\Modules\Shared\Exceptions\DomainException;
 use Illuminate\Http\RedirectResponse;
@@ -181,7 +179,7 @@ class CompanyOrderController extends Controller
         ]);
     }
 
-    public function edit(Order $order, DistributorPriceCalculator $priceCalculator): View|RedirectResponse
+    public function edit(Order $order, OrderEditCatalogOptionsQuery $catalogOptionsQuery): View|RedirectResponse
     {
         $this->authorize('update', $order);
 
@@ -196,15 +194,8 @@ class CompanyOrderController extends Controller
         return view('empresa.orders.edit', [
             'order' => $order,
             'departments' => config('locations.colombia_departments', []),
-            'catalogOptions' => $this->catalogOptions($priceCalculator, $this->resolveOrderTier($order)),
+            'catalogOptions' => $catalogOptionsQuery->execute($order),
         ]);
-    }
-
-    private function resolveOrderTier(Order $order): DistributorTier
-    {
-        return $order->distributor_tier_snapshot
-            ?? $order->distributor?->tier
-            ?? DistributorTier::Silver;
     }
 
     /**
@@ -234,10 +225,9 @@ class CompanyOrderController extends Controller
      * @response 422 {"message":"Datos invalidos"}
      */
     public function update(
-        UpdateCompanyOrderRequest $request,
+        UpdateOrderRequest $request,
         Order $order,
         UpdateOrderAction $updateOrderAction,
-        OrderStatusTransitionService $transitionService,
     ): RedirectResponse {
         $this->authorize('update', $order);
 
@@ -250,23 +240,8 @@ class CompanyOrderController extends Controller
         $wasRejected = $order->status->isRejected();
 
         try {
-            $order = $updateOrderAction->execute($order, $request->validated(), $request->user());
-
-            if ($wasRejected) {
-                /** @var User $actor */
-                $actor = $request->user();
-
-                $order = $transitionService->transition(
-                    $order,
-                    OrderStatus::PendingApproval,
-                    $actor,
-                    'Cotización ajustada y reenviada para aprobación interna.'
-                );
-
-                $order->update([
-                    'approval_note' => null,
-                ]);
-            }
+            // Resubmits a rejected quotation for approval in the same transaction.
+            $order = $updateOrderAction->execute($order, $request->validated(), $request->user(), OrderEditor::Company);
         } catch (DomainException $exception) {
             return back()
                 ->withInput()
@@ -280,69 +255,6 @@ class CompanyOrderController extends Controller
         return redirect()
             ->route('empresa.orders.show', $order)
             ->with('status', $statusMessage);
-    }
-
-    /**
-     * @return array<int, array{ref:string,label:string,price:float,stock:int|null}>
-     */
-    private function catalogOptions(DistributorPriceCalculator $priceCalculator, DistributorTier $tier): array
-    {
-        $products = Product::query()
-            ->active()
-            ->withCount(['variants as active_variants_count' => fn ($query) => $query->active()])
-            ->with([
-                'variants' => fn ($query) => $query
-                    ->active()
-                    ->with('attributeValue.attribute')
-                    ->orderBy('sort_order')
-                    ->orderBy('id'),
-            ])
-            ->orderBy('name')
-            ->get(['id', 'name', 'sku', 'price', 'silver_price', 'stock', 'reserved_stock', 'is_vat_excluded']);
-
-        $effectivePrice = fn (int|string $goldPrice, int|string $silverPrice): float => (float) $priceCalculator
-            ->calculateFromDecimal($goldPrice, $silverPrice, $tier)
-            ->effectivePriceDecimal();
-
-        return $products
-            ->flatMap(function (Product $product) use ($effectivePrice) {
-                $baseLabel = trim("{$product->sku} · {$product->name}");
-                $taxLabel = OrderLineVat::label((bool) $product->is_vat_excluded);
-
-                if ((int) ($product->active_variants_count ?? 0) === 0) {
-                    return [[
-                        'ref' => 'p:'.$product->id,
-                        'label' => "{$baseLabel} · {$taxLabel}",
-                        'price' => $effectivePrice((string) $product->price, (string) $product->silver_price),
-                        'stock' => $this->availableCatalogStock($product),
-                    ]];
-                }
-
-                return $product->variants->map(function (ProductVariant $variant) use ($product, $baseLabel, $taxLabel, $effectivePrice): array {
-                    $attributeName = $variant->attributeValue?->attribute?->name ?? 'Variante';
-                    $attributeValue = $variant->attributeValue?->value ?? ('#'.$variant->id);
-
-                    return [
-                        'ref' => 'v:'.$variant->id,
-                        'label' => "{$baseLabel} · {$attributeName}: {$attributeValue} · {$taxLabel}",
-                        'price' => $effectivePrice((string) $variant->price, (string) $variant->silver_price),
-                        'stock' => $this->availableCatalogStock($product, $variant),
-                    ];
-                })->all();
-            })
-            ->values()
-            ->all();
-    }
-
-    private function availableCatalogStock(Product $product, ?ProductVariant $variant = null): ?int
-    {
-        $available = collect([$variant?->available_stock, $product->available_stock])
-            ->filter(fn (mixed $stock): bool => is_numeric($stock))
-            ->map(fn (mixed $stock): float => max(0, (float) $stock));
-
-        return $available->isEmpty()
-            ? null
-            : max(0, (int) floor((float) $available->min()));
     }
 
     /**
