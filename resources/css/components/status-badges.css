@@ -9,20 +9,8 @@
         @apply bg-sky-100 text-sky-900;
     }
 
-    .status-approved {
-        @apply bg-emerald-100 text-emerald-900;
-    }
-
-    .status-sent {
-        @apply bg-blue-100 text-blue-900;
-    }
-
     .status-delivered {
         @apply bg-teal-100 text-teal-900;
-    }
-
-    .status-canceled {
-        @apply bg-rose-100 text-rose-900;
     }
 
     .status-error {
@@ -58,32 +46,6 @@
 
     .badge-violet {
         @apply bg-violet-100 text-violet-900;
-    }
-
-    .badge-danger {
-        @apply bg-red-100 text-red-900;
-    }
-
-    .pagination-wrap nav > div:first-child {
-        @apply hidden;
-    }
-
-    .pagination-wrap nav > div:last-child {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
-    }
-
-    .pagination-wrap .relative.inline-flex.items-center {
-        border-color: rgb(203 213 225);
-        color: rgb(71 85 105);
-    }
-
-    .pagination-wrap .relative.inline-flex.items-center[aria-current='page'] span {
-        border-color: rgb(54 177 187);
-        background-color: rgb(54 177 187);
-        color: rgb(255 255 255);
     }
 
     details[data-action-menu] > summary {
