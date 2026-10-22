@@ -45,5 +45,8 @@ export default {
         },
     },
 
-    plugins: [forms],
+    // Only element base styles: with the default strategy the plugin also emits
+    // .form-input/.form-select/... in the utilities layer (Tailwind 4), which
+    // overrides our component classes of the same name (e.g. square inputs).
+    plugins: [forms({ strategy: 'base' })],
 };

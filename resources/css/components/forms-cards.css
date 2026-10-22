@@ -12,7 +12,7 @@
     .form-input,
     .form-select,
     .form-textarea {
-        @apply w-full rounded-xl border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 transition focus:border-brand-primary focus:ring-brand-primary;
+        @apply w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 transition focus:border-brand-primary focus:ring-brand-primary;
         min-height: 2.75rem;
     }
 
