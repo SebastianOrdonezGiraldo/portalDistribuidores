@@ -221,14 +221,6 @@ class User extends Authenticatable
     }
 
     /**
-     * Company approval is currently disabled for every role.
-     */
-    public function canApproveOrders(): bool
-    {
-        return false;
-    }
-
-    /**
      * Orders currently go directly to submitted state without company approval.
      */
     public function orderRequiresApproval(): bool

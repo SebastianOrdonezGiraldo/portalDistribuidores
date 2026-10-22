@@ -3,13 +3,13 @@
 ## Proposito
 
 Superficie de autoservicio para usuarios distribuidores: dashboard, perfil de
-empresa, sucursales, listas y gestion de pedidos propios.
+empresa, sucursales y gestion de pedidos propios.
 
 ## Responsabilidades
 
 - Exponer rutas bajo `routes/company.php`.
 - Mostrar dashboard e historial de pedidos del distribuidor.
-- Permitir edicion de perfil, sucursales y listas de empresa.
+- Permitir edicion de perfil y sucursales de empresa.
 - Permitir reordenes y edicion de pedidos permitidos.
 - Aplicar capacidades de usuario y ownership por distribuidor.
 
@@ -18,7 +18,7 @@ empresa, sucursales, listas y gestion de pedidos propios.
 - Reglas globales de pedido; eso vive en Orders.
 - CRUD administrativo de distribuidores; eso vive en Admin/AuthAccess.
 - Reglas de producto o busqueda propias.
-- Flujo activo de aprobacion interna sin reactivar rutas y permisos.
+- Flujo de aprobacion interna de empresa (se elimino; ver notas).
 
 ## Puntos de entrada
 
@@ -27,13 +27,12 @@ empresa, sucursales, listas y gestion de pedidos propios.
 - `Http/Controllers/CompanyOrderController.php`
 - `Http/Controllers/CompanyProfileController.php`
 - `Http/Controllers/CompanyBranchController.php`
-- `Http/Controllers/CompanyListController.php`
 
 ## Colabora con
 
 - `AuthAccess`: distribuidor asociado al usuario.
 - `Orders`: pedidos, PDF, reorden y estados.
-- `Catalog`: productos y variantes usados en listas/reordenes.
+- `Catalog`: productos y variantes usados en reordenes.
 - `Shared`: enums, excepciones y permisos compartidos.
 
 ## Archivos clave para empezar
@@ -47,7 +46,9 @@ empresa, sucursales, listas y gestion de pedidos propios.
 
 ## Notas actuales
 
-- Las aprobaciones de empresa existen como codigo historico/inactivo: los helpers
-  actuales de `User` no habilitan aprobacion ni obligan pedidos a revision.
-- Si se reactiva aprobacion, hay que revisar rutas, tests, permisos y eventos de
-  pedido antes de considerarla parte del flujo principal.
+- Las aprobaciones internas y las listas de empresa se retiraron (rutas en abril
+  de 2026, codigo en octubre de 2026). `User::orderRequiresApproval()` sigue
+  devolviendo `false`; `CompanyApprovalControllerTest` verifica que esas rutas
+  no existan.
+- Las tablas `company_lists` y `company_list_items` y sus modelos siguen
+  existiendo; eliminarlas requiere una migracion explicita.

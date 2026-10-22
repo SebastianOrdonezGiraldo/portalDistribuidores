@@ -26,7 +26,6 @@ descendientes y breadcrumbs.
 - `Actions/UpdateCategoryAction.php`
 - `Queries/CategoryTreeQuery.php`
 - `Queries/CategoryDescendantsQuery.php`
-- `Queries/CategoryBreadcrumbsQuery.php`
 
 ## Colabora con
 

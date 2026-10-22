@@ -157,17 +157,8 @@ class UserPermissionsTest extends TestCase
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // canApproveOrders / orderRequiresApproval
+    // orderRequiresApproval
     // ──────────────────────────────────────────────────────────────────────────
-
-    public function test_no_user_can_approve_orders(): void
-    {
-        $admin = User::factory()->admin()->make();
-        $distributor = User::factory()->make(['distributor_id' => 1]);
-
-        $this->assertFalse($admin->canApproveOrders());
-        $this->assertFalse($distributor->canApproveOrders());
-    }
 
     public function test_orders_never_require_approval(): void
     {

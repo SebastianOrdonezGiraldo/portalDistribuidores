@@ -35,13 +35,12 @@ controllers, form requests, actions, policies, services, jobs, enums, or DTOs.
 ## Global Layout Data
 
 `resources/views/layouts/app.blade.php` is rendered by `App\View\Components\AppLayout`
-and receives global data from `App\Providers\AppServiceProvider` view composers.
+and receives global data from the `App\View\Composers` registered in `App\Providers\ViewServiceProvider`.
 Important globals include:
 
 - `cartCount` and `navCartCount` for cart badges and navigation state.
 - `footerTopCategories` and `headerQuickCategories` for category navigation.
-- `pendingApprovalCount` for legacy company approval indicators. Company approvals
-  exist as historical/inactive surface and are not part of the current main order flow.
+- `pendingApprovalCount` for the admin dashboard badge of quotations awaiting approval.
 
 `resources/views/layouts/guest.blade.php` is rendered by `App\View\Components\GuestLayout`
 and is used by unauthenticated/auth screens.
@@ -53,8 +52,7 @@ and is used by unauthenticated/auth screens.
 - Cart and checkout flow: `cart/index.blade.php`, `orders/checkout.blade.php`,
   `orders/submitted.blade.php`, `orders/show.blade.php`, and `orders/pdf.blade.php`.
 - Admin operations: `admin/products/*` and `admin/orders/*`.
-- Company self-service: `empresa/dashboard.blade.php`, `empresa/orders/*`, and
-  `empresa/lists/index.blade.php`.
+- Company self-service: `empresa/dashboard.blade.php`, `empresa/orders/*`, and `empresa/branches/*`.
 - Shared UI primitives: `components/ui/*`.
 - Catalog cards and grids: `components/catalog/*`.
 
