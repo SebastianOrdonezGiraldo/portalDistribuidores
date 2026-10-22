@@ -1,0 +1,104 @@
+/* Order/payment status badges, pagination and action menus. */
+
+@layer components {
+    .status-pending {
+        @apply bg-amber-100 text-amber-900;
+    }
+
+    .status-processing {
+        @apply bg-sky-100 text-sky-900;
+    }
+
+    .status-approved {
+        @apply bg-emerald-100 text-emerald-900;
+    }
+
+    .status-sent {
+        @apply bg-blue-100 text-blue-900;
+    }
+
+    .status-delivered {
+        @apply bg-teal-100 text-teal-900;
+    }
+
+    .status-canceled {
+        @apply bg-rose-100 text-rose-900;
+    }
+
+    .status-error {
+        @apply bg-red-100 text-red-900;
+    }
+
+    /* Payment status badges (used from PaymentStatus::badgeClass — must live in CSS so Tailwind keeps them) */
+    .payment-status-na {
+        background-color: #f1f5f9 !important;
+        color: #334155 !important;
+    }
+
+    .payment-status-pending {
+        background-color: #fef3c7 !important;
+        color: #78350f !important;
+    }
+
+    .payment-status-confirming {
+        background-color: #e0f2fe !important;
+        color: #0c4a6e !important;
+    }
+
+    .payment-status-validated {
+        background-color: #d1fae5 !important;
+        color: #064e3b !important;
+    }
+
+    .payment-status-rejected,
+    .payment-status-expired {
+        background-color: #fee2e2 !important;
+        color: #7f1d1d !important;
+    }
+
+    .badge-violet {
+        @apply bg-violet-100 text-violet-900;
+    }
+
+    .badge-danger {
+        @apply bg-red-100 text-red-900;
+    }
+
+    .pagination-wrap nav > div:first-child {
+        @apply hidden;
+    }
+
+    .pagination-wrap nav > div:last-child {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+    }
+
+    .pagination-wrap .relative.inline-flex.items-center {
+        border-color: rgb(203 213 225);
+        color: rgb(71 85 105);
+    }
+
+    .pagination-wrap .relative.inline-flex.items-center[aria-current='page'] span {
+        border-color: rgb(54 177 187);
+        background-color: rgb(54 177 187);
+        color: rgb(255 255 255);
+    }
+
+    details[data-action-menu] > summary {
+        list-style: none;
+    }
+
+    details[data-action-menu] > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .action-item {
+        @apply focus-ring block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900;
+    }
+
+    .action-item--danger {
+        @apply text-red-700 hover:bg-red-50 hover:text-red-800;
+    }
+}

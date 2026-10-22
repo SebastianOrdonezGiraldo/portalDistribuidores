@@ -317,6 +317,11 @@ Los assets compilados se generan en `public/build/`. Laravel usa `vite.manifest.
 
 > En producción, los assets se compilan una vez durante el deploy. No ejecutar `npm run dev` en el servidor de producción.
 
+**Organización.** Vite sigue teniendo dos entradas (`resources/css/app.css` y `resources/js/app.js`), pero solo importan módulos por área:
+
+- `resources/js/app.js` llama a un `init…()` por módulo dentro de `DOMContentLoaded`, en un orden fijo. Algunos módulos devuelven helpers que usan los siguientes: la barra lateral los pasa al tour, y el feedback del carrito y el modal de login los pasan a los formularios del carrito. Carpetas: `layout/`, `ui/`, `cart/`, `admin/`, `payments/`, `features/`, `lib/`.
+- `resources/css/app.css` solo contiene `@import`. Cada archivo declara su propia `@layer` (`base`, `components` o `utilities`). El orden de los imports es el orden de la cascada: añade los estilos nuevos en el archivo de su área, sin reordenar los imports.
+
 ---
 
 ## 10. Ejecución en entorno local
