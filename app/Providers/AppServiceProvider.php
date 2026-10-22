@@ -6,8 +6,6 @@ use App\Models\User;
 use App\Modules\Admin\Policies\DistributorPolicy;
 use App\Modules\Admin\Policies\UserPolicy;
 use App\Modules\AuthAccess\Models\Distributor;
-use App\Modules\Catalog\Enums\CatalogBannerPlacement;
-use App\Modules\Catalog\Models\CatalogBanner;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\ProductDocument;
 use App\Modules\Catalog\Policies\ProductPolicy;
@@ -22,34 +20,18 @@ use App\Modules\Orders\Policies\OrderPolicy;
 use App\Modules\Orders\Pricing\CommercePricingRules;
 use App\Modules\Orders\Pricing\CommercePricingRulesProvider;
 use App\Modules\Orders\Pricing\DistributorPriceCalculator;
-use App\Modules\Orders\Pricing\DistributorTierResolver;
-use App\Modules\Orders\Services\Cart\CartService;
-use App\Modules\Orders\Services\CommerceTierAdvisorProvider;
-use App\Modules\Orders\Support\AdvisorWhatsappNormalizer;
 use App\Modules\Shared\Contracts\InventorySyncInterface;
 use App\Modules\Shared\Contracts\SearchEngineInterface;
-use App\Modules\Shared\Enums\OrderStatus;
-use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\URL;
-use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Str;
-use Illuminate\Validation\Rules\Password;
-use RuntimeException;
 use Scoutapm\Laravel\Providers\ScoutApmServiceProvider;
 
 /**
- * Application composition root for cross-cutting bindings and runtime guards.
+ * Application composition root: container bindings, policies and gates.
  *
- * Domain rules should not accumulate here. Keep this provider focused on
- * container bindings, policies/gates, shared view data, rate limiters and
- * environment-level security checks.
+ * Domain rules should not accumulate here. Rate limiters live in
+ * RateLimitServiceProvider, runtime guards in SecurityServiceProvider and
+ * shared view data in ViewServiceProvider.
  */
 class AppServiceProvider extends ServiceProvider
 {
@@ -79,29 +61,10 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
-     * Configure policies, gates, rate limiters, view composers and runtime guards.
+     * Register model policies and cross-cutting gates.
      */
     public function boot(): void
     {
-        $this->configureAbuseProtectionRateLimiters();
-        $this->configurePasswordDefaults();
-
-        if (! app()->environment(['local', 'testing'])) {
-            $violations = $this->runtimeSecurityViolations();
-
-            $this->handleRuntimeSecurityViolations($violations);
-
-            if (! in_array('APP_URL debe apuntar a un host canonico fuera de local/testing.', $violations, true)) {
-                URL::forceRootUrl(rtrim((string) config('app.url'), '/'));
-            }
-        }
-
-        $configuredScheme = strtolower((string) parse_url((string) config('app.url'), PHP_URL_SCHEME));
-
-        if ($configuredScheme === 'https' || app()->isProduction()) {
-            URL::forceScheme('https');
-        }
-
         Gate::policy(Product::class, ProductPolicy::class);
         Gate::policy(Category::class, CategoryPolicy::class);
         Gate::policy(Order::class, OrderPolicy::class);
@@ -130,329 +93,5 @@ class AppServiceProvider extends ServiceProvider
 
             return $user->canApproveOrders();
         });
-
-        View::composer('layouts.app', function ($view): void {
-            $count = app(CartService::class)->sessionCount();
-            $pendingApprovalCount = auth()->user()?->isAdmin() && request()->routeIs('admin.dashboard')
-                ? Order::query()->where('status', OrderStatus::PendingApproval)->count()
-                : 0;
-
-            // In testing environment, skip caching to avoid stale data between tests
-            if (app()->environment('testing')) {
-                $footerTopCategories = Category::active()
-                    ->withCount('products')
-                    ->orderByDesc('products_count')
-                    ->orderBy('sort_order')
-                    ->orderBy('name')
-                    ->limit(4)
-                    ->get(['id', 'name']);
-                $headerQuickCategories = Category::active()
-                    ->orderBy('sort_order')
-                    ->orderBy('name')
-                    ->limit(8)
-                    ->get(['id', 'name']);
-            } else {
-                $footerTopCategories = Cache::remember('footer_top_categories', 3600, fn () => Category::active()
-                    ->withCount('products')
-                    ->orderByDesc('products_count')
-                    ->orderBy('sort_order')
-                    ->orderBy('name')
-                    ->limit(4)
-                    ->get(['id', 'name'])
-                );
-                $headerQuickCategories = Cache::remember('header_quick_categories', 3600, fn () => Category::active()
-                    ->orderBy('sort_order')
-                    ->orderBy('name')
-                    ->limit(8)
-                    ->get(['id', 'name'])
-                );
-            }
-            $view->with([
-                'navCartCount' => $count,
-                'cartCount' => $count,
-                'footerTopCategories' => $footerTopCategories,
-                'headerQuickCategories' => $headerQuickCategories,
-                'pendingApprovalCount' => $pendingApprovalCount,
-                'distributorTier' => app(DistributorTierResolver::class)->resolve(auth()->user()),
-                'currentAdvisor' => app(CommerceTierAdvisorProvider::class)->forUser(auth()->user()),
-                ...$this->supportContactData(),
-            ]);
-        });
-
-        View::composer('layouts.guest', function ($view): void {
-            try {
-                $authBanners = Schema::hasTable('catalog_banners')
-                    ? CatalogBanner::query()
-                        ->where('placement', CatalogBannerPlacement::Auth)
-                        ->orderBy('sort_order')
-                        ->orderBy('id')
-                        ->get()
-                    : collect();
-            } catch (\Throwable) {
-                // Las vistas de autenticación deben poder renderizarse antes de migrar la tabla.
-                $authBanners = collect();
-            }
-
-            $view->with([
-                'authBanners' => $authBanners,
-                ...$this->supportContactData(),
-            ]);
-        });
-
-        View::composer([
-            'catalog.index',
-            'product.show',
-            'cart.index',
-            'orders.checkout',
-        ], function ($view): void {
-            $view->with([
-                'currentAdvisor' => app(CommerceTierAdvisorProvider::class)->forUser(auth()->user()),
-                ...$this->supportContactData(),
-            ]);
-        });
-    }
-
-    /**
-     * General support remains the safe contact for guests and incomplete advisor configuration.
-     *
-     * @return array{supportWhatsappNumber:string|null,supportWhatsappUrl:string|null,supportPhone:string|null}
-     */
-    private function supportContactData(): array
-    {
-        $number = AdvisorWhatsappNormalizer::normalize((string) config('commerce.support.whatsapp_number'));
-
-        return [
-            'supportWhatsappNumber' => $number,
-            'supportWhatsappUrl' => $number === null
-                ? null
-                : 'https://wa.me/'.$number.'?text='.rawurlencode('Hola, vengo desde el portal.'),
-            'supportPhone' => $number === null ? null : '+'.$number,
-        ];
-    }
-
-    /**
-     * Register named rate limiters used by web routes and middleware.
-     */
-    private function configureAbuseProtectionRateLimiters(): void
-    {
-        RateLimiter::for('login-attempts', function (Request $request): array {
-            $ip = $request->ip() ?: 'unknown';
-            $perMinute = max(1, (int) config('abuse_protection.login.per_minute', 20));
-            $perHour = max(1, (int) config('abuse_protection.login.per_hour', 250));
-
-            return [
-                Limit::perMinute($perMinute)->by("login:minute:{$ip}"),
-                Limit::perHour($perHour)->by("login:hour:{$ip}"),
-            ];
-        });
-
-        RateLimiter::for('account-creation', function (Request $request): array {
-            $ip = $request->ip() ?: 'unknown';
-            $email = Str::lower(trim((string) $request->input('email', '')));
-            $hourLimit = max(1, (int) config('abuse_protection.registration.per_hour', 5));
-            $dayLimit = max(1, (int) config('abuse_protection.registration.per_day', 25));
-            $emailKey = $email !== '' ? $email : 'unknown';
-
-            return [
-                Limit::perHour($hourLimit)->by("register:hour:ip:{$ip}"),
-                Limit::perDay($dayLimit)->by("register:day:ip:{$ip}"),
-                Limit::perHour(max(1, min($hourLimit, 3)))->by("register:hour:email:{$emailKey}:{$ip}"),
-            ];
-        });
-
-        RateLimiter::for('api-endpoints', function (Request $request): array {
-            $isAuthenticated = $request->user() !== null;
-            $perMinute = $isAuthenticated
-                ? max(1, (int) config('abuse_protection.api.auth_per_minute', 180))
-                : max(1, (int) config('abuse_protection.api.guest_per_minute', 60));
-            $perHour = $isAuthenticated
-                ? max(1, (int) config('abuse_protection.api.auth_per_hour', 3600))
-                : max(1, (int) config('abuse_protection.api.guest_per_hour', 600));
-            $actor = $this->rateLimitActor($request);
-
-            return [
-                Limit::perMinute($perMinute)->by("api:minute:{$actor}"),
-                Limit::perHour($perHour)->by("api:hour:{$actor}"),
-            ];
-        });
-
-        RateLimiter::for('catalog-scraping', function (Request $request): array {
-            $isAuthenticated = $request->user() !== null;
-            $perMinute = $isAuthenticated
-                ? max(1, (int) config('abuse_protection.catalog.auth_per_minute', 120))
-                : max(1, (int) config('abuse_protection.catalog.guest_per_minute', 40));
-            $perHour = $isAuthenticated
-                ? max(1, (int) config('abuse_protection.catalog.auth_per_hour', 2400))
-                : max(1, (int) config('abuse_protection.catalog.guest_per_hour', 450));
-            $actor = $this->rateLimitActor($request);
-
-            return [
-                Limit::perMinute($perMinute)->by("catalog:minute:{$actor}"),
-                Limit::perHour($perHour)->by("catalog:hour:{$actor}"),
-            ];
-        });
-
-        RateLimiter::for('ai-generation', function (Request $request): array {
-            $isAuthenticated = $request->user() !== null;
-            $perMinute = $isAuthenticated
-                ? max(1, (int) config('abuse_protection.ai_generation.auth_per_minute', 30))
-                : max(1, (int) config('abuse_protection.ai_generation.guest_per_minute', 3));
-            $perHour = $isAuthenticated
-                ? max(1, (int) config('abuse_protection.ai_generation.auth_per_hour', 500))
-                : max(1, (int) config('abuse_protection.ai_generation.guest_per_hour', 30));
-            $actor = $this->rateLimitActor($request);
-
-            return [
-                Limit::perMinute($perMinute)->by("ai:minute:{$actor}"),
-                Limit::perHour($perHour)->by("ai:hour:{$actor}"),
-            ];
-        });
-    }
-
-    /**
-     * Enforce stronger password requirements outside tests.
-     */
-    private function configurePasswordDefaults(): void
-    {
-        Password::defaults(function () {
-            $rule = Password::min(8);
-
-            if (config('app.env') !== 'testing') {
-                $rule->mixedCase()->letters()->numbers()->symbols();
-            }
-
-            return $rule;
-        });
-    }
-
-    /**
-     * Build a stable rate-limit key without relying only on raw IP.
-     */
-    private function rateLimitActor(Request $request): string
-    {
-        if ($request->user()) {
-            return 'user:'.$request->user()->getAuthIdentifier();
-        }
-
-        $ip = $request->ip() ?: 'unknown';
-        $ua = Str::lower((string) $request->userAgent());
-        $uaHash = substr(sha1($ua), 0, 12);
-
-        return "guest:{$ip}:{$uaHash}";
-    }
-
-    /**
-     * Detect unsafe production-like runtime configuration.
-     *
-     * @return list<string>
-     */
-    private function runtimeSecurityViolations(): array
-    {
-        $violations = [];
-
-        if ((bool) config('app.debug')) {
-            $violations[] = 'APP_DEBUG debe estar deshabilitado fuera de local/testing.';
-        }
-
-        if (config('session.secure') !== true) {
-            $violations[] = 'SESSION_SECURE_COOKIE debe ser true fuera de local/testing.';
-        }
-
-        if (! $this->hasCanonicalAppUrl((string) config('app.url'))) {
-            $violations[] = 'APP_URL debe apuntar a un host canonico fuera de local/testing.';
-        }
-
-        if (! $this->usesSecureDatabaseTransport()) {
-            $violations[] = 'DB_SSLMODE debe ser require, verify-ca o verify-full fuera de local/testing.';
-        }
-
-        if ((string) config('filesystems.order_pdfs_disk', 'private') === 'public') {
-            $violations[] = 'Los PDFs de pedidos no pueden usar el disco public fuera de local/testing.';
-        }
-
-        if ((string) config('filesystems.tech_sheets_disk', 'private') === 'public') {
-            $violations[] = 'Las fichas tecnicas no pueden usar el disco public fuera de local/testing.';
-        }
-
-        return $violations;
-    }
-
-    /**
-     * Log or enforce runtime security guard violations depending on config.
-     *
-     * @param  list<string>  $violations
-     */
-    private function handleRuntimeSecurityViolations(array $violations): void
-    {
-        if ($violations === []) {
-            return;
-        }
-
-        Log::critical('runtime.security_configuration_invalid', [
-            'environment' => config('app.env'),
-            'violations' => $violations,
-            'app_url' => config('app.url'),
-            'session_secure' => config('session.secure'),
-            'db_connection' => config('database.default'),
-            'db_sslmode' => config('database.connections.'.config('database.default').'.sslmode'),
-            'order_pdfs_disk' => config('filesystems.order_pdfs_disk', 'private'),
-            'tech_sheets_disk' => config('filesystems.tech_sheets_disk', 'private'),
-        ]);
-
-        if ($this->shouldEnforceRuntimeGuards()) {
-            throw new RuntimeException(implode(' | ', $violations));
-        }
-    }
-
-    /**
-     * Whether runtime guard violations should stop application boot.
-     */
-    private function shouldEnforceRuntimeGuards(): bool
-    {
-        return (bool) config('app.enforce_runtime_guards', false);
-    }
-
-    /**
-     * Reject local, placeholder and tunnel hosts for production-like APP_URL.
-     */
-    private function hasCanonicalAppUrl(string $appUrl): bool
-    {
-        $host = parse_url($appUrl, PHP_URL_HOST);
-
-        if (! is_string($host) || $host === '') {
-            return false;
-        }
-
-        $host = strtolower($host);
-
-        if (in_array($host, ['localhost', '127.0.0.1', '::1'], true)) {
-            return false;
-        }
-
-        foreach (['.test', '.localhost', '.invalid', '.example', '.ngrok.io', '.ngrok-free.dev'] as $suffix) {
-            if (str_ends_with($host, $suffix)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * Require encrypted PostgreSQL transport outside local/testing environments.
-     */
-    private function usesSecureDatabaseTransport(): bool
-    {
-        $defaultConnection = (string) config('database.default');
-        $connection = config("database.connections.{$defaultConnection}", []);
-        $driver = strtolower((string) ($connection['driver'] ?? ''));
-
-        if ($driver !== 'pgsql') {
-            return true;
-        }
-
-        $sslMode = strtolower((string) ($connection['sslmode'] ?? ''));
-
-        return in_array($sslMode, ['require', 'verify-ca', 'verify-full'], true);
     }
 }

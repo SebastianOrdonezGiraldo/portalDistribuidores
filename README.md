@@ -71,7 +71,7 @@ app/
 │   ├── Documents/    # Fichas técnicas y control de descargas
 │   ├── Orders/       # Carrito, checkout, pedidos, PDF, correos
 │   └── Shared/       # Contratos, enums, excepciones, value objects
-└── Providers/        # AppServiceProvider, EventServiceProvider
+└── Providers/        # App (bindings, policies, gates), Security, RateLimit, View, Event
 ```
 
 **Patrones aplicados:**
