@@ -34,17 +34,23 @@ View contract:
         @if ($state === 'token_expired')
             <div class="space-y-3">
                 <p class="text-sm leading-relaxed text-slate-700">
-                    El enlace expiró. Genera uno nuevo desde el detalle del pedido (en el equipo donde iniciaste el checkout) o inicia sesión.
+                    El enlace expiró. Genera uno nuevo desde el detalle del pedido en el equipo donde iniciaste el checkout, o inicia sesión si ya tienes cuenta.
                 </p>
                 @if ($canRegenerate)
                     <form method="POST" action="{{ route('orders.payment-receipt.regenerate', $order) }}">
                         @csrf
                         <button type="submit" class="btn btn-primary w-full justify-center !min-h-11">Generar nuevo enlace</button>
                     </form>
+                    <a href="{{ route('orders.show', $order) }}" class="btn btn-secondary w-full justify-center !min-h-11">
+                        Ir al detalle del pedido
+                    </a>
+                @else
+                    <p class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+                        Desde este celular no puedes regenerar el enlace. Vuelve al equipo del checkout o
+                        <a href="{{ route('login') }}" class="font-semibold underline">inicia sesión</a>
+                        para continuar.
+                    </p>
                 @endif
-                <a href="{{ route('orders.show', $order) }}" class="btn btn-secondary w-full justify-center !min-h-11">
-                    Ir al detalle del pedido
-                </a>
             </div>
         @elseif ($state === 'token_consumed_or_closed')
             <div class="space-y-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">

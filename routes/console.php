@@ -60,7 +60,7 @@ Artisan::command('mail:diagnose {--to=}', function () {
     $this->line('Intentando envío de prueba a: '.$target);
 
     try {
-        Mail::raw('Diagnóstico SMTP desde Railway', function ($message) use ($target): void {
+        Mail::raw('Diagnóstico SMTP desde el portal', function ($message) use ($target): void {
             $message->to($target)->subject('Diagnóstico SMTP');
         });
     } catch (Throwable $exception) {

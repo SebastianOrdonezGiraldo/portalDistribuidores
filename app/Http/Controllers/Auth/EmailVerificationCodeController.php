@@ -9,8 +9,10 @@ use App\Modules\AuthAccess\Mail\EmailVerificationCodeMail;
 use App\Modules\AuthAccess\Models\Distributor;
 use App\Modules\Shared\Enums\DistributorStatus;
 use App\Modules\Shared\Enums\UserRole;
+use App\Modules\Shared\Support\EmailMasker;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -63,6 +65,11 @@ class EmailVerificationCodeController extends Controller
                 'role' => UserRole::Distributor,
                 'distributor_id' => $distributor->id,
                 'is_active' => true,
+                'privacy_accepted_at' => isset($pending['privacy_accepted_at'])
+                    ? Carbon::parse($pending['privacy_accepted_at'])
+                    : now(),
+                'privacy_policy_version' => $pending['privacy_policy_version']
+                    ?? config('legal.privacy_policy_version'),
             ]);
             $user->email_verified_at = now();
             $user->save();
@@ -94,7 +101,7 @@ class EmailVerificationCodeController extends Controller
             Mail::to($pending['email'])->send(new EmailVerificationCodeMail($pending['name'], $code));
         } catch (\Throwable $exception) {
             Log::error('email_verification_code.resend.failed', [
-                'email' => $pending['email'],
+                'email' => EmailMasker::mask($pending['email']),
                 'mailer' => config('mail.default'),
                 'error' => $exception->getMessage(),
             ]);

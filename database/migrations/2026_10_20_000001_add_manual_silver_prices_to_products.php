@@ -23,19 +23,15 @@ return new class extends Migration
 
         [$markupBasisPoints, $roundingMultiple] = $this->currentLegacyPricingRule();
 
-        DB::table('products')->orderBy('id')->eachById(function (object $product) use ($markupBasisPoints, $roundingMultiple): void {
-            DB::table('products')
-                ->where('id', $product->id)
-                ->update(['silver_price' => $this->silverPrice($product->price, $markupBasisPoints, $roundingMultiple)]);
-        });
-
-        DB::table('product_variants')->orderBy('id')->eachById(function (object $variant) use ($markupBasisPoints, $roundingMultiple): void {
+        // Only backfill missing values so manually set Silver prices survive a re-run.
+        DB::table('product_variants')->whereNull('silver_price')->orderBy('id')->eachById(function (object $variant) use ($markupBasisPoints, $roundingMultiple): void {
             DB::table('product_variants')
                 ->where('id', $variant->id)
                 ->update(['silver_price' => $this->silverPrice($variant->price, $markupBasisPoints, $roundingMultiple)]);
         });
 
         DB::table('products')
+            ->whereNull('silver_price')
             ->whereExists(function ($query): void {
                 $query->select(DB::raw('1'))
                     ->from('product_variants')
@@ -53,17 +49,27 @@ return new class extends Migration
                     ->where('id', $product->id)
                     ->update(['silver_price' => $minimum]);
             });
+
+        DB::table('products')->whereNull('silver_price')->orderBy('id')->eachById(function (object $product) use ($markupBasisPoints, $roundingMultiple): void {
+            DB::table('products')
+                ->where('id', $product->id)
+                ->update(['silver_price' => $this->silverPrice($product->price, $markupBasisPoints, $roundingMultiple)]);
+        });
     }
 
     public function down(): void
     {
-        Schema::table('product_variants', function (Blueprint $table): void {
-            $table->dropColumn('silver_price');
-        });
+        if (Schema::hasColumn('product_variants', 'silver_price')) {
+            Schema::table('product_variants', function (Blueprint $table): void {
+                $table->dropColumn('silver_price');
+            });
+        }
 
-        Schema::table('products', function (Blueprint $table): void {
-            $table->dropColumn('silver_price');
-        });
+        if (Schema::hasColumn('products', 'silver_price')) {
+            Schema::table('products', function (Blueprint $table): void {
+                $table->dropColumn('silver_price');
+            });
+        }
     }
 
     /** @return array{0:int,1:int} */

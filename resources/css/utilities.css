@@ -1,0 +1,29 @@
+/* Reusable @utility classes (focus ring, buttons). */
+
+@utility focus-ring {
+    @apply focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white;
+}
+
+@utility btn {
+    @apply focus-ring inline-flex min-h-[2.5rem] items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold tracking-tight transition duration-200 disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+@utility btn-primary {
+    @apply btn border-brand-primary bg-brand-primary text-white shadow-soft hover:bg-brand-hover;
+}
+
+@utility btn-secondary {
+    @apply btn border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50;
+}
+
+@utility btn-ghost {
+    @apply btn border-transparent bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900;
+}
+
+@utility btn-danger {
+    @apply btn border-red-200 bg-red-600 text-white hover:bg-red-700;
+}
+
+@utility btn-success {
+    @apply btn border-emerald-600 bg-emerald-600 text-white shadow-soft hover:bg-emerald-700;
+}
