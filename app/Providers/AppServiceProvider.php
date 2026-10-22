@@ -86,12 +86,5 @@ class AppServiceProvider extends ServiceProvider
 
             return $user->canManageBranches();
         });
-        Gate::define('approveOrders', function (User $user) {
-            if ($user->isAdmin()) {
-                return true;
-            }
-
-            return $user->canApproveOrders();
-        });
     }
 }

@@ -140,29 +140,8 @@
         animation: cart-card-highlight 520ms ease-out;
     }
 
-    .cart-submit-feedback {
-        transform: scale(0.98);
-        opacity: 0.92;
-        transition: transform 120ms ease, opacity 120ms ease;
-    }
-
-    .inline-toast-enter {
-        animation: inline-toast-enter 180ms ease-out;
-    }
-
     .inline-toast-leave {
         animation: inline-toast-leave 200ms ease-in forwards;
-    }
-
-    @keyframes inline-toast-enter {
-        from {
-            opacity: 0;
-            transform: translateY(-8px) scale(0.98);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-        }
     }
 
     @keyframes inline-toast-leave {

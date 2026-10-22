@@ -554,16 +554,4 @@
             animation: none;
         }
     }
-
-    .stat-chip-label {
-        @apply text-xs font-semibold uppercase tracking-wide text-slate-500;
-    }
-
-    .stat-chip-hint {
-        @apply mt-1 text-xs text-slate-500;
-    }
-
-    .stat-chip-value {
-        @apply text-xl font-semibold text-slate-900;
-    }
 }
