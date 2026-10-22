@@ -6,53 +6,26 @@ use App\Modules\Catalog\Models\Product;
 use App\Modules\Inventory\Models\StockMovement;
 use App\Modules\Shared\Contracts\InventorySyncInterface;
 use App\Modules\Shared\ValueObjects\InventoryItemData;
-use Illuminate\Http\Client\Response;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use RuntimeException;
 
 /**
- * ContaPyme DataSnap adapter for stock-only synchronization.
+ * ContaPyme adapter for stock-only synchronization.
  *
  * The portal owns prices and catalog data. ContaPyme only feeds the local stock
  * field so cart and quotation validation can stay fast and isolated from the
- * external API.
+ * external API. HTTP and authentication live in ContaPymeClient.
  */
 class ContaPymeInventoryService implements InventorySyncInterface
 {
-    private const CACHE_TOKEN_TTL = 3600;
-
-    private string $baseUrl = '';
-
-    private string $email = '';
-
-    private string $password = '';
-
-    private string $passwordHash = '';
-
-    private string $idmaquina = '';
-
-    private string $iapp = '1003';
-
-    private int $timeout = 10;
+    private ?ContaPymeClient $client = null;
 
     private ?string $lastError = null;
 
-    /** @var array<string, string> */
-    private array $lastAuthMetadata = [];
-
-    public function __construct()
+    public function __construct(?ContaPymeClient $client = null)
     {
-        $this->baseUrl = rtrim((string) config('contapyme.base_url', ''), '/');
-        $this->email = (string) config('contapyme.email', '');
-        $this->password = (string) config('contapyme.password', '');
-        $this->passwordHash = strtolower((string) config('contapyme.password_hash', ''));
-        $this->idmaquina = (string) config('contapyme.idmaquina', '');
-        $this->iapp = (string) config('contapyme.iapp', '1003');
-        $this->timeout = (int) config('contapyme.timeout', 10);
+        $this->client = $client;
     }
 
     /**
@@ -63,7 +36,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
         $this->lastError = null;
 
         try {
-            $authenticated = $this->authenticate(forceRefresh: true) !== '';
+            $authenticated = $this->authenticate() !== '';
 
             if (! $authenticated) {
                 $this->lastError ??= $this->diagnosticError(null, 'ContaPyme no devolvio keyagente.');
@@ -75,7 +48,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
 
             Log::error('contapyme.test_connection_failed', [
                 'error' => $this->lastError,
-                'base_url_configured' => $this->baseUrl !== '',
+                'base_url_configured' => $this->client()->hasBaseUrl(),
             ]);
 
             return false;
@@ -95,22 +68,21 @@ class ContaPymeInventoryService implements InventorySyncInterface
     public function diagnose(): array
     {
         $this->lastError = null;
-        $this->lastAuthMetadata = [];
 
         try {
-            $authenticated = $this->authenticate(forceRefresh: true) !== '';
+            $authenticated = $this->authenticate() !== '';
         } catch (\Throwable $e) {
             $this->lastError = $this->diagnosticError($e->getMessage());
 
             Log::error('contapyme.diagnose_failed', [
                 'error' => $this->lastError,
-                'auth_metadata' => $this->lastAuthMetadata,
+                'auth_metadata' => $this->client()->authMetadata(),
             ]);
 
             return [
                 'authenticated' => false,
                 'agent_status' => null,
-                'auth_metadata' => $this->lastAuthMetadata,
+                'auth_metadata' => $this->client()->authMetadata(),
                 'error' => $this->lastError,
             ];
         }
@@ -119,13 +91,13 @@ class ContaPymeInventoryService implements InventorySyncInterface
             return [
                 'authenticated' => false,
                 'agent_status' => null,
-                'auth_metadata' => $this->lastAuthMetadata,
+                'auth_metadata' => $this->client()->authMetadata(),
                 'error' => $this->lastError ?? $this->diagnosticError(null, 'ContaPyme no devolvio keyagente.'),
             ];
         }
 
         try {
-            $testResponse = $this->callWithRetry(
+            $testResponse = $this->call(
                 serverClass: 'TBasicoGeneral',
                 function: 'Test',
                 dataJson: [],
@@ -138,13 +110,13 @@ class ContaPymeInventoryService implements InventorySyncInterface
 
             Log::info('contapyme.diagnose_completed', [
                 'agent_status' => $agentStatus,
-                'auth_metadata' => $this->lastAuthMetadata,
+                'auth_metadata' => $this->client()->authMetadata(),
             ]);
 
             return [
                 'authenticated' => true,
                 'agent_status' => $agentStatus,
-                'auth_metadata' => $this->lastAuthMetadata,
+                'auth_metadata' => $this->client()->authMetadata(),
                 'error' => $this->lastError,
             ];
         } catch (\Throwable $e) {
@@ -152,13 +124,13 @@ class ContaPymeInventoryService implements InventorySyncInterface
 
             Log::error('contapyme.diagnose_agent_failed', [
                 'error' => $this->lastError,
-                'auth_metadata' => $this->lastAuthMetadata,
+                'auth_metadata' => $this->client()->authMetadata(),
             ]);
 
             return [
                 'authenticated' => true,
                 'agent_status' => null,
-                'auth_metadata' => $this->lastAuthMetadata,
+                'auth_metadata' => $this->client()->authMetadata(),
                 'error' => $this->lastError,
             ];
         }
@@ -166,9 +138,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
 
     public function diagnosticError(?string $message, string $fallback = 'ContaPyme no devolvio una causa especifica.'): string
     {
-        $message = trim((string) $message);
-
-        return $this->sanitizeErrorMessage($message !== '' ? $message : $fallback);
+        return $this->client()->diagnosticError($message, $fallback);
     }
 
     /**
@@ -186,7 +156,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
         }
 
         try {
-            $data = $this->callWithRetry(
+            $data = $this->call(
                 serverClass: 'TCatElemInv',
                 function: 'GetExisteElemInv',
                 dataJson: ['irecurso' => $sku],
@@ -241,7 +211,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
         }
 
         try {
-            $data = $this->callWithRetry(
+            $data = $this->call(
                 serverClass: 'TCatElemInv',
                 function: 'GetSaldosProductosEnBodegas',
                 dataJson: [
@@ -293,7 +263,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
         $this->lastError = null;
 
         try {
-            $data = $this->callWithRetry(
+            $data = $this->call(
                 serverClass: 'TCatElemInv',
                 function: 'GetSaldosProductosEnBodegas',
                 dataJson: [
@@ -506,190 +476,35 @@ class ContaPymeInventoryService implements InventorySyncInterface
     }
 
     /**
-     * Authenticate against ContaPyme and cache keyagente for subsequent calls.
+     * Resolved lazily so test doubles that skip the parent constructor still work.
      */
-    private function authenticate(bool $forceRefresh = false): string
+    private function client(): ContaPymeClient
     {
-        if ($forceRefresh) {
-            Cache::forget($this->cacheTokenKey());
+        return $this->client ??= app(ContaPymeClient::class);
+    }
+
+    /**
+     * Force a fresh keyagente, keeping the client's failure reason as ours.
+     */
+    private function authenticate(): string
+    {
+        try {
+            return $this->client()->authenticate(forceRefresh: true);
+        } finally {
+            $this->lastError = $this->client()->lastError();
         }
-
-        return Cache::remember($this->cacheTokenKey(), self::CACHE_TOKEN_TTL, function (): string {
-            $this->assertConfigured();
-
-            $data = $this->sendDataSnapRequest(
-                serverClass: 'TBasicoGeneral',
-                function: 'GetAuth',
-                dataJson: [
-                    'email' => $this->email,
-                    'password' => $this->resolvePasswordHash(),
-                    'idmaquina' => $this->idmaquina,
-                ],
-                controlKey: '',
-            );
-
-            $token = is_array($data) ? trim((string) ($data['keyagente'] ?? '')) : '';
-            $this->lastAuthMetadata = is_array($data)
-                ? collect($data)
-                    ->only(['version', 'release', 'update', 'actualizacion', 'actualización'])
-                    ->filter(fn (mixed $value): bool => is_scalar($value) && (string) $value !== '')
-                    ->map(fn (mixed $value): string => (string) $value)
-                    ->all()
-                : [];
-
-            if ($token === '') {
-                $this->lastError ??= $this->diagnosticError(null, 'ContaPyme no devolvio keyagente.');
-
-                Log::error('contapyme.authenticate_token_empty');
-            }
-
-            return $token;
-        });
     }
 
     /**
      * @phpstan-impure
      */
-    private function callWithRetry(string $serverClass, string $function, array $dataJson, bool $withResponse = false): mixed
+    private function call(string $serverClass, string $function, array $dataJson): mixed
     {
-        $token = $this->authenticate();
-
-        if ($token === '') {
-            return null;
-        }
-
         try {
-            return $this->sendDataSnapRequest($serverClass, $function, $dataJson, $token, $withResponse);
-        } catch (RuntimeException $e) {
-            if (! str_contains($e->getMessage(), 'Usuario no logueado')) {
-                throw $e;
-            }
-
-            $token = $this->authenticate(forceRefresh: true);
-
-            if ($token === '') {
-                return null;
-            }
-
-            $this->lastError = null;
-
-            return $this->sendDataSnapRequest($serverClass, $function, $dataJson, $token, $withResponse);
+            return $this->client()->call($serverClass, $function, $dataJson);
+        } finally {
+            $this->lastError = $this->client()->lastError();
         }
-    }
-
-    /**
-     * Execute the official POST request and fall back to DataSnap GET URLs.
-     */
-    private function sendDataSnapRequest(
-        string $serverClass,
-        string $function,
-        array $dataJson,
-        string $controlKey,
-        bool $withResponse = false,
-    ): mixed {
-        $payload = [
-            '_parameters' => [
-                json_encode($dataJson, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
-                $controlKey,
-                $this->iapp,
-                (string) random_int(0, 999999),
-            ],
-        ];
-
-        $postResponse = Http::timeout($this->timeout)
-            ->post($this->functionUrl($serverClass, $function), $payload);
-
-        if ($postResponse->successful()) {
-            return $this->extractDataFromResponse($postResponse, $serverClass, $function, $withResponse);
-        }
-
-        $getResponse = Http::timeout($this->timeout)
-            ->get($this->functionUrl($serverClass, $function).'/'.$this->pathParameters($dataJson, $controlKey));
-
-        if (! $getResponse->successful()) {
-            $this->lastError = $this->diagnosticError(
-                "ContaPyme no respondio correctamente en {$serverClass}::{$function} "
-                ."(HTTP POST {$postResponse->status()}, GET {$getResponse->status()}).",
-            );
-
-            Log::error('contapyme.datasnap_http_error', [
-                'server_class' => $serverClass,
-                'function' => $function,
-                'post_status' => $postResponse->status(),
-                'get_status' => $getResponse->status(),
-                'error' => $this->lastError,
-            ]);
-
-            return null;
-        }
-
-        return $this->extractDataFromResponse($getResponse, $serverClass, $function, $withResponse);
-    }
-
-    private function extractDataFromResponse(
-        Response $response,
-        string $serverClass,
-        string $function,
-        bool $withResponse = false,
-    ): mixed {
-        $payload = $response->json();
-
-        if (! is_array($payload)) {
-            $this->lastError = $this->diagnosticError(
-                "ContaPyme devolvio una respuesta JSON invalida en {$serverClass}::{$function}.",
-            );
-
-            Log::error('contapyme.datasnap_invalid_json', [
-                'server_class' => $serverClass,
-                'function' => $function,
-                'error' => $this->lastError,
-            ]);
-
-            return null;
-        }
-
-        $envelope = $this->firstEnvelope($payload);
-        $header = is_array($envelope) ? (array) ($envelope['encabezado'] ?? []) : [];
-        $success = strtolower((string) ($header['resultado'] ?? 'false')) === 'true';
-
-        if (! $success) {
-            $message = $this->diagnosticError(
-                (string) ($header['mensaje'] ?? ''),
-                "ContaPyme devolvio una respuesta no exitosa en {$serverClass}::{$function}.",
-            );
-
-            $this->lastError = $message;
-
-            Log::warning('contapyme.datasnap_unsuccessful', [
-                'server_class' => $serverClass,
-                'function' => $function,
-                'message_code' => $header['imensaje'] ?? null,
-                'message' => $message,
-            ]);
-
-            throw new RuntimeException($this->lastError);
-        }
-
-        $responseData = data_get($envelope, 'respuesta', []);
-
-        return $withResponse
-            ? (is_array($responseData) ? $responseData : [])
-            : data_get($responseData, 'datos');
-    }
-
-    private function firstEnvelope(array $payload): ?array
-    {
-        $result = $payload['result'] ?? null;
-
-        if (is_array($result) && isset($result[0]) && is_array($result[0])) {
-            return $result[0];
-        }
-
-        if (is_array($result)) {
-            return $result;
-        }
-
-        return null;
     }
 
     /**
@@ -749,7 +564,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
     private function agentStatusFromResponse(mixed $response): ?string
     {
         if (is_string($response) && trim($response) !== '') {
-            return $this->sanitizeErrorMessage(trim($response));
+            return $this->client()->redact(trim($response));
         }
 
         if (! is_array($response)) {
@@ -760,7 +575,7 @@ class ContaPymeInventoryService implements InventorySyncInterface
             $value = data_get($response, $key);
 
             if (is_scalar($value) && trim((string) $value) !== '') {
-                return $this->sanitizeErrorMessage((string) $value);
+                return $this->client()->redact((string) $value);
             }
         }
 
@@ -777,59 +592,5 @@ class ContaPymeInventoryService implements InventorySyncInterface
             'changed' => false,
             'stock' => is_numeric($product->stock) ? (float) $product->stock : null,
         ];
-    }
-
-    private function functionUrl(string $serverClass, string $function): string
-    {
-        return "{$this->baseUrl}/datasnap/rest/{$serverClass}/{$function}";
-    }
-
-    private function pathParameters(array $dataJson, string $controlKey): string
-    {
-        return rawurlencode(json_encode($dataJson, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE))
-            .'/'.rawurlencode($controlKey)
-            .'/'.rawurlencode($this->iapp);
-    }
-
-    private function resolvePasswordHash(): string
-    {
-        if ($this->passwordHash !== '') {
-            return $this->passwordHash;
-        }
-
-        return md5(strtoupper($this->password));
-    }
-
-    private function sanitizeErrorMessage(string $message): string
-    {
-        $sensitiveValues = array_filter([
-            $this->email,
-            $this->password,
-            $this->passwordHash,
-            $this->password !== '' ? md5(strtoupper($this->password)) : '',
-        ]);
-
-        foreach ($sensitiveValues as $value) {
-            $message = str_replace($value, '[redacted]', $message);
-        }
-
-        return trim($message);
-    }
-
-    private function cacheTokenKey(): string
-    {
-        return 'contapyme_keyagente_'.hash('sha256', implode('|', [
-            $this->baseUrl,
-            $this->email,
-            $this->iapp,
-            $this->idmaquina,
-        ]));
-    }
-
-    private function assertConfigured(): void
-    {
-        if ($this->baseUrl === '' || $this->email === '' || ($this->password === '' && $this->passwordHash === '')) {
-            throw new RuntimeException('ContaPyme no esta configurado. Define CONTAPYME_URL, CONTAPYME_EMAIL y CONTAPYME_PASSWORD_MD5 o CONTAPYME_PASSWORD.');
-        }
     }
 }
