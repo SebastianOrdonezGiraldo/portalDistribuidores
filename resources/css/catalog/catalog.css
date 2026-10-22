@@ -109,7 +109,7 @@
     }
 
     .catalog-search-input {
-        @apply form-input !min-h-10 border-slate-300/90 bg-slate-50 py-2 pl-9 pr-4 text-sm font-medium;
+        @apply !min-h-10 border-slate-300/90 bg-slate-50 py-2 pl-9 pr-4 text-sm font-medium;
     }
 
     .catalog-header-category select {
@@ -129,7 +129,7 @@
     }
 
     .catalog-sort-select {
-        @apply form-select border-slate-300/90 py-2.5 font-medium;
+        @apply border-slate-300/90 py-2.5 font-medium;
     }
 
     .catalog-sort-select-mobile {
